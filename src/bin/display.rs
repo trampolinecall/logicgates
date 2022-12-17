@@ -1,94 +1,27 @@
 use piston::{self, RenderEvent, UpdateEvent};
 
 pub struct App {
-    gl: opengl_graphics::GlGraphics, // OpenGL drawing backend.
+    gl: opengl_graphics::GlGraphics,
     circuit: logicgates::circuit::Circuit,
     locations: Vec<[f64; 2]>,
+    inputs: std::iter::Cycle<std::vec::IntoIter<Vec<bool>>>,
+    current_input: Vec<bool>,
+    wait: f64,
 }
 
 impl App {
-    fn render(&mut self, args: &piston::RenderArgs) {
-        use graphics::*;
-
-        const VERTICAL_VALUE_SPACING: f64 = 20.0;
-        const CIRCLE_RAD: f64 = 5.0;
-        const CONNECTION_RAD: f64 = CIRCLE_RAD / 2.0;
-        const GATE_WIDTH: f64 = 50.0;
-
-        let gate_box = |gate_index: usize| {
-            let gate: &logicgates::circuit::Gate = &self.circuit.gates[gate_index];
-            let [gate_x, gate_y]: [f64; 2] = self.locations[gate_index];
-            let gate_height = (std::cmp::max(gate.num_inputs(), gate.num_outputs()) - 1 + 2) as f64 * VERTICAL_VALUE_SPACING;
-            [gate_x, gate_y, gate_height]
-        };
-
-        let centered_y = |center_y, num_args, i| {
-            let args_height: f64 = ((num_args - 1) as f64) * VERTICAL_VALUE_SPACING;
-            let args_start_y = center_y - (args_height / 2.0);
-            args_start_y + (i as f64) * VERTICAL_VALUE_SPACING
-        };
-        let circuit_input_pos = |index: usize| [0.0, centered_y(args.window_size[1] / 2.0, self.circuit.arity, index)];
-        let gate_input_pos = |gate_index: usize, input_index: usize| {
-            let gate: &logicgates::circuit::Gate = &self.circuit.gates[gate_index];
-            let [gate_x, gate_y, gate_height] = gate_box(gate_index);
-            [gate_x, centered_y(gate_y + gate_height / 2.0, gate.num_inputs(), input_index)]
-        };
-        let circuit_output_pos = |index| [args.window_size[0], centered_y(args.window_size[1] / 2.0, self.circuit.output.len(), index)];
-        let gate_output_pos = |gate_index: usize, output_index: usize| {
-            let gate: &logicgates::circuit::Gate = &self.circuit.gates[gate_index];
-            let [gate_x, gate_y, gate_height] = gate_box(gate_index);
-            [gate_x + GATE_WIDTH, centered_y(gate_y + gate_height / 2.0, gate.num_outputs(), output_index)]
-        };
-
-        const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
-        const GREY: [f32; 4] = [0.5, 0.5, 0.5, 1.0];
-        const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
-
-        self.gl.draw(args.viewport(), |c, gl| {
-            // Clear the screen.
-            clear(WHITE, gl);
-
-            for i in 0..self.circuit.arity {
-                let pos = circuit_input_pos(i);
-                ellipse(BLACK, ellipse::circle(pos[0], pos[1], CIRCLE_RAD), c.transform, gl);
-            }
-            for (output_i, output) in self.circuit.output.iter().enumerate() {
-                let output_pos = circuit_output_pos(output_i);
-                ellipse(BLACK, ellipse::circle(output_pos[0], output_pos[1], CIRCLE_RAD), c.transform, gl);
-
-                let connection_start_pos = match output {
-                    logicgates::circuit::Value::Arg(index) => circuit_input_pos(*index),
-                    logicgates::circuit::Value::GateValue(gate_index, arg_index) => gate_output_pos(*gate_index, *arg_index),
-                };
-
-                line_from_to(BLACK, CONNECTION_RAD, connection_start_pos, output_pos, c.transform, gl);
-            }
-
-            for (gate_i, gate) in self.circuit.gates.iter().enumerate() {
-                let [gate_x, gate_y, gate_height] = gate_box(gate_i);
-
-                rectangle(GREY, [gate_x, gate_y, GATE_WIDTH, gate_height], c.transform, gl);
-
-                for (input_i, input) in gate.inputs().into_iter().enumerate() {
-                    let input_pos@[x, y] = gate_input_pos(gate_i, input_i);
-                    ellipse(BLACK, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
-
-                    let connection_start_pos = match input {
-                        logicgates::circuit::Value::Arg(index) => circuit_input_pos(index),
-                        logicgates::circuit::Value::GateValue(gate_index, arg_index) => gate_output_pos(gate_index, arg_index),
-                    };
-
-                    line_from_to(BLACK, CONNECTION_RAD, connection_start_pos, input_pos, c.transform, gl);
-                }
-                for i in 0..gate.num_outputs() {
-                    let [x, y] = gate_output_pos(gate_i, i);
-                    ellipse(BLACK, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
-                }
-            }
-        });
+    fn render(&mut self, render_args: &piston::RenderArgs) {
+        let evaled = logicgates::eval::eval_with_results(&self.circuit, &self.current_input);
+        logicgates::display::render(&mut self.gl, render_args, &self.circuit, &self.locations, &self.current_input, &evaled)
     }
 
-    fn update(&mut self, _: &piston::UpdateArgs) {}
+    fn update(&mut self, update_args: &piston::UpdateArgs) {
+        if self.wait > 1.0 {
+            self.wait = 0.0;
+            self.current_input = self.inputs.next().unwrap();
+        }
+        self.wait += update_args.dt;
+    }
 }
 
 fn main() {
@@ -104,6 +37,9 @@ fn main() {
             output: vec![logicgates::circuit::Value::GateValue(0, 0)],
         },
         locations: vec![[60.0, 60.0]],
+        inputs: logicgates::eval::enumerate_inputs(2).into_iter().cycle(),
+        current_input: vec![false, false],
+        wait: 0.0,
     };
 
     let mut events = piston::Events::new(piston::EventSettings::new());
