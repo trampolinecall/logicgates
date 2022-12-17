@@ -1,15 +1,9 @@
-use crate::circuit;
+use crate::{circuit, eval};
 
 // TODO: refactor everything
-pub fn render(
-    graphics: &mut opengl_graphics::GlGraphics,
-    args: &piston::RenderArgs,
-    circuit: &circuit::Circuit,
-    locations: &[[f64; 2]],
-    inputs: &[bool],
-    evaluated_values: &(Vec<bool>, Vec<Vec<bool>>),
-) {
+pub fn render(graphics: &mut opengl_graphics::GlGraphics, args: &piston::RenderArgs, circuit: &circuit::Circuit, locations: &[[f64; 2]], inputs: &[bool]) {
     use graphics::*;
+    let (_, evaluated_values) = eval::eval_with_results(circuit, inputs);
 
     const VERTICAL_VALUE_SPACING: f64 = 20.0;
     const CIRCLE_RAD: f64 = 5.0;
@@ -54,7 +48,7 @@ pub fn render(
     let on_off_color = |value| if value { ON_COLOR } else { OFF_COLOR };
     let get_value = |value| match value {
         circuit::Value::Arg(arg_index) => inputs[arg_index],
-        circuit::Value::GateValue(gate_index, output_index) => evaluated_values.1[gate_index][output_index],
+        circuit::Value::GateValue(gate_index, output_index) => evaluated_values[gate_index][output_index],
     };
 
     graphics.draw(args.viewport(), |c, gl| {
@@ -94,7 +88,7 @@ pub fn render(
             }
             // draw gate output dots
             for output_i in 0..gate.num_outputs() {
-                let color = on_off_color(evaluated_values.1[gate_i][output_i]);
+                let color = on_off_color(evaluated_values[gate_i][output_i]);
                 let [x, y] = gate_output_pos(gate_i, output_i);
                 ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
             }
