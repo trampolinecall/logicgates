@@ -12,7 +12,7 @@ pub fn table(circuit: &circuit::Circuit) -> HashMap<Vec<bool>, Vec<bool>> {
         .collect()
 }
 
-fn enumerate_inputs(arity: usize) -> Vec<Vec<bool>> {
+pub fn enumerate_inputs(arity: usize) -> Vec<Vec<bool>> {
     let mut inputs = vec![vec![false], vec![true]];
     for _ in 0..(arity - 1) {
         let mut inputs_false = inputs.clone();
@@ -28,6 +28,10 @@ fn enumerate_inputs(arity: usize) -> Vec<Vec<bool>> {
 }
 
 pub fn eval(circuit: &circuit::Circuit, args: &[bool]) -> Vec<bool> {
+    eval_with_results(circuit, args).0
+}
+
+pub fn eval_with_results(circuit: &circuit::Circuit, args: &[bool]) -> (Vec<bool>, Vec<Vec<bool>>) {
     assert_eq!(args.len(), circuit.arity);
 
     let mut registers = Vec::new();
@@ -44,7 +48,7 @@ pub fn eval(circuit: &circuit::Circuit, args: &[bool]) -> Vec<bool> {
         });
     }
 
-    circuit.output.iter().map(|value| get_value(value, &args, &registers)).collect()
+    (circuit.output.iter().map(|value| get_value(value, &args, &registers)).collect(), registers)
 }
 
 fn get_value(v: &circuit::Value, args: &[bool], gate_values: &[Vec<bool>]) -> bool {

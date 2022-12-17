@@ -27,6 +27,12 @@ impl Gate {
             Gate::And(_, _) => 1,
         }
     }
+
+    pub fn name(&self) -> &str {
+        match self {
+            Gate::And(_, _) => "and",
+        }
+    }
 }
 
 #[derive(Copy, Clone)]
