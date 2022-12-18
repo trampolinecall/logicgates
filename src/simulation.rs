@@ -29,37 +29,38 @@ impl Simulation {
         s
     }
 
-    fn circuit_input_pos(&self, index: usize, window_size: [f64; 2]) -> [f64; 2] {
-        [0.0, centered_y(window_size[1] / 2.0, self.circuit.num_inputs, index)]
-    }
-    fn circuit_output_pos(&self, index: usize, window_size: [f64; 2]) -> [f64; 2] {
-        [window_size[0], centered_y(window_size[1] / 2.0, self.circuit.outputs.len(), index)]
-    }
-
-    fn gate_box(&self, gate_index: usize) -> [f64; 4] {
-        let gate: &circuit::Gate = &self.circuit.gates[gate_index];
-        let [gate_x, gate_y]: [f64; 2] = self.locations[gate_index]; // x is left but y in the locations represents center
-        let gate_height = (std::cmp::max(gate.num_inputs(), gate.num_outputs()) - 1 + 2) as f64 * VERTICAL_VALUE_SPACING;
-        [gate_x, gate_y - gate_height / 2.0, GATE_WIDTH, gate_height]
-    }
-    fn gate_input_pos(&self, gate_index: usize, input_index: usize) -> [f64; 2] {
-        let gate: &circuit::Gate = &self.circuit.gates[gate_index];
-        let [gate_x, gate_y, _, gate_height] = self.gate_box(gate_index);
-        [gate_x, centered_y(gate_y + gate_height / 2.0, gate.num_inputs(), input_index)]
-    }
-    fn gate_output_pos(&self, gate_index: usize, output_index: usize) -> [f64; 2] {
-        let gate: &circuit::Gate = &self.circuit.gates[gate_index];
-        let [gate_x, gate_y, _, gate_height] = self.gate_box(gate_index);
-        [gate_x + GATE_WIDTH, centered_y(gate_y + gate_height / 2.0, gate.num_outputs(), output_index)]
-    }
-
     pub fn render(&self, graphics: &mut opengl_graphics::GlGraphics, args: &piston::RenderArgs, inputs: &[bool]) {
         use graphics::*;
         let (_, evaluated_values) = self.circuit.eval_with_results(inputs);
 
+        let circuit_input_pos= |index: usize| -> [f64; 2] {
+            [0.0, centered_y(args.window_size[1] / 2.0, self.circuit.num_inputs, index)]
+        };
+        let circuit_output_pos= |index: usize| -> [f64; 2] {
+            [args.window_size[0], centered_y(args.window_size[1] / 2.0, self.circuit.outputs.len(), index)]
+        };
+
+        let gate_box= |gate_index: usize| -> [f64; 4] {
+            let gate: &circuit::Gate = &self.circuit.gates[gate_index];
+            let [gate_x, gate_y]: [f64; 2] = self.locations[gate_index];
+            let gate_height = (std::cmp::max(gate.num_inputs(), gate.num_outputs()) - 1 + 2) as f64 * VERTICAL_VALUE_SPACING;
+            // x in the locations is the left but y in the locations is the center
+            [gate_x, gate_y - gate_height / 2.0 + args.window_size[1] / 2.0, GATE_WIDTH, gate_height]
+        };
+        let gate_input_pos= |gate_index: usize, input_index: usize| -> [f64; 2] {
+            let gate: &circuit::Gate = &self.circuit.gates[gate_index];
+            let [gate_x, gate_y, _, gate_height] = gate_box(gate_index);
+            [gate_x, centered_y(gate_y + gate_height / 2.0, gate.num_inputs(), input_index)]
+        };
+        let gate_output_pos= |gate_index: usize, output_index: usize| -> [f64; 2] {
+            let gate: &circuit::Gate = &self.circuit.gates[gate_index];
+            let [gate_x, gate_y, _, gate_height] = gate_box(gate_index);
+            [gate_x + GATE_WIDTH, centered_y(gate_y + gate_height / 2.0, gate.num_outputs(), output_index)]
+        };
+
         let value_pos = |value: circuit::Value| match value {
-            circuit::Value::Arg(index) => self.circuit_input_pos(index, args.window_size),
-            circuit::Value::GateValue(gate_index, arg_index) => self.gate_output_pos(gate_index, arg_index),
+            circuit::Value::Arg(index) => circuit_input_pos(index),
+            circuit::Value::GateValue(gate_index, arg_index) => gate_output_pos(gate_index, arg_index),
         };
         let on_off_color = |value| if value { ON_COLOR } else { OFF_COLOR };
         let get_value = |value| match value {
@@ -72,11 +73,11 @@ impl Simulation {
 
             // draw circuit inputs and outputs
             for (i, input_value) in (0..self.circuit.num_inputs).zip(inputs.iter()) {
-                let pos = self.circuit_input_pos(i, args.window_size);
+                let pos = circuit_input_pos(i);
                 ellipse(on_off_color(*input_value), ellipse::circle(pos[0], pos[1], CIRCLE_RAD), c.transform, gl);
             }
             for (output_i, output) in self.circuit.outputs.iter().enumerate() {
-                let output_pos = self.circuit_output_pos(output_i, args.window_size);
+                let output_pos = circuit_output_pos(output_i);
                 let color = on_off_color(get_value(*output));
                 ellipse(color, ellipse::circle(output_pos[0], output_pos[1], CIRCLE_RAD), c.transform, gl);
 
@@ -87,7 +88,7 @@ impl Simulation {
 
             // draw each gate
             for (gate_i, gate) in self.circuit.gates.iter().enumerate() {
-                let [gate_x, gate_y, gate_width, gate_height] = self.gate_box(gate_i);
+                let [gate_x, gate_y, gate_width, gate_height] = gate_box(gate_i);
 
                 rectangle(GATE_COLOR, [gate_x, gate_y, gate_width, gate_height], c.transform, gl);
                 // TODO: draw gate name
@@ -96,7 +97,7 @@ impl Simulation {
                 // draw gate input dots and connections to their values
                 for (input_i, input) in gate.inputs().into_iter().enumerate() {
                     let color = on_off_color(get_value(input));
-                    let input_pos @ [x, y] = self.gate_input_pos(gate_i, input_i);
+                    let input_pos @ [x, y] = gate_input_pos(gate_i, input_i);
                     ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
 
                     let connection_start_pos = value_pos(input);
@@ -105,7 +106,7 @@ impl Simulation {
                 // draw gate output dots
                 for output_i in 0..gate.num_outputs() {
                     let color = on_off_color(evaluated_values[gate_i][output_i]);
-                    let [x, y] = self.gate_output_pos(gate_i, output_i);
+                    let [x, y] = gate_output_pos(gate_i, output_i);
                     ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
                 }
             }
@@ -200,9 +201,8 @@ impl Simulation {
             on_col.sort_by_cached_key(|(_, gate)| gate.inputs().iter().map(input_y).sum::<i32>());
 
             const SPACING: f64 = 100.0;
-            const CENTER_Y: f64 = 360.0;
             let all_height = SPACING * (on_col.len() - 1) as f64;
-            let start_y = CENTER_Y - all_height / 2.0;
+            let start_y = -all_height / 2.0;
             for (i, (gate_i, _)) in on_col.iter().enumerate() {
                 ys[*gate_i] = start_y + i as f64 * SPACING;
             }
