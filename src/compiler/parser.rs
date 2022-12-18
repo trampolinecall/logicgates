@@ -108,9 +108,11 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
                 let i = i.as_identifier().unwrap();
 
                 if matches!(self.peek(), Token::OBrack) {
+                    self.next();
                     let mut args = Vec::new();
+
                     args.push(self.parse_expr()?);
-                    while !matches!(self.peek(), Token::Comma) {
+                    while matches!(self.peek(), Token::Comma) {
                         self.next();
                         args.push(self.parse_expr()?);
                     }
@@ -130,4 +132,9 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
 
 pub(crate) fn parse<'file>(tokens: impl Iterator<Item = Token<'file>>) -> Option<Vec<ast::Gate<'file>>> {
     Parser { tokens: tokens.peekable() }.parse()
+}
+
+#[cfg(test)]
+mod test {
+    // TODO
 }
