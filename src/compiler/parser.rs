@@ -48,7 +48,7 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
                 Ok(gate) => gates.push(gate),
                 Err(e) => {
                     self.next();
-                    e.report()
+                    e.report();
                 }
             }
         }
@@ -72,17 +72,6 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
         Ok(ast::Gate { name, arguments, lets, ret })
     }
 
-    fn parse_pattern(&mut self) -> Result<ast::Pattern<'file>, ParseError> {
-        // for now, only identifier patterns
-        if matches!(self.peek(), Token::LocalIdentifier(_)) {
-            let iden = self.next();
-            let iden = *iden.as_local_identifier().unwrap();
-            Ok(ast::Pattern::Iden(iden, 1))
-        } else {
-            Err(self.expected("pattern"))
-        }
-    }
-
     fn parse_let(&mut self) -> Result<ast::Let<'file>, ParseError> {
         self.expect("'let'", |tok| matches!(tok, Token::Let))?;
         let pat = self.parse_pattern()?;
@@ -92,40 +81,60 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
         Ok(ast::Let { pat, val })
     }
 
-    fn parse_expr(&mut self) -> Result<ast::Expr<'file>, ParseError> {
+    fn parse_pattern(&mut self) -> Result<Vec<ast::Pattern<'file>>, ParseError> {
+        // for now, only identifier patterns
+        if matches!(self.peek(), Token::LocalIdentifier(_)) {
+            let iden = self.next();
+            let iden = *iden.as_local_identifier().unwrap();
+            Ok(vec![ast::Pattern(iden, 1)])
+        } else {
+            Err(self.expected("pattern"))
+        }
+    }
+
+    fn parse_expr(&mut self) -> Result<Vec<ast::Expr<'file>>, ParseError> {
         match self.peek() {
             Token::Number(_) => {
                 let n = self.next();
                 let n = n.as_number().unwrap();
 
                 match n {
-                    0 => Ok(ast::Expr::Const(false)),
-                    1 => Ok(ast::Expr::Const(true)),
+                    0 => Ok(vec![ast::Expr::Const(false)]),
+                    1 => Ok(vec![ast::Expr::Const(true)]),
                     _ => Err(self.expected("'0' or '1'")),
                 }
             }
             Token::GateIdentifier(_) => {
                 let i = self.next();
                 let i = i.as_gate_identifier().unwrap();
-                self.expect("'['", |tok| matches!(tok, Token::OBrack))?;
-                let mut args = Vec::new();
+                let args = self.parse_expr()?;
 
-                args.push(self.parse_expr()?);
-                while matches!(self.peek(), Token::Comma) {
-                    self.next();
-                    args.push(self.parse_expr()?);
-                }
-
-                self.expect("']'", |tok| matches!(tok, Token::CBrack))?;
-
-                Ok(ast::Expr::Call(i, args))
+                Ok(vec![ast::Expr::Call(i, args)])
             }
 
             Token::LocalIdentifier(_) => {
                 let i = self.next();
                 let i = i.as_local_identifier().unwrap();
 
-                Ok(ast::Expr::Ref(i, vec![0]))
+                Ok(vec![ast::Expr::Ref(i, vec![0])])
+            }
+
+            Token::OBrack => {
+                self.next();
+
+                let mut items = Vec::new();
+
+                if !matches!(self.peek(), Token::CBrack) {
+                    items.extend(self.parse_expr()?);
+                    while matches!(self.peek(), Token::Comma) {
+                        self.next();
+                        items.extend(self.parse_expr()?);
+                    }
+                }
+
+                self.expect("']'", |tok| matches!(tok, Token::CBrack))?;
+
+                Ok(items)
             }
 
             _ => Err(self.expected("expression")),
@@ -154,7 +163,7 @@ mod test {
     fn gate() {
         /*
         `thingy arg:
-            let res = `and[arg, arg]
+            let res = `and [arg, arg]
             res
         */
         let tokens = vec![
@@ -177,46 +186,52 @@ mod test {
             parse(make_token_stream(tokens)),
             Some(vec![ast::Gate {
                 name: "thingy",
-                arguments: ast::Pattern::Iden("arg", 1),
-                lets: vec![ast::Let { pat: ast::Pattern::Iden("res", 1), val: ast::Expr::Call("and", vec![ast::Expr::Ref("arg", vec![0]), ast::Expr::Ref("arg", vec![0])]) }],
-                ret: ast::Expr::Ref("res", vec![0])
+                arguments: vec![ast::Pattern("arg", 1)],
+                lets: vec![ast::Let { pat: vec![ast::Pattern("res", 1)], val: vec![ast::Expr::Call("and", vec![ast::Expr::Ref("arg", vec![0]), ast::Expr::Ref("arg", vec![0])])] }],
+                ret: vec![ast::Expr::Ref("res", vec![0])]
             }])
         )
     }
 
     #[test]
-    fn iden_pattern() {
-        let tokens = vec![Token::LocalIdentifier("iden")];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_pattern(), Ok(ast::Pattern::Iden("iden", 1)))
+    fn r#let() {
+        let tokens = vec![Token::Let, Token::LocalIdentifier("a"), Token::Equals, Token::LocalIdentifier("b")];
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_let(), Ok(ast::Let { pat: vec![ast::Pattern("a", 1)], val: vec![ast::Expr::Ref("b", vec![0])] }))
     }
 
     #[test]
-    fn r#let() {
-        let tokens = vec![Token::Let, Token::LocalIdentifier("a"), Token::Equals, Token::LocalIdentifier("b")];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_let(), Ok(ast::Let { pat: ast::Pattern::Iden("a", 1), val: ast::Expr::Ref("b", vec![0]) }))
+    fn iden_pattern() {
+        let tokens = vec![Token::LocalIdentifier("iden")];
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_pattern(), Ok(vec![ast::Pattern("iden", 1)]))
     }
 
     #[test]
     fn const_false_expr() {
         let tokens = vec![Token::Number(0)];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(ast::Expr::Const(false)))
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(vec![ast::Expr::Const(false)]))
     }
 
     #[test]
     fn const_true_expr() {
         let tokens = vec![Token::Number(1)];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(ast::Expr::Const(true)))
-    }
-
-    #[test]
-    fn iden_expr() {
-        let tokens = vec![Token::LocalIdentifier("a")];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(ast::Expr::Ref("a", vec![0])))
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(vec![ast::Expr::Const(true)]))
     }
 
     #[test]
     fn call_expr() {
         let tokens = vec![Token::GateIdentifier("a"), Token::OBrack, Token::LocalIdentifier("b"), Token::CBrack];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(ast::Expr::Call("a", vec![ast::Expr::Ref("b", vec![0])])))
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(vec![ast::Expr::Call("a", vec![ast::Expr::Ref("b", vec![0])])]))
+    }
+
+    #[test]
+    fn iden_expr() {
+        let tokens = vec![Token::LocalIdentifier("a")];
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(vec![ast::Expr::Ref("a", vec![0])]))
+    }
+
+    #[test]
+    fn multiple_expr() {
+        let tokens = vec![Token::OBrack, Token::LocalIdentifier("a"), Token::Comma, Token::LocalIdentifier("b"), Token::Comma, Token::Number(0), Token::Comma, Token::Number(1), Token::CBrack];
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(vec![ast::Expr::Ref("a", vec![0]), ast::Expr::Ref("b", vec![0]), ast::Expr::Const(false), ast::Expr::Const(true)]))
     }
 }
