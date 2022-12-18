@@ -18,6 +18,18 @@ mod test {
     #[test]
     fn enumerate_inputs() {
         assert_eq!(super::enumerate_inputs(2), vec![vec![false, false], vec![false, true], vec![true, false], vec![true, true]]);
-        assert_eq!(super::enumerate_inputs(3), vec![vec![false, false, false], vec![false, false, true], vec![false, true, false], vec![false, true, true], vec![true, false, false], vec![true, false, true], vec![true, true, false], vec![true, true, true]]);
+        assert_eq!(
+            super::enumerate_inputs(3),
+            vec![
+                vec![false, false, false],
+                vec![false, false, true],
+                vec![false, true, false],
+                vec![false, true, true],
+                vec![true, false, false],
+                vec![true, false, true],
+                vec![true, true, false],
+                vec![true, true, true]
+            ]
+        );
     }
 }

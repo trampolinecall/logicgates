@@ -1,4 +1,4 @@
-use piston::{self, RenderEvent, UpdateEvent, PressEvent};
+use piston::{self, PressEvent, RenderEvent, UpdateEvent};
 
 pub struct App {
     gl: opengl_graphics::GlGraphics,
@@ -20,32 +20,14 @@ impl App {
 }
 
 fn main() {
+    let circuit = logicgates::compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap();
     let opengl = opengl_graphics::OpenGL::V3_2;
 
     let mut window: glutin_window::GlutinWindow = piston::WindowSettings::new("logic gates", [1280, 720]).graphics_api(opengl).resizable(true).samples(4).exit_on_esc(true).build().unwrap();
 
     let mut app = App::new(
         opengl_graphics::GlGraphics::new(opengl),
-        logicgates::simulation::Simulation::new(logicgates::circuit::Circuit {
-            num_inputs: 8,
-            gates: vec![
-                logicgates::circuit::Gate::And(logicgates::circuit::Value::Arg(0), logicgates::circuit::Value::Arg(1)),
-                logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(0, 0), logicgates::circuit::Value::Arg(2)),
-                logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(1, 0), logicgates::circuit::Value::Arg(3)),
-                logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(2, 0), logicgates::circuit::Value::Arg(4)),
-                logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(3, 0), logicgates::circuit::Value::Arg(5)),
-                logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(4, 0), logicgates::circuit::Value::Arg(6)),
-                logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(5, 0), logicgates::circuit::Value::Arg(7)),
-                logicgates::circuit::Gate::And(logicgates::circuit::Value::Arg(0), logicgates::circuit::Value::Arg(1)),
-                logicgates::circuit::Gate::And(logicgates::circuit::Value::Arg(2), logicgates::circuit::Value::Arg(3)),
-                logicgates::circuit::Gate::And(logicgates::circuit::Value::Arg(4), logicgates::circuit::Value::Arg(5)),
-                logicgates::circuit::Gate::And(logicgates::circuit::Value::Arg(6), logicgates::circuit::Value::Arg(7)),
-                logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(7, 0), logicgates::circuit::Value::GateValue(8, 0)),
-                logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(9, 0), logicgates::circuit::Value::GateValue(10, 0)),
-                logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(11, 0), logicgates::circuit::Value::GateValue(12, 0)),
-            ],
-            outputs: vec![logicgates::circuit::Value::GateValue(6, 0), logicgates::circuit::Value::GateValue(13, 0)],
-        }),
+        logicgates::simulation::Simulation::new(circuit),
     );
 
     let mut events = piston::Events::new(piston::EventSettings::new());
@@ -70,32 +52,32 @@ fn main() {
                 piston::Key::D8 => Some(7),
                 piston::Key::D9 => Some(8),
                 piston::Key::D0 => Some(9),
-                piston::Key::A =>  Some(10),
-                piston::Key::B =>  Some(11),
-                piston::Key::C =>  Some(12),
-                piston::Key::D =>  Some(13),
-                piston::Key::E =>  Some(14),
-                piston::Key::F =>  Some(15),
-                piston::Key::G =>  Some(16),
-                piston::Key::H =>  Some(17),
-                piston::Key::I =>  Some(18),
-                piston::Key::J =>  Some(19),
-                piston::Key::K =>  Some(20),
-                piston::Key::L =>  Some(21),
-                piston::Key::M =>  Some(22),
-                piston::Key::N =>  Some(23),
-                piston::Key::O =>  Some(24),
-                piston::Key::P =>  Some(25),
-                piston::Key::Q =>  Some(26),
-                piston::Key::R =>  Some(27),
-                piston::Key::S =>  Some(28),
-                piston::Key::T =>  Some(29),
-                piston::Key::U =>  Some(30),
-                piston::Key::V =>  Some(31),
-                piston::Key::W =>  Some(32),
-                piston::Key::X =>  Some(33),
-                piston::Key::Y =>  Some(34),
-                piston::Key::Z =>  Some(35),
+                piston::Key::A => Some(10),
+                piston::Key::B => Some(11),
+                piston::Key::C => Some(12),
+                piston::Key::D => Some(13),
+                piston::Key::E => Some(14),
+                piston::Key::F => Some(15),
+                piston::Key::G => Some(16),
+                piston::Key::H => Some(17),
+                piston::Key::I => Some(18),
+                piston::Key::J => Some(19),
+                piston::Key::K => Some(20),
+                piston::Key::L => Some(21),
+                piston::Key::M => Some(22),
+                piston::Key::N => Some(23),
+                piston::Key::O => Some(24),
+                piston::Key::P => Some(25),
+                piston::Key::Q => Some(26),
+                piston::Key::R => Some(27),
+                piston::Key::S => Some(28),
+                piston::Key::T => Some(29),
+                piston::Key::U => Some(30),
+                piston::Key::V => Some(31),
+                piston::Key::W => Some(32),
+                piston::Key::X => Some(33),
+                piston::Key::Y => Some(34),
+                piston::Key::Z => Some(35),
 
                 _ => None,
             } {
