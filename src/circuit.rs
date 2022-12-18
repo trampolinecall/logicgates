@@ -11,6 +11,8 @@ pub struct Circuit {
 pub enum Gate {
     // Custom(Circuit, Vec<Value>),
     And(Value, Value),
+    Not(Value),
+    Const(bool),
 }
 
 impl Circuit {
@@ -31,12 +33,14 @@ impl Circuit {
         for gate in &self.gates {
             results.push(match gate {
                 /*
-                rep::Gate::Custom(subself, sub_inputs) => {
-                    let sub_inputs: Vec<bool> = sub_inputs.iter().map(|value| get_value(value, inputs, &registers)).collect();
-                    registers.extend(eval(subself, &sub_inputs))
+                rep::Gate::Custom(subcircuit, subinputs) => {
+                    let subinputs: Vec<bool> = subinputs.iter().map(|value| get_value(value, inputs, &registers)).collect();
+                    registers.extend(eval(subcircuit, &subinputs))
                 }
                 */
-                self::Gate::And(a, b) => vec![get_value(*a, &results) && get_value(*b, &results)],
+                Gate::And(a, b) => vec![get_value(*a, &results) && get_value(*b, &results)],
+                Gate::Const(b) => vec![*b],
+                Gate::Not(v) => vec![!get_value(*v, &results)],
             });
         }
 
@@ -58,24 +62,38 @@ impl Gate {
     pub fn inputs(&self) -> Vec<Value> {
         match self {
             Gate::And(a, b) => vec![*a, *b],
+            Gate::Const(_) => Vec::new(),
+            Gate::Not(v) => vec![*v],
         }
     }
 
     pub fn num_inputs(&self) -> usize {
         match self {
             Gate::And(_, _) => 2,
+            Gate::Const(_) => 0,
+            Gate::Not(_) => 1,
         }
     }
 
     pub fn num_outputs(&self) -> usize {
         match self {
             Gate::And(_, _) => 1,
+            Gate::Not(_) => 1,
+            Gate::Const(_) => 1,
         }
     }
 
     pub fn name(&self) -> &str {
         match self {
             Gate::And(_, _) => "and",
+            Gate::Not(_) => "not",
+            Gate::Const(b) => {
+                if *b {
+                    "true"
+                } else {
+                    "false"
+                }
+            }
         }
     }
 }
