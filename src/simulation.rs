@@ -33,26 +33,22 @@ impl Simulation {
         use graphics::*;
         let (_, evaluated_values) = self.circuit.eval_with_results(inputs);
 
-        let circuit_input_pos= |index: usize| -> [f64; 2] {
-            [0.0, centered_y(args.window_size[1] / 2.0, self.circuit.num_inputs, index)]
-        };
-        let circuit_output_pos= |index: usize| -> [f64; 2] {
-            [args.window_size[0], centered_y(args.window_size[1] / 2.0, self.circuit.outputs.len(), index)]
-        };
+        let circuit_input_pos = |index: usize| -> [f64; 2] { [0.0, centered_y(args.window_size[1] / 2.0, self.circuit.num_inputs, index)] };
+        let circuit_output_pos = |index: usize| -> [f64; 2] { [args.window_size[0], centered_y(args.window_size[1] / 2.0, self.circuit.outputs.len(), index)] };
 
-        let gate_box= |gate_index: usize| -> [f64; 4] {
+        let gate_box = |gate_index: usize| -> [f64; 4] {
             let gate: &circuit::Gate = &self.circuit.gates[gate_index];
             let [gate_x, gate_y]: [f64; 2] = self.locations[gate_index];
             let gate_height = (std::cmp::max(gate.num_inputs(), gate.num_outputs()) - 1 + 2) as f64 * VERTICAL_VALUE_SPACING;
             // x in the locations is the left but y in the locations is the center
             [gate_x, gate_y - gate_height / 2.0 + args.window_size[1] / 2.0, GATE_WIDTH, gate_height]
         };
-        let gate_input_pos= |gate_index: usize, input_index: usize| -> [f64; 2] {
+        let gate_input_pos = |gate_index: usize, input_index: usize| -> [f64; 2] {
             let gate: &circuit::Gate = &self.circuit.gates[gate_index];
             let [gate_x, gate_y, _, gate_height] = gate_box(gate_index);
             [gate_x, centered_y(gate_y + gate_height / 2.0, gate.num_inputs(), input_index)]
         };
-        let gate_output_pos= |gate_index: usize, output_index: usize| -> [f64; 2] {
+        let gate_output_pos = |gate_index: usize, output_index: usize| -> [f64; 2] {
             let gate: &circuit::Gate = &self.circuit.gates[gate_index];
             let [gate_x, gate_y, _, gate_height] = gate_box(gate_index);
             [gate_x + GATE_WIDTH, centered_y(gate_y + gate_height / 2.0, gate.num_outputs(), output_index)]
