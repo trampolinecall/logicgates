@@ -10,7 +10,7 @@ pub struct App {
 
 impl App {
     fn new(gl: opengl_graphics::GlGraphics, simulation: logicgates::simulation::Simulation) -> App {
-        let mut inputs = logicgates::utils::enumerate_inputs(simulation.circuit.arity).into_iter().cycle();
+        let mut inputs = logicgates::utils::enumerate_inputs(simulation.circuit.num_inputs).into_iter().cycle();
         let first_input = inputs.next().unwrap();
         App { gl, simulation, inputs, current_input: first_input, wait: 0.0 }
     }
@@ -38,7 +38,7 @@ fn main() {
     let mut app = App::new(
         opengl_graphics::GlGraphics::new(opengl),
         logicgates::simulation::Simulation::new(logicgates::circuit::Circuit {
-            arity: 10,
+            num_inputs: 10,
             gates: vec![
                 logicgates::circuit::Gate::And(logicgates::circuit::Value::Arg(0), logicgates::circuit::Value::Arg(1)),
                 logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(0, 0), logicgates::circuit::Value::Arg(2)),
@@ -50,7 +50,7 @@ fn main() {
                 logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(6, 0), logicgates::circuit::Value::Arg(8)),
                 logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(7, 0), logicgates::circuit::Value::Arg(9)),
             ],
-            output: vec![logicgates::circuit::Value::GateValue(8, 0)],
+            outputs: vec![logicgates::circuit::Value::GateValue(8, 0)],
         }),
     );
 
