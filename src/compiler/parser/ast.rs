@@ -1,9 +1,9 @@
 #[derive(PartialEq, Debug)]
 pub(crate) struct Circuit<'file> {
     pub(crate) name: &'file str,
-    pub(crate) arguments: Vec<Pattern<'file>>,
+    pub(crate) inputs: Vec<Pattern<'file>>,
     pub(crate) lets: Vec<Let<'file>>,
-    pub(crate) ret: Vec<Expr<'file>>,
+    pub(crate) outputs: Vec<Expr<'file>>,
 }
 
 #[derive(PartialEq, Debug)]

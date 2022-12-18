@@ -69,7 +69,7 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
 
         let ret = self.parse_expr()?;
 
-        Ok(ast::Circuit { name, arguments, lets, ret })
+        Ok(ast::Circuit { name, inputs: arguments, lets, outputs: ret })
     }
 
     fn parse_let(&mut self) -> Result<ast::Let<'file>, ParseError> {
@@ -186,9 +186,9 @@ mod test {
             parse(make_token_stream(tokens)),
             Some(vec![ast::Circuit {
                 name: "thingy",
-                arguments: vec![ast::Pattern("arg", 1)],
+                inputs: vec![ast::Pattern("arg", 1)],
                 lets: vec![ast::Let { pat: vec![ast::Pattern("res", 1)], val: vec![ast::Expr::Call("and", vec![ast::Expr::Ref("arg", vec![0]), ast::Expr::Ref("arg", vec![0])])] }],
-                ret: vec![ast::Expr::Ref("res", vec![0])]
+                outputs: vec![ast::Expr::Ref("res", vec![0])]
             }])
         )
     }
