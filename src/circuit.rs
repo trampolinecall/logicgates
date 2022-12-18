@@ -2,14 +2,17 @@ use std::collections::HashMap;
 
 use crate::utils;
 
+#[derive(Clone)]
 pub struct Circuit {
+    pub name: String,
     pub num_inputs: usize,
     pub gates: Vec<Gate>,
     pub outputs: Vec<Value>,
 }
 
+#[derive(Clone)]
 pub enum Gate {
-    // Custom(Circuit, Vec<Value>),
+    Custom(Circuit, Vec<Value>),
     And(Value, Value),
     Not(Value),
     Const(bool),
@@ -42,12 +45,10 @@ impl Circuit {
 
         for gate in &self.gates {
             results.push(match gate {
-                /*
-                rep::Gate::Custom(subcircuit, subinputs) => {
-                    let subinputs: Vec<bool> = subinputs.iter().map(|value| get_value(value, inputs, &registers)).collect();
-                    registers.extend(eval(subcircuit, &subinputs))
+                Gate::Custom(subcircuit, subinputs) => {
+                    let subinputs: Vec<bool> = subinputs.iter().map(|value| get_value(*value, &results)).collect();
+                    subcircuit.eval(&subinputs)
                 }
-                */
                 Gate::And(a, b) => vec![get_value(*a, &results) && get_value(*b, &results)],
                 Gate::Not(v) => vec![!get_value(*v, &results)],
                 Gate::Const(b) => vec![*b],
@@ -74,6 +75,7 @@ impl Gate {
             Gate::And(a, b) => vec![*a, *b],
             Gate::Not(v) => vec![*v],
             Gate::Const(_) => Vec::new(),
+            Gate::Custom(_, inputs) => inputs.clone(),
         }
     }
 
@@ -82,6 +84,7 @@ impl Gate {
             Gate::And(_, _) => 2,
             Gate::Not(_) => 1,
             Gate::Const(_) => 0,
+            Gate::Custom(subcircuit, _) => subcircuit.num_inputs,
         }
     }
 
@@ -90,6 +93,7 @@ impl Gate {
             Gate::And(_, _) => 1,
             Gate::Const(_) => 1,
             Gate::Not(_) => 1,
+            Gate::Custom(subcircuit, _) => subcircuit.outputs.len(),
         }
     }
 
@@ -104,6 +108,7 @@ impl Gate {
                     "false"
                 }
             }
+            Gate::Custom(subcircuit, _) => &subcircuit.name,
         }
     }
 }
