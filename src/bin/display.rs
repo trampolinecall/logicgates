@@ -38,7 +38,6 @@ fn main() {
         logicgates::simulation::Simulation::new(logicgates::circuit::Circuit {
             num_inputs: 8,
             gates: vec![
-                /*
                 logicgates::circuit::Gate::And(logicgates::circuit::Value::Arg(0), logicgates::circuit::Value::Arg(1)),
                 logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(0, 0), logicgates::circuit::Value::Arg(2)),
                 logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(1, 0), logicgates::circuit::Value::Arg(3)),
@@ -46,16 +45,15 @@ fn main() {
                 logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(3, 0), logicgates::circuit::Value::Arg(5)),
                 logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(4, 0), logicgates::circuit::Value::Arg(6)),
                 logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(5, 0), logicgates::circuit::Value::Arg(7)),
-                */
                 logicgates::circuit::Gate::And(logicgates::circuit::Value::Arg(0), logicgates::circuit::Value::Arg(1)),
                 logicgates::circuit::Gate::And(logicgates::circuit::Value::Arg(2), logicgates::circuit::Value::Arg(3)),
                 logicgates::circuit::Gate::And(logicgates::circuit::Value::Arg(4), logicgates::circuit::Value::Arg(5)),
                 logicgates::circuit::Gate::And(logicgates::circuit::Value::Arg(6), logicgates::circuit::Value::Arg(7)),
-                logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(0, 0), logicgates::circuit::Value::GateValue(1, 0)),
-                logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(2, 0), logicgates::circuit::Value::GateValue(3, 0)),
-                logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(4, 0), logicgates::circuit::Value::GateValue(5, 0)),
+                logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(7, 0), logicgates::circuit::Value::GateValue(8, 0)),
+                logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(9, 0), logicgates::circuit::Value::GateValue(10, 0)),
+                logicgates::circuit::Gate::And(logicgates::circuit::Value::GateValue(11, 0), logicgates::circuit::Value::GateValue(12, 0)),
             ],
-            outputs: vec![logicgates::circuit::Value::GateValue(6, 0)],
+            outputs: vec![logicgates::circuit::Value::GateValue(6, 0), logicgates::circuit::Value::GateValue(13, 0)],
         }),
     );
 
