@@ -58,11 +58,12 @@ impl Simulation {
             circuit::Value::Arg(index) => circuit_input_pos(index),
             circuit::Value::GateValue(gate_index, arg_index) => gate_output_pos(gate_index, arg_index),
         };
-        let on_off_color = |value| if value { ON_COLOR } else { OFF_COLOR };
+        let bool_color = |value| if value { ON_COLOR } else { OFF_COLOR };
         let get_value = |value| match value {
             circuit::Value::Arg(arg_index) => inputs[arg_index],
             circuit::Value::GateValue(gate_index, output_index) => evaluated_values[gate_index][output_index],
         };
+        let value_color = |value| bool_color(get_value(value));
 
         graphics.draw(args.viewport(), |c, gl| {
             clear(BG, gl);
@@ -70,11 +71,11 @@ impl Simulation {
             // draw circuit inputs and outputs
             for (i, input_value) in (0..self.circuit.num_inputs).zip(inputs.iter()) {
                 let pos = circuit_input_pos(i);
-                ellipse(on_off_color(*input_value), ellipse::circle(pos[0], pos[1], CIRCLE_RAD), c.transform, gl);
+                ellipse(bool_color(*input_value), ellipse::circle(pos[0], pos[1], CIRCLE_RAD), c.transform, gl);
             }
             for (output_i, output) in self.circuit.outputs.iter().enumerate() {
                 let output_pos = circuit_output_pos(output_i);
-                let color = on_off_color(get_value(*output));
+                let color = value_color(*output);
                 ellipse(color, ellipse::circle(output_pos[0], output_pos[1], CIRCLE_RAD), c.transform, gl);
 
                 // draw lines connecting outputs with their values
@@ -92,7 +93,7 @@ impl Simulation {
 
                 // draw gate input dots and connections to their values
                 for (input_i, input) in gate.inputs().into_iter().enumerate() {
-                    let color = on_off_color(get_value(input));
+                    let color = value_color(input);
                     let input_pos @ [x, y] = gate_input_pos(gate_i, input_i);
                     ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
 
@@ -101,7 +102,7 @@ impl Simulation {
                 }
                 // draw gate output dots
                 for output_i in 0..gate.num_outputs() {
-                    let color = on_off_color(evaluated_values[gate_i][output_i]);
+                    let color = bool_color(evaluated_values[gate_i][output_i]);
                     let [x, y] = gate_output_pos(gate_i, output_i);
                     ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
                 }
