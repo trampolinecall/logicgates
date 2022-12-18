@@ -3,14 +3,34 @@ use super::error::{CompileError, Report};
 #[derive(PartialEq, Debug)]
 pub(crate) enum Token<'file> {
     EOF,
-    Dot,
-    Equals,
     OBrack,
     CBrack,
-    Comma,
-    Number(u32),
     Semicolon,
+    Colon,
+    Dot,
+    Comma,
+    Equals,
+    Let,
+    Number(u32),
     Identifier(&'file str),
+}
+
+impl<'file> Token<'file> {
+    pub(crate) fn as_number(&self) -> Option<&u32> {
+        if let Self::Number(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn as_identifier(&self) -> Option<&&'file str> {
+        if let Self::Identifier(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -22,6 +42,24 @@ impl From<LexError> for CompileError {
     fn from(le: LexError) -> Self {
         match le {
             LexError::BadChar(c) => CompileError { message: format!("bad character: '{c}'") },
+        }
+    }
+}
+
+impl std::fmt::Display for Token<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Token::EOF => write!(f, "eof"),
+            Token::OBrack => write!(f, "'['"),
+            Token::CBrack => write!(f, "']'"),
+            Token::Dot => write!(f, "'.'"),
+            Token::Equals => write!(f, "'='"),
+            Token::Comma => write!(f, "','"),
+            Token::Semicolon => write!(f, "';'"),
+            Token::Colon => write!(f, "':'"),
+            Token::Let => write!(f, "'let'"),
+            Token::Number(n) => write!(f, "'{n}'"),
+            Token::Identifier(i) => write!(f, "'{i}'"),
         }
     }
 }
@@ -44,7 +82,7 @@ impl<'file> Lexer<'file> {
     fn peek_in_identifier(&mut self) -> bool {
         match self.1.peek() {
             // TODO: this is duplicated code from the first few match arms of the main lexer loop
-            Some((_, ' ' | '\n' | ',' | '[' | ']' | '=' | '.' | ';')) => false,
+            Some((_, ' ' | '\n' | ',' | '[' | ']' | '=' | '.' | ';' |':')) => false,
             _ => true,
         }
     }
@@ -62,9 +100,10 @@ impl<'file> Iterator for Lexer<'file> {
             ',' => Ok(Some(Token::Comma)),
             '[' => Ok(Some(Token::OBrack)),
             ']' => Ok(Some(Token::CBrack)),
-            '=' => Ok(Some(Token::Equals)),
-            '.' => Ok(Some(Token::Dot)),
+            ':' => Ok(Some(Token::Colon)),
             ';' => Ok(Some(Token::Semicolon)),
+            '.' => Ok(Some(Token::Dot)),
+            '=' => Ok(Some(Token::Equals)),
 
             '0'..='9' => {
                 while self.peek_is_digit() {
@@ -80,7 +119,10 @@ impl<'file> Iterator for Lexer<'file> {
                     self.1.next();
                 }
 
-                Ok(Some(Token::Identifier(self.slice(start_i))))
+                match self.slice(start_i) {
+                    "let" => Ok(Some(Token::Let)),
+                    iden => Ok(Some(Token::Identifier(iden))),
+                }
             }
 
             ' ' | '\n' => Ok(None),

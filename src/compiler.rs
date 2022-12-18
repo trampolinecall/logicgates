@@ -7,7 +7,6 @@ use crate::circuit;
 
 pub fn compile(filename: &str) -> Option<circuit::Circuit> {
     let file = load_file(filename)?;
-    println!("{file}");
     let tokens = lexer::lex(&file);
     codegen::compile(parser::parse(tokens)?)
 }
