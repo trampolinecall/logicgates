@@ -12,11 +12,36 @@ enum CircuitGenError<'file> {
     NoSuchLocal(&'file str),
     NoSuchCircuit(&'file str),
     SizeMismatch { value_size: usize, pattern_size: usize },
+    NoMain,
 }
 
 #[derive(Default)]
 struct GlobalGenState<'file> {
-    circuit_table: HashMap<&'file str, circuit::Circuit>,
+    circuit_table: HashMap<&'file str, CircuitDefinition>,
+}
+
+impl<'file> GlobalGenState<'file> {
+    fn new() -> Self {
+        let mut circuit_table = HashMap::new();
+        circuit_table.insert("and", CircuitDefinition::AndBuiltin);
+        circuit_table.insert("not", CircuitDefinition::NotBuiltin);
+        Self { circuit_table }
+    }
+}
+
+enum CircuitDefinition {
+    Circuit(circuit::Circuit),
+    AndBuiltin,
+    NotBuiltin,
+}
+impl CircuitDefinition {
+    fn to_gate(&self, inputs: Vec<circuit::Value>) -> circuit::Gate {
+        match self {
+            CircuitDefinition::Circuit(c) => circuit::Gate::Custom(c.clone(), inputs), // TODO: input size should match arity
+            CircuitDefinition::AndBuiltin => circuit::Gate::And(inputs[0], inputs[1]), // TODO: input size should match arity
+            CircuitDefinition::NotBuiltin => circuit::Gate::Not(inputs[0]),            // TODO: same todo
+        }
+    }
 }
 
 #[derive(Default)]
@@ -38,13 +63,16 @@ impl From<CircuitGenError<'_>> for CompileError {
             CircuitGenError::OutOfRange { local_name, local_size, index } => CompileError { message: format!("get out of range: '{local_name}' has a size of {local_size} and the index is {index}") },
             CircuitGenError::NoSuchLocal(name) => CompileError { message: format!("no local called '{name}'") },
             CircuitGenError::NoSuchCircuit(name) => CompileError { message: format!("no circuit called '`{name}'") },
-            CircuitGenError::SizeMismatch { value_size, pattern_size } => CompileError { message: format!("size mismatch in assignment: value has size {value_size} but pattern has size {pattern_size}") },
+            CircuitGenError::SizeMismatch { value_size, pattern_size } => {
+                CompileError { message: format!("size mismatch in assignment: value has size {value_size} but pattern has size {pattern_size}") }
+            }
+            CircuitGenError::NoMain => CompileError { message: format!("no '`main' circuit") },
         }
     }
 }
 
 pub(crate) fn generate(ast: Vec<ast::Circuit>) -> Option<circuit::Circuit> {
-    let mut global_state = GlobalGenState::default();
+    let mut global_state = GlobalGenState::new();
 
     for circuit in ast {
         let (name, circuit) = convert_circuit(&global_state, circuit)?; // TODO: report multiple errors from this
@@ -52,16 +80,36 @@ pub(crate) fn generate(ast: Vec<ast::Circuit>) -> Option<circuit::Circuit> {
             CircuitGenError::Duplicate(name).report();
             None?
         } else {
-            global_state.circuit_table.insert(name, circuit);
+            global_state.circuit_table.insert(name, CircuitDefinition::Circuit(circuit));
         }
     }
-    todo!()
+
+    match global_state.circuit_table.remove("main") {
+        Some(CircuitDefinition::Circuit(r)) => Some(r),
+        Some(_) => unreachable!("non user-defined circuit called main"),
+        None =>  {
+            CircuitGenError::NoMain.report();
+            None?
+        }
+    }
 }
 
 fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circuit<'file>) -> Option<(&'file str, circuit::Circuit)> {
     let name = circuit_ast.name;
 
     let mut circuit_state = CircuitGenState::default();
+
+    let mut arg_i = 0;
+    for arg_pat in circuit_ast.inputs.iter() {
+        let args = (0..arg_pat.1)
+            .map(|_| {
+                arg_i += 1;
+                circuit::Value::Arg(arg_i - 1)
+            })
+            .collect();
+        circuit_state.locals.insert(arg_pat.0, args);
+    }
+
     for ast::Let { pat, val } in circuit_ast.lets {
         let result = convert_expr(global_state, &mut circuit_state, val)?;
 
@@ -121,8 +169,10 @@ fn convert_single_expr<'file>(global_state: &GlobalGenState, circuit_state: &mut
             };
 
             let inputs = convert_expr(global_state, circuit_state, inputs)?;
-            let gate = circuit_state.add_gate(circuit::Gate::Custom(name_resolved.clone(), inputs));
-            Some((0..name_resolved.outputs.len()).map(|i| circuit::Value::GateValue(gate, i)).collect())
+            let gate = name_resolved.to_gate(inputs);
+            let num_outputs = gate.num_outputs();
+            let gate_i = circuit_state.add_gate(gate);
+            Some((0..num_outputs).map(|i| circuit::Value::GateValue(gate_i, i)).collect())
         }
 
         ast::Expr::Const(val) => {
