@@ -25,10 +25,7 @@ fn main() {
 
     let mut window: glutin_window::GlutinWindow = piston::WindowSettings::new("logic gates", [1280, 720]).graphics_api(opengl).resizable(true).samples(4).exit_on_esc(true).build().unwrap();
 
-    let mut app = App::new(
-        opengl_graphics::GlGraphics::new(opengl),
-        logicgates::simulation::Simulation::new(circuit),
-    );
+    let mut app = App::new(opengl_graphics::GlGraphics::new(opengl), logicgates::simulation::Simulation::new(circuit));
 
     let mut events = piston::Events::new(piston::EventSettings::new());
     while let Some(e) = events.next(&mut window) {
