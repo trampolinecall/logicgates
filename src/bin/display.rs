@@ -20,7 +20,7 @@ impl App {
     }
 
     fn update(&mut self, update_args: &piston::UpdateArgs) {
-        if self.wait > 0.2 {
+        if self.wait > 0.1 {
             self.wait = 0.0;
             self.current_input = self.inputs.next().unwrap();
         }
