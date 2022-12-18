@@ -39,8 +39,8 @@ impl Circuit {
                 }
                 */
                 Gate::And(a, b) => vec![get_value(*a, &results) && get_value(*b, &results)],
-                Gate::Const(b) => vec![*b],
                 Gate::Not(v) => vec![!get_value(*v, &results)],
+                Gate::Const(b) => vec![*b],
             });
         }
 
@@ -62,24 +62,24 @@ impl Gate {
     pub fn inputs(&self) -> Vec<Value> {
         match self {
             Gate::And(a, b) => vec![*a, *b],
-            Gate::Const(_) => Vec::new(),
             Gate::Not(v) => vec![*v],
+            Gate::Const(_) => Vec::new(),
         }
     }
 
     pub fn num_inputs(&self) -> usize {
         match self {
             Gate::And(_, _) => 2,
-            Gate::Const(_) => 0,
             Gate::Not(_) => 1,
+            Gate::Const(_) => 0,
         }
     }
 
     pub fn num_outputs(&self) -> usize {
         match self {
             Gate::And(_, _) => 1,
-            Gate::Not(_) => 1,
             Gate::Const(_) => 1,
+            Gate::Not(_) => 1,
         }
     }
 
