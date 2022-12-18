@@ -8,11 +8,12 @@ use super::parser::ast;
 
 enum CircuitGenError<'file> {
     Duplicate(&'file str),
-    OutOfRange { local_name: &'file str, local_size: usize, index: usize },
+    OutOfRange { expr_size: usize, index: usize },
     NoSuchLocal(&'file str),
     NoSuchCircuit(&'file str),
-    SizeMismatch { value_size: usize, pattern_size: usize },
+    SizeMismatchInAssignment { value_size: usize, pattern_size: usize },
     NoMain,
+    SizeMismatchInCall { actual_size: usize, expected_size: usize },
 }
 
 #[derive(Default)]
@@ -35,11 +36,23 @@ enum CircuitDefinition {
     NotBuiltin,
 }
 impl CircuitDefinition {
-    fn to_gate(&self, inputs: Vec<circuit::Value>) -> circuit::Gate {
-        match self {
-            CircuitDefinition::Circuit(c) => circuit::Gate::Custom(c.clone(), inputs), // TODO: input size should match arity
-            CircuitDefinition::AndBuiltin => circuit::Gate::And(inputs[0], inputs[1]), // TODO: input size should match arity
-            CircuitDefinition::NotBuiltin => circuit::Gate::Not(inputs[0]),            // TODO: same todo
+    fn to_gate(&self, inputs: Vec<circuit::Value>) -> Option<circuit::Gate> {
+        // TODO: refactor this and possible the rest of the module
+        let expected_size = match self {
+            CircuitDefinition::Circuit(c) => c.num_inputs,
+            CircuitDefinition::AndBuiltin => 2,
+            CircuitDefinition::NotBuiltin => 1,
+        };
+
+        if inputs.len() != expected_size {
+            CircuitGenError::SizeMismatchInCall { actual_size: inputs.len(), expected_size }.report();
+            None
+        } else {
+            Some(match self {
+                CircuitDefinition::Circuit(c) => circuit::Gate::Custom(c.clone(), inputs),
+                CircuitDefinition::AndBuiltin => circuit::Gate::And(inputs[0], inputs[1]),
+                CircuitDefinition::NotBuiltin => circuit::Gate::Not(inputs[0]),
+            })
         }
     }
 }
@@ -60,13 +73,16 @@ impl From<CircuitGenError<'_>> for CompileError {
     fn from(val: CircuitGenError) -> Self {
         match val {
             CircuitGenError::Duplicate(name) => CompileError { message: format!("circuit '{name}' defined more than once") },
-            CircuitGenError::OutOfRange { local_name, local_size, index } => CompileError { message: format!("get out of range: '{local_name}' has a size of {local_size} and the index is {index}") },
+            CircuitGenError::OutOfRange { expr_size: local_size, index } => CompileError { message: format!("get out of range: expression has a size of {local_size} and the index is {index}") },
             CircuitGenError::NoSuchLocal(name) => CompileError { message: format!("no local called '{name}'") },
             CircuitGenError::NoSuchCircuit(name) => CompileError { message: format!("no circuit called '`{name}'") },
-            CircuitGenError::SizeMismatch { value_size, pattern_size } => {
+            CircuitGenError::SizeMismatchInAssignment { value_size, pattern_size } => {
                 CompileError { message: format!("size mismatch in assignment: value has size {value_size} but pattern has size {pattern_size}") }
             }
             CircuitGenError::NoMain => CompileError { message: format!("no '`main' circuit") },
+            CircuitGenError::SizeMismatchInCall { actual_size, expected_size } => {
+                CompileError { message: format!("size mismatch in subcircuit: arguments have size {actual_size} but subcircuit expects size {expected_size}") }
+            }
         }
     }
 }
@@ -87,7 +103,7 @@ pub(crate) fn generate(ast: Vec<ast::Circuit>) -> Option<circuit::Circuit> {
     match global_state.circuit_table.remove("main") {
         Some(CircuitDefinition::Circuit(r)) => Some(r),
         Some(_) => unreachable!("non user-defined circuit called main"),
-        None =>  {
+        None => {
             CircuitGenError::NoMain.report();
             None?
         }
@@ -114,7 +130,7 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circu
         let result = convert_expr(global_state, &mut circuit_state, val)?;
 
         if result.len() != pattern_size(&pat) {
-            CircuitGenError::SizeMismatch { value_size: result.len(), pattern_size: pattern_size(&pat) }.report();
+            CircuitGenError::SizeMismatchInAssignment { value_size: result.len(), pattern_size: pattern_size(&pat) }.report();
             None?
         }
 
@@ -129,15 +145,9 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circu
     Some((name, circuit::Circuit { name: name.into(), num_inputs: pattern_size(&circuit_ast.inputs), gates: circuit_state.gates, outputs }))
 }
 
-fn convert_expr<'file>(global_state: &GlobalGenState, circuit_state: &mut CircuitGenState, exprs: Vec<ast::Expr>) -> Option<Vec<circuit::Value>> {
-    let results = exprs.into_iter().map(|e| convert_single_expr(global_state, circuit_state, e));
-    let results_no_none: Option<_> = results.collect::<Option<Vec<Vec<circuit::Value>>>>(); // TODO: dont stop at the first one in order to report all the errors
-    Some(results_no_none?.into_iter().flatten().collect::<Vec<circuit::Value>>())
-}
-
-fn convert_single_expr<'file>(global_state: &GlobalGenState, circuit_state: &mut CircuitGenState, expr: ast::Expr) -> Option<Vec<circuit::Value>> {
+fn convert_expr<'file>(global_state: &GlobalGenState, circuit_state: &mut CircuitGenState, expr: ast::Expr) -> Option<Vec<circuit::Value>> {
     match expr {
-        ast::Expr::Ref(name, slots) => {
+        ast::Expr::Ref(name) => {
             let name_resolved = match circuit_state.locals.get(name) {
                 Some(resolved) => resolved,
                 None => {
@@ -146,17 +156,7 @@ fn convert_single_expr<'file>(global_state: &GlobalGenState, circuit_state: &mut
                 }
             };
 
-            slots
-                .into_iter()
-                .map(|slot| {
-                    if slot < name_resolved.len() {
-                        Some(name_resolved[slot])
-                    } else {
-                        CircuitGenError::OutOfRange { local_name: name, local_size: name_resolved.len(), index: slot }.report();
-                        None
-                    }
-                })
-                .collect::<Option<_>>()
+            Some(name_resolved.clone())
         }
 
         ast::Expr::Call(circuit_name, inputs) => {
@@ -168,8 +168,8 @@ fn convert_single_expr<'file>(global_state: &GlobalGenState, circuit_state: &mut
                 }
             };
 
-            let inputs = convert_expr(global_state, circuit_state, inputs)?;
-            let gate = name_resolved.to_gate(inputs);
+            let inputs = convert_expr(global_state, circuit_state, *inputs)?;
+            let gate = name_resolved.to_gate(inputs)?;
             let num_outputs = gate.num_outputs();
             let gate_i = circuit_state.add_gate(gate);
             Some((0..num_outputs).map(|i| circuit::Value::GateValue(gate_i, i)).collect())
@@ -178,6 +178,26 @@ fn convert_single_expr<'file>(global_state: &GlobalGenState, circuit_state: &mut
         ast::Expr::Const(val) => {
             let gate_i = circuit_state.add_gate(circuit::Gate::Const(val));
             Some(vec![circuit::Value::GateValue(gate_i, 0)])
+        }
+
+        ast::Expr::Get(expr, slots) => {
+            let expr = convert_expr(global_state, circuit_state, *expr)?;
+            slots
+                .into_iter()
+                .map(|slot| {
+                    if slot < expr.len() {
+                        Some(expr[slot])
+                    } else {
+                        CircuitGenError::OutOfRange { expr_size: expr.len(), index: slot }.report();
+                        None
+                    }
+                })
+                .collect::<Option<_>>()
+        }
+        ast::Expr::Multiple(exprs) => {
+            let results = exprs.into_iter().map(|e| convert_expr(global_state, circuit_state, e));
+            let results_no_none: Option<_> = results.collect::<Option<Vec<Vec<circuit::Value>>>>(); // TODO: dont stop at the first one in order to report all the errors
+            Some(results_no_none?.into_iter().flatten().collect::<Vec<circuit::Value>>())
         }
     }
 }

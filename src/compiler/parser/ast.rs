@@ -3,20 +3,22 @@ pub(crate) struct Circuit<'file> {
     pub(crate) name: &'file str,
     pub(crate) inputs: Vec<Pattern<'file>>,
     pub(crate) lets: Vec<Let<'file>>,
-    pub(crate) outputs: Vec<Expr<'file>>,
+    pub(crate) outputs: Expr<'file>,
 }
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct Let<'file> {
     pub(crate) pat: Vec<Pattern<'file>>,
-    pub(crate) val: Vec<Expr<'file>>,
+    pub(crate) val: Expr<'file>,
 }
 
 #[derive(PartialEq, Debug)]
 pub(crate) enum Expr<'file> {
-    Ref(&'file str, Vec<usize>),
-    Call(&'file str, Vec<Expr<'file>>),
+    Ref(&'file str),
+    Call(&'file str, Box<Expr<'file>>),
     Const(bool),
+    Get(Box<Expr<'file>>, Vec<usize>),
+    Multiple(Vec<Expr<'file>>)
 }
 
 #[derive(PartialEq, Debug)]
