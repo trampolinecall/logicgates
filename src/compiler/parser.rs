@@ -3,7 +3,6 @@ pub(crate) mod ast;
 use crate::compiler::error::CompileError;
 use crate::compiler::error::Report;
 use crate::compiler::lexer::Token;
-use std::collections::HashMap;
 use std::iter::Peekable;
 
 struct Parser<'file, T: Iterator<Item = Token<'file>>> {
@@ -11,17 +10,14 @@ struct Parser<'file, T: Iterator<Item = Token<'file>>> {
 }
 
 #[derive(Debug, PartialEq)]
-enum ParseError<'file> {
-    Expected { expected: &'static str, got: String },
-    DuplicateGate(&'file str),
+struct ParseError {
+    expected: &'static str,
+    got: String,
 }
 
-impl From<ParseError<'_>> for CompileError {
-    fn from(err: ParseError<'_>) -> Self {
-        match err {
-            ParseError::Expected { expected, got } => CompileError { message: format!("expected {expected}, got {got}") },
-            ParseError::DuplicateGate(name) => CompileError { message: format!("name {name} defined more than once") },
-        }
+impl From<ParseError> for CompileError {
+    fn from(ParseError { expected, got }: ParseError) -> Self {
+        CompileError { message: format!("expected {expected}, got {got}") }
     }
 }
 
@@ -33,7 +29,7 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
         self.tokens.next().unwrap()
     }
 
-    fn expect(&mut self, expected: &'static str, pred: impl FnOnce(&Token<'file>) -> bool) -> Result<Token<'file>, ParseError<'file>> {
+    fn expect(&mut self, expected: &'static str, pred: impl FnOnce(&Token<'file>) -> bool) -> Result<Token<'file>, ParseError> {
         if pred(self.peek()) {
             Ok(self.next())
         } else {
@@ -41,21 +37,15 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
         }
     }
 
-    fn expected(&mut self, thing: &'static str) -> ParseError<'file> {
-        ParseError::Expected { expected: thing, got: self.peek().to_string() }
+    fn expected(&mut self, thing: &'static str) -> ParseError {
+        ParseError { expected: thing, got: self.peek().to_string() }
     }
 
-    fn parse(&mut self) -> HashMap<&'file str, ast::Gate<'file>> {
-        let mut gates = HashMap::new();
+    fn parse(&mut self) -> Option<Vec<ast::Gate<'file>>> {
+        let mut gates = Vec::new();
         while !matches!(self.peek(), Token::EOF) {
             match self.parse_gate() {
-                Ok(gate) => {
-                    if gates.contains_key(gate.name) {
-                        ParseError::DuplicateGate(gate.name).report()
-                    } else {
-                        gates.insert(gate.name.clone(), gate);
-                    }
-                }
+                Ok(gate) => gates.push(gate),
                 Err(e) => {
                     self.next();
                     e.report();
@@ -63,10 +53,10 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
             }
         }
 
-        gates
+        Some(gates)
     }
 
-    fn parse_gate(&mut self) -> Result<ast::Gate<'file>, ParseError<'file>> {
+    fn parse_gate(&mut self) -> Result<ast::Gate<'file>, ParseError> {
         let name = self.expect("gate name", |tok| matches!(tok, Token::GateIdentifier(_)))?;
         let name = *name.as_gate_identifier().unwrap();
         let arguments = self.parse_pattern()?;
@@ -82,7 +72,7 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
         Ok(ast::Gate { name, arguments, lets, ret })
     }
 
-    fn parse_let(&mut self) -> Result<ast::Let<'file>, ParseError<'file>> {
+    fn parse_let(&mut self) -> Result<ast::Let<'file>, ParseError> {
         self.expect("'let'", |tok| matches!(tok, Token::Let))?;
         let pat = self.parse_pattern()?;
         self.expect("'='", |tok| matches!(tok, Token::Equals))?;
@@ -91,7 +81,7 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
         Ok(ast::Let { pat, val })
     }
 
-    fn parse_pattern(&mut self) -> Result<Vec<ast::Pattern<'file>>, ParseError<'file>> {
+    fn parse_pattern(&mut self) -> Result<Vec<ast::Pattern<'file>>, ParseError> {
         // for now, only identifier patterns
         if matches!(self.peek(), Token::LocalIdentifier(_)) {
             let iden = self.next();
@@ -102,7 +92,7 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
         }
     }
 
-    fn parse_expr(&mut self) -> Result<Vec<ast::Expr<'file>>, ParseError<'file>> {
+    fn parse_expr(&mut self) -> Result<Vec<ast::Expr<'file>>, ParseError> {
         match self.peek() {
             Token::Number(_) => {
                 let n = self.next();
@@ -152,7 +142,7 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
     }
 }
 
-pub(crate) fn parse<'file>(tokens: impl Iterator<Item = Token<'file>>) -> HashMap<&'file str, ast::Gate<'file>> {
+pub(crate) fn parse<'file>(tokens: impl Iterator<Item = Token<'file>>) -> Option<Vec<ast::Gate<'file>>> {
     Parser { tokens: tokens.peekable() }.parse()
 }
 
@@ -163,43 +153,10 @@ mod test {
     use super::Parser;
     use crate::compiler::lexer::Token;
 
-    use std::collections::HashMap;
     use std::iter::Peekable;
 
     fn make_token_stream(tokens: Vec<Token>) -> Peekable<impl Iterator<Item = Token>> {
         tokens.into_iter().chain(std::iter::repeat_with(|| Token::EOF)).peekable()
-    }
-
-    #[test]
-    fn duplicates() {
-        /*
-        `thingy arg: 0
-        `thingy different: 1
-        */
-        let tokens = vec![
-            Token::GateIdentifier("thingy"),
-            Token::LocalIdentifier("arg"),
-            Token::Colon,
-            Token::Number(0),
-            Token::GateIdentifier("thingy"),
-            Token::LocalIdentifier("different"),
-            Token::Colon,
-            Token::Number(1),
-        ];
-
-        let mut expected_result = HashMap::new();
-        expected_result.insert(
-            "thingy",
-            ast::Gate {
-                name: "thingy",
-                arguments: vec![ast::Pattern("arg", 1)],
-                lets: Vec::new(),
-                ret: vec![ast::Expr::Const(false)],
-            },
-        );
-
-        // error should be reported but there isn't really a way to check that
-        assert_eq!(parse(make_token_stream(tokens)), expected_result)
     }
 
     #[test]
@@ -225,18 +182,15 @@ mod test {
             Token::LocalIdentifier("res"),
         ];
 
-        let mut expected_result = HashMap::new();
-        expected_result.insert(
-            "thingy",
-            ast::Gate {
+        assert_eq!(
+            parse(make_token_stream(tokens)),
+            Some(vec![ast::Gate {
                 name: "thingy",
                 arguments: vec![ast::Pattern("arg", 1)],
                 lets: vec![ast::Let { pat: vec![ast::Pattern("res", 1)], val: vec![ast::Expr::Call("and", vec![ast::Expr::Ref("arg", vec![0]), ast::Expr::Ref("arg", vec![0])])] }],
-                ret: vec![ast::Expr::Ref("res", vec![0])],
-            },
-        );
-
-        assert_eq!(parse(make_token_stream(tokens)), expected_result)
+                ret: vec![ast::Expr::Ref("res", vec![0])]
+            }])
+        )
     }
 
     #[test]
