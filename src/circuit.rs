@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use crate::utils;
 
 pub struct Circuit {
-    pub arity: usize,
+    pub num_inputs: usize,
     pub gates: Vec<Gate>,
-    pub output: Vec<Value>,
+    pub outputs: Vec<Value>,
 }
 
 pub enum Gate {
@@ -15,13 +15,23 @@ pub enum Gate {
     Const(bool),
 }
 
+#[derive(Copy, Clone)]
+pub enum Value {
+    Arg(usize),
+    GateValue(usize, usize),
+}
+
 impl Circuit {
+    pub fn num_outputs(&self) -> usize {
+        self.outputs.len()
+    }
+
     pub fn eval(&self, args: &[bool]) -> Vec<bool> {
         self.eval_with_results(args).0
     }
 
     pub fn eval_with_results(&self, inputs: &[bool]) -> (Vec<bool>, Vec<Vec<bool>>) {
-        assert_eq!(inputs.len(), self.arity);
+        assert_eq!(inputs.len(), self.num_inputs);
 
         let mut results: Vec<Vec<bool>> = Vec::new();
 
@@ -44,11 +54,11 @@ impl Circuit {
             });
         }
 
-        (self.output.iter().map(|value| get_value(*value, &results)).collect(), results)
+        (self.outputs.iter().map(|value| get_value(*value, &results)).collect(), results)
     }
 
     pub fn table(&self) -> HashMap<Vec<bool>, Vec<bool>> {
-        utils::enumerate_inputs(self.arity)
+        utils::enumerate_inputs(self.num_inputs)
             .into_iter()
             .map(|input| {
                 let res = self.eval(&input);
@@ -96,10 +106,4 @@ impl Gate {
             }
         }
     }
-}
-
-#[derive(Copy, Clone)]
-pub enum Value {
-    Arg(usize),
-    GateValue(usize, usize),
 }

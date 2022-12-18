@@ -29,10 +29,10 @@ impl Simulation {
     }
 
     fn circuit_input_pos(&self, index: usize, window_size: [f64; 2]) -> [f64; 2] {
-        [0.0, centered_y(window_size[1] / 2.0, self.circuit.arity, index)]
+        [0.0, centered_y(window_size[1] / 2.0, self.circuit.num_inputs, index)]
     }
     fn circuit_output_pos(&self, index: usize, window_size: [f64; 2]) -> [f64; 2] {
-        [window_size[0], centered_y(window_size[1] / 2.0, self.circuit.output.len(), index)]
+        [window_size[0], centered_y(window_size[1] / 2.0, self.circuit.outputs.len(), index)]
     }
 
     fn gate_box(&self, gate_index: usize) -> [f64; 4] {
@@ -70,11 +70,11 @@ impl Simulation {
             clear(BG, gl);
 
             // draw circuit inputs and outputs
-            for (i, input_value) in (0..self.circuit.arity).zip(inputs.iter()) {
+            for (i, input_value) in (0..self.circuit.num_inputs).zip(inputs.iter()) {
                 let pos = self.circuit_input_pos(i, args.window_size);
                 ellipse(on_off_color(*input_value), ellipse::circle(pos[0], pos[1], CIRCLE_RAD), c.transform, gl);
             }
-            for (output_i, output) in self.circuit.output.iter().enumerate() {
+            for (output_i, output) in self.circuit.outputs.iter().enumerate() {
                 let output_pos = self.circuit_output_pos(output_i, args.window_size);
                 let color = on_off_color(get_value(*output));
                 ellipse(color, ellipse::circle(output_pos[0], output_pos[1], CIRCLE_RAD), c.transform, gl);
