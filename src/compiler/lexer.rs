@@ -11,13 +11,13 @@ pub(crate) enum Token<'file> {
     Comma,
     Equals,
     Let,
-    Number(u32),
+    Number(usize),
     LocalIdentifier(&'file str),
     CircuitIdentifier(&'file str),
 }
 
 impl<'file> Token<'file> {
-    pub(crate) fn as_number(&self) -> Option<&u32> {
+    pub(crate) fn as_number(&self) -> Option<&usize> {
         if let Self::Number(v) = self {
             Some(v)
         } else {
@@ -67,7 +67,7 @@ impl std::fmt::Display for Token<'_> {
             Token::Equals => write!(f, "'='"),
             Token::Comma => write!(f, "','"),
             Token::Semicolon => write!(f, "';'"),
-            Token::Colon => write!(f, "':'"),
+            Token::Colon => write!(f, "':'"), // TODO: change this to something else
             Token::Let => write!(f, "'let'"),
             Token::Number(n) => write!(f, "'{n}'"),
             Token::LocalIdentifier(i) => write!(f, "'{i}'"),

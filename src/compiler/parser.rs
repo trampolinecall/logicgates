@@ -82,25 +82,69 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
     }
 
     fn parse_pattern(&mut self) -> Result<Vec<ast::Pattern<'file>>, ParseError> {
-        // for now, only identifier patterns
-        if matches!(self.peek(), Token::LocalIdentifier(_)) {
-            let iden = self.next();
-            let iden = *iden.as_local_identifier().unwrap();
-            Ok(vec![ast::Pattern(iden, 1)])
-        } else {
-            Err(self.expected("pattern"))
+        match self.peek() {
+            Token::LocalIdentifier(_) => {
+                let iden = self.next();
+                let iden = *iden.as_local_identifier().unwrap();
+
+                let size = if matches!(self.peek(), Token::Semicolon) {
+                    self.next();
+                    *self.expect("pattern size", |tok| matches!(tok, Token::Number(_)))?.as_number().unwrap()
+                } else {
+                    1
+                };
+                Ok(vec![ast::Pattern(iden, size)])
+            }
+
+            Token::OBrack => {
+                self.next();
+
+                let mut patterns = Vec::new();
+
+                if !matches!(self.peek(), Token::CBrack) {
+                    patterns.extend(self.parse_pattern()?);
+                    while matches!(self.peek(), Token::Comma) {
+                        self.next();
+                        patterns.extend(self.parse_pattern()?);
+                    }
+                }
+
+                self.expect("']'", |tok| matches!(tok, Token::CBrack))?;
+
+                Ok(patterns)
+            }
+
+            _ => Err(self.expected("pattern")),
         }
     }
 
-    fn parse_expr(&mut self) -> Result<Vec<ast::Expr<'file>>, ParseError> {
+    fn parse_expr(&mut self) -> Result<ast::Expr<'file>, ParseError> {
+        let primary = self.primary_expr()?;
+
+        let mut gets = Vec::new();
+        while matches!(self.peek(), Token::Semicolon) {
+            self.next();
+            let index = self.expect("get index", |tok| matches!(tok, Token::Number(_)))?;
+            let index = index.as_number().unwrap();
+            gets.push(*index);
+        }
+
+        if gets.is_empty() {
+            Ok(primary)
+        } else {
+            Ok(ast::Expr::Get(Box::new(primary), gets))
+        }
+    }
+
+    fn primary_expr(&mut self) -> Result<ast::Expr<'file>, ParseError> {
         match self.peek() {
             Token::Number(_) => {
                 let n = self.next();
                 let n = n.as_number().unwrap();
 
                 match n {
-                    0 => Ok(vec![ast::Expr::Const(false)]),
-                    1 => Ok(vec![ast::Expr::Const(true)]),
+                    0 => Ok(ast::Expr::Const(false)),
+                    1 => Ok(ast::Expr::Const(true)),
                     _ => Err(self.expected("'0' or '1'")),
                 }
             }
@@ -109,14 +153,14 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
                 let i = i.as_circuit_identifier().unwrap();
                 let args = self.parse_expr()?;
 
-                Ok(vec![ast::Expr::Call(i, args)])
+                Ok(ast::Expr::Call(i, Box::new(args)))
             }
 
             Token::LocalIdentifier(_) => {
                 let i = self.next();
                 let i = i.as_local_identifier().unwrap();
 
-                Ok(vec![ast::Expr::Ref(i, vec![0])])
+                Ok(ast::Expr::Ref(i))
             }
 
             Token::OBrack => {
@@ -125,19 +169,19 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
                 let mut items = Vec::new();
 
                 if !matches!(self.peek(), Token::CBrack) {
-                    items.extend(self.parse_expr()?);
+                    items.push(self.parse_expr()?);
                     while matches!(self.peek(), Token::Comma) {
                         self.next();
-                        items.extend(self.parse_expr()?);
+                        items.push(self.parse_expr()?);
                     }
                 }
 
                 self.expect("']'", |tok| matches!(tok, Token::CBrack))?;
 
-                Ok(items)
+                Ok(ast::Expr::Multiple(items))
             }
 
-            _ => Err(self.expected("expression")),
+            _ => Err(self.expected("expression"))?,
         }
     }
 }
@@ -187,8 +231,8 @@ mod test {
             Some(vec![ast::Circuit {
                 name: "thingy",
                 inputs: vec![ast::Pattern("arg", 1)],
-                lets: vec![ast::Let { pat: vec![ast::Pattern("res", 1)], val: vec![ast::Expr::Call("and", vec![ast::Expr::Ref("arg", vec![0]), ast::Expr::Ref("arg", vec![0])])] }],
-                outputs: vec![ast::Expr::Ref("res", vec![0])]
+                lets: vec![ast::Let { pat: vec![ast::Pattern("res", 1)], val: ast::Expr::Call("and", Box::new(ast::Expr::Multiple(vec![ast::Expr::Ref("arg"), ast::Expr::Ref("arg")]))) }],
+                outputs: ast::Expr::Ref("res")
             }])
         )
     }
@@ -196,7 +240,7 @@ mod test {
     #[test]
     fn r#let() {
         let tokens = vec![Token::Let, Token::LocalIdentifier("a"), Token::Equals, Token::LocalIdentifier("b")];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_let(), Ok(ast::Let { pat: vec![ast::Pattern("a", 1)], val: vec![ast::Expr::Ref("b", vec![0])] }))
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_let(), Ok(ast::Let { pat: vec![ast::Pattern("a", 1)], val: ast::Expr::Ref("b") }))
     }
 
     #[test]
@@ -208,30 +252,30 @@ mod test {
     #[test]
     fn const_false_expr() {
         let tokens = vec![Token::Number(0)];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(vec![ast::Expr::Const(false)]))
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(ast::Expr::Const(false)))
     }
 
     #[test]
     fn const_true_expr() {
         let tokens = vec![Token::Number(1)];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(vec![ast::Expr::Const(true)]))
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(ast::Expr::Const(true)))
     }
 
     #[test]
     fn call_expr() {
         let tokens = vec![Token::CircuitIdentifier("a"), Token::OBrack, Token::LocalIdentifier("b"), Token::CBrack];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(vec![ast::Expr::Call("a", vec![ast::Expr::Ref("b", vec![0])])]))
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(ast::Expr::Call("a", Box::new(ast::Expr::Ref("b")))))
     }
 
     #[test]
     fn iden_expr() {
         let tokens = vec![Token::LocalIdentifier("a")];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(vec![ast::Expr::Ref("a", vec![0])]))
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(ast::Expr::Ref("a")))
     }
 
     #[test]
     fn multiple_expr() {
         let tokens = vec![Token::OBrack, Token::LocalIdentifier("a"), Token::Comma, Token::LocalIdentifier("b"), Token::Comma, Token::Number(0), Token::Comma, Token::Number(1), Token::CBrack];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(vec![ast::Expr::Ref("a", vec![0]), ast::Expr::Ref("b", vec![0]), ast::Expr::Const(false), ast::Expr::Const(true)]))
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(ast::Expr::Multiple(vec![ast::Expr::Ref("a"), ast::Expr::Ref("b"), ast::Expr::Const(false), ast::Expr::Const(true)])))
     }
 }
