@@ -11,6 +11,7 @@ enum CircuitGenError<'file> {
     OutOfRange { local_name: &'file str, local_size: usize, index: usize },
     NoSuchLocal(&'file str),
     NoSuchCircuit(&'file str),
+    SizeMismatch { value_size: usize, pattern_size: usize },
 }
 
 #[derive(Default)]
@@ -37,6 +38,7 @@ impl From<CircuitGenError<'_>> for CompileError {
             CircuitGenError::OutOfRange { local_name, local_size, index } => CompileError { message: format!("get out of range: '{local_name}' has a size of {local_size} and the index is {index}") },
             CircuitGenError::NoSuchLocal(name) => CompileError { message: format!("no local called '{name}'") },
             CircuitGenError::NoSuchCircuit(name) => CompileError { message: format!("no circuit called '`{name}'") },
+            CircuitGenError::SizeMismatch { value_size, pattern_size } => CompileError { message: format!("size mismatch in assignment: value has size {value_size} but pattern has size {pattern_size}") },
         }
     }
 }
@@ -60,10 +62,18 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circu
     let name = circuit_ast.name;
 
     let mut circuit_state = CircuitGenState::default();
-    for r#let in circuit_ast.lets {
-        let result = convert_expr(global_state, &mut circuit_state, r#let.val);
+    for ast::Let { pat, val } in circuit_ast.lets {
+        let result = convert_expr(global_state, &mut circuit_state, val)?;
 
-        // TODO: assign results to locals
+        if result.len() != pattern_size(&pat) {
+            CircuitGenError::SizeMismatch { value_size: result.len(), pattern_size: pattern_size(&pat) }.report();
+            None?
+        }
+
+        let mut result = result.into_iter();
+        for sub_pat in pat {
+            circuit_state.locals.insert(sub_pat.0, (0..sub_pat.1).map(|_| result.next().unwrap()).collect());
+        }
     }
 
     let outputs = convert_expr(global_state, &mut circuit_state, circuit_ast.outputs)?;
