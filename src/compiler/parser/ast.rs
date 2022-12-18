@@ -1,5 +1,5 @@
 #[derive(PartialEq, Debug)]
-pub(crate) struct Gate<'file> {
+pub(crate) struct Circuit<'file> {
     pub(crate) name: &'file str,
     pub(crate) arguments: Vec<Pattern<'file>>,
     pub(crate) lets: Vec<Let<'file>>,

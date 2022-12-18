@@ -13,35 +13,35 @@ enum CircuitGenError<'file> {
 impl From<CircuitGenError<'_>> for CompileError {
     fn from(val: CircuitGenError) -> Self {
         match val {
-            CircuitGenError::Duplicate(name) => CompileError { message: format!("gate '{name}' defined more than once") },
+            CircuitGenError::Duplicate(name) => CompileError { message: format!("circuit '{name}' defined more than once") },
         }
     }
 }
 
-pub(crate) fn generate(ast: Vec<ast::Gate>) -> Option<circuit::Circuit> {
+pub(crate) fn generate(ast: Vec<ast::Circuit>) -> Option<circuit::Circuit> {
     let mut name_table = HashMap::new();
 
-    for gate in ast {
-        let (name, gate) = lower_gate(gate)?; // TODO: report multiple errors from this
+    for circuit in ast {
+        let (name, circuit) = lower_circuit(circuit)?; // TODO: report multiple errors from this
         if name_table.contains_key(name) {
             CircuitGenError::Duplicate(name).report();
             None?
         } else {
-            name_table.insert(name, gate);
+            name_table.insert(name, circuit);
         }
     }
     todo!()
 }
 
-fn lower_gate(gate_ast: ast::Gate) -> Option<(&str, circuit::Circuit)> {
-    let name = gate_ast.name;
+fn lower_circuit(circuit_ast: ast::Circuit) -> Option<(&str, circuit::Circuit)> {
+    let name = circuit_ast.name;
 
-    let gates: Vec<circuit::Circuit> = Vec::new();
-    for r#let in gate_ast.lets {
+    let gates: Vec<circuit::Gate> = Vec::new();
+    for r#let in circuit_ast.lets {
         let result = lower_expr(r#let.val);
     }
 
-    let circuit = circuit::Circuit { num_inputs: pattern_size(&gate_ast.arguments), gates: todo!(), outputs: todo!() };
+    let circuit = circuit::Circuit { num_inputs: pattern_size(&circuit_ast.arguments), gates: todo!(), outputs: todo!() };
 
     Some((name, circuit))
 }

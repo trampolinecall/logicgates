@@ -41,11 +41,11 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
         ParseError { expected: thing, got: self.peek().to_string() }
     }
 
-    fn parse(&mut self) -> Option<Vec<ast::Gate<'file>>> {
-        let mut gates = Vec::new();
+    fn parse(&mut self) -> Option<Vec<ast::Circuit<'file>>> {
+        let mut circuits = Vec::new();
         while !matches!(self.peek(), Token::EOF) {
-            match self.parse_gate() {
-                Ok(gate) => gates.push(gate),
+            match self.parse_circuit() {
+                Ok(circuit) => circuits.push(circuit),
                 Err(e) => {
                     self.next();
                     e.report();
@@ -53,12 +53,12 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
             }
         }
 
-        Some(gates)
+        Some(circuits)
     }
 
-    fn parse_gate(&mut self) -> Result<ast::Gate<'file>, ParseError> {
-        let name = self.expect("gate name", |tok| matches!(tok, Token::GateIdentifier(_)))?;
-        let name = *name.as_gate_identifier().unwrap();
+    fn parse_circuit(&mut self) -> Result<ast::Circuit<'file>, ParseError> {
+        let name = self.expect("circuit name", |tok| matches!(tok, Token::CircuitIdentifier(_)))?;
+        let name = *name.as_circuit_identifier().unwrap();
         let arguments = self.parse_pattern()?;
         self.expect("':'", |tok| matches!(tok, Token::Colon))?;
         let mut lets = Vec::new();
@@ -69,7 +69,7 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
 
         let ret = self.parse_expr()?;
 
-        Ok(ast::Gate { name, arguments, lets, ret })
+        Ok(ast::Circuit { name, arguments, lets, ret })
     }
 
     fn parse_let(&mut self) -> Result<ast::Let<'file>, ParseError> {
@@ -104,9 +104,9 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
                     _ => Err(self.expected("'0' or '1'")),
                 }
             }
-            Token::GateIdentifier(_) => {
+            Token::CircuitIdentifier(_) => {
                 let i = self.next();
-                let i = i.as_gate_identifier().unwrap();
+                let i = i.as_circuit_identifier().unwrap();
                 let args = self.parse_expr()?;
 
                 Ok(vec![ast::Expr::Call(i, args)])
@@ -142,7 +142,7 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
     }
 }
 
-pub(crate) fn parse<'file>(tokens: impl Iterator<Item = Token<'file>>) -> Option<Vec<ast::Gate<'file>>> {
+pub(crate) fn parse<'file>(tokens: impl Iterator<Item = Token<'file>>) -> Option<Vec<ast::Circuit<'file>>> {
     Parser { tokens: tokens.peekable() }.parse()
 }
 
@@ -160,20 +160,20 @@ mod test {
     }
 
     #[test]
-    fn gate() {
+    fn circuit() {
         /*
         `thingy arg:
             let res = `and [arg, arg]
             res
         */
         let tokens = vec![
-            Token::GateIdentifier("thingy"),
+            Token::CircuitIdentifier("thingy"),
             Token::LocalIdentifier("arg"),
             Token::Colon,
             Token::Let,
             Token::LocalIdentifier("res"),
             Token::Equals,
-            Token::GateIdentifier("and"),
+            Token::CircuitIdentifier("and"),
             Token::OBrack,
             Token::LocalIdentifier("arg"),
             Token::Comma,
@@ -184,7 +184,7 @@ mod test {
 
         assert_eq!(
             parse(make_token_stream(tokens)),
-            Some(vec![ast::Gate {
+            Some(vec![ast::Circuit {
                 name: "thingy",
                 arguments: vec![ast::Pattern("arg", 1)],
                 lets: vec![ast::Let { pat: vec![ast::Pattern("res", 1)], val: vec![ast::Expr::Call("and", vec![ast::Expr::Ref("arg", vec![0]), ast::Expr::Ref("arg", vec![0])])] }],
@@ -219,7 +219,7 @@ mod test {
 
     #[test]
     fn call_expr() {
-        let tokens = vec![Token::GateIdentifier("a"), Token::OBrack, Token::LocalIdentifier("b"), Token::CBrack];
+        let tokens = vec![Token::CircuitIdentifier("a"), Token::OBrack, Token::LocalIdentifier("b"), Token::CBrack];
         assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(vec![ast::Expr::Call("a", vec![ast::Expr::Ref("b", vec![0])])]))
     }
 
