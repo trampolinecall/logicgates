@@ -12,7 +12,8 @@ pub(crate) enum Token<'file> {
     Equals,
     Let,
     Number(u32),
-    Identifier(&'file str),
+    LocalIdentifier(&'file str),
+    GateIdentifier(&'file str),
 }
 
 impl<'file> Token<'file> {
@@ -24,8 +25,16 @@ impl<'file> Token<'file> {
         }
     }
 
-    pub(crate) fn as_identifier(&self) -> Option<&&'file str> {
-        if let Self::Identifier(v) = self {
+    pub(crate) fn as_local_identifier(&self) -> Option<&&'file str> {
+        if let Self::LocalIdentifier(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn as_gate_identifier(&self) -> Option<&&'file str> {
+        if let Self::GateIdentifier(v) = self {
             Some(v)
         } else {
             None
@@ -36,12 +45,14 @@ impl<'file> Token<'file> {
 #[derive(Debug, PartialEq)]
 pub(crate) enum LexError {
     BadChar(char),
+    ExpectedGateIdentifier(Option<char>),
 }
 
 impl From<LexError> for CompileError {
     fn from(le: LexError) -> Self {
         match le {
             LexError::BadChar(c) => CompileError { message: format!("bad character: '{c}'") },
+            LexError::ExpectedGateIdentifier(c) => CompileError { message: format!("expected identifier after '`', got {}", if let Some(c) = c { format!("'{c}'") } else { "end of file".into() }) },
         }
     }
 }
@@ -59,7 +70,8 @@ impl std::fmt::Display for Token<'_> {
             Token::Colon => write!(f, "':'"),
             Token::Let => write!(f, "'let'"),
             Token::Number(n) => write!(f, "'{n}'"),
-            Token::Identifier(i) => write!(f, "'{i}'"),
+            Token::LocalIdentifier(i) => write!(f, "'{i}'"),
+            Token::GateIdentifier(i) => write!(f, "'`{i}'"),
         }
     }
 }
@@ -118,7 +130,20 @@ impl<'file> Lexer<'file> {
 
                 match self.slice(start_i) {
                     "let" => Ok(Some(Token::Let)),
-                    iden => Ok(Some(Token::Identifier(iden))),
+                    iden => Ok(Some(Token::LocalIdentifier(iden))),
+                }
+            }
+
+            '`' => {
+                if self.peek_in_identifier() {
+                    let (first_i, _) = self.1.next().unwrap();
+                    while self.peek_in_identifier() {
+                        self.1.next();
+                    }
+
+                    Ok(Some(Token::GateIdentifier(self.slice(first_i))))
+                } else {
+                    Err(LexError::ExpectedGateIdentifier(self.1.peek().map(|(_, c)| *c)))
                 }
             }
 
@@ -179,17 +204,24 @@ mod test {
     #[test]
     fn identifiers() {
         let mut l = lex("a abc abc87 abC-'()");
-        assert_eq!(l.next(), Some(Token::Identifier("a")));
-        assert_eq!(l.next(), Some(Token::Identifier("abc")));
-        assert_eq!(l.next(), Some(Token::Identifier("abc87")));
-        assert_eq!(l.next(), Some(Token::Identifier("abC-'()")));
+        assert_eq!(l.next(), Some(Token::LocalIdentifier("a")));
+        assert_eq!(l.next(), Some(Token::LocalIdentifier("abc")));
+        assert_eq!(l.next(), Some(Token::LocalIdentifier("abc87")));
+        assert_eq!(l.next(), Some(Token::LocalIdentifier("abC-'()")));
+        assert_eq!(l.next(), Some(Token::EOF));
+
+        let mut l = lex("`a `abc `abc87 `abC-'()");
+        assert_eq!(l.next(), Some(Token::GateIdentifier("a")));
+        assert_eq!(l.next(), Some(Token::GateIdentifier("abc")));
+        assert_eq!(l.next(), Some(Token::GateIdentifier("abc87")));
+        assert_eq!(l.next(), Some(Token::GateIdentifier("abC-'()")));
         assert_eq!(l.next(), Some(Token::EOF));
     }
 
     #[test]
     fn whitespace() {
         let mut l = lex("    abc\n   2");
-        assert_eq!(l.next(), Some(Token::Identifier("abc")));
+        assert_eq!(l.next(), Some(Token::LocalIdentifier("abc")));
         assert_eq!(l.next(), Some(Token::Number(2)));
         assert_eq!(l.next(), Some(Token::EOF));
     }
