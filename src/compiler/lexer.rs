@@ -83,17 +83,14 @@ impl<'file> Lexer<'file> {
         match self.1.peek() {
             // TODO: this is duplicated code from the first few match arms of the main lexer loop
             Some((_, ' ' | '\n' | ',' | '[' | ']' | '=' | '.' | ';' | ':')) => false,
+            None => false,
             _ => true,
         }
     }
-}
 
-impl<'file> Iterator for Lexer<'file> {
-    type Item = Token<'file>;
-
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next_tok(&mut self) -> Token<'file> {
         let Some((start_i, start_c)) = self.1.next() else {
-            return Some(Token::EOF)
+            return Token::EOF
         };
 
         let res = match start_c {
@@ -131,13 +128,21 @@ impl<'file> Iterator for Lexer<'file> {
         };
 
         match res {
-            Ok(Some(t)) => Some(t),
-            Ok(None) => self.next(),
+            Ok(Some(t)) => t,
+            Ok(None) => self.next_tok(),
             Err(e) => {
                 e.report();
-                self.next()
+                self.next_tok()
             }
         }
+    }
+}
+
+impl<'file> Iterator for Lexer<'file> {
+    type Item = Token<'file>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.next_tok())
     }
 }
 
