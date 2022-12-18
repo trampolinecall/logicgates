@@ -112,7 +112,7 @@ impl Simulation {
         });
     }
 
-    pub fn calculate_locations(&mut self) -> Vec<[f64; 2]> {
+    fn calculate_locations(&mut self) -> Vec<[f64; 2]> {
         /* old iterative position calculating algorithm based on a loss function and trying to find a minimum loss
         // gate position scoring; lower is better
         let score = |current_idx: usize, current_loc @ [x, y]: [f64; 2], gate: &circuit::Gate| -> f64 {
@@ -176,6 +176,8 @@ impl Simulation {
 
         self.locations = new_locations;
         */
+
+        // TODO: test this
 
         // group them into columns with each one going one column right of its rightmost dependency
         let mut xs: Vec<i32> = Vec::new();
