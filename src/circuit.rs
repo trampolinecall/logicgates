@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use crate::utils;
+
 pub struct Circuit {
     pub arity: usize,
     pub gates: Vec<Gate>,
@@ -7,6 +11,47 @@ pub struct Circuit {
 pub enum Gate {
     // Custom(Circuit, Vec<Value>),
     And(Value, Value),
+}
+
+impl Circuit {
+    pub fn eval(&self, args: &[bool]) -> Vec<bool> {
+        self.eval_with_results(args).0
+    }
+
+    pub fn eval_with_results(&self, inputs: &[bool]) -> (Vec<bool>, Vec<Vec<bool>>) {
+        assert_eq!(inputs.len(), self.arity);
+
+        let mut results: Vec<Vec<bool>> = Vec::new();
+
+        let get_value = |v, results: &Vec<Vec<_>>| match v {
+            Value::Arg(arg_idx) => inputs[arg_idx],
+            Value::GateValue(gate_idx, output_idx) => results[gate_idx][output_idx],
+        };
+
+        for gate in &self.gates {
+            results.push(match gate {
+                /*
+                rep::Gate::Custom(subself, sub_inputs) => {
+                    let sub_inputs: Vec<bool> = sub_inputs.iter().map(|value| get_value(value, inputs, &registers)).collect();
+                    registers.extend(eval(subself, &sub_inputs))
+                }
+                */
+                self::Gate::And(a, b) => vec![get_value(*a, &results) && get_value(*b, &results)],
+            });
+        }
+
+        (self.output.iter().map(|value| get_value(*value, &results)).collect(), results)
+    }
+
+    pub fn table(&self) -> HashMap<Vec<bool>, Vec<bool>> {
+        utils::enumerate_inputs(self.arity)
+            .into_iter()
+            .map(|input| {
+                let res = self.eval(&input);
+                (input, res)
+            })
+            .collect()
+    }
 }
 
 impl Gate {

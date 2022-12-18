@@ -1,4 +1,4 @@
 pub mod circuit;
-pub mod display;
-pub mod eval;
+pub mod simulation;
 pub mod position;
+pub mod utils;
