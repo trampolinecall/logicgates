@@ -2,24 +2,10 @@ use crate::circuit;
 
 pub struct Simulation {
     pub circuit: circuit::Circuit,
-    locations: Vec<[f64; 2]>,
+    locations: Vec<(u32, f64)>,
 }
 
 const VERTICAL_VALUE_SPACING: f64 = 20.0;
-const CIRCLE_RAD: f64 = 5.0;
-const CONNECTION_RAD: f64 = CIRCLE_RAD / 2.0;
-const GATE_WIDTH: f64 = 50.0;
-
-const BG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
-const GATE_COLOR: [f32; 4] = [0.5, 0.5, 0.5, 1.0];
-const ON_COLOR: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
-const OFF_COLOR: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
-
-fn centered_y(center_y: f64, num_args: usize, i: usize) -> f64 {
-    let args_height: f64 = ((num_args - 1) as f64) * VERTICAL_VALUE_SPACING;
-    let args_start_y = center_y - (args_height / 2.0);
-    args_start_y + (i as f64) * VERTICAL_VALUE_SPACING
-}
 
 // TODO: refactor everything
 impl Simulation {
@@ -33,25 +19,39 @@ impl Simulation {
         use graphics::*;
         let (_, evaluated_values) = self.circuit.eval_with_results(inputs);
 
-        let circuit_input_pos = |index: usize| -> [f64; 2] { [0.0, centered_y(args.window_size[1] / 2.0, self.circuit.num_inputs, index)] };
-        let circuit_output_pos = |index: usize| -> [f64; 2] { [args.window_size[0], centered_y(args.window_size[1] / 2.0, self.circuit.outputs.len(), index)] };
+        let circuit_input_pos = |index: usize| -> [f64; 2] { [0.0, centered_arg_y(args.window_size[1] / 2.0, self.circuit.num_inputs, index)] };
+        let circuit_output_pos = |index: usize| -> [f64; 2] { [args.window_size[0], centered_arg_y(args.window_size[1] / 2.0, self.circuit.outputs.len(), index)] };
+
+        const CIRCLE_RAD: f64 = 5.0;
+        const CONNECTION_RAD: f64 = CIRCLE_RAD / 2.0;
+        const HORIZONTAL_GATE_SPACING: f64 = 100.0;
+
+        const BG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+        const GATE_COLOR: [f32; 4] = [0.5, 0.5, 0.5, 1.0];
+        const ON_COLOR: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
+        const OFF_COLOR: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
+
+        fn centered_arg_y(center_y: f64, num_args: usize, i: usize) -> f64 {
+            let args_height: f64 = ((num_args - 1) as f64) * VERTICAL_VALUE_SPACING;
+            let args_start_y = center_y - (args_height / 2.0);
+            args_start_y + (i as f64) * VERTICAL_VALUE_SPACING
+        }
 
         let gate_box = |gate_index: usize| -> [f64; 4] {
             let gate: &circuit::Gate = &self.circuit.gates[gate_index];
-            let [gate_x, gate_y]: [f64; 2] = self.locations[gate_index];
-            let gate_height = (std::cmp::max(gate.num_inputs(), gate.num_outputs()) - 1 + 2) as f64 * VERTICAL_VALUE_SPACING;
-            // x in the locations is the left but y in the locations is the center
-            [gate_x, gate_y - gate_height / 2.0 + args.window_size[1] / 2.0, GATE_WIDTH, gate_height]
+            let (gate_x, gate_y) = self.locations[gate_index];
+            let [gate_width, gate_height] = gate_size(gate);
+            [gate_x as f64 * HORIZONTAL_GATE_SPACING, gate_y + args.window_size[1] / 2.0, gate_width, gate_height]
         };
         let gate_input_pos = |gate_index: usize, input_index: usize| -> [f64; 2] {
             let gate: &circuit::Gate = &self.circuit.gates[gate_index];
             let [gate_x, gate_y, _, gate_height] = gate_box(gate_index);
-            [gate_x, centered_y(gate_y + gate_height / 2.0, gate.num_inputs(), input_index)]
+            [gate_x, centered_arg_y(gate_y + gate_height / 2.0, gate.num_inputs(), input_index)]
         };
         let gate_output_pos = |gate_index: usize, output_index: usize| -> [f64; 2] {
             let gate: &circuit::Gate = &self.circuit.gates[gate_index];
-            let [gate_x, gate_y, _, gate_height] = gate_box(gate_index);
-            [gate_x + GATE_WIDTH, centered_y(gate_y + gate_height / 2.0, gate.num_outputs(), output_index)]
+            let [gate_x, gate_y, gate_width, gate_height] = gate_box(gate_index);
+            [gate_x + gate_width, centered_arg_y(gate_y + gate_height / 2.0, gate.num_outputs(), output_index)]
         };
 
         let value_pos = |value: circuit::Value| match value {
@@ -109,7 +109,7 @@ impl Simulation {
         });
     }
 
-    fn calculate_locations(&mut self) -> Vec<[f64; 2]> {
+    fn calculate_locations(&mut self) -> Vec<(u32, f64)> {
         /* old iterative position calculating algorithm based on a loss function and trying to find a minimum loss
         // gate position scoring; lower is better
         let score = |current_idx: usize, current_loc @ [x, y]: [f64; 2], gate: &circuit::Gate| -> f64 {
@@ -177,7 +177,7 @@ impl Simulation {
         // TODO: test this
 
         // group them into columns with each one going one column right of its rightmost dependency
-        let mut xs: Vec<i32> = Vec::new();
+        let mut xs: Vec<u32> = Vec::new();
         for gate in self.circuit.gates.iter() {
             let input_x = |value: &_| match value {
                 circuit::Value::Arg(_) => 0,
@@ -196,14 +196,24 @@ impl Simulation {
             let mut on_col: Vec<_> = self.circuit.gates.iter().enumerate().filter(|(gate_i, _)| xs[*gate_i] == x).collect();
             on_col.sort_by_cached_key(|(_, gate)| gate.inputs().iter().map(input_y).sum::<i32>());
 
-            const SPACING: f64 = 100.0;
-            let all_height = SPACING * (on_col.len() - 1) as f64;
-            let start_y = -all_height / 2.0;
-            for (i, (gate_i, _)) in on_col.iter().enumerate() {
-                ys[*gate_i] = start_y + i as f64 * SPACING;
+            const PADDING: f64 = 20.0;
+            let all_height: f64 = on_col.iter().map(|(_, g)| gate_size(g)[1]).sum::<f64>() + PADDING * (on_col.len() - 1) as f64;
+            let mut start_y = -all_height / 2.0;
+            for (gate_i, gate) in on_col.iter() {
+                ys[*gate_i] = start_y;
+                start_y += gate_size(gate)[1];
+                start_y += PADDING;
             }
         }
 
-        xs.into_iter().zip(ys).map(|(x, y)| [x as f64 * 100.0, y]).collect()
+        xs.into_iter().zip(ys).collect()
     }
+}
+
+fn gate_size(gate: &circuit::Gate) -> [f64; 2] {
+    const GATE_WIDTH: f64 = 50.0;
+    const EXTRA_VERTICAL_HEIGHT: f64 = 40.0;
+
+    let gate_height = (std::cmp::max(gate.num_inputs(), gate.num_outputs()) - 1) as f64 * VERTICAL_VALUE_SPACING + EXTRA_VERTICAL_HEIGHT;
+    [GATE_WIDTH, gate_height]
 }
