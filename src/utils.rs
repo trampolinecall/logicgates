@@ -1,4 +1,4 @@
-pub fn enumerate_inputs(arity: usize) -> Vec<Vec<bool>> {
+pub(crate) fn enumerate_inputs(arity: usize) -> Vec<Vec<bool>> {
     let mut inputs = vec![vec![]];
     for _ in 0..arity {
         let mut inputs_false = inputs.clone();

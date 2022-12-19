@@ -5,7 +5,7 @@ mod parser;
 
 use crate::circuit;
 
-pub fn compile(filename: &str) -> Option<circuit::Circuit> {
+pub(crate) fn compile(filename: &str) -> Option<circuit::Circuit> {
     // TODO: do not return result if any errors are generated
     let file = load_file(filename)?;
     let tokens = lexer::lex(&file);

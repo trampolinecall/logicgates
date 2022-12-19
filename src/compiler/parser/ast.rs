@@ -18,7 +18,7 @@ pub(crate) enum Expr<'file> {
     Call(&'file str, bool, Box<Expr<'file>>),
     Const(bool),
     Get(Box<Expr<'file>>, Vec<usize>),
-    Multiple(Vec<Expr<'file>>)
+    Multiple(Vec<Expr<'file>>),
 }
 
 #[derive(PartialEq, Debug)]

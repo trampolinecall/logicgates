@@ -1,13 +1,20 @@
+#![allow(clippy::upper_case_acronyms)]
+
+pub(crate) mod circuit;
+pub(crate) mod compiler;
+pub(crate) mod simulation;
+pub(crate) mod utils;
+
 use piston::{self, PressEvent, RenderEvent, UpdateEvent};
 
-pub struct App {
+pub(crate) struct App {
     gl: opengl_graphics::GlGraphics,
-    simulation: logicgates::simulation::Simulation,
+    simulation: simulation::Simulation,
     input: Vec<bool>,
 }
 
 impl App {
-    fn new(gl: opengl_graphics::GlGraphics, simulation: logicgates::simulation::Simulation) -> App {
+    fn new(gl: opengl_graphics::GlGraphics, simulation: simulation::Simulation) -> App {
         let input = (0..simulation.circuit.num_inputs).map(|_| false).collect();
         App { gl, simulation, input }
     }
@@ -20,12 +27,12 @@ impl App {
 }
 
 fn main() {
-    let circuit = logicgates::compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap();
+    let circuit = compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap();
     let opengl = opengl_graphics::OpenGL::V3_2;
 
     let mut window: glutin_window::GlutinWindow = piston::WindowSettings::new("logic gates", [1280, 720]).graphics_api(opengl).resizable(true).samples(4).exit_on_esc(true).build().unwrap();
 
-    let mut app = App::new(opengl_graphics::GlGraphics::new(opengl), logicgates::simulation::Simulation::new(circuit));
+    let mut app = App::new(opengl_graphics::GlGraphics::new(opengl), simulation::Simulation::new(circuit));
 
     let mut events = piston::Events::new(piston::EventSettings::new());
     while let Some(e) = events.next(&mut window) {
