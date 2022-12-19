@@ -44,7 +44,7 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
     fn parse(&mut self) -> Option<Vec<ast::Circuit<'file>>> {
         let mut circuits = Vec::new();
         while !matches!(self.peek(), Token::EOF) {
-            match self.parse_circuit() {
+            match self.circuit() {
                 Ok(circuit) => circuits.push(circuit),
                 Err(e) => {
                     self.next();
@@ -56,31 +56,31 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
         Some(circuits)
     }
 
-    fn parse_circuit(&mut self) -> Result<ast::Circuit<'file>, ParseError> {
+    fn circuit(&mut self) -> Result<ast::Circuit<'file>, ParseError> {
         let name = self.expect("circuit name", |tok| matches!(tok, Token::CircuitIdentifier(_)))?;
         let name = *name.as_circuit_identifier().unwrap();
-        let arguments = self.parse_pattern()?;
+        let arguments = self.pattern()?;
         let mut lets = Vec::new();
 
         while matches!(self.peek(), Token::Let) {
-            lets.push(self.parse_let()?);
+            lets.push(self.r#let()?);
         }
 
-        let ret = self.parse_expr()?;
+        let ret = self.expr()?;
 
         Ok(ast::Circuit { name, inputs: arguments, lets, outputs: ret })
     }
 
-    fn parse_let(&mut self) -> Result<ast::Let<'file>, ParseError> {
+    fn r#let(&mut self) -> Result<ast::Let<'file>, ParseError> {
         self.expect("'let'", |tok| matches!(tok, Token::Let))?;
-        let pat = self.parse_pattern()?;
+        let pat = self.pattern()?;
         self.expect("'='", |tok| matches!(tok, Token::Equals))?;
 
-        let val = self.parse_expr()?;
+        let val = self.expr()?;
         Ok(ast::Let { pat, val })
     }
 
-    fn parse_pattern(&mut self) -> Result<Vec<ast::Pattern<'file>>, ParseError> {
+    fn pattern(&mut self) -> Result<Vec<ast::Pattern<'file>>, ParseError> {
         match self.peek() {
             Token::LocalIdentifier(_) => {
                 let iden = self.next();
@@ -101,10 +101,10 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
                 let mut patterns = Vec::new();
 
                 if !matches!(self.peek(), Token::CBrack) {
-                    patterns.extend(self.parse_pattern()?);
+                    patterns.extend(self.pattern()?);
                     while matches!(self.peek(), Token::Comma) {
                         self.next();
-                        patterns.extend(self.parse_pattern()?);
+                        patterns.extend(self.pattern()?);
                     }
                 }
 
@@ -117,7 +117,7 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
         }
     }
 
-    fn parse_expr(&mut self) -> Result<ast::Expr<'file>, ParseError> {
+    fn expr(&mut self) -> Result<ast::Expr<'file>, ParseError> {
         let primary = self.primary_expr()?;
 
         let mut gets = Vec::new();
@@ -158,7 +158,7 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
                     false
                 };
 
-                let args = self.parse_expr()?;
+                let args = self.expr()?;
 
                 Ok(ast::Expr::Call(i, inline, Box::new(args)))
             }
@@ -176,10 +176,10 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
                 let mut items = Vec::new();
 
                 if !matches!(self.peek(), Token::CBrack) {
-                    items.push(self.parse_expr()?);
+                    items.push(self.expr()?);
                     while matches!(self.peek(), Token::Comma) {
                         self.next();
-                        items.push(self.parse_expr()?);
+                        items.push(self.expr()?);
                     }
                 }
 
@@ -247,42 +247,42 @@ mod test {
     #[test]
     fn r#let() {
         let tokens = vec![Token::Let, Token::LocalIdentifier("a"), Token::Equals, Token::LocalIdentifier("b")];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_let(), Ok(ast::Let { pat: vec![ast::Pattern("a", 1)], val: ast::Expr::Ref("b") }))
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.r#let(), Ok(ast::Let { pat: vec![ast::Pattern("a", 1)], val: ast::Expr::Ref("b") }))
     }
 
     #[test]
     fn iden_pattern() {
         let tokens = vec![Token::LocalIdentifier("iden")];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_pattern(), Ok(vec![ast::Pattern("iden", 1)]))
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.pattern(), Ok(vec![ast::Pattern("iden", 1)]))
     }
 
     #[test]
     fn const_false_expr() {
         let tokens = vec![Token::Number(0)];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(ast::Expr::Const(false)))
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.expr(), Ok(ast::Expr::Const(false)))
     }
 
     #[test]
     fn const_true_expr() {
         let tokens = vec![Token::Number(1)];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(ast::Expr::Const(true)))
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.expr(), Ok(ast::Expr::Const(true)))
     }
 
     #[test]
     fn call_expr() {
         let tokens = vec![Token::CircuitIdentifier("a"), Token::LocalIdentifier("b")];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(ast::Expr::Call("a", false, Box::new(ast::Expr::Ref("b")))))
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.expr(), Ok(ast::Expr::Call("a", false, Box::new(ast::Expr::Ref("b")))))
     }
 
     #[test]
     fn iden_expr() {
         let tokens = vec![Token::LocalIdentifier("a")];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(ast::Expr::Ref("a")))
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.expr(), Ok(ast::Expr::Ref("a")))
     }
 
     #[test]
     fn multiple_expr() {
         let tokens = vec![Token::OBrack, Token::LocalIdentifier("a"), Token::Comma, Token::LocalIdentifier("b"), Token::Comma, Token::Number(0), Token::Comma, Token::Number(1), Token::CBrack];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(ast::Expr::Multiple(vec![ast::Expr::Ref("a"), ast::Expr::Ref("b"), ast::Expr::Const(false), ast::Expr::Const(true)])))
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.expr(), Ok(ast::Expr::Multiple(vec![ast::Expr::Ref("a"), ast::Expr::Ref("b"), ast::Expr::Const(false), ast::Expr::Const(true)])))
     }
 }
