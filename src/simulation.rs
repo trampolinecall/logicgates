@@ -189,7 +189,7 @@ impl Simulation {
 
         // within each column sort them by the average of their input ys
         let mut ys: Vec<f64> = self.circuit.gates.iter().map(|_| 0.0).collect();
-        for x in 1..=*xs.iter().max().unwrap() {
+        for x in 1..=*xs.iter().max().unwrap_or(&0) {
             let input_y = |input: &_| match input {
                 circuit::Value::Arg(_) => 0,
                 circuit::Value::GateValue(g, _) => ys[*g] as i32,
