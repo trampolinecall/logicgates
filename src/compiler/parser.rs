@@ -60,7 +60,6 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
         let name = self.expect("circuit name", |tok| matches!(tok, Token::CircuitIdentifier(_)))?;
         let name = *name.as_circuit_identifier().unwrap();
         let arguments = self.parse_pattern()?;
-        self.expect("':'", |tok| matches!(tok, Token::Colon))?;
         let mut lets = Vec::new();
 
         while matches!(self.peek(), Token::Let) {
@@ -213,7 +212,6 @@ mod test {
         let tokens = vec![
             Token::CircuitIdentifier("thingy"),
             Token::LocalIdentifier("arg"),
-            Token::Colon,
             Token::Let,
             Token::LocalIdentifier("res"),
             Token::Equals,

@@ -6,7 +6,6 @@ pub(crate) enum Token<'file> {
     OBrack,
     CBrack,
     Semicolon,
-    Colon,
     Dot,
     Comma,
     Equals,
@@ -67,7 +66,6 @@ impl std::fmt::Display for Token<'_> {
             Token::Equals => write!(f, "'='"),
             Token::Comma => write!(f, "','"),
             Token::Semicolon => write!(f, "';'"),
-            Token::Colon => write!(f, "':'"), // TODO: change this to something else
             Token::Let => write!(f, "'let'"),
             Token::Number(n) => write!(f, "'{n}'"),
             Token::LocalIdentifier(i) => write!(f, "'{i}'"),
@@ -94,7 +92,7 @@ impl<'file> Lexer<'file> {
     fn peek_in_identifier(&mut self) -> bool {
         match self.1.peek() {
             // TODO: this is duplicated code from the first few match arms of the main lexer loop
-            Some((_, ' ' | '\n' | ',' | '[' | ']' | '=' | '.' | ';' | ':')) => false,
+            Some((_, ' ' | '\n' | ',' | '[' | ']' | '=' | '.' | ';')) => false,
             None => false,
             _ => true,
         }
@@ -109,7 +107,6 @@ impl<'file> Lexer<'file> {
             ',' => Ok(Some(Token::Comma)),
             '[' => Ok(Some(Token::OBrack)),
             ']' => Ok(Some(Token::CBrack)),
-            ':' => Ok(Some(Token::Colon)),
             ';' => Ok(Some(Token::Semicolon)),
             '.' => Ok(Some(Token::Dot)),
             '=' => Ok(Some(Token::Equals)),
