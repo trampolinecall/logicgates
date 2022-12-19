@@ -1,7 +1,7 @@
 use crate::circuit;
 
-pub struct Simulation {
-    pub circuit: circuit::Circuit,
+pub(crate) struct Simulation {
+    pub(crate) circuit: circuit::Circuit,
     locations: Vec<(u32, f64)>,
 }
 
@@ -9,13 +9,13 @@ const VERTICAL_VALUE_SPACING: f64 = 20.0;
 
 // TODO: refactor everything
 impl Simulation {
-    pub fn new(circuit: circuit::Circuit) -> Self {
+    pub(crate) fn new(circuit: circuit::Circuit) -> Self {
         let mut s = Self { circuit, locations: Vec::new() };
         s.locations = s.calculate_locations();
         s
     }
 
-    pub fn render(&self, graphics: &mut opengl_graphics::GlGraphics, args: &piston::RenderArgs, inputs: &[bool]) {
+    pub(crate) fn render(&self, graphics: &mut opengl_graphics::GlGraphics, args: &piston::RenderArgs, inputs: &[bool]) {
         use graphics::*;
         let (_, evaluated_values) = self.circuit.eval_with_results(inputs);
 

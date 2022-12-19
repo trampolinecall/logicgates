@@ -82,18 +82,16 @@ impl CircuitDefinition {
         match gate {
             circuit::Gate::Custom(subcircuit, inputs) => {
                 let mut gate_number_mapping: HashMap<usize, usize> = HashMap::new();
-                let convert_value = |v, gate_number_mapping: &HashMap<usize, usize>| {
-                    match v {
-                        circuit::Value::Arg(arg_idx) => inputs[arg_idx],
-                        circuit::Value::GateValue(old_gate_idx, output_idx) => circuit::Value::GateValue(gate_number_mapping[&old_gate_idx], output_idx)
-                    }
+                let convert_value = |v, gate_number_mapping: &HashMap<usize, usize>| match v {
+                    circuit::Value::Arg(arg_idx) => inputs[arg_idx],
+                    circuit::Value::GateValue(old_gate_idx, output_idx) => circuit::Value::GateValue(gate_number_mapping[&old_gate_idx], output_idx),
                 };
                 for (subcircuit_gate_i, gate) in subcircuit.gates.into_iter().enumerate() {
                     let gate_with_inline_indexes = match gate {
                         circuit::Gate::Custom(sub, vs) => circuit::Gate::Custom(sub, vs.into_iter().map(|v| convert_value(v, &gate_number_mapping)).collect()),
                         circuit::Gate::And(vs) => circuit::Gate::And(vs.into_iter().map(|v| convert_value(v, &gate_number_mapping)).collect()),
                         circuit::Gate::Not(v) => circuit::Gate::Not(convert_value(v, &gate_number_mapping)),
-                        circuit::Gate::Const(v) => circuit::Gate::Const(v)
+                        circuit::Gate::Const(v) => circuit::Gate::Const(v),
                     };
                     let inline_gate_i = circuit_state.add_gate(gate_with_inline_indexes);
                     gate_number_mapping.insert(subcircuit_gate_i, inline_gate_i);

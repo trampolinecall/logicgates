@@ -3,15 +3,15 @@ use std::collections::HashMap;
 use crate::utils;
 
 #[derive(Clone)]
-pub struct Circuit {
-    pub name: String,
-    pub num_inputs: usize,
-    pub gates: Vec<Gate>,
-    pub outputs: Vec<Value>,
+pub(crate) struct Circuit {
+    pub(crate) name: String,
+    pub(crate) num_inputs: usize,
+    pub(crate) gates: Vec<Gate>,
+    pub(crate) outputs: Vec<Value>,
 }
 
 #[derive(Clone)]
-pub enum Gate {
+pub(crate) enum Gate {
     Custom(Circuit, Vec<Value>),
     And(Vec<Value>),
     Not(Value),
@@ -19,21 +19,21 @@ pub enum Gate {
 }
 
 #[derive(Copy, Clone)]
-pub enum Value {
+pub(crate) enum Value {
     Arg(usize),
     GateValue(usize, usize),
 }
 
 impl Circuit {
-    pub fn num_outputs(&self) -> usize {
+    pub(crate) fn num_outputs(&self) -> usize {
         self.outputs.len()
     }
 
-    pub fn eval(&self, args: &[bool]) -> Vec<bool> {
+    pub(crate) fn eval(&self, args: &[bool]) -> Vec<bool> {
         self.eval_with_results(args).0
     }
 
-    pub fn eval_with_results(&self, inputs: &[bool]) -> (Vec<bool>, Vec<Vec<bool>>) {
+    pub(crate) fn eval_with_results(&self, inputs: &[bool]) -> (Vec<bool>, Vec<Vec<bool>>) {
         assert_eq!(inputs.len(), self.num_inputs);
 
         let mut results: Vec<Vec<bool>> = Vec::new();
@@ -58,7 +58,7 @@ impl Circuit {
         (self.outputs.iter().map(|value| get_value(*value, &results)).collect(), results)
     }
 
-    pub fn table(&self) -> HashMap<Vec<bool>, Vec<bool>> {
+    pub(crate) fn table(&self) -> HashMap<Vec<bool>, Vec<bool>> {
         utils::enumerate_inputs(self.num_inputs)
             .into_iter()
             .map(|input| {
@@ -70,7 +70,7 @@ impl Circuit {
 }
 
 impl Gate {
-    pub fn inputs(&self) -> Vec<Value> {
+    pub(crate) fn inputs(&self) -> Vec<Value> {
         match self {
             Gate::And(inputs) => inputs.clone(),
             Gate::Not(v) => vec![*v],
@@ -79,7 +79,7 @@ impl Gate {
         }
     }
 
-    pub fn num_inputs(&self) -> usize {
+    pub(crate) fn num_inputs(&self) -> usize {
         match self {
             Gate::And(inputs) => inputs.len(),
             Gate::Not(_) => 1,
@@ -88,7 +88,7 @@ impl Gate {
         }
     }
 
-    pub fn num_outputs(&self) -> usize {
+    pub(crate) fn num_outputs(&self) -> usize {
         match self {
             Gate::And(_) => 1,
             Gate::Const(_) => 1,
@@ -97,7 +97,7 @@ impl Gate {
         }
     }
 
-    pub fn name(&self) -> &str {
+    pub(crate) fn name(&self) -> &str {
         match self {
             Gate::And(_) => "and",
             Gate::Not(_) => "not",
