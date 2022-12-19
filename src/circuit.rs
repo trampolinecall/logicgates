@@ -25,10 +25,6 @@ pub(crate) enum Value {
 }
 
 impl Circuit {
-    pub(crate) fn num_outputs(&self) -> usize {
-        self.outputs.len()
-    }
-
     pub(crate) fn eval(&self, args: &[bool]) -> Vec<bool> {
         self.eval_with_results(args).0
     }
@@ -49,7 +45,7 @@ impl Circuit {
                     let subinputs: Vec<bool> = subinputs.iter().map(|value| get_value(*value, &results)).collect();
                     subcircuit.eval(&subinputs)
                 }
-                Gate::And(v) => vec![v.into_iter().all(|v| get_value(*v, &results))],
+                Gate::And(v) => vec![v.iter().all(|v| get_value(*v, &results))],
                 Gate::Not(v) => vec![!get_value(*v, &results)],
                 Gate::Const(b) => vec![*b],
             });
