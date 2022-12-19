@@ -49,7 +49,7 @@ impl CircuitDefinition {
                 }
             }
             CircuitDefinition::AndBuiltin => {
-                if inputs.len() == 0 {
+                if inputs.is_empty() {
                     CircuitGenError::AndWith0 { actual_size: inputs.len() }.report();
                     None?
                 } else {
@@ -129,7 +129,7 @@ impl From<CircuitGenError<'_>> for CompileError {
             CircuitGenError::SizeMismatchInAssignment { value_size, pattern_size } => {
                 CompileError { message: format!("size mismatch in assignment: value has size {value_size} but pattern has size {pattern_size}") }
             }
-            CircuitGenError::NoMain => CompileError { message: format!("no '`main' circuit") },
+            CircuitGenError::NoMain => CompileError { message: "no '`main' circuit".into() },
             CircuitGenError::SizeMismatchInCall { actual_size, expected_size } => {
                 CompileError { message: format!("size mismatch in subcircuit: arguments have size {actual_size} but subcircuit expects size {expected_size}") }
             }
@@ -196,7 +196,7 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circu
     Some((name, circuit::Circuit { name: name.into(), num_inputs: pattern_size(&circuit_ast.inputs), gates: circuit_state.gates, outputs }))
 }
 
-fn convert_expr<'file>(global_state: &GlobalGenState, circuit_state: &mut CircuitGenState, expr: ast::Expr) -> Option<Vec<circuit::Value>> {
+fn convert_expr(global_state: &GlobalGenState, circuit_state: &mut CircuitGenState, expr: ast::Expr) -> Option<Vec<circuit::Value>> {
     match expr {
         ast::Expr::Ref(name) => {
             let name_resolved = match circuit_state.locals.get(name) {
