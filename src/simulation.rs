@@ -26,10 +26,10 @@ impl Simulation {
         const CONNECTION_RAD: f64 = CIRCLE_RAD / 2.0;
         const HORIZONTAL_GATE_SPACING: f64 = 100.0;
 
-        const BG: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
-        const GATE_COLOR: [f32; 4] = [0.5, 0.5, 0.5, 1.0];
-        const ON_COLOR: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
-        const OFF_COLOR: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
+        const BG: [f32; 4] = [0.172, 0.243, 0.313, 1.0];
+        const GATE_COLOR: [f32; 4] = [0.584, 0.647, 0.65, 1.0];
+        const ON_COLOR: [f32; 4] = [0.18, 0.8, 0.521, 1.0];
+        const OFF_COLOR: [f32; 4] = [0.498, 0.549, 0.552, 1.0];
 
         fn centered_arg_y(center_y: f64, num_args: usize, i: usize) -> f64 {
             let args_height: f64 = ((num_args - 1) as f64) * VERTICAL_VALUE_SPACING;
