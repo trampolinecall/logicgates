@@ -15,7 +15,7 @@ pub(crate) struct Let<'file> {
 #[derive(PartialEq, Debug)]
 pub(crate) enum Expr<'file> {
     Ref(&'file str),
-    Call(&'file str, Box<Expr<'file>>),
+    Call(&'file str, bool, Box<Expr<'file>>),
     Const(bool),
     Get(Box<Expr<'file>>, Vec<usize>),
     Multiple(Vec<Expr<'file>>)
