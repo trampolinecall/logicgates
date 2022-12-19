@@ -14,6 +14,7 @@ enum CircuitGenError<'file> {
     SizeMismatchInAssignment { value_size: usize, pattern_size: usize },
     NoMain,
     SizeMismatchInCall { actual_size: usize, expected_size: usize },
+    AndWith0 { actual_size: usize },
 }
 
 #[derive(Default)]
@@ -37,23 +38,33 @@ enum CircuitDefinition {
 }
 impl CircuitDefinition {
     fn to_gate(&self, inputs: Vec<circuit::Value>) -> Option<circuit::Gate> {
-        // TODO: refactor this and possible the rest of the module
-        let expected_size = match self {
-            CircuitDefinition::Circuit(c) => c.num_inputs,
-            CircuitDefinition::AndBuiltin => 2,
-            CircuitDefinition::NotBuiltin => 1,
-        };
-
-        if inputs.len() != expected_size {
-            CircuitGenError::SizeMismatchInCall { actual_size: inputs.len(), expected_size }.report();
-            None
-        } else {
-            Some(match self {
-                CircuitDefinition::Circuit(c) => circuit::Gate::Custom(c.clone(), inputs),
-                CircuitDefinition::AndBuiltin => circuit::Gate::And(inputs[0], inputs[1]),
-                CircuitDefinition::NotBuiltin => circuit::Gate::Not(inputs[0]),
-            })
-        }
+        // TODO: refactor this and probably refactor the rest of the module too
+        Some(match self {
+            CircuitDefinition::Circuit(c) => {
+                if inputs.len() != c.num_inputs {
+                    CircuitGenError::SizeMismatchInCall { actual_size: inputs.len(), expected_size: c.num_inputs }.report();
+                    None?
+                } else {
+                    circuit::Gate::Custom(c.clone(), inputs)
+                }
+            }
+            CircuitDefinition::AndBuiltin => {
+                if inputs.len() == 0 {
+                    CircuitGenError::AndWith0 { actual_size: inputs.len() }.report();
+                    None?
+                } else {
+                    circuit::Gate::And(inputs)
+                }
+            }
+            CircuitDefinition::NotBuiltin => {
+                if inputs.len() != 1 {
+                    CircuitGenError::SizeMismatchInCall { actual_size: inputs.len(), expected_size: 1 }.report();
+                    None?
+                } else {
+                    circuit::Gate::Not(inputs[0])
+                }
+            }
+        })
     }
 }
 
@@ -82,6 +93,10 @@ impl From<CircuitGenError<'_>> for CompileError {
             CircuitGenError::NoMain => CompileError { message: format!("no '`main' circuit") },
             CircuitGenError::SizeMismatchInCall { actual_size, expected_size } => {
                 CompileError { message: format!("size mismatch in subcircuit: arguments have size {actual_size} but subcircuit expects size {expected_size}") }
+            }
+            CircuitGenError::AndWith0 { actual_size } => {
+                CompileError { message: format!("'`and' gate needs a size of at least 1 but got size {actual_size}") }
+
             }
         }
     }
