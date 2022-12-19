@@ -210,6 +210,7 @@ mod test {
         tokens.into_iter().chain(std::iter::repeat_with(|| Token::EOF)).peekable()
     }
 
+    // TODO: test inline calls
     #[test]
     fn circuit() {
         /*
@@ -237,7 +238,7 @@ mod test {
             Some(vec![ast::Circuit {
                 name: "thingy",
                 inputs: vec![ast::Pattern("arg", 1)],
-                lets: vec![ast::Let { pat: vec![ast::Pattern("res", 1)], val: ast::Expr::Call("and", Box::new(ast::Expr::Multiple(vec![ast::Expr::Ref("arg"), ast::Expr::Ref("arg")]))) }],
+                lets: vec![ast::Let { pat: vec![ast::Pattern("res", 1)], val: ast::Expr::Call("and", false, Box::new(ast::Expr::Multiple(vec![ast::Expr::Ref("arg"), ast::Expr::Ref("arg")]))) }],
                 outputs: ast::Expr::Ref("res")
             }])
         )
@@ -269,8 +270,8 @@ mod test {
 
     #[test]
     fn call_expr() {
-        let tokens = vec![Token::CircuitIdentifier("a"), Token::OBrack, Token::LocalIdentifier("b"), Token::CBrack];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(ast::Expr::Call("a", Box::new(ast::Expr::Ref("b")))))
+        let tokens = vec![Token::CircuitIdentifier("a"), Token::LocalIdentifier("b")];
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.parse_expr(), Ok(ast::Expr::Call("a", false, Box::new(ast::Expr::Ref("b")))))
     }
 
     #[test]
