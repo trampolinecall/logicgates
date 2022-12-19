@@ -10,6 +10,7 @@ pub(crate) enum Token<'file> {
     Comma,
     Equals,
     Let,
+    Inline,
     Number(usize),
     LocalIdentifier(&'file str),
     CircuitIdentifier(&'file str),
@@ -67,6 +68,7 @@ impl std::fmt::Display for Token<'_> {
             Token::Comma => write!(f, "','"),
             Token::Semicolon => write!(f, "';'"),
             Token::Let => write!(f, "'let'"),
+            Token::Inline => write!(f, "'inline'"),
             Token::Number(n) => write!(f, "'{n}'"),
             Token::LocalIdentifier(i) => write!(f, "'{i}'"),
             Token::CircuitIdentifier(i) => write!(f, "'`{i}'"),
@@ -127,6 +129,7 @@ impl<'file> Lexer<'file> {
 
                 match self.slice(start_i) {
                     "let" => Ok(Some(Token::Let)),
+                    "inline" => Ok(Some(Token::Inline)),
                     iden => Ok(Some(Token::LocalIdentifier(iden))),
                 }
             }

@@ -150,9 +150,17 @@ impl<'file, T: std::iter::Iterator<Item = Token<'file>>> Parser<'file, T> {
             Token::CircuitIdentifier(_) => {
                 let i = self.next();
                 let i = i.as_circuit_identifier().unwrap();
+
+                let inline = if matches!(self.peek(), Token::Inline) {
+                    self.next();
+                    true
+                } else {
+                    false
+                };
+
                 let args = self.parse_expr()?;
 
-                Ok(ast::Expr::Call(i, Box::new(args)))
+                Ok(ast::Expr::Call(i, inline, Box::new(args)))
             }
 
             Token::LocalIdentifier(_) => {

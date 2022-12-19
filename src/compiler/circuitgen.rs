@@ -66,6 +66,47 @@ impl CircuitDefinition {
             }
         })
     }
+
+    fn add_gate(&self, circuit_state: &mut CircuitGenState, inputs: Vec<circuit::Value>) -> Option<Vec<circuit::Value>> {
+        let gate = self.to_gate(inputs)?;
+        let num_outputs = gate.num_outputs();
+        let gate_i = circuit_state.add_gate(gate);
+        Some((0..num_outputs).map(|i| circuit::Value::GateValue(gate_i, i)).collect())
+    }
+
+    fn inline_gate(&self, circuit_state: &mut CircuitGenState, inputs: Vec<circuit::Value>) -> Option<Vec<circuit::Value>> {
+        // TODO: inlining
+        let gate = self.to_gate(inputs)?;
+        let num_outputs = gate.num_outputs();
+
+        match gate {
+            circuit::Gate::Custom(subcircuit, inputs) => {
+                let mut gate_number_mapping: HashMap<usize, usize> = HashMap::new();
+                let convert_value = |v, gate_number_mapping: &HashMap<usize, usize>| {
+                    match v {
+                        circuit::Value::Arg(arg_idx) => inputs[arg_idx],
+                        circuit::Value::GateValue(old_gate_idx, output_idx) => circuit::Value::GateValue(gate_number_mapping[&old_gate_idx], output_idx)
+                    }
+                };
+                for (subcircuit_gate_i, gate) in subcircuit.gates.into_iter().enumerate() {
+                    let gate_with_inline_indexes = match gate {
+                        circuit::Gate::Custom(sub, vs) => circuit::Gate::Custom(sub, vs.into_iter().map(|v| convert_value(v, &gate_number_mapping)).collect()),
+                        circuit::Gate::And(vs) => circuit::Gate::And(vs.into_iter().map(|v| convert_value(v, &gate_number_mapping)).collect()),
+                        circuit::Gate::Not(v) => circuit::Gate::Not(convert_value(v, &gate_number_mapping)),
+                        circuit::Gate::Const(v) => circuit::Gate::Const(v)
+                    };
+                    let inline_gate_i = circuit_state.add_gate(gate_with_inline_indexes);
+                    gate_number_mapping.insert(subcircuit_gate_i, inline_gate_i);
+                }
+
+                Some(subcircuit.outputs.into_iter().map(|v| convert_value(v, &gate_number_mapping)).collect())
+            }
+            gate => {
+                let gate_i = circuit_state.add_gate(gate);
+                Some((0..num_outputs).map(|i| circuit::Value::GateValue(gate_i, i)).collect())
+            }
+        }
+    }
 }
 
 #[derive(Default)]
@@ -94,10 +135,7 @@ impl From<CircuitGenError<'_>> for CompileError {
             CircuitGenError::SizeMismatchInCall { actual_size, expected_size } => {
                 CompileError { message: format!("size mismatch in subcircuit: arguments have size {actual_size} but subcircuit expects size {expected_size}") }
             }
-            CircuitGenError::AndWith0 { actual_size } => {
-                CompileError { message: format!("'`and' gate needs a size of at least 1 but got size {actual_size}") }
-
-            }
+            CircuitGenError::AndWith0 { actual_size } => CompileError { message: format!("'`and' gate needs a size of at least 1 but got size {actual_size}") },
         }
     }
 }
@@ -174,7 +212,7 @@ fn convert_expr<'file>(global_state: &GlobalGenState, circuit_state: &mut Circui
             Some(name_resolved.clone())
         }
 
-        ast::Expr::Call(circuit_name, inputs) => {
+        ast::Expr::Call(circuit_name, inline, inputs) => {
             let name_resolved = match global_state.circuit_table.get(circuit_name) {
                 Some(n) => n,
                 None => {
@@ -184,10 +222,11 @@ fn convert_expr<'file>(global_state: &GlobalGenState, circuit_state: &mut Circui
             };
 
             let inputs = convert_expr(global_state, circuit_state, *inputs)?;
-            let gate = name_resolved.to_gate(inputs)?;
-            let num_outputs = gate.num_outputs();
-            let gate_i = circuit_state.add_gate(gate);
-            Some((0..num_outputs).map(|i| circuit::Value::GateValue(gate_i, i)).collect())
+            if inline {
+                name_resolved.inline_gate(circuit_state, inputs)
+            } else {
+                name_resolved.add_gate(circuit_state, inputs)
+            }
         }
 
         ast::Expr::Const(val) => {
