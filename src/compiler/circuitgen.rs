@@ -6,6 +6,7 @@ use super::error::CompileError;
 use super::error::Report;
 use super::parser::ast;
 
+/* TODO
 enum CircuitGenError<'file> {
     Duplicate(&'file str),
     OutOfRange { expr_size: usize, index: usize },
@@ -32,7 +33,7 @@ impl<'file> GlobalGenState<'file> {
 }
 
 enum CircuitDefinition {
-    Circuit(circuit::Circuit),
+    Circuit(circuit::CustomGate),
     AndBuiltin,
     NotBuiltin,
 }
@@ -138,7 +139,7 @@ impl From<CircuitGenError<'_>> for CompileError {
     }
 }
 
-pub(crate) fn generate(ast: Vec<ast::Circuit>) -> Option<circuit::Circuit> {
+pub(crate) fn generate(ast: Vec<ast::Circuit>) -> Option<circuit::CustomGate> {
     let mut global_state = GlobalGenState::new();
 
     for circuit in ast {
@@ -161,7 +162,7 @@ pub(crate) fn generate(ast: Vec<ast::Circuit>) -> Option<circuit::Circuit> {
     }
 }
 
-fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circuit<'file>) -> Option<(&'file str, circuit::Circuit)> {
+fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circuit<'file>) -> Option<(&'file str, circuit::CustomGate)> {
     let name = circuit_ast.name;
 
     let mut circuit_state = CircuitGenState::default();
@@ -193,7 +194,7 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circu
 
     let outputs = convert_expr(global_state, &mut circuit_state, circuit_ast.outputs)?;
 
-    Some((name, circuit::Circuit { name: name.into(), num_inputs: pattern_size(&circuit_ast.inputs), gates: circuit_state.gates, outputs }))
+    Some((name, circuit::CustomGate { name: name.into(), num_inputs: pattern_size(&circuit_ast.inputs), gates: circuit_state.gates, outputs }))
 }
 
 fn convert_expr(global_state: &GlobalGenState, circuit_state: &mut CircuitGenState, expr: ast::Expr) -> Option<Vec<circuit::Value>> {
@@ -257,3 +258,4 @@ fn convert_expr(global_state: &GlobalGenState, circuit_state: &mut CircuitGenSta
 fn pattern_size(arguments: &[ast::Pattern]) -> usize {
     arguments.iter().map(|ast::Pattern(_, size)| size).sum::<usize>()
 }
+*/
