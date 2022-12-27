@@ -2,25 +2,24 @@
 
 pub(crate) mod circuit;
 pub(crate) mod compiler;
-pub(crate) mod simulation;
+pub(crate) mod position;
 pub(crate) mod utils;
 
 use piston::{self, PressEvent, RenderEvent, UpdateEvent};
 
 pub(crate) struct App {
     gl: opengl_graphics::GlGraphics,
-    simulation: simulation::Simulation,
-    input: Vec<bool>,
+    circuit: circuit::Circuit,
 }
 
 impl App {
-    fn new(gl: opengl_graphics::GlGraphics, simulation: simulation::Simulation) -> App {
-        let input = (0..simulation.circuit.num_inputs).map(|_| false).collect();
-        App { gl, simulation, input }
+    fn new(gl: opengl_graphics::GlGraphics, circuit: circuit::Circuit) -> App {
+        App { gl, circuit }
     }
 
     fn render(&mut self, render_args: &piston::RenderArgs) {
-        self.simulation.render(&mut self.gl, render_args, &self.input);
+        // self.circuit.render(&mut self.gl, render_args); TODO
+
     }
 
     fn update(&mut self, _: &piston::UpdateArgs) {}
@@ -32,7 +31,7 @@ fn main() {
 
     let mut window: glutin_window::GlutinWindow = piston::WindowSettings::new("logic gates", [1280, 720]).graphics_api(opengl).resizable(true).samples(4).exit_on_esc(true).build().unwrap();
 
-    let mut app = App::new(opengl_graphics::GlGraphics::new(opengl), simulation::Simulation::new(circuit));
+    let mut app = App::new(opengl_graphics::GlGraphics::new(opengl), circuit::Circuit::new());
 
     let mut events = piston::Events::new(piston::EventSettings::new());
     while let Some(e) = events.next(&mut window) {
@@ -44,6 +43,7 @@ fn main() {
             app.update(&args);
         }
 
+        /* TODO
         if let Some(piston::Button::Keyboard(key)) = e.press_args() {
             if let Some(index) = match key {
                 piston::Key::D1 => Some(0),
@@ -90,5 +90,6 @@ fn main() {
                 }
             }
         }
+        */
     }
 }
