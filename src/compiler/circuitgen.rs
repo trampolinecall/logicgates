@@ -11,9 +11,10 @@ enum CircuitGenError<'file> {
     OutOfRange { expr_size: usize, index: usize },
     NoSuchLocal(&'file str),
     NoSuchCircuit(&'file str),
-    SizeMismatchInAssignment { value_size: usize, pattern_size: usize },
+    TypeMismatchInAssignment { value_type: ast::Type, pattern_type: ast::Type },
     NoMain,
-    SizeMismatchInCall { actual_size: usize, expected_size: usize },
+    ArgNumMismatchInCall { actual_arity: usize, expected_arity: usize },
+    TypeMismatchInCall { actual_type: ast::Type, expected_type: ast::Type },
     // AndWith0 { actual_size: usize },
 }
 
@@ -37,36 +38,42 @@ enum CircuitEntity {
     NotBuiltin,
 }
 impl CircuitEntity {
-    fn to_gate(&self, circuit_state: &mut CircuitGenState) -> circuit::GateIndex {
+    fn to_gate(&self, circuit_state: &mut CircuitGenState) -> (circuit::GateIndex, Vec<ReceiverBundle>, ProducerBundle) {
         // TODO: refactor this and probably refactor the rest of the module too
         match self {
-            CircuitEntity::Circuit(c) => circuit_state.circuit.new_subcircuit_gate(c.clone()),
-            CircuitEntity::AndBuiltin => circuit_state.circuit.new_and_gate(),
-            CircuitEntity::NotBuiltin => circuit_state.circuit.new_not_gate(),
+            CircuitEntity::Circuit(c) => (circuit_state.circuit.new_subcircuit_gate(c.clone()), todo!(), todo!()),
+            CircuitEntity::AndBuiltin => (circuit_state.circuit.new_and_gate(), todo!(), todo!()),
+            CircuitEntity::NotBuiltin => (circuit_state.circuit.new_not_gate(), todo!(), todo!()),
         }
     }
 
-    fn add_gate(&self, circuit_state: &mut CircuitGenState, inputs: Vec<circuit::ValueProducingNodeIdx>) -> Option<Vec<circuit::ValueProducingNodeIdx>> {
-        let gate_i = self.to_gate(circuit_state);
+    fn add_gate(&self, circuit_state: &mut CircuitGenState, inputs: Vec<ProducerBundle>) -> Option<ProducerBundle> {
+        let (gate_i, input_bundles, output_bundles) = self.to_gate(circuit_state);
         let gate = circuit_state.circuit.get_gate(gate_i);
 
         // connect the inputs
-        let num_inputs = inputs.len();
-        let expected_num_inputs = gate.num_inputs();
-        if num_inputs != expected_num_inputs {
-            CircuitGenError::SizeMismatchInCall { actual_size: num_inputs, expected_size: expected_num_inputs }.report();
+        let input_types: Vec<_> = inputs.iter().map(|bundle| bundle.type_()).collect();
+        let expected_input_types: Vec<_> = input_bundles.iter().map(|bundle| bundle.type_()).collect();
+        if input_types.len() != expected_input_types.len() {
+            CircuitGenError::ArgNumMismatchInCall { actual_arity: input_types.len(), expected_arity: expected_input_types.len() }.report();
             None?
         }
-
-        for (input_value, gate_input_node) in inputs.into_iter().zip(gate.inputs().collect::<Vec<_>>().into_iter()) {
-            // TODO: find a better way to do this than to basically clone the inputs Vec, needed because inputs() borrows the gate, which borrows the circuit
-            circuit_state.circuit.connect(input_value, gate_input_node.into());
+        for (input_type, expected_type) in input_types.iter().zip(expected_input_types) {
+            if *input_type != expected_type {}
         }
 
-        Some(circuit_state.circuit.get_gate(gate_i).outputs().map(|o| o.into()).collect())
+        for (producer_bundle, receiver_bundle) in inputs.into_iter().zip(input_bundles) {
+            // TODO: find a better way to do this than to basically clone the inputs Vec, needed because inputs() borrows the gate, which borrows the circuit
+            connect_bundle(&mut circuit_state.circuit, producer_bundle, receiver_bundle)?;
+            // circuit_state.circuit.connect(input_value, gate_input_node.into());
+        }
+
+        Some(output_bundles)
     }
 
-    fn inline_gate(&self, circuit_state: &mut CircuitGenState, inputs: Vec<circuit::ValueProducingNodeIdx>) -> Option<Vec<circuit::ValueProducingNodeIdx>> {
+    fn inline_gate(&self, circuit_state: &mut CircuitGenState, inputs: Vec<ProducerBundle>) -> Option<ProducerBundle> {
+        todo!("inlining gates")
+        /*
         if let CircuitEntity::Circuit(subcircuit) = self {
             use crate::circuit::GateIndex;
 
@@ -109,11 +116,77 @@ impl CircuitEntity {
         } else {
             self.add_gate(circuit_state, inputs)
         }
+        */
+    }
+
+    fn expected_input_types(&self) -> Vec<ast::Type> {
+        match self {
+            CircuitEntity::AndBuiltin => vec![ast::Type::Bit, ast::Type::Bit],
+            CircuitEntity::NotBuiltin => vec![ast::Type::Bit],
+            CircuitEntity::Circuit(_) => todo!(),
+        }
+    }
+}
+
+fn connect_bundle(circuit: &mut circuit::Circuit, producer_bundle: ProducerBundle, receiver_bundle: ReceiverBundle) -> Option<()> {
+    if producer_bundle.type_() != receiver_bundle.type_() {
+        CircuitGenError::TypeMismatchInCall { actual_type: producer_bundle.type_(), expected_type: receiver_bundle.type_() }.report();
+        None?
+    }
+
+    for (producer_node, receiver_node) in producer_bundle.flatten().into_iter().zip(receiver_bundle.flatten().into_iter()) {
+        circuit.connect(producer_node, receiver_node)
+    }
+
+    Some(())
+}
+
+#[derive(Clone)]
+enum ProducerBundle {
+    Single(circuit::ValueProducingNodeIdx),
+    // List(Vec<ProducerBundle>),
+}
+enum ReceiverBundle {
+    Single(circuit::ValueReceivingNodeIdx),
+}
+
+impl ProducerBundle {
+    fn size(&self) -> usize {
+        match self {
+            ProducerBundle::Single(_) => 1,
+            // ProducerBundle::List(subbundles) => subbundles.iter().map(ProducerBundle::size).sum::<usize>(),
+        }
+    }
+    fn type_(&self) -> ast::Type {
+        match self {
+            ProducerBundle::Single(_) => ast::Type::Bit,
+            // ProducerBundle::List(_) => todo!(),
+        }
+    }
+
+    fn flatten(&self) -> Vec<circuit::ValueProducingNodeIdx> {
+        match self {
+            ProducerBundle::Single(i) => vec![*i],
+            // ProducerBundle::List(subbundles) => subbundles.iter().flat_map(ProducerBundle::flatten).collect(),
+        }
+    }
+}
+impl ReceiverBundle {
+    fn type_(&self) -> ast::Type {
+        match self {
+            ReceiverBundle::Single(_) => ast::Type::Bit,
+        }
+    }
+
+    fn flatten(&self) -> Vec<circuit::ValueReceivingNodeIdx> {
+        match self {
+            ReceiverBundle::Single(i) => vec![*i],
+        }
     }
 }
 
 struct CircuitGenState<'file> {
-    locals: HashMap<&'file str, Vec<circuit::ValueProducingNodeIdx>>,
+    locals: HashMap<&'file str, ProducerBundle>,
     circuit: circuit::Circuit,
 }
 impl CircuitGenState<'_> {
@@ -129,12 +202,15 @@ impl From<CircuitGenError<'_>> for CompileError {
             CircuitGenError::OutOfRange { expr_size: local_size, index } => CompileError { message: format!("get out of range: expression has a size of {local_size} and the index is {index}") },
             CircuitGenError::NoSuchLocal(name) => CompileError { message: format!("no local called '{name}'") },
             CircuitGenError::NoSuchCircuit(name) => CompileError { message: format!("no circuit called '`{name}'") },
-            CircuitGenError::SizeMismatchInAssignment { value_size, pattern_size } => {
+            CircuitGenError::TypeMismatchInAssignment { value_type: value_size, pattern_type: pattern_size } => {
                 CompileError { message: format!("size mismatch in assignment: value has size {value_size} but pattern has size {pattern_size}") }
             }
             CircuitGenError::NoMain => CompileError { message: "no '`main' circuit".into() },
-            CircuitGenError::SizeMismatchInCall { actual_size, expected_size } => {
-                CompileError { message: format!("size mismatch in subcircuit: arguments have size {actual_size} but subcircuit expects size {expected_size}") }
+            CircuitGenError::TypeMismatchInCall { actual_type, expected_type } => {
+                CompileError { message: format!("type mismatch in subcircuit: arguments have type {actual_type} but subcircuit expects type {expected_type}") }
+            }
+            CircuitGenError::ArgNumMismatchInCall { actual_arity, expected_arity } => {
+                CompileError { message: format!("arity mismatch in subcircuit: passed {actual_arity} arguments but subcircuit expects {expected_arity}") }
             } // CircuitGenError::AndWith0 { actual_size } => CompileError { message: format!("'`and' gate needs a size of at least 1 but got size {actual_size}") },
         }
     }
@@ -172,28 +248,28 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circu
     assert_eq!(circuit_ast.inputs.len(), circuit_state.circuit.input_indexes().collect::<Vec<_>>().len());
     let mut input_idxs = circuit_state.circuit.input_indexes();
     for arg_pat in circuit_ast.inputs.iter() {
-        let args = (0..1).map(|_| circuit::ValueProducingNodeIdx::CI(input_idxs.next().expect("input_idxs should have the same length as the pattern length"))).collect();
-        circuit_state.locals.insert(arg_pat.0 .0, args);
+        let producers = ProducerBundle::Single(input_idxs.next().expect("input_idxs should have the same length as the pattern length").into());
+        circuit_state.locals.insert(arg_pat.0 .0, producers);
     }
 
-    for ast::Let { pat, val, .. } in circuit_ast.lets {
+    for ast::Let { pat, val, type_ } in circuit_ast.lets {
         let result = convert_expr(global_state, &mut circuit_state, val)?;
 
-        if result.len() != 1 {
-            CircuitGenError::SizeMismatchInAssignment { value_size: result.len(), pattern_size: 1 }.report();
+        if result.size() != 1 {
+            CircuitGenError::TypeMismatchInAssignment { value_type: result.type_(), pattern_type: type_ }.report();
             None?
         }
 
-        let mut result = result.into_iter();
+        let mut result = result.flatten().into_iter();
         for sub_pat in [pat] {
-            circuit_state.locals.insert(sub_pat.0, vec![result.next().unwrap()]);
+            circuit_state.locals.insert(sub_pat.0, ProducerBundle::Single(result.next().unwrap()));
         }
     }
 
     let output_values = convert_expr(global_state, &mut circuit_state, circuit_ast.outputs)?;
-    circuit_state.circuit.set_num_outputs(output_values.len());
-    assert_eq!(circuit_state.circuit.num_outputs(), output_values.len(), "number of circuit outputs should be equal to the number of output producers");
-    for (output_producer, output_receiver) in output_values.into_iter().zip(circuit_state.circuit.output_indexes()) {
+    circuit_state.circuit.set_num_outputs(output_values.size());
+    assert_eq!(circuit_state.circuit.num_outputs(), output_values.size(), "number of circuit outputs should be equal to the number of output producers");
+    for (output_producer, output_receiver) in output_values.flatten().into_iter().zip(circuit_state.circuit.output_indexes()) {
         circuit_state.circuit.connect(output_producer, output_receiver.into());
     }
 
@@ -202,7 +278,7 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circu
     Some((name, circuit_state.circuit))
 }
 
-fn convert_expr(global_state: &GlobalGenState, circuit_state: &mut CircuitGenState, expr: ast::Expr) -> Option<Vec<circuit::ValueProducingNodeIdx>> {
+fn convert_expr(global_state: &GlobalGenState, circuit_state: &mut CircuitGenState, expr: ast::Expr) -> Option<ProducerBundle> {
     match expr {
         ast::Expr::Ref(name) => {
             let name_resolved = match circuit_state.locals.get(name) {
@@ -225,7 +301,7 @@ fn convert_expr(global_state: &GlobalGenState, circuit_state: &mut CircuitGenSta
                 }
             };
 
-            let inputs = convert_expr(global_state, circuit_state, *inputs)?;
+            let inputs = inputs.into_iter().map(|input| convert_expr(global_state, circuit_state, input)).collect::<Option<Vec<_>>>()?;
             if inline {
                 name_resolved.inline_gate(circuit_state, inputs)
             } else {
@@ -235,11 +311,13 @@ fn convert_expr(global_state: &GlobalGenState, circuit_state: &mut CircuitGenSta
 
         ast::Expr::Const(val) => {
             let gate_i = circuit_state.circuit.new_const_gate(val);
-            Some(circuit_state.circuit.get_gate(gate_i).outputs().map(|t| t.into()).collect())
+            todo!("const gate")
+            // Some(circuit_state.circuit.get_gate(gate_i).outputs().map(|t| t.into()).collect())
         }
 
         ast::Expr::Get(expr, slots) => {
             let expr = convert_expr(global_state, circuit_state, *expr)?;
+            /*
             [slots]
                 .into_iter()
                 .map(|slot| {
@@ -251,11 +329,14 @@ fn convert_expr(global_state: &GlobalGenState, circuit_state: &mut CircuitGenSta
                     }
                 })
                 .collect::<Option<_>>()
+                */
+            todo!("get expr")
         }
         ast::Expr::Multiple(exprs) => {
             let results = exprs.into_iter().map(|e| convert_expr(global_state, circuit_state, e));
-            let results_no_none: Option<_> = results.collect::<Option<Vec<Vec<circuit::ValueProducingNodeIdx>>>>(); // TODO: dont stop at the first one in order to report all the errors
-            Some(results_no_none?.into_iter().flatten().collect::<Vec<circuit::ValueProducingNodeIdx>>())
+            // let results_no_none: Option<_> = results.collect::<Option<Vec<Vec<circuit::ValueProducingNodeIdx>>>>(); // TODO: dont stop at the first one in order to report all the errors
+            // Some(results_no_none?.into_iter().flatten().collect::<Vec<circuit::ValueProducingNodeIdx>>())
+            todo!("multiple expr")
         }
     }
 }

@@ -345,6 +345,10 @@ impl Gate {
         let gate_height = (std::cmp::max(self.num_inputs(), self.num_outputs()) - 1) as f64 * VERTICAL_VALUE_SPACING + EXTRA_VERTICAL_HEIGHT;
         [GATE_WIDTH, gate_height]
     }
+
+    pub(crate) fn num_args(&self) -> usize {
+        todo!()
+    }
 }
 
 impl GateKind {
