@@ -2,8 +2,6 @@ use std::{cell::RefCell, collections::HashSet};
 
 use generational_arena::{Arena, Index};
 
-use crate::utils;
-
 pub(crate) struct Circuit {
     name: String,
     gates: Arena<Gate>,
@@ -68,15 +66,23 @@ impl CustomGate {
 */
 
 impl Gate {
-    pub(crate) fn inputs(&self) -> Vec<GateInputNodeIdx> {
-        (0..self._inputs().len()).map(|i| GateInputNodeIdx(self.index, i)).collect()
+    pub(crate) fn inputs(&self) -> impl Iterator<Item = GateInputNodeIdx> + '_ {
+        (0..self._inputs().len()).map(|i| GateInputNodeIdx(self.index, i))
     }
 
-    pub(crate) fn outputs(&self) -> Vec<GateOutputNodeIdx> {
-        (0..self._outputs().len()).map(|i| GateOutputNodeIdx(self.index, i)).collect()
+    pub(crate) fn outputs(&self) -> impl Iterator<Item = GateOutputNodeIdx> + '_ {
+        (0..self._outputs().len()).map(|i| GateOutputNodeIdx(self.index, i))
     }
 
-    pub(crate) fn name(&self) -> String { // TODO: hopefully somehow turn this into &str
+    fn num_inputs(&self) -> usize {
+        self._inputs().len()
+    }
+    fn num_outputs(&self) -> usize {
+        self._outputs().len()
+    }
+
+    pub(crate) fn name(&self) -> String {
+        // TODO: hopefully somehow turn this into &str
         match &self.kind {
             GateKind::And(_, _) => "and".to_string(),
             GateKind::Not(_, _) => "not".to_string(),
@@ -149,7 +155,7 @@ impl Gate {
         const GATE_WIDTH: f64 = 50.0;
         const EXTRA_VERTICAL_HEIGHT: f64 = 40.0;
 
-        let gate_height = (std::cmp::max(self.inputs().len(), self.outputs().len()) - 1) as f64 * VERTICAL_VALUE_SPACING + EXTRA_VERTICAL_HEIGHT;
+        let gate_height = (std::cmp::max(self.num_inputs(), self.num_outputs()) - 1) as f64 * VERTICAL_VALUE_SPACING + EXTRA_VERTICAL_HEIGHT;
         [GATE_WIDTH, gate_height]
     }
 }
@@ -162,11 +168,11 @@ impl Circuit {
         Self { name, gates: Arena::new(), inputs: Vec::new(), outputs: Vec::new() }
     }
 
-    fn input_indexes(&self) -> Vec<CircuitInputNodeIdx> {
-        (0..self.inputs.len()).map(|i| CircuitInputNodeIdx(i)).collect()
+    fn input_indexes(&self) -> impl Iterator<Item = CircuitInputNodeIdx> {
+        (0..self.inputs.len()).map(|i| CircuitInputNodeIdx(i))
     }
-    fn output_indexes(&self) -> Vec<CircuitOutputNodeIdx> {
-        (0..self.outputs.len()).map(|i| CircuitOutputNodeIdx(i)).collect()
+    fn output_indexes(&self) -> impl Iterator<Item = CircuitOutputNodeIdx> {
+        (0..self.outputs.len()).map(|i| CircuitOutputNodeIdx(i))
     }
 
     // TODO: tests
@@ -209,8 +215,8 @@ impl Circuit {
         if let Some(gate) = self.get_value_receiving_node(receiver).gate {
             let gate = self.get_gate(gate);
             let outputs = gate.kind.compute(self);
-            assert_eq!(outputs.len(), gate.outputs().len());
-            for (output, node) in outputs.into_iter().zip(gate.outputs()) {
+            assert_eq!(outputs.len(), gate.num_outputs());
+            for (output, node) in outputs.into_iter().zip(gate.outputs().collect::<Vec<_>>().into_iter()) {
                 self.set_producer_value(ValueProducingNodeIdx::GO(node), output);
             }
         }
