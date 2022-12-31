@@ -106,7 +106,12 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         let _ = self.expect("circuit name (starting with '`')", |tok| matches!(tok, Token::Backtick))?;
         let name = self.expect("circuit name after '`'", |tok| matches!(tok, Token::Identifier(_)))?;
         let name = *name.as_identifier().unwrap();
-        let arguments = self.list("'['", Token::is_obrack, Token::is_comma, "']'", Token::is_cbrack, Parser::pattern)?;
+        let arguments = self.list("'['", Token::is_obrack, Token::is_comma, "']'", Token::is_cbrack, |parser| {
+            let pattern = parser.pattern()?;
+            parser.expect("';' for type annotation", |tok| matches!(tok, Token::Semicolon))?;
+            let type_ = parser.type_()?;
+            Ok((pattern, type_))
+        })?;
         let mut lets = Vec::new();
 
         while matches!(self.peek(), Token::Let) {
@@ -121,10 +126,14 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     fn r#let(&mut self) -> Result<ast::Let<'file>, ParseError> {
         self.expect("'let'", |tok| matches!(tok, Token::Let))?;
         let pat = self.pattern()?;
+
+        self.expect("';' for type annotation", Token::is_semicolon)?;
+        let type_ = self.type_()?;
+
         self.expect("'='", |tok| matches!(tok, Token::Equals))?;
 
         let val = self.expr()?;
-        Ok(ast::Let { pat, val })
+        Ok(ast::Let { pat, type_, val })
     }
 
     fn pattern(&mut self) -> Result<ast::Pattern<'file>, ParseError> {
@@ -233,6 +242,29 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             _ => Err(self.expected("expression"))?,
         }
     }
+
+    fn type_(&mut self) -> Result<ast::Type, ParseError> {
+        match self.peek() {
+            Token::Backtick => {
+                let _ = self.next();
+                Ok(ast::Type::Bit)
+            }
+
+            Token::OBrack => {
+                let _ = self.next();
+                let len = self.expect("array length", |tok| matches!(tok, Token::Number(_)))?;
+                let len = len.as_number().unwrap();
+                let _ = self.expect("']'", |tok| matches!(tok, Token::CBrack))?;
+
+
+                let ty = self.type_()?;
+
+                Ok(ast::Type::Array(*len, Box::new(ty)))
+            }
+
+            _ => Err(self.expected("type"))
+        }
+    }
 }
 
 pub(crate) fn parse<'file>(tokens: impl Iterator<Item = Token<'file>>) -> Option<Vec<ast::Circuit<'file>>> {
@@ -255,20 +287,26 @@ mod test {
     #[test]
     fn list() {
         let tokens = vec![Token::OBrack, Token::Identifier("a"), Token::Comma, Token::Identifier("b"), Token::CBrack];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.list("'['", |tok| matches!(tok, Token::OBrack), |tok| matches!(tok, Token::Comma), "']'", |tok| matches!(tok, Token::CBrack), Parser::pattern), Ok(vec![ast::Pattern("a"), ast::Pattern("b")]))
+        assert_eq!(
+            Parser { tokens: make_token_stream(tokens) }.list("'['", |tok| matches!(tok, Token::OBrack), |tok| matches!(tok, Token::Comma), "']'", |tok| matches!(tok, Token::CBrack), Parser::pattern),
+            Ok(vec![ast::Pattern("a"), ast::Pattern("b")])
+        )
     }
 
     #[test]
     fn list_trailing_delim() {
         let tokens = vec![Token::OBrack, Token::Identifier("a"), Token::Comma, Token::Identifier("b"), Token::Comma, Token::CBrack];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.list("'['", |tok| matches!(tok, Token::OBrack), |tok| matches!(tok, Token::Comma), "']'", |tok| matches!(tok, Token::CBrack), Parser::pattern), Ok(vec![ast::Pattern("a"), ast::Pattern("b")]))
+        assert_eq!(
+            Parser { tokens: make_token_stream(tokens) }.list("'['", |tok| matches!(tok, Token::OBrack), |tok| matches!(tok, Token::Comma), "']'", |tok| matches!(tok, Token::CBrack), Parser::pattern),
+            Ok(vec![ast::Pattern("a"), ast::Pattern("b")])
+        )
     }
 
     // TODO: test inline calls
     #[test]
     fn circuit() {
         /*
-        `thingy [arg]:
+        `thingy [arg; `]
             let res = `and [arg, arg]
             res
         */
@@ -277,6 +315,8 @@ mod test {
             Token::Identifier("thingy"),
             Token::OBrack,
             Token::Identifier("arg"),
+            Token::Semicolon,
+            Token::Backtick,
             Token::CBrack,
             Token::Let,
             Token::Identifier("res"),
@@ -295,7 +335,7 @@ mod test {
             parse(make_token_stream(tokens)),
             Some(vec![ast::Circuit {
                 name: "thingy",
-                inputs: vec![ast::Pattern("arg")],
+                inputs: vec![(ast::Pattern("arg"), ast::Type::Bit)],
                 lets: vec![ast::Let { pat: ast::Pattern("res"), val: ast::Expr::Call("and", false, Box::new(ast::Expr::Multiple(vec![ast::Expr::Ref("arg"), ast::Expr::Ref("arg")]))) }],
                 outputs: ast::Expr::Ref("res")
             }])
