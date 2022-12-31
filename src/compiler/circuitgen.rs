@@ -192,6 +192,8 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circu
         circuit_state.circuit.connect(output_producer, output_receiver.into())
     }
 
+    circuit_state.circuit.calculate_locations();
+
     Some((name, circuit_state.circuit))
 }
 
