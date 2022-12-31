@@ -1,4 +1,5 @@
-use std::{cell::RefCell, collections::HashSet};
+use std::cell::RefCell;
+use std::collections::HashSet;
 
 use generational_arena::Arena;
 
@@ -16,7 +17,7 @@ pub(crate) type GateIndex = generational_arena::Index;
 pub(crate) struct Gate {
     index: GateIndex,
     pub(crate) kind: GateKind,
-    pub(crate) location: (f64, f64),
+    pub(crate) location: (u32, f64),
 }
 
 #[derive(Clone)]
@@ -29,11 +30,12 @@ pub(crate) enum GateKind {
 
 #[derive(Clone)]
 pub(crate) struct ValueReceivingNode {
-    gate: Option<GateIndex>,
-    producer: Option<ValueProducingNodeIdx>,
+    pub(crate) gate: Option<GateIndex>,
+    pub(crate) producer: Option<ValueProducingNodeIdx>,
 }
 #[derive(Clone)]
 pub(crate) struct ValueProducingNode {
+    pub(crate) gate: Option<GateIndex>,
     dependants: HashSet<ValueReceivingNodeIdx>,
     value: bool,
 }
@@ -128,20 +130,20 @@ impl Circuit {
             index,
             kind: GateKind::And(
                 [ValueReceivingNode { gate: Some(index), producer: None }, ValueReceivingNode { gate: Some(index), producer: None }],
-                [ValueProducingNode { dependants: HashSet::new(), value: false }],
+                [ValueProducingNode { gate: Some(index), dependants: HashSet::new(), value: false }],
             ),
-            location: (0.0, 0.0),
+            location: (0, 0.0),
         })
     }
     pub(crate) fn new_not_gate(&mut self) -> GateIndex {
         self.gates.insert_with(|index| Gate {
             index,
-            kind: GateKind::Not([ValueReceivingNode { gate: Some(index), producer: None }], [ValueProducingNode { dependants: HashSet::new(), value: false }]),
-            location: (0.0, 0.0),
+            kind: GateKind::Not([ValueReceivingNode { gate: Some(index), producer: None }], [ValueProducingNode { gate: Some(index), dependants: HashSet::new(), value: false }]),
+            location: (0, 0.0),
         })
     }
     pub(crate) fn new_const_gate(&mut self, value: bool) -> GateIndex {
-        self.gates.insert_with(|index| Gate { index, kind: GateKind::Const([], [ValueProducingNode { dependants: HashSet::new(), value: false }]), location: (0.0, 0.0) })
+        self.gates.insert_with(|index| Gate { index, kind: GateKind::Const([], [ValueProducingNode { gate: Some(index), dependants: HashSet::new(), value: false }]), location: (0, 0.0) })
     }
     pub(crate) fn new_subcircuit_gate(&mut self, subcircuit: Circuit) -> GateIndex {
         let num_inputs = subcircuit.inputs.len();
@@ -150,10 +152,10 @@ impl Circuit {
             index,
             kind: GateKind::Subcircuit(
                 (0..num_inputs).map(|_| ValueReceivingNode { gate: Some(index), producer: None }).collect(),
-                output_values.into_iter().map(|value| ValueProducingNode { dependants: HashSet::new(), value }).collect(),
+                output_values.into_iter().map(|value| ValueProducingNode { gate: Some(index), dependants: HashSet::new(), value }).collect(),
                 RefCell::new(subcircuit),
             ),
-            location: (0.0, 0.0),
+            location: (0, 0.0),
         })
     }
     // TODO: test that it removes all connections
@@ -204,7 +206,7 @@ impl Circuit {
     }
 
     pub(crate) fn set_num_inputs(&mut self, num: usize) {
-        self.inputs.resize(num, ValueProducingNode { dependants: HashSet::new(), value: false })
+        self.inputs.resize(num, ValueProducingNode { gate: None, dependants: HashSet::new(), value: false })
     }
 
     pub(crate) fn get_gate(&self, index: GateIndex) -> &Gate {
@@ -236,6 +238,13 @@ impl Circuit {
         match index {
             ValueProducingNodeIdx::CI(ci) => &mut self.inputs[ci.0],
             ValueProducingNodeIdx::GO(go) => self.get_gate_mut(go.0).get_output_mut(go),
+        }
+    }
+
+    pub(crate) fn calculate_locations(&mut self) {
+        let positions = crate::position::calculate_locations(self);
+        for (gate_i, position) in positions {
+            self.get_gate_mut(gate_i).location = position;
         }
     }
 }
@@ -327,8 +336,8 @@ impl Gate {
     }
 
     pub(crate) fn display_size(&self) -> [f64; 2] {
-        const GATE_WIDTH: f64 = 50.0;
         const EXTRA_VERTICAL_HEIGHT: f64 = 40.0;
+        const GATE_WIDTH: f64 = 50.0;
 
         let gate_height = (std::cmp::max(self.num_inputs(), self.num_outputs()) - 1) as f64 * VERTICAL_VALUE_SPACING + EXTRA_VERTICAL_HEIGHT;
         [GATE_WIDTH, gate_height]
