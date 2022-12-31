@@ -208,6 +208,9 @@ impl Circuit {
     pub(crate) fn set_num_inputs(&mut self, num: usize) {
         self.inputs.resize(num, ValueProducingNode { gate: None, dependants: HashSet::new(), value: false })
     }
+    pub(crate) fn set_num_outputs(&mut self, num: usize) {
+        self.outputs.resize(num, ValueReceivingNode { gate: None, producer: None });
+    }
 
     pub(crate) fn get_gate(&self, index: GateIndex) -> &Gate {
         self.gates.get(index).unwrap()
