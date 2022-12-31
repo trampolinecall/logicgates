@@ -72,8 +72,8 @@ pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit
     // group them into columns with each one going one column right of its rightmost dependency
     let mut xs: BTreeMap<circuit::GateIndex, u32> = BTreeMap::new();
     for (gate_i, gate) in circuit.gates.iter() {
-        let input_producer_x = |input: circuit::GateInputNodeIdx| match circuit.get_value_receiver(input.into()).producer {
-            Some(producer) => match circuit.get_value_producer(producer).gate {
+        let input_producer_x = |input: circuit::GateInputNodeIdx| match circuit.get_receiver(input.into()).producer {
+            Some(producer) => match circuit.get_producer(producer).gate {
                 Some(producer_gate) => xs[&producer_gate], // receiver node connected to other gate output node
                 None => 0, // receiver node connected to circuit input node
             }
@@ -85,8 +85,8 @@ pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit
     // within each column sort them by the average of their input ys
     let mut ys: BTreeMap<circuit::GateIndex, f64> = BTreeMap::new();// circuit.gates.iter().map(|(index, _)| (index, 0.0)).collect();
     for x in 1..=*xs.values().max().unwrap_or(&0) {
-        let input_producer_y = |input: circuit::GateInputNodeIdx| match circuit.get_value_receiver(input.into()).producer {
-            Some(producer) => match circuit.get_value_producer(producer).gate {
+        let input_producer_y = |input: circuit::GateInputNodeIdx| match circuit.get_receiver(input.into()).producer {
+            Some(producer) => match circuit.get_producer(producer).gate {
                 // TODO: find better solution than to cast on i32
                 Some(producer_gate) => ys[&producer_gate] as i32, // receiver node connected to other node
                 None => 0, // receiver node connected to circuit input node

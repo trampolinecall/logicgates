@@ -79,8 +79,8 @@ impl CircuitEntity {
 
             let mut gate_number_mapping: HashMap<GateIndex, GateIndex> = HashMap::new();
             let convert_producer_idx = |p, circuit: &circuit::Circuit, gate_number_mapping: &HashMap<GateIndex, GateIndex>| match p {
-                circuit::ValueProducerIdx::CI(ci) => inputs[ci.0],
-                circuit::ValueProducerIdx::GO(go) => circuit::ValueProducerIdx::GO(
+                circuit::ProducerIdx::CI(ci) => inputs[ci.0],
+                circuit::ProducerIdx::GO(go) => circuit::ProducerIdx::GO(
                     circuit
                         .get_gate(gate_number_mapping[&go.0])
                         .outputs()
@@ -93,7 +93,7 @@ impl CircuitEntity {
                 let (inner_inputs, gate_added_to_main_circuit) = match &gate.kind {
                     circuit::GateKind::And(inputs, _) => (&inputs[..], circuit_state.circuit.new_and_gate()),
                     circuit::GateKind::Not(inputs, _) => (&inputs[..], circuit_state.circuit.new_not_gate()),
-                    circuit::GateKind::Const(inputs, [circuit::ValueProducer { value, .. }]) => (&inputs[..], circuit_state.circuit.new_const_gate(*value)),
+                    circuit::GateKind::Const(inputs, [circuit::Producer { value, .. }]) => (&inputs[..], circuit_state.circuit.new_const_gate(*value)),
                     circuit::GateKind::Subcircuit(inputs, _, subcircuit) => (&inputs[..], circuit_state.circuit.new_subcircuit_gate(subcircuit.borrow().clone())),
                 };
 
@@ -110,7 +110,7 @@ impl CircuitEntity {
             Some(
                 subcircuit
                     .output_indexes()
-                    .flat_map(|o| subcircuit.get_value_receiver(o.into()).producer.map(|producer| convert_producer_idx(producer, &circuit_state.circuit, &gate_number_mapping)))
+                    .flat_map(|o| subcircuit.get_receiver(o.into()).producer.map(|producer| convert_producer_idx(producer, &circuit_state.circuit, &gate_number_mapping)))
                     .collect(),
             ) // TODO: allow unconnected nodes
         } else {
@@ -143,11 +143,11 @@ fn connect_bundle(circuit: &mut circuit::Circuit, producer_bundle: ProducerBundl
 
 #[derive(Clone)]
 enum ProducerBundle {
-    Single(circuit::ValueProducerIdx),
+    Single(circuit::ProducerIdx),
     // List(Vec<ProducerBundle>),
 }
 enum ReceiverBundle {
-    Single(circuit::ValueReceiverIdx),
+    Single(circuit::ReceiverIdx),
 }
 
 impl ProducerBundle {
@@ -164,7 +164,7 @@ impl ProducerBundle {
         }
     }
 
-    fn flatten(&self) -> Vec<circuit::ValueProducerIdx> {
+    fn flatten(&self) -> Vec<circuit::ProducerIdx> {
         match self {
             ProducerBundle::Single(i) => vec![*i],
             // ProducerBundle::List(subbundles) => subbundles.iter().flat_map(ProducerBundle::flatten).collect(),
@@ -178,7 +178,7 @@ impl ReceiverBundle {
         }
     }
 
-    fn flatten(&self) -> Vec<circuit::ValueReceiverIdx> {
+    fn flatten(&self) -> Vec<circuit::ReceiverIdx> {
         match self {
             ReceiverBundle::Single(i) => vec![*i],
         }
@@ -334,8 +334,8 @@ fn convert_expr(global_state: &GlobalGenState, circuit_state: &mut CircuitGenSta
         }
         ast::Expr::Multiple(exprs) => {
             let results = exprs.into_iter().map(|e| convert_expr(global_state, circuit_state, e));
-            // let results_no_none: Option<_> = results.collect::<Option<Vec<Vec<circuit::ValueProducerIdx>>>>(); // TODO: dont stop at the first one in order to report all the errors
-            // Some(results_no_none?.into_iter().flatten().collect::<Vec<circuit::ValueProducerIdx>>())
+            // let results_no_none: Option<_> = results.collect::<Option<Vec<Vec<circuit::ProducerIdx>>>>(); // TODO: dont stop at the first one in order to report all the errors
+            // Some(results_no_none?.into_iter().flatten().collect::<Vec<circuit::ProducerIdx>>())
             todo!("multiple expr")
         }
     }
