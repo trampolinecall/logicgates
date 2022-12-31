@@ -188,8 +188,11 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circu
         }
     }
 
-    for (output_producer, output_receiver) in convert_expr(global_state, &mut circuit_state, circuit_ast.outputs)?.into_iter().zip(circuit_state.circuit.output_indexes()) {
-        circuit_state.circuit.connect(output_producer, output_receiver.into())
+    let output_values = convert_expr(global_state, &mut circuit_state, circuit_ast.outputs)?;
+    circuit_state.circuit.set_num_outputs(output_values.len());
+    assert_eq!(circuit_state.circuit.num_outputs(), output_values.len(), "number of circuit outputs should be equal to the number of output producers");
+    for (output_producer, output_receiver) in output_values.into_iter().zip(circuit_state.circuit.output_indexes()) {
+        circuit_state.circuit.connect(output_producer, output_receiver.into());
     }
 
     circuit_state.circuit.calculate_locations();
