@@ -209,9 +209,9 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let inline = self.maybe_consume(Token::is_inline).is_some();
 
-                let args = self.expr()?;
+                let args = self.list("'['", |tok| matches!(tok, Token::OBrack), |tok| matches!(tok, Token::Comma), "']'", |tok| matches!(tok, Token::CBrack), Parser::expr)?;
 
-                Ok(ast::Expr::Call(i, inline, Box::new(args)))
+                Ok(ast::Expr::Call(i, inline, args))
             }
 
             Token::Identifier(_) => {
@@ -258,7 +258,8 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let ty = self.type_()?;
 
-                Ok(ast::Type::Array(*len, Box::new(ty)))
+                // Ok(ast::Type::Array(*len, Box::new(ty)))
+                todo!("array types")
             }
 
             _ => Err(self.expected("type")),
@@ -337,11 +338,7 @@ mod test {
             Some(vec![ast::Circuit {
                 name: "thingy",
                 inputs: vec![(ast::Pattern("arg"), ast::Type::Bit)],
-                lets: vec![ast::Let {
-                    pat: ast::Pattern("res"),
-                    type_: ast::Type::Bit,
-                    val: ast::Expr::Call("and", false, Box::new(ast::Expr::Multiple(vec![ast::Expr::Ref("arg"), ast::Expr::Ref("arg")])))
-                }],
+                lets: vec![ast::Let { pat: ast::Pattern("res"), type_: ast::Type::Bit, val: ast::Expr::Call("and", false, vec![ast::Expr::Ref("arg"), ast::Expr::Ref("arg")]) }],
                 outputs: ast::Expr::Ref("res")
             }])
         )
@@ -373,8 +370,8 @@ mod test {
 
     #[test]
     fn call_expr() {
-        let tokens = vec![Token::Backtick, Token::Identifier("a"), Token::Identifier("b")];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.expr(), Ok(ast::Expr::Call("a", false, Box::new(ast::Expr::Ref("b")))))
+        let tokens = vec![Token::Backtick, Token::Identifier("a"), Token::OBrack, Token::Identifier("b"), Token::CBrack];
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.expr(), Ok(ast::Expr::Call("a", false, vec![ast::Expr::Ref("b")])))
     }
 
     #[test]

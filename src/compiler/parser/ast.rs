@@ -16,7 +16,7 @@ pub(crate) struct Let<'file> {
 #[derive(PartialEq, Debug)]
 pub(crate) enum Expr<'file> {
     Ref(&'file str),
-    Call(&'file str, bool, Box<Expr<'file>>),
+    Call(&'file str, bool, Vec<Expr<'file>>),
     Const(bool),
     Get(Box<Expr<'file>>, usize),
     Multiple(Vec<Expr<'file>>),
@@ -25,17 +25,25 @@ pub(crate) enum Expr<'file> {
 #[derive(PartialEq, Debug)]
 pub(crate) struct Pattern<'file>(pub(crate) &'file str);
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub(crate) enum Type {
     Bit,
-    Array(usize, Box<Type>),
+    // Array(usize, Box<Type>),
 }
 
 impl Type {
     fn size(&self) -> usize {
         match self {
             Type::Bit => 1,
-            Type::Array(len, item_type) => item_type.size() * len
+            // Type::Array(len, item_type) => item_type.size() * len
+        }
+    }
+}
+
+impl std::fmt::Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Type::Bit => write!(f, "`")
         }
     }
 }
