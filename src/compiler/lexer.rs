@@ -3,17 +3,28 @@ use super::error::{CompileError, Report};
 #[derive(PartialEq, Debug)]
 pub(crate) enum Token<'file> {
     EOF,
+
     OBrack,
     CBrack,
     Semicolon,
+
     Dot,
     Comma,
+
     Equals,
+    Arrow,
+
     Let,
     Inline,
+    Bundle,
+    Inputs,
+    Outputs,
+
+    Backtick,
+
     Number(usize),
-    LocalIdentifier(&'file str),
-    CircuitIdentifier(&'file str),
+    Identifier(&'file str),
+    // TODO: variadic arguments / bundles
 }
 
 impl<'file> Token<'file> {
@@ -25,16 +36,8 @@ impl<'file> Token<'file> {
         }
     }
 
-    pub(crate) fn as_local_identifier(&self) -> Option<&&'file str> {
-        if let Self::LocalIdentifier(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub(crate) fn as_circuit_identifier(&self) -> Option<&&'file str> {
-        if let Self::CircuitIdentifier(v) = self {
+    pub(crate) fn as_identifier(&self) -> Option<&&'file str> {
+        if let Self::Identifier(v) = self {
             Some(v)
         } else {
             None
@@ -45,14 +48,12 @@ impl<'file> Token<'file> {
 #[derive(Debug, PartialEq)]
 pub(crate) enum LexError {
     BadChar(char),
-    ExpectedCircuitIdentifier(Option<char>),
 }
 
 impl From<LexError> for CompileError {
     fn from(le: LexError) -> Self {
         match le {
             LexError::BadChar(c) => CompileError { message: format!("bad character: '{c}'") },
-            LexError::ExpectedCircuitIdentifier(c) => CompileError { message: format!("expected identifier after '`', got {}", if let Some(c) = c { format!("'{c}'") } else { "end of file".into() }) },
         }
     }
 }
@@ -61,17 +62,28 @@ impl std::fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Token::EOF => write!(f, "eof"),
+
             Token::OBrack => write!(f, "'['"),
             Token::CBrack => write!(f, "']'"),
-            Token::Dot => write!(f, "'.'"),
-            Token::Equals => write!(f, "'='"),
-            Token::Comma => write!(f, "','"),
             Token::Semicolon => write!(f, "';'"),
+
+            Token::Dot => write!(f, "'.'"),
+            Token::Comma => write!(f, "','"),
+
+            Token::Equals => write!(f, "'='"),
+            Token::Arrow => write!(f, "'->'"),
+
+
             Token::Let => write!(f, "'let'"),
             Token::Inline => write!(f, "'inline'"),
+            Token::Bundle => write!(f, "'bundle'"),
+            Token::Inputs => write!(f, "'inputs'"),
+            Token::Outputs => write!(f, "'outputs'"),
+
+            Token::Backtick => write!(f, "'`'"),
+
             Token::Number(n) => write!(f, "'{n}'"),
-            Token::LocalIdentifier(i) => write!(f, "'{i}'"),
-            Token::CircuitIdentifier(i) => write!(f, "'`{i}'"),
+            Token::Identifier(i) => write!(f, "'{i}'"),
         }
     }
 }
@@ -106,12 +118,20 @@ impl<'file> Lexer<'file> {
         };
 
         let res = match start_c {
-            ',' => Ok(Some(Token::Comma)),
             '[' => Ok(Some(Token::OBrack)),
             ']' => Ok(Some(Token::CBrack)),
             ';' => Ok(Some(Token::Semicolon)),
+
             '.' => Ok(Some(Token::Dot)),
+            ',' => Ok(Some(Token::Comma)),
+
             '=' => Ok(Some(Token::Equals)),
+            '-' if matches!(self.1.peek(), Some((_, '>'))) => {
+                self.1.next();
+                Ok(Some(Token::Arrow))
+            }
+
+            '`' => Ok(Some(Token::Backtick)),
 
             '0'..='9' => {
                 while self.peek_is_digit() {
@@ -130,20 +150,10 @@ impl<'file> Lexer<'file> {
                 match self.slice(start_i) {
                     "let" => Ok(Some(Token::Let)),
                     "inline" => Ok(Some(Token::Inline)),
-                    iden => Ok(Some(Token::LocalIdentifier(iden))),
-                }
-            }
-
-            '`' => {
-                if self.peek_in_identifier() {
-                    let (first_i, _) = self.1.next().unwrap();
-                    while self.peek_in_identifier() {
-                        self.1.next();
-                    }
-
-                    Ok(Some(Token::CircuitIdentifier(self.slice(first_i))))
-                } else {
-                    Err(LexError::ExpectedCircuitIdentifier(self.1.peek().map(|(_, c)| *c)))
+                    "bundle" => Ok(Some(Token::Bundle)),
+                    "inputs" => Ok(Some(Token::Inputs)),
+                    "outputs" => Ok(Some(Token::Outputs)),
+                    iden => Ok(Some(Token::Identifier(iden))),
                 }
             }
 
@@ -204,24 +214,33 @@ mod test {
     #[test]
     fn identifiers() {
         let mut l = lex("a abc abc87 abC-'()");
-        assert_eq!(l.next(), Some(Token::LocalIdentifier("a")));
-        assert_eq!(l.next(), Some(Token::LocalIdentifier("abc")));
-        assert_eq!(l.next(), Some(Token::LocalIdentifier("abc87")));
-        assert_eq!(l.next(), Some(Token::LocalIdentifier("abC-'()")));
+        assert_eq!(l.next(), Some(Token::Identifier("a")));
+        assert_eq!(l.next(), Some(Token::Identifier("abc")));
+        assert_eq!(l.next(), Some(Token::Identifier("abc87")));
+        assert_eq!(l.next(), Some(Token::Identifier("abC-'()")));
         assert_eq!(l.next(), Some(Token::EOF));
 
+    }
+
+
+    #[test]
+    fn backticks_and_circuit_identifiers() {
         let mut l = lex("`a `abc `abc87 `abC-'()");
-        assert_eq!(l.next(), Some(Token::CircuitIdentifier("a")));
-        assert_eq!(l.next(), Some(Token::CircuitIdentifier("abc")));
-        assert_eq!(l.next(), Some(Token::CircuitIdentifier("abc87")));
-        assert_eq!(l.next(), Some(Token::CircuitIdentifier("abC-'()")));
+        assert_eq!(l.next(), Some(Token::Backtick));
+        assert_eq!(l.next(), Some(Token::Identifier("a")));
+        assert_eq!(l.next(), Some(Token::Backtick));
+        assert_eq!(l.next(), Some(Token::Identifier("abc")));
+        assert_eq!(l.next(), Some(Token::Backtick));
+        assert_eq!(l.next(), Some(Token::Identifier("abc87")));
+        assert_eq!(l.next(), Some(Token::Backtick));
+        assert_eq!(l.next(), Some(Token::Identifier("abC-'()")));
         assert_eq!(l.next(), Some(Token::EOF));
     }
 
     #[test]
     fn whitespace() {
         let mut l = lex("    abc\n   2");
-        assert_eq!(l.next(), Some(Token::LocalIdentifier("abc")));
+        assert_eq!(l.next(), Some(Token::Identifier("abc")));
         assert_eq!(l.next(), Some(Token::Number(2)));
         assert_eq!(l.next(), Some(Token::EOF));
     }

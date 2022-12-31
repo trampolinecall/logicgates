@@ -75,6 +75,7 @@ impl CircuitEntity {
                 circuit::ValueProducingNodeIdx::CI(ci) => inputs[ci.0],
                 circuit::ValueProducingNodeIdx::GO(go) => circuit::ValueProducingNodeIdx::GO(circuit.get_gate(gate_number_mapping[&go.0]).outputs().nth(go.1).expect("gate index should be in range for the same gate type when converting producer index for inlining subcircuit")),
             };
+
             for (subcircuit_gate_i, gate) in subcircuit.gates.iter() {
                 let (inner_inputs, gate_added_to_main_circuit) = match &gate.kind {
                     circuit::GateKind::And(inputs, _) => {
