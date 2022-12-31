@@ -89,7 +89,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     fn parse(&mut self) -> Option<Vec<ast::Circuit<'file>>> {
         let mut circuits = Vec::new();
-        while !matches!(self.peek(), Token::EOF) {
+        while !Token::is_eof(self.peek()) {
             match self.circuit() {
                 Ok(circuit) => circuits.push(circuit),
                 Err(e) => {
@@ -103,18 +103,18 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     }
 
     fn circuit(&mut self) -> Result<ast::Circuit<'file>, ParseError> {
-        let _ = self.expect("circuit name (starting with '`')", |tok| matches!(tok, Token::Backtick))?;
-        let name = self.expect("circuit name after '`'", |tok| matches!(tok, Token::Identifier(_)))?;
+        let _ = self.expect("circuit name (starting with '`')", Token::is_backtick)?;
+        let name = self.expect("circuit name after '`'", Token::is_identifier)?;
         let name = *name.as_identifier().unwrap();
         let arguments = self.list("'['", Token::is_obrack, Token::is_comma, "']'", Token::is_cbrack, |parser| {
             let pattern = parser.pattern()?;
-            parser.expect("';' for type annotation", |tok| matches!(tok, Token::Semicolon))?;
+            parser.expect("';' for type annotation", Token::is_semicolon)?;
             let type_ = parser.type_()?;
             Ok((pattern, type_))
         })?;
         let mut lets = Vec::new();
 
-        while matches!(self.peek(), Token::Let) {
+        while Token::is_let(self.peek()) {
             lets.push(self.r#let()?);
         }
 
@@ -124,13 +124,13 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     }
 
     fn r#let(&mut self) -> Result<ast::Let<'file>, ParseError> {
-        self.expect("'let'", |tok| matches!(tok, Token::Let))?;
+        self.expect("'let'", Token::is_let)?;
         let pat = self.pattern()?;
 
         self.expect("';' for type annotation", Token::is_semicolon)?;
         let type_ = self.type_()?;
 
-        self.expect("'='", |tok| matches!(tok, Token::Equals))?;
+        self.expect("'='", Token::is_equals)?;
 
         let val = self.expr()?;
         Ok(ast::Let { pat, type_, val })
@@ -143,9 +143,9 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 let iden = *iden.as_identifier().unwrap();
 
                 /*
-                let size = if matches!(self.peek(), Token::Semicolon) {
+                let size = if Token::semicolon {
                     self.next();
-                    *self.expect("pattern size", |tok| matches!(tok, Token::Number(_)))?.as_number().unwrap()
+                    *self.expect("pattern size", Token::is_number(_))?.as_number().unwrap()
                 } else {
                     1
                 };
@@ -160,15 +160,15 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let mut patterns = Vec::new();
 
-                if !matches!(self.peek(), Token::CBrack) {
+                if !Token::cBrack {
                     patterns.extend(self.pattern()?);
-                    while matches!(self.peek(), Token::Comma) {
+                    while Token::comma {
                         self.next();
                         patterns.extend(self.pattern()?);
                     }
                 }
 
-                self.expect("']'", |tok| matches!(tok, Token::CBrack))?;
+                self.expect("']'", Token::is_cBrack)?;
 
                 Ok(patterns)
             }
@@ -180,9 +180,9 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     fn expr(&mut self) -> Result<ast::Expr<'file>, ParseError> {
         let primary = self.primary_expr()?;
 
-        if matches!(self.peek(), Token::Semicolon) {
+        if Token::is_semicolon(self.peek()) {
             self.next();
-            let index = self.expect("get index", |tok| matches!(tok, Token::Number(_)))?;
+            let index = self.expect("get index", Token::is_number)?;
             let index = index.as_number().unwrap();
             Ok(ast::Expr::Get(Box::new(primary), *index))
         } else {
@@ -204,10 +204,10 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             }
             Token::Backtick => {
                 let _ = self.next();
-                let i = self.expect("circuit name after '`'", |tok| matches!(tok, Token::Identifier(_)))?;
+                let i = self.expect("circuit name after '`'", Token::is_identifier)?;
                 let i = i.as_identifier().unwrap();
 
-                let inline = self.maybe_consume(|tok| matches!(tok, Token::Inline)).is_some();
+                let inline = self.maybe_consume(Token::is_inline).is_some();
 
                 let args = self.expr()?;
 
@@ -226,15 +226,15 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let mut items = Vec::new();
 
-                if !matches!(self.peek(), Token::CBrack) {
+                if !Token::is_cbrack(self.peek()) {
                     items.push(self.expr()?);
-                    while matches!(self.peek(), Token::Comma) {
+                    while Token::is_comma(self.peek()) {
                         self.next();
                         items.push(self.expr()?);
                     }
                 }
 
-                self.expect("']'", |tok| matches!(tok, Token::CBrack))?;
+                self.expect("']'", Token::is_cbrack)?;
 
                 Ok(ast::Expr::Multiple(items))
             }
@@ -252,17 +252,16 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
             Token::OBrack => {
                 let _ = self.next();
-                let len = self.expect("array length", |tok| matches!(tok, Token::Number(_)))?;
+                let len = self.expect("array length", Token::is_number)?;
                 let len = len.as_number().unwrap();
-                let _ = self.expect("']'", |tok| matches!(tok, Token::CBrack))?;
-
+                let _ = self.expect("']'", Token::is_cbrack)?;
 
                 let ty = self.type_()?;
 
                 Ok(ast::Type::Array(*len, Box::new(ty)))
             }
 
-            _ => Err(self.expected("type"))
+            _ => Err(self.expected("type")),
         }
     }
 }
@@ -307,7 +306,7 @@ mod test {
     fn circuit() {
         /*
         `thingy [arg; `]
-            let res = `and [arg, arg]
+            let res; ` = `and [arg, arg]
             res
         */
         let tokens = vec![
@@ -320,6 +319,8 @@ mod test {
             Token::CBrack,
             Token::Let,
             Token::Identifier("res"),
+            Token::Semicolon,
+            Token::Backtick,
             Token::Equals,
             Token::Backtick,
             Token::Identifier("and"),
@@ -336,7 +337,11 @@ mod test {
             Some(vec![ast::Circuit {
                 name: "thingy",
                 inputs: vec![(ast::Pattern("arg"), ast::Type::Bit)],
-                lets: vec![ast::Let { pat: ast::Pattern("res"), val: ast::Expr::Call("and", false, Box::new(ast::Expr::Multiple(vec![ast::Expr::Ref("arg"), ast::Expr::Ref("arg")]))) }],
+                lets: vec![ast::Let {
+                    pat: ast::Pattern("res"),
+                    type_: ast::Type::Bit,
+                    val: ast::Expr::Call("and", false, Box::new(ast::Expr::Multiple(vec![ast::Expr::Ref("arg"), ast::Expr::Ref("arg")])))
+                }],
                 outputs: ast::Expr::Ref("res")
             }])
         )
@@ -344,8 +349,8 @@ mod test {
 
     #[test]
     fn r#let() {
-        let tokens = vec![Token::Let, Token::Identifier("a"), Token::Equals, Token::Identifier("b")];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.r#let(), Ok(ast::Let { pat: ast::Pattern("a"), val: ast::Expr::Ref("b") }))
+        let tokens = vec![Token::Let, Token::Identifier("a"), Token::Semicolon, Token::Backtick, Token::Equals, Token::Identifier("b")];
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.r#let(), Ok(ast::Let { pat: ast::Pattern("a"), type_: ast::Type::Bit, val: ast::Expr::Ref("b") }))
     }
 
     #[test]
