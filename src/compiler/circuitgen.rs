@@ -163,26 +163,26 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circu
     let name = circuit_ast.name;
 
     let mut circuit_state = CircuitGenState::new(name.to_string());
-    circuit_state.circuit.set_num_inputs(circuit_ast.inputs.iter().map(|arg_pat| arg_pat.1).sum());
+    circuit_state.circuit.set_num_inputs(circuit_ast.inputs.len());
 
-    assert_eq!(circuit_ast.inputs.iter().map(|arg_pat| arg_pat.1).sum::<usize>(), circuit_state.circuit.input_indexes().collect::<Vec<_>>().len());
+    assert_eq!(circuit_ast.inputs.len(), circuit_state.circuit.input_indexes().collect::<Vec<_>>().len());
     let mut input_idxs = circuit_state.circuit.input_indexes();
     for arg_pat in circuit_ast.inputs.iter() {
-        let args = (0..arg_pat.1).map(|_| circuit::ValueProducingNodeIdx::CI(input_idxs.next().expect("input_idxs should have the same length as the pattern length"))).collect();
+        let args = (0..1).map(|_| circuit::ValueProducingNodeIdx::CI(input_idxs.next().expect("input_idxs should have the same length as the pattern length"))).collect();
         circuit_state.locals.insert(arg_pat.0, args);
     }
 
     for ast::Let { pat, val } in circuit_ast.lets {
         let result = convert_expr(global_state, &mut circuit_state, val)?;
 
-        if result.len() != pattern_size(&pat) {
-            CircuitGenError::SizeMismatchInAssignment { value_size: result.len(), pattern_size: pattern_size(&pat) }.report();
+        if result.len() != 1 {
+            CircuitGenError::SizeMismatchInAssignment { value_size: result.len(), pattern_size: 1 }.report();
             None?
         }
 
         let mut result = result.into_iter();
-        for sub_pat in pat {
-            circuit_state.locals.insert(sub_pat.0, (0..sub_pat.1).map(|_| result.next().unwrap()).collect());
+        for sub_pat in [pat] {
+            circuit_state.locals.insert(sub_pat.0, vec![result.next().unwrap()]);
         }
     }
 
@@ -236,7 +236,7 @@ fn convert_expr(global_state: &GlobalGenState, circuit_state: &mut CircuitGenSta
 
         ast::Expr::Get(expr, slots) => {
             let expr = convert_expr(global_state, circuit_state, *expr)?;
-            slots
+            [slots]
                 .into_iter()
                 .map(|slot| {
                     if slot < expr.len() {
@@ -254,8 +254,4 @@ fn convert_expr(global_state: &GlobalGenState, circuit_state: &mut CircuitGenSta
             Some(results_no_none?.into_iter().flatten().collect::<Vec<circuit::ValueProducingNodeIdx>>())
         }
     }
-}
-
-fn pattern_size(arguments: &[ast::Pattern]) -> usize {
-    arguments.iter().map(|ast::Pattern(_, size)| size).sum::<usize>()
 }

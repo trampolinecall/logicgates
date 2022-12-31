@@ -43,6 +43,134 @@ impl<'file> Token<'file> {
             None
         }
     }
+
+    /// Returns `true` if the token is [`EOF`].
+    ///
+    /// [`EOF`]: Token::EOF
+    #[must_use]
+    pub(crate) fn is_eof(&self) -> bool {
+        matches!(self, Self::EOF)
+    }
+
+    /// Returns `true` if the token is [`OBrack`].
+    ///
+    /// [`OBrack`]: Token::OBrack
+    #[must_use]
+    pub(crate) fn is_obrack(&self) -> bool {
+        matches!(self, Self::OBrack)
+    }
+
+    /// Returns `true` if the token is [`CBrack`].
+    ///
+    /// [`CBrack`]: Token::CBrack
+    #[must_use]
+    pub(crate) fn is_cbrack(&self) -> bool {
+        matches!(self, Self::CBrack)
+    }
+
+    /// Returns `true` if the token is [`Semicolon`].
+    ///
+    /// [`Semicolon`]: Token::Semicolon
+    #[must_use]
+    pub(crate) fn is_semicolon(&self) -> bool {
+        matches!(self, Self::Semicolon)
+    }
+
+    /// Returns `true` if the token is [`Dot`].
+    ///
+    /// [`Dot`]: Token::Dot
+    #[must_use]
+    pub(crate) fn is_dot(&self) -> bool {
+        matches!(self, Self::Dot)
+    }
+
+    /// Returns `true` if the token is [`Comma`].
+    ///
+    /// [`Comma`]: Token::Comma
+    #[must_use]
+    pub(crate) fn is_comma(&self) -> bool {
+        matches!(self, Self::Comma)
+    }
+
+    /// Returns `true` if the token is [`Equals`].
+    ///
+    /// [`Equals`]: Token::Equals
+    #[must_use]
+    pub(crate) fn is_equals(&self) -> bool {
+        matches!(self, Self::Equals)
+    }
+
+    /// Returns `true` if the token is [`Arrow`].
+    ///
+    /// [`Arrow`]: Token::Arrow
+    #[must_use]
+    pub(crate) fn is_arrow(&self) -> bool {
+        matches!(self, Self::Arrow)
+    }
+
+    /// Returns `true` if the token is [`Let`].
+    ///
+    /// [`Let`]: Token::Let
+    #[must_use]
+    pub(crate) fn is_let(&self) -> bool {
+        matches!(self, Self::Let)
+    }
+
+    /// Returns `true` if the token is [`Inline`].
+    ///
+    /// [`Inline`]: Token::Inline
+    #[must_use]
+    pub(crate) fn is_inline(&self) -> bool {
+        matches!(self, Self::Inline)
+    }
+
+    /// Returns `true` if the token is [`Bundle`].
+    ///
+    /// [`Bundle`]: Token::Bundle
+    #[must_use]
+    pub(crate) fn is_bundle(&self) -> bool {
+        matches!(self, Self::Bundle)
+    }
+
+    /// Returns `true` if the token is [`Inputs`].
+    ///
+    /// [`Inputs`]: Token::Inputs
+    #[must_use]
+    pub(crate) fn is_inputs(&self) -> bool {
+        matches!(self, Self::Inputs)
+    }
+
+    /// Returns `true` if the token is [`Outputs`].
+    ///
+    /// [`Outputs`]: Token::Outputs
+    #[must_use]
+    pub(crate) fn is_outputs(&self) -> bool {
+        matches!(self, Self::Outputs)
+    }
+
+    /// Returns `true` if the token is [`Backtick`].
+    ///
+    /// [`Backtick`]: Token::Backtick
+    #[must_use]
+    pub(crate) fn is_backtick(&self) -> bool {
+        matches!(self, Self::Backtick)
+    }
+
+    /// Returns `true` if the token is [`Number`].
+    ///
+    /// [`Number`]: Token::Number
+    #[must_use]
+    pub(crate) fn is_number(&self) -> bool {
+        matches!(self, Self::Number(..))
+    }
+
+    /// Returns `true` if the token is [`Identifier`].
+    ///
+    /// [`Identifier`]: Token::Identifier
+    #[must_use]
+    pub(crate) fn is_identifier(&self) -> bool {
+        matches!(self, Self::Identifier(..))
+    }
 }
 
 #[derive(Debug, PartialEq)]
