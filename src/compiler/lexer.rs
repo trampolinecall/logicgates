@@ -201,7 +201,6 @@ impl std::fmt::Display for Token<'_> {
             Token::Equals => write!(f, "'='"),
             Token::Arrow => write!(f, "'->'"),
 
-
             Token::Let => write!(f, "'let'"),
             Token::Inline => write!(f, "'inline'"),
             Token::Bundle => write!(f, "'bundle'"),
@@ -347,9 +346,7 @@ mod test {
         assert_eq!(l.next(), Some(Token::Identifier("abc87")));
         assert_eq!(l.next(), Some(Token::Identifier("abC-'()")));
         assert_eq!(l.next(), Some(Token::EOF));
-
     }
-
 
     #[test]
     fn backticks_and_circuit_identifiers() {
