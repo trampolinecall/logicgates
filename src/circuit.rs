@@ -65,104 +65,9 @@ impl CustomGate {
 }
 */
 
-impl Gate {
-    pub(crate) fn inputs(&self) -> impl Iterator<Item = GateInputNodeIdx> + '_ {
-        (0..self._inputs().len()).map(|i| GateInputNodeIdx(self.index, i))
-    }
-
-    pub(crate) fn outputs(&self) -> impl Iterator<Item = GateOutputNodeIdx> + '_ {
-        (0..self._outputs().len()).map(|i| GateOutputNodeIdx(self.index, i))
-    }
-
-    fn num_inputs(&self) -> usize {
-        self._inputs().len()
-    }
-    fn num_outputs(&self) -> usize {
-        self._outputs().len()
-    }
-
-    pub(crate) fn name(&self) -> String {
-        // TODO: hopefully somehow turn this into &str
-        match &self.kind {
-            GateKind::And(_, _) => "and".to_string(),
-            GateKind::Not(_, _) => "not".to_string(),
-            GateKind::Const(_, [ValueProducingNode { value: true, .. }]) => "true".to_string(),
-            GateKind::Const(_, [ValueProducingNode { value: false, .. }]) => "false".to_string(),
-            GateKind::Subcircuit(_, _, subcircuit) => subcircuit.borrow().name.clone(),
-        }
-    }
-
-    fn _inputs(&self) -> &[ValueReceivingNode] {
-        match &self.kind {
-            GateKind::And(i, _) => i,
-            GateKind::Not(i, _) => i,
-            GateKind::Const(i, _) => i,
-            GateKind::Subcircuit(i, _, _) => i,
-        }
-    }
-    fn _outputs(&self) -> &[ValueProducingNode] {
-        match &self.kind {
-            GateKind::And(_, o) => o,
-            GateKind::Not(_, o) => o,
-            GateKind::Const(_, o) => o,
-            GateKind::Subcircuit(_, o, _) => o,
-        }
-    }
-    pub(crate) fn _inputs_mut(&mut self) -> &mut [ValueReceivingNode] {
-        match &mut self.kind {
-            GateKind::And(i, _) => i,
-            GateKind::Not(i, _) => i,
-            GateKind::Const(i, _) => i,
-            GateKind::Subcircuit(i, _, _) => i,
-        }
-    }
-    pub(crate) fn _outputs_mut(&mut self) -> &mut [ValueProducingNode] {
-        match &mut self.kind {
-            GateKind::And(_, o) => o,
-            GateKind::Not(_, o) => o,
-            GateKind::Const(_, o) => o,
-            GateKind::Subcircuit(_, o, _) => o,
-        }
-    }
-    pub(crate) fn get_input(&self, input: GateInputNodeIdx) -> &ValueReceivingNode {
-        assert_eq!(self.index, input.0, "get input node with index that is not this node");
-        let inputs = self._inputs();
-        inputs.get(input.1).expect(&format!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", input.1, self.name(), inputs.len()))
-    }
-    fn get_input_mut(&mut self, input: GateInputNodeIdx) -> &mut ValueReceivingNode {
-        assert_eq!(self.index, input.0, "get input node with index that is not this node");
-        let name = self.name();
-        let inputs = self._inputs_mut();
-        let len = inputs.len();
-        inputs.get_mut(input.1).expect(&format!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", input.1, name, len))
-        // TODO: there is probably a better way of doing this that doesnt need this code to be copy pasted
-        // TODO: there is also probably a better way of doing this that doesnt need
-    }
-    fn get_output(&self, index: GateOutputNodeIdx) -> &ValueProducingNode {
-        assert_eq!(self.index, index.0, "get output node with index that is not this node");
-        let outputs = self._outputs();
-        outputs.get(index.1).expect(&format!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, self.name(), outputs.len()))
-    }
-    fn get_output_mut(&mut self, index: GateOutputNodeIdx) -> &mut ValueProducingNode {
-        assert_eq!(self.index, index.0, "get output node with index that is not this node");
-        let name = self.name();
-        let outputs = self._outputs_mut();
-        let len = outputs.len();
-        outputs.get_mut(index.1).expect(&format!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, name, len))
-    }
-
-    fn size(&self) -> [f64; 2] {
-        const GATE_WIDTH: f64 = 50.0;
-        const EXTRA_VERTICAL_HEIGHT: f64 = 40.0;
-
-        let gate_height = (std::cmp::max(self.num_inputs(), self.num_outputs()) - 1) as f64 * VERTICAL_VALUE_SPACING + EXTRA_VERTICAL_HEIGHT;
-        [GATE_WIDTH, gate_height]
-    }
-}
-
 const VERTICAL_VALUE_SPACING: f64 = 20.0;
 
-// TODO: refactor everything, make all Vecs into their own iterator classes
+// TODO: refactor everything
 impl Circuit {
     pub(crate) fn new(name: String) -> Self {
         Self { name, gates: Arena::new(), inputs: Vec::new(), outputs: Vec::new() }
@@ -256,6 +161,101 @@ impl Circuit {
             ValueProducingNodeIdx::CI(ci) => &mut self.inputs[ci.0],
             ValueProducingNodeIdx::GO(go) => self.get_gate_mut(go.0).get_output_mut(go),
         }
+    }
+}
+
+impl Gate {
+    pub(crate) fn inputs(&self) -> impl Iterator<Item = GateInputNodeIdx> + '_ {
+        (0..self._inputs().len()).map(|i| GateInputNodeIdx(self.index, i))
+    }
+
+    pub(crate) fn outputs(&self) -> impl Iterator<Item = GateOutputNodeIdx> + '_ {
+        (0..self._outputs().len()).map(|i| GateOutputNodeIdx(self.index, i))
+    }
+
+    fn num_inputs(&self) -> usize {
+        self._inputs().len()
+    }
+    fn num_outputs(&self) -> usize {
+        self._outputs().len()
+    }
+
+    pub(crate) fn name(&self) -> String {
+        // TODO: hopefully somehow turn this into &str
+        match &self.kind {
+            GateKind::And(_, _) => "and".to_string(),
+            GateKind::Not(_, _) => "not".to_string(),
+            GateKind::Const(_, [ValueProducingNode { value: true, .. }]) => "true".to_string(),
+            GateKind::Const(_, [ValueProducingNode { value: false, .. }]) => "false".to_string(),
+            GateKind::Subcircuit(_, _, subcircuit) => subcircuit.borrow().name.clone(),
+        }
+    }
+
+    fn _inputs(&self) -> &[ValueReceivingNode] {
+        match &self.kind {
+            GateKind::And(i, _) => i,
+            GateKind::Not(i, _) => i,
+            GateKind::Const(i, _) => i,
+            GateKind::Subcircuit(i, _, _) => i,
+        }
+    }
+    fn _outputs(&self) -> &[ValueProducingNode] {
+        match &self.kind {
+            GateKind::And(_, o) => o,
+            GateKind::Not(_, o) => o,
+            GateKind::Const(_, o) => o,
+            GateKind::Subcircuit(_, o, _) => o,
+        }
+    }
+    pub(crate) fn _inputs_mut(&mut self) -> &mut [ValueReceivingNode] {
+        match &mut self.kind {
+            GateKind::And(i, _) => i,
+            GateKind::Not(i, _) => i,
+            GateKind::Const(i, _) => i,
+            GateKind::Subcircuit(i, _, _) => i,
+        }
+    }
+    pub(crate) fn _outputs_mut(&mut self) -> &mut [ValueProducingNode] {
+        match &mut self.kind {
+            GateKind::And(_, o) => o,
+            GateKind::Not(_, o) => o,
+            GateKind::Const(_, o) => o,
+            GateKind::Subcircuit(_, o, _) => o,
+        }
+    }
+    pub(crate) fn get_input(&self, input: GateInputNodeIdx) -> &ValueReceivingNode {
+        assert_eq!(self.index, input.0, "get input node with index that is not this node");
+        let inputs = self._inputs();
+        inputs.get(input.1).expect(&format!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", input.1, self.name(), inputs.len()))
+    }
+    fn get_input_mut(&mut self, input: GateInputNodeIdx) -> &mut ValueReceivingNode {
+        assert_eq!(self.index, input.0, "get input node with index that is not this node");
+        let name = self.name();
+        let inputs = self._inputs_mut();
+        let len = inputs.len();
+        inputs.get_mut(input.1).expect(&format!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", input.1, name, len))
+        // TODO: there is probably a better way of doing this that doesnt need this code to be copy pasted
+        // TODO: there is also probably a better way of doing this that doesnt need
+    }
+    fn get_output(&self, index: GateOutputNodeIdx) -> &ValueProducingNode {
+        assert_eq!(self.index, index.0, "get output node with index that is not this node");
+        let outputs = self._outputs();
+        outputs.get(index.1).expect(&format!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, self.name(), outputs.len()))
+    }
+    fn get_output_mut(&mut self, index: GateOutputNodeIdx) -> &mut ValueProducingNode {
+        assert_eq!(self.index, index.0, "get output node with index that is not this node");
+        let name = self.name();
+        let outputs = self._outputs_mut();
+        let len = outputs.len();
+        outputs.get_mut(index.1).expect(&format!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, name, len))
+    }
+
+    fn size(&self) -> [f64; 2] {
+        const GATE_WIDTH: f64 = 50.0;
+        const EXTRA_VERTICAL_HEIGHT: f64 = 40.0;
+
+        let gate_height = (std::cmp::max(self.num_inputs(), self.num_outputs()) - 1) as f64 * VERTICAL_VALUE_SPACING + EXTRA_VERTICAL_HEIGHT;
+        [GATE_WIDTH, gate_height]
     }
 }
 
