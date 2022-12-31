@@ -1,10 +1,11 @@
-use std::collections::HashSet;
+use std::{cell::RefCell, collections::HashSet};
 
 use generational_arena::{Arena, Index};
 
 use crate::utils;
 
 pub(crate) struct Circuit {
+    name: String,
     gates: Arena<Gate>,
     inputs: Vec<ValueProducingNode>,
     outputs: Vec<ValueReceivingNode>,
@@ -17,19 +18,12 @@ pub(crate) struct Gate {
 }
 
 pub(crate) enum GateKind {
-    // Custom(CustomGate<'circuit>), TODO
     And([ValueReceivingNode; 2], [ValueProducingNode; 1]), // TODO: figure out a better way of doing this
     Not([ValueReceivingNode; 1], [ValueProducingNode; 1]),
     Const([ValueReceivingNode; 0], [ValueProducingNode; 1]),
+    Subcircuit(Vec<ValueReceivingNode>, Vec<ValueProducingNode>, RefCell<Circuit>),
 }
 
-/*
-pub(crate) struct CustomGate {
-    pub(crate) name: String,
-    pub(crate) num_inputs: usize,
-    pub(crate) gates: Vec<Gate>,
-}
-*/
 pub(crate) struct ValueReceivingNode {
     gate: Option<Index>,
     producer: Option<ValueProducingNodeIdx>,
@@ -82,13 +76,13 @@ impl Gate {
         (0..self._outputs().len()).map(|i| GateOutputNodeIdx(self.index, i)).collect()
     }
 
-    pub(crate) fn name(&self) -> &'static str {
-        match self.kind {
-            GateKind::And(_, _) => "and",
-            GateKind::Not(_, _) => "not",
-            GateKind::Const(_, [ValueProducingNode { value: true, .. }]) => "true",
-            GateKind::Const(_, [ValueProducingNode { value: false, .. }]) => "false",
-            // Gate::Custom(subcircuit, _) => &subcircuit.name, TODO
+    pub(crate) fn name(&self) -> String { // TODO: hopefully somehow turn this into &str
+        match &self.kind {
+            GateKind::And(_, _) => "and".to_string(),
+            GateKind::Not(_, _) => "not".to_string(),
+            GateKind::Const(_, [ValueProducingNode { value: true, .. }]) => "true".to_string(),
+            GateKind::Const(_, [ValueProducingNode { value: false, .. }]) => "false".to_string(),
+            GateKind::Subcircuit(_, _, subcircuit) => subcircuit.borrow().name.clone(),
         }
     }
 
@@ -97,6 +91,7 @@ impl Gate {
             GateKind::And(i, _) => i,
             GateKind::Not(i, _) => i,
             GateKind::Const(i, _) => i,
+            GateKind::Subcircuit(i, _, _) => i,
         }
     }
     fn _outputs(&self) -> &[ValueProducingNode] {
@@ -104,6 +99,7 @@ impl Gate {
             GateKind::And(_, o) => o,
             GateKind::Not(_, o) => o,
             GateKind::Const(_, o) => o,
+            GateKind::Subcircuit(_, o, _) => o,
         }
     }
     pub(crate) fn _inputs_mut(&mut self) -> &mut [ValueReceivingNode] {
@@ -111,6 +107,7 @@ impl Gate {
             GateKind::And(i, _) => i,
             GateKind::Not(i, _) => i,
             GateKind::Const(i, _) => i,
+            GateKind::Subcircuit(i, _, _) => i,
         }
     }
     pub(crate) fn _outputs_mut(&mut self) -> &mut [ValueProducingNode] {
@@ -118,6 +115,7 @@ impl Gate {
             GateKind::And(_, o) => o,
             GateKind::Not(_, o) => o,
             GateKind::Const(_, o) => o,
+            GateKind::Subcircuit(_, o, _) => o,
         }
     }
     pub(crate) fn get_input(&self, input: GateInputNodeIdx) -> &ValueReceivingNode {
@@ -158,10 +156,17 @@ impl Gate {
 
 const VERTICAL_VALUE_SPACING: f64 = 20.0;
 
-// TODO: refactor everything
+// TODO: refactor everything, make all Vecs into their own iterator classes
 impl Circuit {
-    pub(crate) fn new() -> Self {
-        Self { gates: Arena::new(), inputs: Vec::new(), outputs: Vec::new() }
+    pub(crate) fn new(name: String) -> Self {
+        Self { name, gates: Arena::new(), inputs: Vec::new(), outputs: Vec::new() }
+    }
+
+    fn input_indexes(&self) -> Vec<CircuitInputNodeIdx> {
+        (0..self.inputs.len()).map(|i| CircuitInputNodeIdx(i)).collect()
+    }
+    fn output_indexes(&self) -> Vec<CircuitOutputNodeIdx> {
+        (0..self.outputs.len()).map(|i| CircuitOutputNodeIdx(i)).collect()
     }
 
     // TODO: tests
@@ -211,7 +216,9 @@ impl Circuit {
         }
     }
 
-    fn set_num_inputs(&mut self, num: usize) {}
+    fn set_num_inputs(&mut self, num: usize) {
+        todo!()
+    }
 
     fn get_gate(&self, index: Index) -> &Gate {
         self.gates.get(index).unwrap()
@@ -253,6 +260,24 @@ impl GateKind {
             GateKind::And([a, b], _) => vec![get_producer_value(a.producer) && get_producer_value(b.producer)],
             GateKind::Not([i], _) => vec![!get_producer_value(i.producer)],
             GateKind::Const(_, [o]) => vec![o.value],
+            GateKind::Subcircuit(inputs, _, subcircuit) => {
+                let mut subcircuit = subcircuit.borrow_mut();
+                for (input_node, subcircuit_input_node) in inputs.iter().zip(subcircuit.input_indexes()) {
+                    subcircuit.set_producer_value(ValueProducingNodeIdx::CI(subcircuit_input_node), get_producer_value(input_node.producer))
+                }
+
+                circuit
+                    .output_indexes()
+                    .into_iter()
+                    .map(|output_idx| {
+                        if let Some(producer) = subcircuit.get_value_receiving_node(ValueReceivingNodeIdx::CO(output_idx)).producer {
+                            subcircuit.get_value_producing_node(producer).value
+                        } else {
+                            false
+                        }
+                    })
+                    .collect()
+            }
         }
     }
 }
