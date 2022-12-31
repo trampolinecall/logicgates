@@ -73,26 +73,25 @@ impl CircuitEntity {
             let mut gate_number_mapping: HashMap<GateIndex, GateIndex> = HashMap::new();
             let convert_producer_idx = |p, circuit: &circuit::Circuit, gate_number_mapping: &HashMap<GateIndex, GateIndex>| match p {
                 circuit::ValueProducingNodeIdx::CI(ci) => inputs[ci.0],
-                circuit::ValueProducingNodeIdx::GO(go) => circuit::ValueProducingNodeIdx::GO(circuit.get_gate(gate_number_mapping[&go.0]).outputs().nth(go.1).expect("gate index should be in range for the same gate type when converting producer index for inlining subcircuit")),
+                circuit::ValueProducingNodeIdx::GO(go) => circuit::ValueProducingNodeIdx::GO(
+                    circuit
+                        .get_gate(gate_number_mapping[&go.0])
+                        .outputs()
+                        .nth(go.1)
+                        .expect("gate index should be in range for the same gate type when converting producer index for inlining subcircuit"),
+                ),
             };
 
             for (subcircuit_gate_i, gate) in subcircuit.gates.iter() {
                 let (inner_inputs, gate_added_to_main_circuit) = match &gate.kind {
-                    circuit::GateKind::And(inputs, _) => {
-                        (&inputs[..], circuit_state.circuit.new_and_gate())
-                    }
-                    circuit::GateKind::Not(inputs, _) => {
-                        (&inputs[..], circuit_state.circuit.new_not_gate())
-                    }
-                    circuit::GateKind::Const(inputs, [circuit::ValueProducingNode { value, .. }]) => {
-                        (&inputs[..], circuit_state.circuit.new_const_gate(*value))
-                    }
-                    circuit::GateKind::Subcircuit(inputs, _, subcircuit) => {
-                        (&inputs[..], circuit_state.circuit.new_subcircuit_gate(subcircuit.borrow().clone()))
-                    }
+                    circuit::GateKind::And(inputs, _) => (&inputs[..], circuit_state.circuit.new_and_gate()),
+                    circuit::GateKind::Not(inputs, _) => (&inputs[..], circuit_state.circuit.new_not_gate()),
+                    circuit::GateKind::Const(inputs, [circuit::ValueProducingNode { value, .. }]) => (&inputs[..], circuit_state.circuit.new_const_gate(*value)),
+                    circuit::GateKind::Subcircuit(inputs, _, subcircuit) => (&inputs[..], circuit_state.circuit.new_subcircuit_gate(subcircuit.borrow().clone())),
                 };
 
-                for (input, new_gate_input) in inner_inputs.iter().zip(circuit_state.circuit.get_gate(gate_added_to_main_circuit).inputs().collect::<Vec<_>>().into_iter()) { // TODO: dont clone this
+                for (input, new_gate_input) in inner_inputs.iter().zip(circuit_state.circuit.get_gate(gate_added_to_main_circuit).inputs().collect::<Vec<_>>().into_iter()) {
+                    // TODO: dont clone this
                     if let Some(inner_producer_idx) = input.producer {
                         circuit_state.circuit.connect(convert_producer_idx(inner_producer_idx, &circuit_state.circuit, &gate_number_mapping), new_gate_input.into())
                     }
@@ -101,7 +100,12 @@ impl CircuitEntity {
                 gate_number_mapping.insert(subcircuit_gate_i, gate_added_to_main_circuit);
             }
 
-            Some(subcircuit.output_indexes().flat_map(|o| subcircuit.get_value_receiving_node(o.into()).producer.map(|producer| convert_producer_idx(producer, &circuit_state.circuit, &gate_number_mapping))).collect()) // TODO: allow unconnected nodes
+            Some(
+                subcircuit
+                    .output_indexes()
+                    .flat_map(|o| subcircuit.get_value_receiving_node(o.into()).producer.map(|producer| convert_producer_idx(producer, &circuit_state.circuit, &gate_number_mapping)))
+                    .collect(),
+            ) // TODO: allow unconnected nodes
         } else {
             self.add_gate(circuit_state, inputs)
         }
@@ -169,10 +173,10 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circu
     let mut input_idxs = circuit_state.circuit.input_indexes();
     for arg_pat in circuit_ast.inputs.iter() {
         let args = (0..1).map(|_| circuit::ValueProducingNodeIdx::CI(input_idxs.next().expect("input_idxs should have the same length as the pattern length"))).collect();
-        circuit_state.locals.insert(arg_pat.0, args);
+        circuit_state.locals.insert(arg_pat.0 .0, args);
     }
 
-    for ast::Let { pat, val } in circuit_ast.lets {
+    for ast::Let { pat, val, .. } in circuit_ast.lets {
         let result = convert_expr(global_state, &mut circuit_state, val)?;
 
         if result.len() != 1 {
