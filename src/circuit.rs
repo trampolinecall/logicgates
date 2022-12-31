@@ -1,20 +1,24 @@
 use std::{cell::RefCell, collections::HashSet};
 
-use generational_arena::{Arena, Index};
+use generational_arena::Arena;
 
+#[derive(Clone)]
 pub(crate) struct Circuit {
-    name: String,
-    gates: Arena<Gate>,
+    pub(crate) name: String,
+    pub(crate) gates: Arena<Gate>,
     inputs: Vec<ValueProducingNode>,
     outputs: Vec<ValueReceivingNode>,
 }
+pub(crate) type GateIndex = generational_arena::Index;
 
+#[derive(Clone)]
 pub(crate) struct Gate {
-    index: Index,
-    kind: GateKind,
-    location: (f64, f64),
+    index: GateIndex,
+    pub(crate) kind: GateKind,
+    pub(crate) location: (f64, f64),
 }
 
+#[derive(Clone)]
 pub(crate) enum GateKind {
     And([ValueReceivingNode; 2], [ValueProducingNode; 1]), // TODO: figure out a better way of doing this
     Not([ValueReceivingNode; 1], [ValueProducingNode; 1]),
@@ -22,31 +26,34 @@ pub(crate) enum GateKind {
     Subcircuit(Vec<ValueReceivingNode>, Vec<ValueProducingNode>, RefCell<Circuit>),
 }
 
+#[derive(Clone)]
 pub(crate) struct ValueReceivingNode {
-    gate: Option<Index>,
+    gate: Option<GateIndex>,
     producer: Option<ValueProducingNodeIdx>,
 }
+#[derive(Clone)]
 pub(crate) struct ValueProducingNode {
     dependants: HashSet<ValueReceivingNodeIdx>,
     value: bool,
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
-pub(crate) struct GateInputNodeIdx(Index, usize);
+pub(crate) struct GateInputNodeIdx(GateIndex, usize);
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
-pub(crate) struct GateOutputNodeIdx(Index, usize);
+pub(crate) struct GateOutputNodeIdx(GateIndex, usize);
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub(crate) struct CircuitInputNodeIdx(usize);
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub(crate) struct CircuitOutputNodeIdx(usize);
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
-enum ValueProducingNodeIdx {
+pub(crate) enum ValueProducingNodeIdx {
     CI(CircuitInputNodeIdx),
     GO(GateOutputNodeIdx),
 }
+
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
-enum ValueReceivingNodeIdx {
+pub(crate) enum ValueReceivingNodeIdx {
     CO(CircuitOutputNodeIdx),
     GI(GateInputNodeIdx),
 }
@@ -65,6 +72,27 @@ impl CustomGate {
 }
 */
 
+impl From<GateOutputNodeIdx> for ValueProducingNodeIdx {
+    fn from(v: GateOutputNodeIdx) -> Self {
+        Self::GO(v)
+    }
+}
+impl From<CircuitInputNodeIdx> for ValueProducingNodeIdx {
+    fn from(v: CircuitInputNodeIdx) -> Self {
+        Self::CI(v)
+    }
+}
+impl From<GateInputNodeIdx> for ValueReceivingNodeIdx {
+    fn from(v: GateInputNodeIdx) -> Self {
+        Self::GI(v)
+    }
+}
+impl From<CircuitOutputNodeIdx> for ValueReceivingNodeIdx {
+    fn from(v: CircuitOutputNodeIdx) -> Self {
+        Self::CO(v)
+    }
+}
+
 const VERTICAL_VALUE_SPACING: f64 = 20.0;
 
 // TODO: refactor everything
@@ -73,24 +101,60 @@ impl Circuit {
         Self { name, gates: Arena::new(), inputs: Vec::new(), outputs: Vec::new() }
     }
 
-    fn input_indexes(&self) -> impl Iterator<Item = CircuitInputNodeIdx> {
+    pub(crate) fn input_indexes(&self) -> impl Iterator<Item = CircuitInputNodeIdx> {
         (0..self.inputs.len()).map(|i| CircuitInputNodeIdx(i))
     }
-    fn output_indexes(&self) -> impl Iterator<Item = CircuitOutputNodeIdx> {
+    pub(crate) fn output_indexes(&self) -> impl Iterator<Item = CircuitOutputNodeIdx> {
         (0..self.outputs.len()).map(|i| CircuitOutputNodeIdx(i))
     }
 
+    fn output_values(&self) -> impl Iterator<Item = bool> + '_ {
+        // TODO: take this logic to check the producer of a receiver node out from everywhere it is used and put it into a method
+        self.outputs.iter().map(|output| if let Some(producer) = output.producer { self.get_value_producing_node(producer).value } else { false })
+    }
+
     // TODO: tests
-    fn new_gate(&mut self, kind: GateKind) -> Index {
-        self.gates.insert_with(|index| Gate { index, kind, location: (0.0, 0.0) })
+    // default value for the outputs is whatever value results from having all false inputs
+    pub(crate) fn new_and_gate(&mut self) -> GateIndex {
+        self.gates.insert_with(|index| Gate {
+            index,
+            kind: GateKind::And(
+                [ValueReceivingNode { gate: Some(index), producer: None }, ValueReceivingNode { gate: Some(index), producer: None }],
+                [ValueProducingNode { dependants: HashSet::new(), value: false }],
+            ),
+            location: (0.0, 0.0),
+        })
+    }
+    pub(crate) fn new_not_gate(&mut self) -> GateIndex {
+        self.gates.insert_with(|index| Gate {
+            index,
+            kind: GateKind::Not([ValueReceivingNode { gate: Some(index), producer: None }], [ValueProducingNode { dependants: HashSet::new(), value: false }]),
+            location: (0.0, 0.0),
+        })
+    }
+    pub(crate) fn new_const_gate(&mut self, value: bool) -> GateIndex {
+        self.gates.insert_with(|index| Gate { index, kind: GateKind::Const([], [ValueProducingNode { dependants: HashSet::new(), value: false }]), location: (0.0, 0.0) })
+    }
+    pub(crate) fn new_subcircuit_gate(&mut self, subcircuit: Circuit) -> GateIndex {
+        let num_inputs = subcircuit.inputs.len();
+        let output_values: Vec<_> = subcircuit.output_values().collect();
+        self.gates.insert_with(|index| Gate {
+            index,
+            kind: GateKind::Subcircuit(
+                (0..num_inputs).map(|_| ValueReceivingNode { gate: Some(index), producer: None }).collect(),
+                output_values.into_iter().map(|value| ValueProducingNode { dependants: HashSet::new(), value }).collect(),
+                RefCell::new(subcircuit),
+            ),
+            location: (0.0, 0.0),
+        })
     }
     // TODO: test that it removes all connections
-    fn remove_gate(&mut self) {
+    pub(crate) fn remove_gate(&mut self) {
         todo!()
     }
 
     // TODO: test connection, replacing old connection
-    fn connect(&mut self, producer_idx: ValueProducingNodeIdx, receiver_idx: ValueReceivingNodeIdx) {
+    pub(crate) fn connect(&mut self, producer_idx: ValueProducingNodeIdx, receiver_idx: ValueReceivingNodeIdx) {
         if let Some(old_producer) = self.get_value_receiving_node(receiver_idx).producer {
             self.get_value_receiving_node_mut(receiver_idx).producer = None;
             self.get_value_producing_node_mut(old_producer).dependants.remove(&receiver_idx);
@@ -100,14 +164,14 @@ impl Circuit {
         self.get_value_producing_node_mut(producer_idx).dependants.insert(receiver_idx);
     }
     // TODO: test removing, make sure it removes from both to keep in sync
-    fn disconnect(&mut self, producer: ValueProducingNodeIdx, receiver: ValueReceivingNodeIdx) {
+    pub(crate) fn disconnect(&mut self, producer: ValueProducingNodeIdx, receiver: ValueReceivingNodeIdx) {
         todo!()
     }
 
-    fn set_input(&mut self, ci: CircuitInputNodeIdx, value: bool) {
-        self.set_producer_value(ValueProducingNodeIdx::CI(ci), value);
+    pub(crate) fn set_input(&mut self, ci: CircuitInputNodeIdx, value: bool) {
+        self.set_producer_value(ci.into(), value);
     }
-    fn set_producer_value(&mut self, index: ValueProducingNodeIdx, value: bool) {
+    pub(crate) fn set_producer_value(&mut self, index: ValueProducingNodeIdx, value: bool) {
         let producer = self.get_value_producing_node_mut(index);
         producer.value = value;
         for dependant in producer.dependants.clone().into_iter() {
@@ -116,47 +180,47 @@ impl Circuit {
         }
     }
 
-    fn update_receiver(&mut self, receiver: ValueReceivingNodeIdx) {
+    pub(crate) fn update_receiver(&mut self, receiver: ValueReceivingNodeIdx) {
         if let Some(gate) = self.get_value_receiving_node(receiver).gate {
             let gate = self.get_gate(gate);
             let outputs = gate.kind.compute(self);
             assert_eq!(outputs.len(), gate.num_outputs());
             for (output, node) in outputs.into_iter().zip(gate.outputs().collect::<Vec<_>>().into_iter()) {
-                self.set_producer_value(ValueProducingNodeIdx::GO(node), output);
+                self.set_producer_value(node.into(), output);
             }
         }
     }
 
-    fn set_num_inputs(&mut self, num: usize) {
-        todo!()
+    pub(crate) fn set_num_inputs(&mut self, num: usize) {
+        self.inputs.resize(num, ValueProducingNode { dependants: HashSet::new(), value: false })
     }
 
-    fn get_gate(&self, index: Index) -> &Gate {
+    pub(crate) fn get_gate(&self, index: GateIndex) -> &Gate {
         self.gates.get(index).unwrap()
     }
-    fn get_gate_mut(&mut self, index: Index) -> &mut Gate {
+    pub(crate) fn get_gate_mut(&mut self, index: GateIndex) -> &mut Gate {
         self.gates.get_mut(index).unwrap()
     }
 
-    fn get_value_receiving_node(&self, index: ValueReceivingNodeIdx) -> &ValueReceivingNode {
+    pub(crate) fn get_value_receiving_node(&self, index: ValueReceivingNodeIdx) -> &ValueReceivingNode {
         match index {
             ValueReceivingNodeIdx::CO(co) => &self.outputs[co.0],
             ValueReceivingNodeIdx::GI(gi) => self.get_gate(gi.0).get_input(gi),
         }
     }
-    fn get_value_receiving_node_mut(&mut self, index: ValueReceivingNodeIdx) -> &mut ValueReceivingNode {
+    pub(crate) fn get_value_receiving_node_mut(&mut self, index: ValueReceivingNodeIdx) -> &mut ValueReceivingNode {
         match index {
             ValueReceivingNodeIdx::CO(co) => &mut self.outputs[co.0],
             ValueReceivingNodeIdx::GI(gi) => self.get_gate_mut(gi.0).get_input_mut(gi),
         }
     }
-    fn get_value_producing_node(&self, index: ValueProducingNodeIdx) -> &ValueProducingNode {
+    pub(crate) fn get_value_producing_node(&self, index: ValueProducingNodeIdx) -> &ValueProducingNode {
         match index {
             ValueProducingNodeIdx::CI(ci) => &self.inputs[ci.0],
             ValueProducingNodeIdx::GO(go) => self.get_gate(go.0).get_output(go),
         }
     }
-    fn get_value_producing_node_mut(&mut self, index: ValueProducingNodeIdx) -> &mut ValueProducingNode {
+    pub(crate) fn get_value_producing_node_mut(&mut self, index: ValueProducingNodeIdx) -> &mut ValueProducingNode {
         match index {
             ValueProducingNodeIdx::CI(ci) => &mut self.inputs[ci.0],
             ValueProducingNodeIdx::GO(go) => self.get_gate_mut(go.0).get_output_mut(go),
@@ -173,10 +237,10 @@ impl Gate {
         (0..self._outputs().len()).map(|i| GateOutputNodeIdx(self.index, i))
     }
 
-    fn num_inputs(&self) -> usize {
+    pub(crate) fn num_inputs(&self) -> usize {
         self._inputs().len()
     }
-    fn num_outputs(&self) -> usize {
+    pub(crate) fn num_outputs(&self) -> usize {
         self._outputs().len()
     }
 
@@ -191,7 +255,7 @@ impl Gate {
         }
     }
 
-    fn _inputs(&self) -> &[ValueReceivingNode] {
+    pub(crate) fn _inputs(&self) -> &[ValueReceivingNode] {
         match &self.kind {
             GateKind::And(i, _) => i,
             GateKind::Not(i, _) => i,
@@ -199,7 +263,7 @@ impl Gate {
             GateKind::Subcircuit(i, _, _) => i,
         }
     }
-    fn _outputs(&self) -> &[ValueProducingNode] {
+    pub(crate) fn _outputs(&self) -> &[ValueProducingNode] {
         match &self.kind {
             GateKind::And(_, o) => o,
             GateKind::Not(_, o) => o,
@@ -228,7 +292,7 @@ impl Gate {
         let inputs = self._inputs();
         inputs.get(input.1).expect(&format!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", input.1, self.name(), inputs.len()))
     }
-    fn get_input_mut(&mut self, input: GateInputNodeIdx) -> &mut ValueReceivingNode {
+    pub(crate) fn get_input_mut(&mut self, input: GateInputNodeIdx) -> &mut ValueReceivingNode {
         assert_eq!(self.index, input.0, "get input node with index that is not this node");
         let name = self.name();
         let inputs = self._inputs_mut();
@@ -237,12 +301,12 @@ impl Gate {
         // TODO: there is probably a better way of doing this that doesnt need this code to be copy pasted
         // TODO: there is also probably a better way of doing this that doesnt need
     }
-    fn get_output(&self, index: GateOutputNodeIdx) -> &ValueProducingNode {
+    pub(crate) fn get_output(&self, index: GateOutputNodeIdx) -> &ValueProducingNode {
         assert_eq!(self.index, index.0, "get output node with index that is not this node");
         let outputs = self._outputs();
         outputs.get(index.1).expect(&format!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, self.name(), outputs.len()))
     }
-    fn get_output_mut(&mut self, index: GateOutputNodeIdx) -> &mut ValueProducingNode {
+    pub(crate) fn get_output_mut(&mut self, index: GateOutputNodeIdx) -> &mut ValueProducingNode {
         assert_eq!(self.index, index.0, "get output node with index that is not this node");
         let name = self.name();
         let outputs = self._outputs_mut();
@@ -250,7 +314,7 @@ impl Gate {
         outputs.get_mut(index.1).expect(&format!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, name, len))
     }
 
-    fn size(&self) -> [f64; 2] {
+    pub(crate) fn size(&self) -> [f64; 2] {
         const GATE_WIDTH: f64 = 50.0;
         const EXTRA_VERTICAL_HEIGHT: f64 = 40.0;
 
@@ -260,8 +324,9 @@ impl Gate {
 }
 
 impl GateKind {
-    fn compute(&self, circuit: &Circuit) -> Vec<bool> {
+    pub(crate) fn compute(&self, circuit: &Circuit) -> Vec<bool> {
         let get_producer_value = |producer_idx| if let Some(producer_idx) = producer_idx { circuit.get_value_producing_node(producer_idx).value } else { false };
+        // TODO: figure out a way for this to set its outputs
         match self {
             GateKind::And([a, b], _) => vec![get_producer_value(a.producer) && get_producer_value(b.producer)],
             GateKind::Not([i], _) => vec![!get_producer_value(i.producer)],
@@ -269,19 +334,13 @@ impl GateKind {
             GateKind::Subcircuit(inputs, _, subcircuit) => {
                 let mut subcircuit = subcircuit.borrow_mut();
                 for (input_node, subcircuit_input_node) in inputs.iter().zip(subcircuit.input_indexes()) {
-                    subcircuit.set_producer_value(ValueProducingNodeIdx::CI(subcircuit_input_node), get_producer_value(input_node.producer))
+                    subcircuit.set_producer_value(subcircuit_input_node.into(), get_producer_value(input_node.producer))
                 }
 
                 circuit
                     .output_indexes()
                     .into_iter()
-                    .map(|output_idx| {
-                        if let Some(producer) = subcircuit.get_value_receiving_node(ValueReceivingNodeIdx::CO(output_idx)).producer {
-                            subcircuit.get_value_producing_node(producer).value
-                        } else {
-                            false
-                        }
-                    })
+                    .map(|output_idx| if let Some(producer) = subcircuit.get_value_receiving_node(output_idx.into()).producer { subcircuit.get_value_producing_node(producer).value } else { false })
                     .collect()
             }
         }
@@ -304,7 +363,7 @@ impl Circuit {
             const ON_COLOR: [f32; 4] = [0.18, 0.8, 0.521, 1.0];
             const OFF_COLOR: [f32; 4] = [0.498, 0.549, 0.552, 1.0];
 
-            fn centered_arg_y(center_y: f64, num_args: usize, i: usize) -> f64 {
+            pub(crate) fn centered_arg_y(center_y: f64, num_args: usize, i: usize) -> f64 {
                 let args_height: f64 = ((num_args - 1) as f64) * VERTICAL_VALUE_SPACING;
                 let args_start_y = center_y - (args_height / 2.0);
                 args_start_y + (i as f64) * VERTICAL_VALUE_SPACING
