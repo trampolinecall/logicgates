@@ -8,7 +8,7 @@ use crate::circuit;
 pub(crate) fn compile(filename: &str) -> Option<circuit::Circuit> {
     // TODO: do not return result if any errors are generated
     let file = load_file(filename)?;
-    circuitgen::generate(parser::parse(lexer::lex(&file))?)
+    // circuitgen::generate(parser::parse(lexer::lex(&file))?)
     todo!("compiling")
 }
 
