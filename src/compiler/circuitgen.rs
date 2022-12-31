@@ -14,7 +14,7 @@ enum CircuitGenError<'file> {
     SizeMismatchInAssignment { value_size: usize, pattern_size: usize },
     NoMain,
     SizeMismatchInCall { actual_size: usize, expected_size: usize },
-    AndWith0 { actual_size: usize },
+    // AndWith0 { actual_size: usize },
 }
 
 #[derive(Default)]
@@ -58,7 +58,8 @@ impl CircuitEntity {
             None?
         }
 
-        for (input_value, gate_input_node) in inputs.into_iter().zip(gate.inputs().collect::<Vec<_>>().into_iter()) { // TODO: find a better way to do this than to basically clone the inputs Vec, needed because inputs() borrows the gate, which borrows the circuit
+        for (input_value, gate_input_node) in inputs.into_iter().zip(gate.inputs().collect::<Vec<_>>().into_iter()) {
+            // TODO: find a better way to do this than to basically clone the inputs Vec, needed because inputs() borrows the gate, which borrows the circuit
             circuit_state.circuit.connect(input_value, gate_input_node.into());
         }
 
@@ -66,46 +67,43 @@ impl CircuitEntity {
     }
 
     fn inline_gate(&self, circuit_state: &mut CircuitGenState, inputs: Vec<circuit::ValueProducingNodeIdx>) -> Option<Vec<circuit::ValueProducingNodeIdx>> {
-        todo!("inlining gates") // TODO
-        /*
-        match self {
-            CircuitEntity::Circuit(subcircuit) => {
-                use crate::circuit::GateIndex;
+        if let CircuitEntity::Circuit(subcircuit) = self {
+            use crate::circuit::GateIndex;
 
-                let gate_i = self.to_gate(circuit_state, inputs);
-                let gate = circuit_state.circuit.get_gate(gate_i);
-
-                let num_outputs = gate.num_outputs();
-
-                let mut gate_number_mapping: HashMap<GateIndex, GateIndex> = HashMap::new();
-                let convert_value = |v, gate_number_mapping: &HashMap<GateIndex, GateIndex>| match v {
-
-                    // circuit::ValueProducingNodeIdx::Arg(arg_idx) => inputs[arg_idx],
-                    // circuit::ValueProducingNodeIdx::GateValue(old_gate_idx, output_idx) => circuit::ValueProducingNodeIdx::GateValue(gate_number_mapping[&old_gate_idx], output_idx),
+            let mut gate_number_mapping: HashMap<GateIndex, GateIndex> = HashMap::new();
+            let convert_producer_idx = |p, circuit: &circuit::Circuit, gate_number_mapping: &HashMap<GateIndex, GateIndex>| match p {
+                circuit::ValueProducingNodeIdx::CI(ci) => inputs[ci.0],
+                circuit::ValueProducingNodeIdx::GO(go) => circuit::ValueProducingNodeIdx::GO(circuit.get_gate(gate_number_mapping[&go.0]).outputs().nth(go.1).expect("gate index should be in range for the same gate type when converting producer index for inlining subcircuit")),
+            };
+            for (subcircuit_gate_i, gate) in subcircuit.gates.iter() {
+                let (inner_inputs, gate_added_to_main_circuit) = match &gate.kind {
+                    circuit::GateKind::And(inputs, _) => {
+                        (&inputs[..], circuit_state.circuit.new_and_gate())
+                    }
+                    circuit::GateKind::Not(inputs, _) => {
+                        (&inputs[..], circuit_state.circuit.new_not_gate())
+                    }
+                    circuit::GateKind::Const(inputs, [circuit::ValueProducingNode { value, .. }]) => {
+                        (&inputs[..], circuit_state.circuit.new_const_gate(*value))
+                    }
+                    circuit::GateKind::Subcircuit(inputs, _, subcircuit) => {
+                        (&inputs[..], circuit_state.circuit.new_subcircuit_gate(subcircuit.borrow().clone()))
+                    }
                 };
-                for (subcircuit_gate_i, gate) in subcircuit.gates.into_iter().enumerate() {
-                    let inline_gate = match gate.kind {
-                        circuit::GateKind::And(inputs, _) => {
-                            circuit_state.circuit.new_and_gate();
-                        } // circuit::Gate::And(vs.into_iter().map(|v| convert_value(v, &gate_number_mapping)).collect()),
-                        circuit::GateKind::Not(_, _) => {
-                            circuit_state.circuit.new_not_gate();
-                        } // circuit::Gate::Not(convert_value(v, &gate_number_mapping)),
-                        circuit::GateKind::Const(_, [circuit::ValueProducingNode { value, .. }]) => {
-                            circuit_state.circuit.new_const_gate(value);
-                        } // circuit::Gate::Const(v),
-                        circuit::GateKind::Subcircuit(sub, vs) => {
-                            circuit_state.circuit.new_subcircuit_gate();
-                        } // circuit::Gate::Custom(sub, vs.into_iter().map(|v| convert_value(v, &gate_number_mapping)).collect()),
-                    };
-                    gate_number_mapping.insert(subcircuit_gate_i, inline_gate_i);
+
+                for (input, new_gate_input) in inner_inputs.iter().zip(circuit_state.circuit.get_gate(gate_added_to_main_circuit).inputs().collect::<Vec<_>>().into_iter()) { // TODO: dont clone this
+                    if let Some(inner_producer_idx) = input.producer {
+                        circuit_state.circuit.connect(convert_producer_idx(inner_producer_idx, &circuit_state.circuit, &gate_number_mapping), new_gate_input.into())
+                    }
                 }
 
-                Some(subcircuit.outputs.into_iter().map(|v| convert_value(v, &gate_number_mapping)).collect())
+                gate_number_mapping.insert(subcircuit_gate_i, gate_added_to_main_circuit);
             }
-            gate => self.add_gate(circuit_state, inputs),
+
+            Some(subcircuit.output_indexes().flat_map(|o| subcircuit.get_value_receiving_node(o.into()).producer.map(|producer| convert_producer_idx(producer, &circuit_state.circuit, &gate_number_mapping))).collect()) // TODO: allow unconnected nodes
+        } else {
+            self.add_gate(circuit_state, inputs)
         }
-        */
     }
 }
 
@@ -132,8 +130,7 @@ impl From<CircuitGenError<'_>> for CompileError {
             CircuitGenError::NoMain => CompileError { message: "no '`main' circuit".into() },
             CircuitGenError::SizeMismatchInCall { actual_size, expected_size } => {
                 CompileError { message: format!("size mismatch in subcircuit: arguments have size {actual_size} but subcircuit expects size {expected_size}") }
-            }
-            CircuitGenError::AndWith0 { actual_size } => CompileError { message: format!("'`and' gate needs a size of at least 1 but got size {actual_size}") },
+            } // CircuitGenError::AndWith0 { actual_size } => CompileError { message: format!("'`and' gate needs a size of at least 1 but got size {actual_size}") },
         }
     }
 }

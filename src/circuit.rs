@@ -37,15 +37,15 @@ pub(crate) struct ValueReceivingNode {
 pub(crate) struct ValueProducingNode {
     pub(crate) gate: Option<GateIndex>,
     dependants: HashSet<ValueReceivingNodeIdx>,
-    value: bool,
+    pub(crate) value: bool,
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub(crate) struct GateInputNodeIdx(GateIndex, usize);
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
-pub(crate) struct GateOutputNodeIdx(GateIndex, usize);
+pub(crate) struct GateOutputNodeIdx(pub(crate) GateIndex, pub(crate) usize); // TODO: ideally these would not be pub(crate)but they need to be accessed when inlining circuits
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
-pub(crate) struct CircuitInputNodeIdx(usize);
+pub(crate) struct CircuitInputNodeIdx(pub(crate) usize);
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub(crate) struct CircuitOutputNodeIdx(usize);
 
@@ -104,10 +104,10 @@ impl Circuit {
         Self { name, gates: Arena::new(), inputs: Vec::new(), outputs: Vec::new() }
     }
 
-    pub fn num_inputs(&self) -> usize {
+    pub(crate) fn num_inputs(&self) -> usize {
         self.inputs.len()
     }
-    pub fn num_outputs(&self) -> usize {
+    pub(crate) fn num_outputs(&self) -> usize {
         self.outputs.len()
     }
 
@@ -143,7 +143,7 @@ impl Circuit {
         })
     }
     pub(crate) fn new_const_gate(&mut self, value: bool) -> GateIndex {
-        self.gates.insert_with(|index| Gate { index, kind: GateKind::Const([], [ValueProducingNode { gate: Some(index), dependants: HashSet::new(), value: false }]), location: (0, 0.0) })
+        self.gates.insert_with(|index| Gate { index, kind: GateKind::Const([], [ValueProducingNode { gate: Some(index), dependants: HashSet::new(), value }]), location: (0, 0.0) })
     }
     pub(crate) fn new_subcircuit_gate(&mut self, subcircuit: Circuit) -> GateIndex {
         let num_inputs = subcircuit.inputs.len();
@@ -412,10 +412,12 @@ impl Circuit {
             ValueProducingNodeIdx::CI(ci) => circuit_input_pos(ci.0),
             ValueProducingNodeIdx::GO(go) => gate_output_pos(go),
         };
+        /* (unused)
         let receiver_node_pos = |node: ValueReceivingNodeIdx| match node {
             ValueReceivingNodeIdx::CO(co) => circuit_output_pos(co.0),
             ValueReceivingNodeIdx::GI(gi) => gate_input_pos(gi),
         };
+        */
         let bool_color = |value| if value { ON_COLOR } else { OFF_COLOR };
         let producer_color = |producer: ValueProducingNodeIdx| bool_color(self.get_value_producing_node(producer).value);
         let receiver_color =
@@ -442,7 +444,7 @@ impl Circuit {
             }
 
             // draw each gate
-            for (gate_i, gate) in self.gates.iter() {
+            for (_, gate) in self.gates.iter() {
                 let [gate_x, gate_y, gate_width, gate_height] = gate_box(gate);
 
                 rectangle(GATE_COLOR, [gate_x, gate_y, gate_width, gate_height], c.transform, gl);
@@ -450,7 +452,7 @@ impl Circuit {
                 // text(BLACK, 10, gate.name(), /* character cache */, c.transform, gl);
 
                 // draw gate input dots and connections to their values
-                for (input_i, input_receiving_node) in gate.inputs().into_iter().enumerate() {
+                for input_receiving_node in gate.inputs().into_iter() {
                     let color = receiver_color(input_receiving_node.into());
                     let input_pos @ [x, y] = gate_input_pos(input_receiving_node);
                     ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
