@@ -9,6 +9,7 @@ pub(crate) struct Circuit {
     inputs: Vec<ValueProducingNode>,
     outputs: Vec<ValueReceivingNode>,
 }
+
 pub(crate) type GateIndex = generational_arena::Index;
 
 #[derive(Clone)]
@@ -101,6 +102,13 @@ impl Circuit {
         Self { name, gates: Arena::new(), inputs: Vec::new(), outputs: Vec::new() }
     }
 
+    pub fn num_inputs(&self) -> usize {
+        self.inputs.len()
+    }
+    pub fn num_outputs(&self) -> usize {
+        self.outputs.len()
+    }
+
     pub(crate) fn input_indexes(&self) -> impl Iterator<Item = CircuitInputNodeIdx> {
         (0..self.inputs.len()).map(|i| CircuitInputNodeIdx(i))
     }
@@ -168,6 +176,10 @@ impl Circuit {
         todo!()
     }
 
+    pub(crate) fn toggle_input(&mut self, i: usize) {
+        assert!(i < self.inputs.len(), "toggle input out of range of number of inputs");
+        self.set_input(CircuitInputNodeIdx(i).into(), !self.get_value_producing_node(CircuitInputNodeIdx(i).into()).value);
+    }
     pub(crate) fn set_input(&mut self, ci: CircuitInputNodeIdx, value: bool) {
         self.set_producer_value(ci.into(), value);
     }
@@ -314,7 +326,7 @@ impl Gate {
         outputs.get_mut(index.1).expect(&format!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, name, len))
     }
 
-    pub(crate) fn size(&self) -> [f64; 2] {
+    pub(crate) fn display_size(&self) -> [f64; 2] {
         const GATE_WIDTH: f64 = 50.0;
         const EXTRA_VERTICAL_HEIGHT: f64 = 40.0;
 
@@ -347,101 +359,102 @@ impl GateKind {
     }
 }
 
-/* TODO
 impl Circuit {
-        pub(crate) fn render(&self, graphics: &mut opengl_graphics::GlGraphics, args: &piston::RenderArgs) {
-            use graphics::*;
-            let circuit_input_pos = |index: usize| -> [f64; 2] { [0.0, centered_arg_y(args.window_size[1] / 2.0, self.inputs.len(), index)] };
-            let circuit_output_pos = |index: usize| -> [f64; 2] { [args.window_size[0], centered_arg_y(args.window_size[1] / 2.0, self.outputs.len(), index)] };
+    pub(crate) fn render(&self, graphics: &mut opengl_graphics::GlGraphics, args: &piston::RenderArgs) {
+        use graphics::*;
+        const CIRCLE_RAD: f64 = 5.0;
+        const CONNECTION_RAD: f64 = CIRCLE_RAD / 2.0;
+        const HORIZONTAL_GATE_SPACING: f64 = 100.0;
 
-            const CIRCLE_RAD: f64 = 5.0;
-            const CONNECTION_RAD: f64 = CIRCLE_RAD / 2.0;
-            const HORIZONTAL_GATE_SPACING: f64 = 100.0;
+        const BG: [f32; 4] = [0.172, 0.243, 0.313, 1.0];
+        const GATE_COLOR: [f32; 4] = [0.584, 0.647, 0.65, 1.0];
+        const ON_COLOR: [f32; 4] = [0.18, 0.8, 0.521, 1.0];
+        const OFF_COLOR: [f32; 4] = [0.498, 0.549, 0.552, 1.0];
 
-            const BG: [f32; 4] = [0.172, 0.243, 0.313, 1.0];
-            const GATE_COLOR: [f32; 4] = [0.584, 0.647, 0.65, 1.0];
-            const ON_COLOR: [f32; 4] = [0.18, 0.8, 0.521, 1.0];
-            const OFF_COLOR: [f32; 4] = [0.498, 0.549, 0.552, 1.0];
+        pub(crate) fn centered_arg_y(center_y: f64, num_args: usize, i: usize) -> f64 {
+            let args_height: f64 = ((num_args - 1) as f64) * VERTICAL_VALUE_SPACING;
+            let args_start_y = center_y - (args_height / 2.0);
+            args_start_y + (i as f64) * VERTICAL_VALUE_SPACING
+        }
 
-            pub(crate) fn centered_arg_y(center_y: f64, num_args: usize, i: usize) -> f64 {
-                let args_height: f64 = ((num_args - 1) as f64) * VERTICAL_VALUE_SPACING;
-                let args_start_y = center_y - (args_height / 2.0);
-                args_start_y + (i as f64) * VERTICAL_VALUE_SPACING
+        let circuit_input_pos = |index: usize| -> [f64; 2] { [0.0, centered_arg_y(args.window_size[1] / 2.0, self.inputs.len(), index)] };
+        let circuit_output_pos = |index: usize| -> [f64; 2] { [args.window_size[0], centered_arg_y(args.window_size[1] / 2.0, self.outputs.len(), index)] };
+
+        let gate_box = |gate: &Gate| -> [f64; 4] {
+            let (gate_x, gate_y) = gate.location;
+            let [gate_width, gate_height] = gate.display_size();
+            [gate_x as f64 * HORIZONTAL_GATE_SPACING, gate_y + args.window_size[1] / 2.0, gate_width, gate_height]
+        };
+        let gate_input_pos = |input_idx: GateInputNodeIdx| -> [f64; 2] {
+            let gate = &self.gates[input_idx.0];
+            let [gate_x, gate_y, _, gate_height] = gate_box(gate);
+            [gate_x, centered_arg_y(gate_y + gate_height / 2.0, gate.num_inputs(), input_idx.1)]
+        };
+        let gate_output_pos = |output_idx: GateOutputNodeIdx| -> [f64; 2] {
+            let gate = &self.gates[output_idx.0];
+            let [gate_x, gate_y, gate_width, gate_height] = gate_box(gate);
+            [gate_x + gate_width, centered_arg_y(gate_y + gate_height / 2.0, gate.num_outputs(), output_idx.1)]
+        };
+
+        let producer_pos = |node: ValueProducingNodeIdx| match node {
+            ValueProducingNodeIdx::CI(ci) => circuit_input_pos(ci.0),
+            ValueProducingNodeIdx::GO(go) => gate_output_pos(go),
+        };
+        let receiver_node_pos = |node: ValueReceivingNodeIdx| match node {
+            ValueReceivingNodeIdx::CO(co) => circuit_output_pos(co.0),
+            ValueReceivingNodeIdx::GI(gi) => gate_input_pos(gi),
+        };
+        let bool_color = |value| if value { ON_COLOR } else { OFF_COLOR };
+        let producer_color = |producer: ValueProducingNodeIdx| bool_color(self.get_value_producing_node(producer).value);
+        let receiver_color =
+            |receiver: ValueReceivingNodeIdx| bool_color(if let Some(producer) = self.get_value_receiving_node(receiver).producer { self.get_value_producing_node(producer).value } else { false });
+
+        graphics.draw(args.viewport(), |c, gl| {
+            clear(BG, gl);
+
+            // draw circuit inputs and outputs
+            for (input_i, input_producer) in self.inputs.iter().enumerate() {
+                let pos = circuit_input_pos(input_i);
+                ellipse(bool_color(input_producer.value), ellipse::circle(pos[0], pos[1], CIRCLE_RAD), c.transform, gl);
             }
+            for (output_i, output) in self.output_indexes().enumerate() {
+                let output_pos = circuit_output_pos(output_i);
+                let color = receiver_color(output.into());
+                ellipse(color, ellipse::circle(output_pos[0], output_pos[1], CIRCLE_RAD), c.transform, gl);
 
-            let gate_box = |gate: &Gate| -> [f64; 4] {
-                let (gate_x, gate_y) = gate.location;
-                let [gate_width, gate_height] = gate_size(gate);
-                [gate_x as f64 * HORIZONTAL_GATE_SPACING, gate_y + args.window_size[1] / 2.0, gate_width, gate_height]
-            };
-            let gate_input_pos = |input_idx: GateInputNodeIdx| -> [f64; 2] {
-                let gate = &self.gates[input_idx.0];
-                let [gate_x, gate_y, _, gate_height] = gate_box(gate);
-                [gate_x, centered_arg_y(gate_y + gate_height / 2.0, gate.inputs().len(), input_idx.1)]
-            };
-            let gate_output_pos = |output_idx: GateOutputNodeIdx| -> [f64; 2] {
-                let gate = &self.gates[output_idx.0];
-                let [gate_x, gate_y, gate_width, gate_height] = gate_box(gate);
-                [gate_x + gate_width, centered_arg_y(gate_y + gate_height / 2.0, gate.outputs().len(), output_idx.1)]
-            };
-
-            let producer_node_pos = |node: ValueProducingNodeIdx| match node {
-                ValueProducingNodeIdx::CI(_) => todo!(),
-                ValueProducingNodeIdx::GO(_) => todo!(),
-            };
-            let receiver_node_pos = |node: ValueReceivingNodeIdx| match node {
-                ValueReceivingNodeIdx::CO(_) => todo!(),
-                ValueReceivingNodeIdx::GI(_) => todo!(),
-            };
-            let bool_color = |value| if value { ON_COLOR } else { OFF_COLOR };
-            let producer_color = |producer: ValueProducingNodeIdx| bool_color(match producer {
-                ValueProducingNodeIdx::CI(CircuitInputNodeIdx(idx)) => self.inputs[idx].value,
-                ValueProducingNodeIdx::GO(go) => self.get_gate_output(go).value,
-            });
-
-            graphics.draw(args.viewport(), |c, gl| {
-                clear(BG, gl);
-
-                // draw circuit inputs and outputs
-                for (input_i, input_value) in self.inputs.iter().enumerate() {
-                    let pos = circuit_input_pos(input_i);
-                    ellipse(bool_color(input_value.value), ellipse::circle(pos[0], pos[1], CIRCLE_RAD), c.transform, gl);
-                }
-                for (output_i, output) in self.outputs.iter().enumerate() {
-                    let output_pos = circuit_output_pos(output_i);
-                    let color = producer_color(*output);
-                    ellipse(color, ellipse::circle(output_pos[0], output_pos[1], CIRCLE_RAD), c.transform, gl);
-
-                    // draw lines connecting outputs with their values
-                    let connection_start_pos = value_pos(*output);
+                // draw lines connecting outputs with their values
+                if let Some(producer) = self.get_value_receiving_node(output.into()).producer {
+                    let connection_start_pos = producer_pos(producer);
                     line_from_to(color, CONNECTION_RAD, connection_start_pos, output_pos, c.transform, gl);
                 }
+            }
 
-                // draw each gate
-                for (gate_i, gate) in self.gates.iter() {
-                    let [gate_x, gate_y, gate_width, gate_height] = gate_box(gate);
+            // draw each gate
+            for (gate_i, gate) in self.gates.iter() {
+                let [gate_x, gate_y, gate_width, gate_height] = gate_box(gate);
 
-                    rectangle(GATE_COLOR, [gate_x, gate_y, gate_width, gate_height], c.transform, gl);
-                    // TODO: draw gate name
-                    // text(BLACK, 10, gate.name(), /* character cache */, c.transform, gl);
+                rectangle(GATE_COLOR, [gate_x, gate_y, gate_width, gate_height], c.transform, gl);
+                // TODO: draw gate name
+                // text(BLACK, 10, gate.name(), /* character cache */, c.transform, gl);
 
-                    // draw gate input dots and connections to their values
-                    for (input_i, input) in gate.inputs().into_iter().enumerate() {
-                        let color = value_color(input);
-                        let input_pos @ [x, y] = gate_input_pos(input);
-                        ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
+                // draw gate input dots and connections to their values
+                for (input_i, input_receiving_node) in gate.inputs().into_iter().enumerate() {
+                    let color = receiver_color(input_receiving_node.into());
+                    let input_pos @ [x, y] = gate_input_pos(input_receiving_node);
+                    ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
 
-                        let connection_start_pos = value_pos(gate.get_input(input).producer);
+                    if let Some(producer) = self.get_value_receiving_node(input_receiving_node.into()).producer {
+                        let connection_start_pos = producer_pos(producer);
                         line_from_to(color, CONNECTION_RAD, connection_start_pos, input_pos, c.transform, gl);
                     }
-                    // draw gate output dots
-                    for output in gate.outputs().into_iter() {
-                        let color = bool_color(evaluated_values[gate_i][output_i]);
-                        let [x, y] = gate_output_pos(output);
-                        ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
-                    }
                 }
-            });
-        }
+                // draw gate output dots
+                for output in gate.outputs().into_iter() {
+                    let color = producer_color(output.into());
+                    let [x, y] = gate_output_pos(output);
+                    ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
+                }
+            }
+        });
+    }
 }
-*/

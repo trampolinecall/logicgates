@@ -18,8 +18,7 @@ impl App {
     }
 
     fn render(&mut self, render_args: &piston::RenderArgs) {
-        // self.circuit.render(&mut self.gl, render_args); TODO
-
+        self.circuit.render(&mut self.gl, render_args);
     }
 
     fn update(&mut self, _: &piston::UpdateArgs) {}
@@ -43,7 +42,6 @@ fn main() {
             app.update(&args);
         }
 
-        /* TODO
         if let Some(piston::Button::Keyboard(key)) = e.press_args() {
             if let Some(index) = match key {
                 piston::Key::D1 => Some(0),
@@ -85,11 +83,10 @@ fn main() {
 
                 _ => None,
             } {
-                if index < app.input.len() {
-                    app.input[index] = !app.input[index];
+                if index < app.circuit.num_inputs() {
+                    app.circuit.toggle_input(index);
                 }
             }
         }
-        */
     }
 }
