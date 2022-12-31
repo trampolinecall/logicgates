@@ -8,7 +8,7 @@ pub(crate) struct Circuit<'file> {
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct Let<'file> {
-    pub(crate) pat: Vec<Pattern<'file>>,
+    pub(crate) pat: Pattern<'file>,
     pub(crate) val: Expr<'file>,
 }
 
@@ -17,9 +17,9 @@ pub(crate) enum Expr<'file> {
     Ref(&'file str),
     Call(&'file str, bool, Box<Expr<'file>>),
     Const(bool),
-    Get(Box<Expr<'file>>, Vec<usize>),
+    Get(Box<Expr<'file>>, usize),
     Multiple(Vec<Expr<'file>>),
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct Pattern<'file>(pub(crate) &'file str, pub(crate) usize);
+pub(crate) struct Pattern<'file>(pub(crate) &'file str);
