@@ -3,14 +3,12 @@ mod error;
 mod lexer;
 mod parser;
 
-use generational_arena::Arena;
-
 use crate::circuit;
 
-pub(crate) fn compile(filename: &str, gates: &mut Arena<circuit::Gate>) -> Option<circuit::Circuit> {
+pub(crate) fn compile(filename: &str) -> Option<circuit::Circuit> {
     // TODO: do not return result if any errors are generated
     let file = load_file(filename)?;
-    circuitgen::generate(gates, parser::parse(lexer::lex(&file))?)
+    circuitgen::generate(parser::parse(lexer::lex(&file))?)
 }
 
 fn load_file(filename: &str) -> Option<String> {
