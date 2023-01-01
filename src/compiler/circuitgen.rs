@@ -155,16 +155,14 @@ fn convert_expr(global_state: &GlobalGenState, circuit_state: &mut CircuitGenSta
 
             let inputs = inputs.into_iter().map(|input| convert_expr(global_state, circuit_state, input)).collect::<Option<Vec<_>>>()?;
             if inline {
-                name_resolved.inline_gate(circuit_state, inputs)
+                name_resolved.inline_gate(circuit_state, &inputs)
             } else {
-                name_resolved.add_gate(circuit_state, inputs)
+                name_resolved.add_gate(circuit_state, &inputs)
             }
         }
 
         ast::Expr::Const(val) => {
-            let gate_i = circuit_state.circuit.new_const_gate(val);
-            todo!("const gate")
-            // Some(circuit_state.circuit.get_gate(gate_i).outputs().map(|t| t.into()).collect())
+            CircuitDef::Const(val).add_gate(circuit_state, &[])
         }
 
         ast::Expr::Get(expr, slots) => {

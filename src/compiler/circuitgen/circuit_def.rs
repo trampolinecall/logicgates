@@ -14,41 +14,35 @@ pub(super) enum CircuitDef {
     Circuit { circuit: circuit::Circuit, input_types: Vec<ast::Type>, result_type: ast::Type },
     And,
     Not,
+    Const(bool),
 }
 impl CircuitDef {
     fn to_gate(&self, circuit_state: &mut CircuitGenState) -> (circuit::GateIndex, Vec<ReceiverBundle>, ProducerBundle) {
         // TODO: refactor this and probably refactor the rest of the module too
+        let make_receiver_bundles = |circuit_state: &CircuitGenState, types, gate_i| make_receiver_bundles(types, circuit_state.circuit.get_gate(gate_i).inputs().map(|input| input.into()));
+        let make_producer_bundle = |circuit_state: &CircuitGenState, types, gate_i| make_producer_bundle(types, circuit_state.circuit.get_gate(gate_i).outputs().map(|output| output.into()));
         match self {
             CircuitDef::Circuit { circuit, input_types, result_type } => {
                 let gate_i = circuit_state.circuit.new_subcircuit_gate(circuit.clone());
-                (
-                    gate_i,
-                    make_receiver_bundles(input_types, circuit_state.circuit.get_gate(gate_i).inputs().map(|output| output.into())),
-                    make_producer_bundle(result_type, circuit_state.circuit.get_gate(gate_i).outputs().map(|output| output.into())),
-                )
+                (gate_i, make_receiver_bundles(circuit_state, input_types, gate_i), make_producer_bundle(circuit_state, result_type, gate_i))
             }
             CircuitDef::And => {
                 let gate_i = circuit_state.circuit.new_and_gate();
-                (
-                    gate_i,
-                    circuit_state.circuit.get_gate(gate_i).inputs().map(|input| ReceiverBundle::Single(input.into())).collect(),
-                    ProducerBundle::Single(circuit_state.circuit.get_gate(gate_i).outputs().next().expect("and gate should have exactly one output").into()),
-                )
+                (gate_i, make_receiver_bundles(circuit_state, &[ast::Type::Bit, ast::Type::Bit], gate_i), make_producer_bundle(circuit_state, &ast::Type::Bit, gate_i))
             }
             CircuitDef::Not => {
                 let gate_i = circuit_state.circuit.new_not_gate();
-                (
-                    gate_i,
-                    circuit_state.circuit.get_gate(gate_i).inputs().map(|input| ReceiverBundle::Single(input.into())).collect(),
-                    ProducerBundle::Single(circuit_state.circuit.get_gate(gate_i).outputs().next().expect("and gate should have exactly one output").into()),
-                )
+                (gate_i, make_receiver_bundles(circuit_state, &[ast::Type::Bit], gate_i), make_producer_bundle(circuit_state, &ast::Type::Bit, gate_i))
+            }
+            CircuitDef::Const(value) => {
+                let gate_i = circuit_state.circuit.new_const_gate(*value);
+                (gate_i, make_receiver_bundles(circuit_state, &[], gate_i), make_producer_bundle(circuit_state, &ast::Type::Bit, gate_i))
             }
         }
     }
 
-    pub(super) fn add_gate(&self, circuit_state: &mut CircuitGenState, inputs: Vec<ProducerBundle>) -> Option<ProducerBundle> {
+    pub(super) fn add_gate(&self, circuit_state: &mut CircuitGenState, inputs: &[ProducerBundle]) -> Option<ProducerBundle> {
         let (gate_i, input_bundles, output_bundles) = self.to_gate(circuit_state);
-        let gate = &circuit_state.circuit.get_gate(gate_i);
 
         // connect the inputs
         let input_types: Vec<_> = inputs.iter().map(|bundle| bundle.type_()).collect();
@@ -59,12 +53,12 @@ impl CircuitDef {
         }
 
         for (producer_bundle, receiver_bundle) in inputs.into_iter().zip(input_bundles) {
-            connect_bundle(&mut circuit_state.circuit, producer_bundle, receiver_bundle)?;
+            connect_bundle(&mut circuit_state.circuit, producer_bundle, &receiver_bundle)?;
         }
 
         Some(output_bundles)
     }
-    pub(crate) fn inline_gate(&self, circuit_state: &mut CircuitGenState, inputs: Vec<ProducerBundle>) -> Option<ProducerBundle> {
+    pub(crate) fn inline_gate(&self, circuit_state: &mut CircuitGenState, inputs: &[ProducerBundle]) -> Option<ProducerBundle> {
         if let CircuitDef::Circuit { circuit: subcircuit, input_types: expected_input_types, result_type } = self {
             use crate::circuit::GateIndex;
 
@@ -142,14 +136,14 @@ fn make_producer_bundle(type_: &ast::Type, mut outputs: impl Iterator<Item = cir
     }
 }
 
-fn connect_bundle(circuit: &mut circuit::Circuit, producer_bundle: ProducerBundle, receiver_bundle: ReceiverBundle) -> Option<()> {
+fn connect_bundle(circuit: &mut circuit::Circuit, producer_bundle: &ProducerBundle, receiver_bundle: &ReceiverBundle) -> Option<()> {
     if producer_bundle.type_() != receiver_bundle.type_() {
         Error::TypeMismatchInCall { actual_type: producer_bundle.type_(), expected_type: receiver_bundle.type_() }.report();
         None?
     }
 
     match (producer_bundle, receiver_bundle) {
-        (ProducerBundle::Single(producer_index), ReceiverBundle::Single(receiver_index)) => circuit.connect(producer_index, receiver_index)
+        (ProducerBundle::Single(producer_index), ReceiverBundle::Single(receiver_index)) => circuit.connect(*producer_index, *receiver_index),
     }
 
     Some(())
