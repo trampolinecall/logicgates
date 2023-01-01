@@ -118,8 +118,8 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circu
     }
 
     let output_value = convert_expr(global_state, &mut circuit_state, circuit_ast.outputs)?;
-    circuit_state.circuit.set_num_outputs(output_value.size());
-    assert_eq!(circuit_state.circuit.num_outputs(), output_value.size(), "number of circuit outputs should be equal to the number of output producers");
+    circuit_state.circuit.set_num_outputs(output_value.type_().size());
+    assert_eq!(circuit_state.circuit.num_outputs(), output_value.type_().size(), "number of circuit outputs should be equal to the number of output producers");
 
     let output_bundle = bundle::make_receiver_bundle(&output_value.type_(), circuit_state.circuit.output_indexes().map(|output_idx| output_idx.into()));
     bundle::connect_bundle(&mut circuit_state.circuit, &output_value, &output_bundle);
