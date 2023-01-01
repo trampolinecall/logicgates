@@ -18,8 +18,7 @@ impl CircuitDef {
         // TODO: refactor this and probably refactor the rest of the module too
         match self {
             CircuitDef::Circuit { circuit, input_types, result_type } => {
-                // TODO: clone actually doesnt work because this needs to create new gates
-                let gate_i = circuit_state.circuit.new_subcircuit_gate(circuit_state.circuit.clone());
+                let gate_i = circuit_state.circuit.new_subcircuit_gate(circuit.clone());
                 (gate_i, make_receiver_bundles(input_types, circuit_state.circuit.get_gate(gate_i).inputs()), make_producer_bundle(result_type, circuit_state.circuit.get_gate(gate_i).outputs()))
             }
             CircuitDef::And => {
