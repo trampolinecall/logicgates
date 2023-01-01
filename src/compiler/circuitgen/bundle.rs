@@ -1,9 +1,9 @@
 use crate::{
     circuit,
-    compiler::{error::{Report, Span}, parser::ast},
+    compiler::error::{Report, Span},
 };
 
-use super::Error;
+use super::{ty, Error};
 
 #[derive(Clone, Debug)]
 pub(super) enum ProducerBundle {
@@ -17,11 +17,10 @@ pub(super) enum ReceiverBundle {
 }
 
 impl ProducerBundle {
-    pub(super) fn type_(&self) -> ast::Type {
-        // TODO: should not use the type ast as a representation for types
+    pub(super) fn type_(&self) -> ty::Type {
         match self {
-            ProducerBundle::Single(_) => ast::Type::Bit,
-            ProducerBundle::Product(tys) => ast::Type::Product(tys.iter().map(ProducerBundle::type_).collect()),
+            ProducerBundle::Single(_) => ty::Type::Bit,
+            ProducerBundle::Product(tys) => ty::Type::Product(tys.iter().map(ProducerBundle::type_).collect()),
         }
     }
 
@@ -33,10 +32,10 @@ impl ProducerBundle {
     }
 }
 impl ReceiverBundle {
-    pub(super) fn type_(&self) -> ast::Type {
+    pub(super) fn type_(&self) -> ty::Type {
         match self {
-            ReceiverBundle::Single(_) => ast::Type::Bit,
-            ReceiverBundle::Product(tys) => ast::Type::Product(tys.iter().map(ReceiverBundle::type_).collect()),
+            ReceiverBundle::Single(_) => ty::Type::Bit,
+            ReceiverBundle::Product(tys) => ty::Type::Product(tys.iter().map(ReceiverBundle::type_).collect()),
         }
     }
 
@@ -49,17 +48,17 @@ impl ReceiverBundle {
 }
 
 // TODO: refactor
-pub(super) fn make_receiver_bundle(type_: &ast::Type, inputs: &mut impl Iterator<Item = circuit::ReceiverIdx>) -> ReceiverBundle {
+pub(super) fn make_receiver_bundle(type_: &ty::Type, inputs: &mut impl Iterator<Item = circuit::ReceiverIdx>) -> ReceiverBundle {
     match type_ {
-        ast::Type::Bit => ReceiverBundle::Single(inputs.next().expect("inputs should not run out when converting to bundle")),
-        ast::Type::Product(tys) => ReceiverBundle::Product(tys.iter().map(|ty| make_receiver_bundle(ty, inputs)).collect()),
+        ty::Type::Bit => ReceiverBundle::Single(inputs.next().expect("inputs should not run out when converting to bundle")),
+        ty::Type::Product(tys) => ReceiverBundle::Product(tys.iter().map(|ty| make_receiver_bundle(ty, inputs)).collect()),
     }
 }
 
-pub(super) fn make_producer_bundle(type_: &ast::Type, outputs: &mut impl Iterator<Item = circuit::ProducerIdx>) -> ProducerBundle {
+pub(super) fn make_producer_bundle(type_: &ty::Type, outputs: &mut impl Iterator<Item = circuit::ProducerIdx>) -> ProducerBundle {
     match type_ {
-        ast::Type::Bit => ProducerBundle::Single(outputs.next().expect("outputs should not run out when converting to bundle")),
-        ast::Type::Product(tys) => ProducerBundle::Product(tys.iter().map(|ty| make_producer_bundle(ty, outputs)).collect()),
+        ty::Type::Bit => ProducerBundle::Single(outputs.next().expect("outputs should not run out when converting to bundle")),
+        ty::Type::Product(tys) => ProducerBundle::Product(tys.iter().map(|ty| make_producer_bundle(ty, outputs)).collect()),
     }
 }
 

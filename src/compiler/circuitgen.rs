@@ -1,5 +1,6 @@
 mod bundle;
 mod circuit_def;
+mod ty;
 
 use std::collections::HashMap;
 
@@ -16,11 +17,11 @@ use super::parser::ast;
 
 enum Error<'file> {
     Duplicate(Span<'file>, &'file str),
-    NoField { ty: ast::Type, field_name_sp: Span<'file>, field_name: &'file str }, // TODO: list names of fields that do exist
+    NoField { ty: ty::Type, field_name_sp: Span<'file>, field_name: &'file str }, // TODO: list names of fields that do exist
     NoSuchLocal(Span<'file>, &'file str),
     NoSuchCircuit(Span<'file>, &'file str),
-    TypeMismatchInAssignment { pat_sp: Span<'file>, actual_type: ast::Type, pattern_type: ast::Type },
-    TypeMismatchInCall { expr_span: Span<'file>, actual_type: ast::Type, expected_type: ast::Type },
+    TypeMismatchInAssignment { pat_sp: Span<'file>, actual_type: ty::Type, pattern_type: ty::Type },
+    TypeMismatchInCall { expr_span: Span<'file>, actual_type: ty::Type, expected_type: ty::Type },
     NoMain(&'file File),
     // AndWith0 { actual_size: usize },
 }
@@ -62,7 +63,7 @@ impl<'file> From<Error<'file>> for CompileError<'file> {
             Error::NoMain(f) => CompileError::new(f.eof_span(), "no '`main' circuit".into()),
             Error::TypeMismatchInCall { actual_type, expected_type, expr_span } => {
                 CompileError::new(expr_span, format!("type mismatch in subcircuit: arguments have type {actual_type} but subcircuit expects type {expected_type}"))
-            } // CircuitGenError::AndWith0 { actual_size } => CompileError::new(todo!(), format!("'`and' gate needs a size of at least 1 but got size {actual_size}")),
+            }
         }
     }
 }
@@ -90,15 +91,15 @@ pub(crate) fn generate(file: &File, ast: Vec<ast::Circuit>) -> Option<circuit::C
     }
 }
 
-fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circuit<'file>) -> Option<((Span<'file>, &'file str), circuit::Circuit, ast::Type, ast::Type)> {
+fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circuit<'file>) -> Option<((Span<'file>, &'file str), circuit::Circuit, ty::Type, ty::Type)> {
     let name = circuit_ast.name;
 
     let mut circuit_state = CircuitGenState::new(name.1.to_string());
 
-    circuit_state.circuit.set_num_inputs(circuit_ast.input.type_().size());
-    assert_eq!(circuit_ast.input.type_().size(), circuit_state.circuit.num_inputs(), "number of circuit inputs should be equal to the number of input bits");
+    circuit_state.circuit.set_num_inputs(ty::Type::pat_type(&circuit_ast.input).size());
+    assert_eq!(ty::Type::pat_type(&circuit_ast.input).size(), circuit_state.circuit.num_inputs(), "number of circuit inputs should be equal to the number of input bits");
 
-    let input_bundle = bundle::make_producer_bundle(&circuit_ast.input.type_(), &mut circuit_state.circuit.input_indexes().map(|circuit_input_idx| circuit_input_idx.into()));
+    let input_bundle = bundle::make_producer_bundle(&ty::Type::pat_type(&circuit_ast.input), &mut circuit_state.circuit.input_indexes().map(|circuit_input_idx| circuit_input_idx.into()));
     if let Err(e) = assign_pattern(&mut circuit_state, &circuit_ast.input, input_bundle) {
         e.report();
     }
@@ -120,12 +121,12 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circu
 
     circuit_state.circuit.calculate_locations();
 
-    Some((name, circuit_state.circuit, circuit_ast.input.type_(), output_value.type_()))
+    Some((name, circuit_state.circuit, ty::Type::pat_type(&circuit_ast.input), output_value.type_()))
 }
 
 fn assign_pattern<'cgs, 'file>(circuit_state: &'cgs mut CircuitGenState<'file>, pat: &ast::Pattern<'file>, bundle: ProducerBundle) -> Result<(), Error<'file>> {
-    if bundle.type_() != pat.type_() {
-        Err(Error::TypeMismatchInAssignment { pat_sp: pat.span(), actual_type: bundle.type_(), pattern_type: pat.type_() })?
+    if bundle.type_() != ty::Type::pat_type(pat) {
+        Err(Error::TypeMismatchInAssignment { pat_sp: pat.span(), actual_type: bundle.type_(), pattern_type: ty::Type::pat_type(pat) })?
     }
 
     match (pat, bundle) {

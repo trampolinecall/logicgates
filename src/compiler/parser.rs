@@ -220,30 +220,30 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         }
     }
 
-    fn type_(&mut self) -> Result<ast::LType<'file>, ParseError<'file>> {
+    fn type_(&mut self) -> Result<ast::Type<'file>, ParseError<'file>> {
         match self.peek() {
             &Token::Backtick(sp) => {
                 let _ = self.next();
-                Ok(ast::LType(sp, ast::Type::Bit))
+                Ok(ast::Type::Bit(sp))
             }
 
-            Token::OBrack(_) => {
+            &Token::OBrack(obrack) => {
                 let _ = self.next();
 
                 match self.peek() {
                     Token::Number(_, _, _) => {
-                        let (_, _, len) = Token::number_matcher().convert(self.next());
+                        let (len_sp, _, len) = Token::number_matcher().convert(self.next());
 
-                        self.expect(Token::cbrack_matcher())?;
+                        let cbrack = self.expect(Token::cbrack_matcher())?;
 
                         let ty = self.type_()?;
 
-                        Ok(ast::LType(todo!(), ast::Type::Product((0..len).map(|_| ty.1.clone()).collect())))
+                        Ok(ast::Type::RepProduct { obrack, num: (len_sp, len), cbrack, type_: Box::new(ty) })
                     }
 
                     _ => {
                         let tys = self.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::type_)?;
-                        Ok(ast::LType(todo!(), ast::Type::Product(tys.into_iter().map(|ty| ty.1).collect())))
+                        Ok(ast::Type::Product { types: tys.into_iter().map(|ty| ty).collect(), obrack, cbrack: todo!() })
                     }
                 }
             }
