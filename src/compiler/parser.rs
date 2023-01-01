@@ -155,9 +155,9 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             self.next();
 
             let field = match self.peek() {
-                Token::Number(n_sp, _) => Ok(*n_sp),
+                Token::Number(n_sp, n_str, n) => Ok((*n_sp, *n_str)),
 
-                Token::Identifier(i, _) => Ok(*i),
+                Token::Identifier(i_sp, i) => Ok((*i_sp, *i)),
 
                 _ => Err(self.expected_and_next("field name (a number or identifier)")),
             }?;
@@ -171,8 +171,8 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
     fn primary_expr(&mut self) -> Result<ast::Expr<'file>, ParseError<'file>> {
         match self.peek() {
-            &Token::Number(n_sp, _) => {
-                let n = Token::number_matcher().convert(self.next());
+            &Token::Number(_, _, _) => {
+                let (n_sp, _, n) = Token::number_matcher().convert(self.next());
 
                 match n {
                     0 => Ok(ast::Expr::Const(n_sp, false)),
@@ -194,7 +194,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             Token::Identifier(_, _) => {
                 let i = Token::identifier_matcher().convert(self.next());
 
-                Ok(ast::Expr::Ref(i))
+                Ok(ast::Expr::Ref(i.0, i.1))
             }
 
             Token::OBrack(obrack_sp) => {
@@ -231,8 +231,8 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 let _ = self.next();
 
                 match self.peek() {
-                    Token::Number(_, _) => {
-                        let len = Token::number_matcher().convert(self.next());
+                    Token::Number(_, _, _) => {
+                        let (_, _, len) = Token::number_matcher().convert(self.next());
 
                         self.expect(Token::cbrack_matcher())?;
 

@@ -30,12 +30,6 @@ impl File {
     }
 }
 
-impl<'file> Span<'file> {
-    pub(crate) fn slice(&self) -> &'file str {
-        &self.0.contents[self.1..self.2]
-    }
-}
-
 impl<'file> std::ops::Add<Span<'file>> for Span<'file> {
     type Output = Span<'file>;
 

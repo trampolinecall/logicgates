@@ -28,6 +28,14 @@ impl<'file> Lexer<'file> {
         }
     }
 
+    fn slice(&mut self, start: usize) -> &'file str {
+        if let Some((end, _)) = self.1.peek() {
+            &self.0.contents[start..*end]
+        } else {
+            &self.0.contents[start..]
+        }
+    }
+
     fn peek_is_digit(&mut self) -> bool {
         matches!(self.1.peek(), Some((_, '0'..='9')))
     }
@@ -70,9 +78,9 @@ impl<'file> Lexer<'file> {
                 }
 
                 let span = self.span(start_i);
-                let number_str = span.slice();
+                let number_str = self.slice(start_i);
                 let number = number_str.parse().expect("integer parse error impossible because slice only contains digits");
-                Ok(Some(Token::Number(span, number)))
+                Ok(Some(Token::Number(span, number_str, number)))
             }
 
             'a'..='z' | 'A'..='Z' => {
@@ -81,7 +89,7 @@ impl<'file> Lexer<'file> {
                 }
 
                 let span = self.span(start_i);
-                let slice = span.slice();
+                let slice = self.slice(start_i);
                 match slice {
                     "let" => Ok(Some(Token::Let(span))),
                     "inline" => Ok(Some(Token::Inline(span))),
