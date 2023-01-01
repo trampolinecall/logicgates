@@ -23,12 +23,12 @@ impl CircuitDef {
         let make_receiver_bundles = |circuit_state: &CircuitGenState, types: &[ast::Type], gate_i| {
             let inputs = circuit_state.circuit.get_gate(gate_i).inputs();
             assert_eq!(types.iter().map(|type_| type_.size()).sum::<usize>(), inputs.len(), "receiver bundles have a different total size than the number of input nodes on the gate"); // sanity check
-            make_receiver_bundles(types, inputs.map(|input| input.into()))
+            make_receiver_bundles(types, &mut inputs.map(|input| input.into()))
         };
         let make_producer_bundle = |circuit_state: &CircuitGenState, type_: &ast::Type, gate_i| {
             let outputs = circuit_state.circuit.get_gate(gate_i).outputs();
             assert_eq!(type_.size(), outputs.len(), "producer bundle has a different size than the number of output nodes on the gate"); // sanity check
-            make_producer_bundle(&type_, outputs.map(|output| output.into()))
+            make_producer_bundle(&type_, &mut outputs.map(|output| output.into()))
         };
 
         match self {
@@ -116,7 +116,7 @@ impl CircuitDef {
 
             Some(make_producer_bundle(
                 result_type,
-                subcircuit.output_indexes().flat_map(|o| subcircuit.get_receiver(o.into()).producer.map(|producer| convert_producer_idx(producer, &circuit_state.circuit, &gate_number_mapping))),
+                &mut subcircuit.output_indexes().flat_map(|o| subcircuit.get_receiver(o.into()).producer.map(|producer| convert_producer_idx(producer, &circuit_state.circuit, &gate_number_mapping))),
             )) // TODO: allow unconnected nodes
         } else {
             self.add_gate(circuit_state, inputs)

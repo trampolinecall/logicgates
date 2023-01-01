@@ -22,14 +22,14 @@ pub(crate) enum Token<'file> {
 
     Backtick,
 
-    Number(usize),
+    Number(&'file str, usize),
     Identifier(&'file str),
     // TODO: variadic arguments / bundles
 }
 
 impl<'file> Token<'file> {
     pub(crate) fn as_number(&self) -> Option<&usize> {
-        if let Self::Number(v) = self {
+        if let Self::Number(_, v) = self {
             Some(v)
         } else {
             None
@@ -209,7 +209,7 @@ impl std::fmt::Display for Token<'_> {
 
             Token::Backtick => write!(f, "'`'"),
 
-            Token::Number(n) => write!(f, "'{n}'"),
+            Token::Number(_, n) => write!(f, "'{n}'"),
             Token::Identifier(i) => write!(f, "'{i}'"),
         }
     }
@@ -265,8 +265,9 @@ impl<'file> Lexer<'file> {
                     self.1.next();
                 }
 
-                let number = self.slice(start_i).parse().expect("integer parse error impossible because slice only contains digits");
-                Ok(Some(Token::Number(number)))
+                let number_str = self.slice(start_i);
+                let number = number_str.parse().expect("integer parse error impossible because slice only contains digits");
+                Ok(Some(Token::Number(number_str, number)))
             }
 
             'a'..='z' | 'A'..='Z' => {
@@ -332,9 +333,9 @@ mod test {
     #[test]
     fn numbers() {
         let mut l = lex("1 2 123");
-        assert_eq!(l.next(), Some(Token::Number(1)));
-        assert_eq!(l.next(), Some(Token::Number(2)));
-        assert_eq!(l.next(), Some(Token::Number(123)));
+        assert_eq!(l.next(), Some(Token::Number("1", 1)));
+        assert_eq!(l.next(), Some(Token::Number("2", 2)));
+        assert_eq!(l.next(), Some(Token::Number("123", 123)));
         assert_eq!(l.next(), Some(Token::EOF));
     }
 
