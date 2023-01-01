@@ -361,7 +361,7 @@ impl GateKind {
                     subcircuit.set_producer_value(subcircuit_input_node.into(), get_producer_value(input_node.producer))
                 }
 
-                circuit
+                subcircuit
                     .output_indexes()
                     .into_iter()
                     .map(|output_idx| if let Some(producer) = subcircuit.get_receiver(output_idx.into()).producer { subcircuit.get_producer(producer).value } else { false })

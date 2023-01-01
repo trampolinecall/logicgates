@@ -54,8 +54,8 @@ impl From<Error<'_>> for CompileError {
             Error::NoField { ty, field_name } => CompileError { message: format!("no field called '{field_name}' on type '{ty}'") },
             Error::NoSuchLocal(name) => CompileError { message: format!("no local called '{name}'") },
             Error::NoSuchCircuit(name) => CompileError { message: format!("no circuit called '`{name}'") },
-            Error::TypeMismatchInAssignment { actual_type: value_size, pattern_type: pattern_size } => {
-                CompileError { message: format!("size mismatch in assignment: value has size {value_size} but pattern has size {pattern_size}") }
+            Error::TypeMismatchInAssignment { actual_type: value_type, pattern_type } => {
+                CompileError { message: format!("type mismatch in assignment: value has type {value_type} but pattern has type {pattern_type}") }
             }
             Error::NoMain => CompileError { message: "no '`main' circuit".into() },
             Error::TypeMismatchInCall { actual_type, expected_type } => {
