@@ -1,29 +1,31 @@
 #[derive(PartialEq, Debug)]
 pub(crate) struct Circuit<'file> {
     pub(crate) name: &'file str,
-    pub(crate) inputs: Vec<(Pattern<'file>, Type)>,
+    pub(crate) input: Pattern<'file>,
     pub(crate) lets: Vec<Let<'file>>,
-    pub(crate) outputs: Expr<'file>,
+    pub(crate) output: Expr<'file>,
 }
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct Let<'file> {
     pub(crate) pat: Pattern<'file>,
-    pub(crate) type_: Type,
     pub(crate) val: Expr<'file>,
 }
 
 #[derive(PartialEq, Debug)]
 pub(crate) enum Expr<'file> {
     Ref(&'file str),
-    Call(&'file str, bool, Vec<Expr<'file>>),
+    Call(&'file str, bool, Box<Expr<'file>>),
     Const(bool),
     Get(Box<Expr<'file>>, &'file str),
     Multiple(Vec<Expr<'file>>),
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct Pattern<'file>(pub(crate) &'file str);
+pub(crate) enum Pattern<'file> {
+    Identifier( &'file str, Type),
+    Product(Vec<Pattern<'file>>),
+}
 
 #[derive(PartialEq, Debug, Clone)]
 pub(crate) enum Type {
@@ -31,6 +33,14 @@ pub(crate) enum Type {
     Product(Vec<Type>), // TODO: named product types
 }
 
+impl Pattern<'_> {
+    pub(crate) fn type_(&self) -> Type {
+        match self {
+            Pattern::Identifier(_, ty) => ty.clone(),
+            Pattern::Product(pats) => Type::Product(pats.iter().map(Pattern::type_).collect()),
+        }
+    }
+}
 impl Type {
     pub(crate) fn size(&self) -> usize {
         match self {

@@ -40,22 +40,22 @@ pub(crate) struct Producer {
     pub(crate) value: bool,
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 pub(crate) struct GateInputNodeIdx(GateIndex, usize);
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 pub(crate) struct GateOutputNodeIdx(pub(crate) GateIndex, pub(crate) usize); // TODO: ideally these would not be pub(crate)but they need to be accessed when inlining circuits
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 pub(crate) struct CircuitInputNodeIdx(pub(crate) usize);
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 pub(crate) struct CircuitOutputNodeIdx(usize);
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 pub(crate) enum ProducerIdx {
     CI(CircuitInputNodeIdx),
     GO(GateOutputNodeIdx),
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 pub(crate) enum ReceiverIdx {
     CO(CircuitOutputNodeIdx),
     GI(GateInputNodeIdx),

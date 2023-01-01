@@ -106,12 +106,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         let _ = self.expect("circuit name (starting with '`')", Token::is_backtick)?;
         let name = self.expect("circuit name after '`'", Token::is_identifier)?;
         let name = *name.as_identifier().unwrap();
-        let arguments = self.list("'['", Token::is_obrack, Token::is_comma, "']'", Token::is_cbrack, |parser| {
-            let pattern = parser.pattern()?;
-            parser.expect("';' for type annotation", Token::is_semicolon)?;
-            let type_ = parser.type_()?;
-            Ok((pattern, type_))
-        })?;
+        let arguments = self.pattern()?;
         let mut lets = Vec::new();
 
         while Token::is_let(self.peek()) {
@@ -120,20 +115,17 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
         let ret = self.expr()?;
 
-        Ok(ast::Circuit { name, inputs: arguments, lets, outputs: ret })
+        Ok(ast::Circuit { name, input: arguments, lets, output: ret })
     }
 
     fn r#let(&mut self) -> Result<ast::Let<'file>, ParseError> {
         self.expect("'let'", Token::is_let)?;
         let pat = self.pattern()?;
 
-        self.expect("';' for type annotation", Token::is_semicolon)?;
-        let type_ = self.type_()?;
-
         self.expect("'='", Token::is_equals)?;
 
         let val = self.expr()?;
-        Ok(ast::Let { pat, type_, val })
+        Ok(ast::Let { pat, val })
     }
 
     fn pattern(&mut self) -> Result<ast::Pattern<'file>, ParseError> {
@@ -142,37 +134,19 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 let iden = self.next();
                 let iden = *iden.as_identifier().unwrap();
 
-                /*
-                let size = if Token::semicolon {
-                    self.next();
-                    *self.expect("pattern size", Token::is_number(_))?.as_number().unwrap()
-                } else {
-                    1
-                };
-                */
+                self.expect("';'", Token::is_semicolon)?;
 
-                Ok(ast::Pattern(iden))
+                let type_ = self.type_()?;
+
+                Ok(ast::Pattern::Identifier(iden, type_))
             }
 
-            /*
             Token::OBrack => {
                 self.next();
 
-                let mut patterns = Vec::new();
-
-                if !Token::cBrack {
-                    patterns.extend(self.pattern()?);
-                    while Token::comma {
-                        self.next();
-                        patterns.extend(self.pattern()?);
-                    }
-                }
-
-                self.expect("']'", Token::is_cBrack)?;
-
-                Ok(patterns)
+                let patterns = self.finish_list(Token::is_comma, "']'", Token::is_cbrack, Parser::pattern)?;
+                Ok(ast::Pattern::Product(patterns))
             }
-            */
             _ => Err(self.expected("pattern")),
         }
     }
@@ -217,9 +191,9 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let inline = self.maybe_consume(Token::is_inline).is_some();
 
-                let args = self.list("'['", |tok| matches!(tok, Token::OBrack), |tok| matches!(tok, Token::Comma), "']'", |tok| matches!(tok, Token::CBrack), Parser::expr)?;
+                let arg = self.expr()?;
 
-                Ok(ast::Expr::Call(i, inline, args))
+                Ok(ast::Expr::Call(i, inline, Box::new(arg)))
             }
 
             Token::Identifier(_) => {
@@ -306,8 +280,8 @@ mod test {
     fn list() {
         let tokens = vec![Token::OBrack, Token::Identifier("a"), Token::Comma, Token::Identifier("b"), Token::CBrack];
         assert_eq!(
-            Parser { tokens: make_token_stream(tokens) }.list("'['", |tok| matches!(tok, Token::OBrack), |tok| matches!(tok, Token::Comma), "']'", |tok| matches!(tok, Token::CBrack), Parser::pattern),
-            Ok(vec![ast::Pattern("a"), ast::Pattern("b")])
+            Parser { tokens: make_token_stream(tokens) }.list("'['", |tok| matches!(tok, Token::OBrack), |tok| matches!(tok, Token::Comma), "']'", |tok| matches!(tok, Token::CBrack), Parser::expr),
+            Ok(vec![ast::Expr::Ref("a"), ast::Expr::Ref("b")])
         )
     }
 
@@ -315,8 +289,8 @@ mod test {
     fn list_trailing_delim() {
         let tokens = vec![Token::OBrack, Token::Identifier("a"), Token::Comma, Token::Identifier("b"), Token::Comma, Token::CBrack];
         assert_eq!(
-            Parser { tokens: make_token_stream(tokens) }.list("'['", |tok| matches!(tok, Token::OBrack), |tok| matches!(tok, Token::Comma), "']'", |tok| matches!(tok, Token::CBrack), Parser::pattern),
-            Ok(vec![ast::Pattern("a"), ast::Pattern("b")])
+            Parser { tokens: make_token_stream(tokens) }.list("'['", |tok| matches!(tok, Token::OBrack), |tok| matches!(tok, Token::Comma), "']'", |tok| matches!(tok, Token::CBrack), Parser::expr),
+            Ok(vec![ast::Expr::Ref("a"), ast::Expr::Ref("b")])
         )
     }
 
@@ -324,18 +298,16 @@ mod test {
     #[test]
     fn circuit() {
         /*
-        `thingy [arg; `]
+        `thingy arg; `
             let res; ` = `and [arg, arg]
             res
         */
         let tokens = vec![
             Token::Backtick,
             Token::Identifier("thingy"),
-            Token::OBrack,
             Token::Identifier("arg"),
             Token::Semicolon,
             Token::Backtick,
-            Token::CBrack,
             Token::Let,
             Token::Identifier("res"),
             Token::Semicolon,
@@ -355,9 +327,12 @@ mod test {
             parse(make_token_stream(tokens)),
             Some(vec![ast::Circuit {
                 name: "thingy",
-                inputs: vec![(ast::Pattern("arg"), ast::Type::Bit)],
-                lets: vec![ast::Let { pat: ast::Pattern("res"), type_: ast::Type::Bit, val: ast::Expr::Call("and", false, vec![ast::Expr::Ref("arg"), ast::Expr::Ref("arg")]) }],
-                outputs: ast::Expr::Ref("res")
+                input: ast::Pattern::Identifier("arg", ast::Type::Bit),
+                lets: vec![ast::Let {
+                    pat: ast::Pattern::Identifier("res", ast::Type::Bit),
+                    val: ast::Expr::Call("and", false, Box::new(ast::Expr::Multiple(vec![ast::Expr::Ref("arg"), ast::Expr::Ref("arg")])))
+                }],
+                output: ast::Expr::Ref("res")
             }])
         )
     }
@@ -365,13 +340,13 @@ mod test {
     #[test]
     fn r#let() {
         let tokens = vec![Token::Let, Token::Identifier("a"), Token::Semicolon, Token::Backtick, Token::Equals, Token::Identifier("b")];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.r#let(), Ok(ast::Let { pat: ast::Pattern("a"), type_: ast::Type::Bit, val: ast::Expr::Ref("b") }))
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.r#let(), Ok(ast::Let { pat: ast::Pattern::Identifier("a", ast::Type::Bit), val: ast::Expr::Ref("b") }))
     }
 
     #[test]
     fn iden_pattern() {
-        let tokens = vec![Token::Identifier("iden")];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.pattern(), Ok(ast::Pattern("iden")))
+        let tokens = vec![Token::Identifier("iden"), Token::Semicolon, Token::Backtick];
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.pattern(), Ok(ast::Pattern::Identifier("iden", ast::Type::Bit)))
     }
 
     #[test]
@@ -388,8 +363,8 @@ mod test {
 
     #[test]
     fn call_expr() {
-        let tokens = vec![Token::Backtick, Token::Identifier("a"), Token::OBrack, Token::Identifier("b"), Token::CBrack];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.expr(), Ok(ast::Expr::Call("a", false, vec![ast::Expr::Ref("b")])))
+        let tokens = vec![Token::Backtick, Token::Identifier("a"), Token::Identifier("b")];
+        assert_eq!(Parser { tokens: make_token_stream(tokens) }.expr(), Ok(ast::Expr::Call("a", false, Box::new(ast::Expr::Ref("b")))))
     }
 
     #[test]
