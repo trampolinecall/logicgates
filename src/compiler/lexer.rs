@@ -367,7 +367,7 @@ mod test {
     fn whitespace() {
         let mut l = lex("    abc\n   2");
         assert_eq!(l.next(), Some(Token::Identifier("abc")));
-        assert_eq!(l.next(), Some(Token::Number(2)));
+        assert_eq!(l.next(), Some(Token::Number("2", 2)));
         assert_eq!(l.next(), Some(Token::EOF));
     }
 }
