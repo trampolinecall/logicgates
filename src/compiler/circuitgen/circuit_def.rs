@@ -7,7 +7,7 @@ use crate::{
 
 use super::{
     bundle::{ProducerBundle, ReceiverBundle},
-    connect_bundle, CircuitGenState, Error,
+    CircuitGenState, Error,
 };
 
 pub(super) enum CircuitDef {
@@ -140,4 +140,17 @@ fn make_producer_bundle(type_: &ast::Type, mut outputs: impl Iterator<Item = cir
     match type_ {
         ast::Type::Bit => ProducerBundle::Single(outputs.next().expect("outputs should not run out when converting to bundle")),
     }
+}
+
+fn connect_bundle(circuit: &mut circuit::Circuit, producer_bundle: ProducerBundle, receiver_bundle: ReceiverBundle) -> Option<()> {
+    if producer_bundle.type_() != receiver_bundle.type_() {
+        Error::TypeMismatchInCall { actual_type: producer_bundle.type_(), expected_type: receiver_bundle.type_() }.report();
+        None?
+    }
+
+    match (producer_bundle, receiver_bundle) {
+        (ProducerBundle::Single(producer_index), ReceiverBundle::Single(receiver_index)) => circuit.connect(producer_index, receiver_index)
+    }
+
+    Some(())
 }
