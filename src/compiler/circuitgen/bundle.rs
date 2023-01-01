@@ -5,11 +5,12 @@ use crate::{
 
 use super::Error;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(super) enum ProducerBundle {
     Single(circuit::ProducerIdx),
     Product(Vec<ProducerBundle>),
 }
+#[derive(Clone, Debug)]
 pub(super) enum ReceiverBundle {
     Single(circuit::ReceiverIdx),
     Product(Vec<ReceiverBundle>),
@@ -48,23 +49,6 @@ impl ReceiverBundle {
 }
 
 // TODO: refactor
-pub(super) fn make_receiver_bundles(types: &[ast::Type], mut inputs: &mut impl Iterator<Item = circuit::ReceiverIdx>) -> Vec<ReceiverBundle> {
-    let mut bundles = Vec::new();
-    for input_type in types {
-        bundles.push(make_receiver_bundle(input_type, &mut inputs))
-    }
-
-    bundles
-}
-pub(super) fn make_producer_bundles(types: &[ast::Type], mut outputs: &mut impl Iterator<Item = circuit::ProducerIdx>) -> Vec<ProducerBundle> {
-    let mut bundles = Vec::new();
-    for output_type in types {
-        bundles.push(make_producer_bundle(output_type, &mut outputs))
-    }
-
-    bundles
-}
-
 pub(super) fn make_receiver_bundle(type_: &ast::Type, inputs: &mut impl Iterator<Item = circuit::ReceiverIdx>) -> ReceiverBundle {
     match type_ {
         ast::Type::Bit => ReceiverBundle::Single(inputs.next().expect("inputs should not run out when converting to bundle")),
