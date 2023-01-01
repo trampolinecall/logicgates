@@ -21,7 +21,11 @@ impl CircuitDef {
         match self {
             CircuitDef::Circuit { circuit, input_types, result_type } => {
                 let gate_i = circuit_state.circuit.new_subcircuit_gate(circuit.clone());
-                (gate_i, make_receiver_bundles(input_types, circuit_state.circuit.get_gate(gate_i).inputs().map(|output| output.into())), make_producer_bundle(result_type, circuit_state.circuit.get_gate(gate_i).outputs().map(|output| output.into())))
+                (
+                    gate_i,
+                    make_receiver_bundles(input_types, circuit_state.circuit.get_gate(gate_i).inputs().map(|output| output.into())),
+                    make_producer_bundle(result_type, circuit_state.circuit.get_gate(gate_i).outputs().map(|output| output.into())),
+                )
             }
             CircuitDef::And => {
                 let gate_i = circuit_state.circuit.new_and_gate();
@@ -53,9 +57,6 @@ impl CircuitDef {
             Error::ArgNumMismatchInCall { actual_arity: input_types.len(), expected_arity: expected_input_types.len() }.report();
             None?
         }
-        for (input_type, expected_type) in input_types.iter().zip(expected_input_types) {
-            if *input_type != expected_type {}
-        }
 
         for (producer_bundle, receiver_bundle) in inputs.into_iter().zip(input_bundles) {
             connect_bundle(&mut circuit_state.circuit, producer_bundle, receiver_bundle)?;
@@ -64,8 +65,19 @@ impl CircuitDef {
         Some(output_bundles)
     }
     pub(crate) fn inline_gate(&self, circuit_state: &mut CircuitGenState, inputs: Vec<ProducerBundle>) -> Option<ProducerBundle> {
-        if let CircuitDef::Circuit { circuit: subcircuit, input_types, result_type } = self {
+        if let CircuitDef::Circuit { circuit: subcircuit, input_types: expected_input_types, result_type } = self {
             use crate::circuit::GateIndex;
+
+            let actual_input_types: Vec<_> = inputs.iter().map(|bundle| bundle.type_()).collect();
+            if actual_input_types.len() != (&expected_input_types).len() {
+                Error::ArgNumMismatchInCall { actual_arity: actual_input_types.len(), expected_arity: (&expected_input_types).len() }.report();
+                None?
+            }
+            for (input_type, expected_type) in actual_input_types.iter().zip(expected_input_types) {
+                if *input_type != *expected_type {
+                    Error::TypeMismatchInCall { actual_type: input_type.clone(), expected_type: expected_type.clone() }.report()
+                }
+            }
 
             let flat_inputs: Vec<_> = inputs.iter().flat_map(ProducerBundle::flatten).collect();
             let mut gate_number_mapping: HashMap<GateIndex, GateIndex> = HashMap::new();
