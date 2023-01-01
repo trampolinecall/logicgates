@@ -36,12 +36,11 @@ struct GlobalGenState<'file> {
 impl<'file, 'gates> GlobalGenState<'file> {
     fn new() -> Self {
         let mut circuit_table = HashMap::new();
-        circuit_table.insert("and", CircuitDef::AndBuiltin);
-        circuit_table.insert("not", CircuitDef::NotBuiltin);
+        circuit_table.insert("and", CircuitDef::And);
+        circuit_table.insert("not", CircuitDef::Not);
         Self { circuit_table }
     }
 }
-
 
 fn connect_bundle(gates: Gates, circuit: &mut circuit::Circuit, producer_bundle: ProducerBundle, receiver_bundle: ReceiverBundle) -> Option<()> {
     if producer_bundle.type_() != receiver_bundle.type_() {
@@ -91,17 +90,17 @@ pub(crate) fn generate(gates: &mut Arena<circuit::Gate>, ast: Vec<ast::Circuit>)
     let mut global_state = GlobalGenState::new();
 
     for circuit in ast {
-        let (name, circuit) = convert_circuit(&mut global_state, gates, circuit)?; // TODO: report multiple errors from this
+        let (name, circuit, input_types, result_type) = convert_circuit(&mut global_state, gates, circuit)?; // TODO: report multiple errors from this
         if global_state.circuit_table.contains_key(name) {
             Error::Duplicate(name).report();
             None?
         } else {
-            global_state.circuit_table.insert(name, CircuitDef::Circuit(circuit));
+            global_state.circuit_table.insert(name, CircuitDef::Circuit { circuit, input_types, result_type });
         }
     }
 
     match global_state.circuit_table.remove("main") {
-        Some(CircuitDef::Circuit(r)) => Some(r),
+        Some(CircuitDef::Circuit { circuit: r, .. }) => Some(r),
         Some(_) => unreachable!("non user-defined circuit called main"),
         None => {
             Error::NoMain.report();
@@ -110,11 +109,11 @@ pub(crate) fn generate(gates: &mut Arena<circuit::Gate>, ast: Vec<ast::Circuit>)
     }
 }
 
-fn convert_circuit<'file>(global_state: &GlobalGenState, gates: Gates, circuit_ast: ast::Circuit<'file>) -> Option<(&'file str, circuit::Circuit)> {
+fn convert_circuit<'file>(global_state: &GlobalGenState, gates: Gates, circuit_ast: ast::Circuit<'file>) -> Option<(&'file str, circuit::Circuit, Vec<ast::Type>, ast::Type)> {
     let name = circuit_ast.name;
 
     let mut circuit_state = CircuitGenState::new(name.to_string());
-    circuit_state.circuit.set_num_inputs(circuit_ast.inputs.len());
+    circuit_state.circuit.set_num_inputs(circuit_ast.inputs.iter().map(|(_, ty)| ty.size()).sum());
 
     assert_eq!(circuit_ast.inputs.len(), circuit_state.circuit.input_indexes().collect::<Vec<_>>().len());
     let mut input_idxs = circuit_state.circuit.input_indexes();
@@ -146,7 +145,7 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, gates: Gates, circuit_a
 
     circuit_state.circuit.calculate_locations(gates);
 
-    Some((name, circuit_state.circuit))
+    Some((name, circuit_state.circuit, circuit_ast.inputs.into_iter().map(|(_, ty)| ty).collect(), output_values.type_()))
 }
 
 fn convert_expr(global_state: &GlobalGenState, gates: Gates, circuit_state: &mut CircuitGenState, expr: ast::Expr) -> Option<ProducerBundle> {

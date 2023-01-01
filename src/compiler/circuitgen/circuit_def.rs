@@ -1,22 +1,28 @@
-use crate::{circuit, compiler::{parser::ast, error::Report}};
+use crate::{
+    circuit,
+    compiler::{error::Report, parser::ast},
+};
 
-use super::{Gates, CircuitGenState, bundle::{ProducerBundle, ReceiverBundle}, Error, connect_bundle};
+use super::{
+    bundle::{ProducerBundle, ReceiverBundle},
+    connect_bundle, CircuitGenState, Error, Gates,
+};
 
 pub(super) enum CircuitDef {
-    Circuit(circuit::Circuit),
-    AndBuiltin,
-    NotBuiltin,
+    Circuit { circuit: circuit::Circuit, input_types: Vec<ast::Type>, result_type: ast::Type },
+    And,
+    Not,
 }
 impl CircuitDef {
     fn to_gate(&self, gates: Gates, circuit_state: &mut CircuitGenState) -> (circuit::GateIndex, Vec<ReceiverBundle>, ProducerBundle) {
         // TODO: refactor this and probably refactor the rest of the module too
         match self {
-            CircuitDef::Circuit(c) => {
-                let gate_i = circuit_state.circuit.new_subcircuit_gate(gates, c.clone());
-                (gate_i, gates[gate_i].inputs().map(|input| ReceiverBundle::Single(input.into())).collect(), todo!())
-                // TODO: make this actually respond to types
+            CircuitDef::Circuit { circuit, input_types, result_type } => {
+                // TODO: clone actually doesnt work because this needs to create new gates
+                let gate_i = circuit_state.circuit.new_subcircuit_gate(gates, circuit.clone());
+                (gate_i, make_receiver_bundles(input_types, gates[gate_i].inputs()), make_producer_bundle(result_type, gates[gate_i].outputs()))
             }
-            CircuitDef::AndBuiltin => {
+            CircuitDef::And => {
                 let gate_i = circuit_state.circuit.new_and_gate(gates);
                 (
                     gate_i,
@@ -24,12 +30,12 @@ impl CircuitDef {
                     ProducerBundle::Single(gates[gate_i].outputs().nth(0).expect("and gate should have exactly one output").into()),
                 )
             }
-            CircuitDef::NotBuiltin => {
+            CircuitDef::Not => {
                 let gate_i = circuit_state.circuit.new_not_gate(gates);
                 (
                     gate_i,
                     gates[gate_i].inputs().map(|input| ReceiverBundle::Single(input.into())).collect(),
-                    ProducerBundle::Single(gates[gate_i].outputs().nth(0).expect("and gate should have exactly one output").into()),
+                    ProducerBundle::Single(gates[gate_i].outputs().nth(0).expect("not gate should have exactly one output").into()),
                 )
             }
         }
@@ -105,12 +111,26 @@ impl CircuitDef {
         }
         */
     }
+}
 
-    fn expected_input_types(&self) -> Vec<ast::Type> {
-        match self {
-            CircuitDef::AndBuiltin => vec![ast::Type::Bit, ast::Type::Bit],
-            CircuitDef::NotBuiltin => vec![ast::Type::Bit],
-            CircuitDef::Circuit(_) => todo!(),
-        }
+// TODO: refactor
+fn make_receiver_bundles(types: &[ast::Type], mut inputs: impl Iterator<Item = circuit::GateInputNodeIdx>) -> Vec<ReceiverBundle> {
+    let mut bundles = Vec::new();
+    for input_type in types {
+        bundles.push(make_receiver_bundle(input_type, &mut inputs))
+    }
+
+    bundles
+}
+
+fn make_receiver_bundle(type_: &ast::Type, inputs: &mut impl Iterator<Item = circuit::GateInputNodeIdx>) -> ReceiverBundle {
+    match type_ {
+        ast::Type::Bit => ReceiverBundle::Single(inputs.next().expect("inputs should not run out when converting to bundle").into()),
+    }
+}
+
+fn make_producer_bundle(type_: &ast::Type, mut outputs: impl Iterator<Item = circuit::GateOutputNodeIdx>) -> ProducerBundle {
+     match type_  {
+        ast::Type::Bit => ProducerBundle::Single(outputs.next().expect("outputs should not run out when converting to bundle").into())
     }
 }
