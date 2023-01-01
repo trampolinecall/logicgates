@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::collections::HashSet;
 
 use generational_arena::Arena;
@@ -6,7 +5,8 @@ use generational_arena::Arena;
 #[derive(Clone)]
 pub(crate) struct Circuit {
     pub(crate) name: String,
-    pub(crate) gates: Arena<Gate>,
+    pub(crate)
+               gates: Vec<GateIndex>,
     inputs: Vec<Producer>,
     outputs: Vec<Receiver>,
 }
@@ -25,7 +25,7 @@ pub(crate) enum GateKind {
     And([Receiver; 2], [Producer; 1]), // TODO: figure out a better way of doing this
     Not([Receiver; 1], [Producer; 1]),
     Const([Receiver; 0], [Producer; 1]),
-    Subcircuit(Vec<Receiver>, Vec<Producer>, RefCell<Circuit>),
+    Subcircuit(Vec<Receiver>, Vec<Producer>, Circuit),
 }
 
 #[derive(Clone)]
@@ -101,7 +101,7 @@ const VERTICAL_VALUE_SPACING: f64 = 20.0;
 // TODO: refactor everything
 impl Circuit {
     pub(crate) fn new(name: String) -> Self {
-        Self { name, gates: Arena::new(), inputs: Vec::new(), outputs: Vec::new() }
+        Self { name, gates: Vec::new(), inputs: Vec::new(), outputs: Vec::new() }
     }
 
     pub(crate) fn num_inputs(&self) -> usize {
@@ -118,45 +118,53 @@ impl Circuit {
         (0..self.outputs.len()).map(|i| CircuitOutputNodeIdx(i))
     }
 
-    fn output_values(&self) -> impl Iterator<Item = bool> + '_ {
+    fn output_values<'s>(&'s self, gates: &'s Arena<Gate>) -> impl Iterator<Item = bool> + 's {
         // TODO: take this logic to check the producer of a receiver node out from everywhere it is used and put it into a method
-        self.outputs.iter().map(|output| if let Some(producer) = output.producer { self.get_producer(producer).value } else { false })
+        self.outputs.iter().map(|output| if let Some(producer) = output.producer { self.get_producer(gates, producer).value } else { false })
     }
 
     // TODO: tests
     // default value for the outputs is whatever value results from having all false inputs
-    pub(crate) fn new_and_gate(&mut self) -> GateIndex {
-        self.gates.insert_with(|index| Gate {
+    pub(crate) fn new_and_gate(&mut self, gates: &mut Arena<Gate>) -> GateIndex {
+        let index = gates.insert_with(|index| Gate {
             index,
             kind: GateKind::And(
                 [Receiver { gate: Some(index), producer: None }, Receiver { gate: Some(index), producer: None }],
                 [Producer { gate: Some(index), dependants: HashSet::new(), value: false }],
             ),
             location: (0, 0.0),
-        })
+        });
+        self.gates.push(index);
+        index
     }
-    pub(crate) fn new_not_gate(&mut self) -> GateIndex {
-        self.gates.insert_with(|index| Gate {
+    pub(crate) fn new_not_gate(&mut self, gates: &mut Arena<Gate>) -> GateIndex {
+        let index = gates.insert_with(|index| Gate {
             index,
             kind: GateKind::Not([Receiver { gate: Some(index), producer: None }], [Producer { gate: Some(index), dependants: HashSet::new(), value: false }]),
             location: (0, 0.0),
-        })
+        });
+        self.gates.push(index);
+        index
     }
-    pub(crate) fn new_const_gate(&mut self, value: bool) -> GateIndex {
-        self.gates.insert_with(|index| Gate { index, kind: GateKind::Const([], [Producer { gate: Some(index), dependants: HashSet::new(), value }]), location: (0, 0.0) })
+    pub(crate) fn new_const_gate(&mut self, gates: &mut Arena<Gate>, value: bool) -> GateIndex {
+        let index = gates.insert_with(|index| Gate { index, kind: GateKind::Const([], [Producer { gate: Some(index), dependants: HashSet::new(), value }]), location: (0, 0.0) });
+        self.gates.push(index);
+        index
     }
-    pub(crate) fn new_subcircuit_gate(&mut self, subcircuit: Circuit) -> GateIndex {
+    pub(crate) fn new_subcircuit_gate(&mut self, gates: &mut Arena<Gate>, subcircuit: Circuit) -> GateIndex {
         let num_inputs = subcircuit.inputs.len();
-        let output_values: Vec<_> = subcircuit.output_values().collect();
-        self.gates.insert_with(|index| Gate {
+        let output_values: Vec<_> = subcircuit.output_values(gates).collect();
+        let index = gates.insert_with(|index| Gate {
             index,
             kind: GateKind::Subcircuit(
                 (0..num_inputs).map(|_| Receiver { gate: Some(index), producer: None }).collect(),
                 output_values.into_iter().map(|value| Producer { gate: Some(index), dependants: HashSet::new(), value }).collect(),
-                RefCell::new(subcircuit),
+                subcircuit,
             ),
             location: (0, 0.0),
-        })
+        });
+        self.gates.push(index);
+        index
     }
     // TODO: test that it removes all connections
     pub(crate) fn remove_gate(&mut self) {
@@ -164,43 +172,43 @@ impl Circuit {
     }
 
     // TODO: test connection, replacing old connection
-    pub(crate) fn connect(&mut self, producer_idx: ProducerIdx, receiver_idx: ReceiverIdx) {
-        if let Some(old_producer) = self.get_receiver(receiver_idx).producer {
-            self.get_receiver_mut(receiver_idx).producer = None;
-            self.get_producer_mut(old_producer).dependants.remove(&receiver_idx);
+    pub(crate) fn connect(&mut self, gates: &mut Arena<Gate>, producer_idx: ProducerIdx, receiver_idx: ReceiverIdx) {
+        if let Some(old_producer) = self.get_receiver(gates, receiver_idx).producer {
+            self.get_receiver_mut(gates, receiver_idx).producer = None;
+            self.get_producer_mut(gates, old_producer).dependants.remove(&receiver_idx);
         }
 
-        self.get_receiver_mut(receiver_idx).producer = Some(producer_idx);
-        self.get_producer_mut(producer_idx).dependants.insert(receiver_idx);
+        self.get_receiver_mut(gates, receiver_idx).producer = Some(producer_idx);
+        self.get_producer_mut(gates, producer_idx).dependants.insert(receiver_idx);
     }
     // TODO: test removing, make sure it removes from both to keep in sync
     pub(crate) fn disconnect(&mut self, producer: ProducerIdx, receiver: ReceiverIdx) {
         todo!()
     }
 
-    pub(crate) fn toggle_input(&mut self, i: usize) {
+    pub(crate) fn toggle_input(&mut self, gates: &mut Arena<Gate>, i: usize) {
         assert!(i < self.inputs.len(), "toggle input out of range of number of inputs");
-        self.set_input(CircuitInputNodeIdx(i).into(), !self.get_producer(CircuitInputNodeIdx(i).into()).value);
+        self.set_input(gates, CircuitInputNodeIdx(i).into(), !self.get_producer(gates, CircuitInputNodeIdx(i).into()).value);
     }
-    pub(crate) fn set_input(&mut self, ci: CircuitInputNodeIdx, value: bool) {
-        self.set_producer_value(ci.into(), value);
+    pub(crate) fn set_input(&mut self, gates: &mut Arena<Gate>, ci: CircuitInputNodeIdx, value: bool) {
+        self.set_producer_value(gates, ci.into(), value);
     }
-    pub(crate) fn set_producer_value(&mut self, index: ProducerIdx, value: bool) {
-        let producer = self.get_producer_mut(index);
+    pub(crate) fn set_producer_value(&mut self, gates: &mut Arena<Gate>, index: ProducerIdx, value: bool) {
+        let producer = self.get_producer_mut(gates, index);
         producer.value = value;
         for dependant in producer.dependants.clone().into_iter() {
             // clone so that the borrow checker is happy, TODO: find better solution to this
-            self.update_receiver(dependant)
+            self.update_receiver(gates, dependant)
         }
     }
 
-    pub(crate) fn update_receiver(&mut self, receiver: ReceiverIdx) {
-        if let Some(gate) = self.get_receiver(receiver).gate {
-            let gate = self.get_gate(gate);
-            let outputs = gate.kind.compute(self);
-            assert_eq!(outputs.len(), gate.num_outputs());
-            for (output, node) in outputs.into_iter().zip(gate.outputs().collect::<Vec<_>>().into_iter()) {
-                self.set_producer_value(node.into(), output);
+    pub(crate) fn update_receiver(&mut self, gates: &mut Arena<Gate>, receiver: ReceiverIdx) {
+        if let Some(gate_i) = self.get_receiver(gates, receiver).gate {
+            let gate = gates.get(gate_i).expect("gate index should always be valid"); // TODO: also reconsider whether or not they should be valid here as well
+            let outputs = gate.kind.compute(gates, self);
+            assert_eq!(outputs.len(), gates[gate_i].num_outputs());
+            for (output, node) in outputs.into_iter().zip(gates[gate_i].outputs().collect::<Vec<_>>().into_iter()) {
+                self.set_producer_value(gates, node.into(), output);
             }
         }
     }
@@ -212,42 +220,45 @@ impl Circuit {
         self.outputs.resize(num, Receiver { gate: None, producer: None });
     }
 
+    /*
     pub(crate) fn get_gate(&self, index: GateIndex) -> &Gate {
         self.gates.get(index).unwrap()
     }
     pub(crate) fn get_gate_mut(&mut self, index: GateIndex) -> &mut Gate {
         self.gates.get_mut(index).unwrap()
     }
+    */
 
-    pub(crate) fn get_receiver(&self, index: ReceiverIdx) -> &Receiver {
+    pub(crate) fn get_receiver<'a>(&'a self, gates: &'a Arena<Gate>, index: ReceiverIdx) -> &Receiver {
         match index {
             ReceiverIdx::CO(co) => &self.outputs[co.0],
-            ReceiverIdx::GI(gi) => self.get_gate(gi.0).get_input(gi),
+            ReceiverIdx::GI(gi) => gates.get(gi.0).expect("gate index should be valid").get_input(gi), // TODO: reconsider whether or not they should always be valid like this
         }
     }
-    pub(crate) fn get_receiver_mut(&mut self, index: ReceiverIdx) -> &mut Receiver {
+    pub(crate) fn get_receiver_mut<'a>(&'a mut self, gates: &'a mut Arena<Gate>, index: ReceiverIdx) -> &mut Receiver {
         match index {
             ReceiverIdx::CO(co) => &mut self.outputs[co.0],
-            ReceiverIdx::GI(gi) => self.get_gate_mut(gi.0).get_input_mut(gi),
+            ReceiverIdx::GI(gi) => gates.get_mut(gi.0).expect("gate index should be valid").get_input_mut(gi),
         }
     }
-    pub(crate) fn get_producer(&self, index: ProducerIdx) -> &Producer {
+    pub(crate) fn get_producer<'a>(&'a self, gates: &'a Arena<Gate>, index: ProducerIdx) -> &Producer {
         match index {
             ProducerIdx::CI(ci) => &self.inputs[ci.0],
-            ProducerIdx::GO(go) => self.get_gate(go.0).get_output(go),
+            ProducerIdx::GO(go) => gates.get(go.0).expect("gate index should be valid").get_output(go),
         }
     }
-    pub(crate) fn get_producer_mut(&mut self, index: ProducerIdx) -> &mut Producer {
+    pub(crate) fn get_producer_mut<'a>(&'a mut self, gates: &'a mut Arena<Gate>, index: ProducerIdx) -> &mut Producer {
         match index {
             ProducerIdx::CI(ci) => &mut self.inputs[ci.0],
-            ProducerIdx::GO(go) => self.get_gate_mut(go.0).get_output_mut(go),
+            ProducerIdx::GO(go) => gates.get_mut(go.0).expect("gate index should be valid").get_output_mut(go),
         }
     }
 
-    pub(crate) fn calculate_locations(&mut self) {
-        let positions = crate::position::calculate_locations(self);
+    pub(crate) fn calculate_locations(&mut self, gates: &mut Arena<Gate>) {
+        let positions = crate::position::calculate_locations(self, gates);
         for (gate_i, position) in positions {
-            self.get_gate_mut(gate_i).location = position;
+            gates.get_mut(gate_i).expect("gate index should be valid").location = position;
+            // TODO: also reconsider here, see above todos
         }
     }
 }
@@ -275,7 +286,7 @@ impl Gate {
             GateKind::Not(_, _) => "not".to_string(),
             GateKind::Const(_, [Producer { value: true, .. }]) => "true".to_string(),
             GateKind::Const(_, [Producer { value: false, .. }]) => "false".to_string(),
-            GateKind::Subcircuit(_, _, subcircuit) => subcircuit.borrow().name.clone(),
+            GateKind::Subcircuit(_, _, subcircuit) => subcircuit.name.clone(),
         }
     }
 
@@ -352,23 +363,23 @@ impl Gate {
 }
 
 impl GateKind {
-    pub(crate) fn compute(&self, circuit: &Circuit) -> Vec<bool> {
-        let get_producer_value = |producer_idx| if let Some(producer_idx) = producer_idx { circuit.get_producer(producer_idx).value } else { false };
+    pub(crate) fn compute(&self, gates: &Arena<Gate>, circuit: &Circuit) -> Vec<bool> {
+        let get_producer_value = |producer_idx| if let Some(producer_idx) = producer_idx { circuit.get_producer(gates, producer_idx).value } else { false };
         // TODO: figure out a way for this to set its outputs
         match self {
             GateKind::And([a, b], _) => vec![get_producer_value(a.producer) && get_producer_value(b.producer)],
             GateKind::Not([i], _) => vec![!get_producer_value(i.producer)],
             GateKind::Const(_, [o]) => vec![o.value],
             GateKind::Subcircuit(inputs, _, subcircuit) => {
-                let mut subcircuit = subcircuit.borrow_mut();
                 for (input_node, subcircuit_input_node) in inputs.iter().zip(subcircuit.input_indexes()) {
-                    subcircuit.set_producer_value(subcircuit_input_node.into(), get_producer_value(input_node.producer))
+                    // subcircuit.set_producer_value(gates, subcircuit_input_node.into(), get_producer_value(input_node.producer))
+                    todo!("subcircuit evaluation")
                 }
 
                 circuit
                     .output_indexes()
                     .into_iter()
-                    .map(|output_idx| if let Some(producer) = subcircuit.get_receiver(output_idx.into()).producer { subcircuit.get_producer(producer).value } else { false })
+                    .map(|output_idx| if let Some(producer) = subcircuit.get_receiver(gates, output_idx.into()).producer { subcircuit.get_producer(gates, producer).value } else { false })
                     .collect()
             }
         }
@@ -376,7 +387,7 @@ impl GateKind {
 }
 
 impl Circuit {
-    pub(crate) fn render(&self, graphics: &mut opengl_graphics::GlGraphics, args: &piston::RenderArgs) {
+    pub(crate) fn render(&self, gates: &Arena<Gate>, graphics: &mut opengl_graphics::GlGraphics, args: &piston::RenderArgs) {
         use graphics::*;
         const CIRCLE_RAD: f64 = 5.0;
         const CONNECTION_RAD: f64 = CIRCLE_RAD / 2.0;
@@ -402,12 +413,12 @@ impl Circuit {
             [gate_x as f64 * HORIZONTAL_GATE_SPACING, gate_y + args.window_size[1] / 2.0, gate_width, gate_height]
         };
         let gate_input_pos = |input_idx: GateInputNodeIdx| -> [f64; 2] {
-            let gate = &self.gates[input_idx.0];
+            let gate = &gates[input_idx.0];
             let [gate_x, gate_y, _, gate_height] = gate_box(gate);
             [gate_x, centered_arg_y(gate_y + gate_height / 2.0, gate.num_inputs(), input_idx.1)]
         };
         let gate_output_pos = |output_idx: GateOutputNodeIdx| -> [f64; 2] {
-            let gate = &self.gates[output_idx.0];
+            let gate = &gates[output_idx.0];
             let [gate_x, gate_y, gate_width, gate_height] = gate_box(gate);
             [gate_x + gate_width, centered_arg_y(gate_y + gate_height / 2.0, gate.num_outputs(), output_idx.1)]
         };
@@ -423,9 +434,8 @@ impl Circuit {
         };
         */
         let bool_color = |value| if value { ON_COLOR } else { OFF_COLOR };
-        let producer_color = |producer: ProducerIdx| bool_color(self.get_producer(producer).value);
-        let receiver_color =
-            |receiver: ReceiverIdx| bool_color(if let Some(producer) = self.get_receiver(receiver).producer { self.get_producer(producer).value } else { false });
+        let producer_color = |producer: ProducerIdx| bool_color(self.get_producer(gates, producer).value);
+        let receiver_color = |receiver: ReceiverIdx| bool_color(if let Some(producer) = self.get_receiver(gates, receiver).producer { self.get_producer(gates, producer).value } else { false });
 
         graphics.draw(args.viewport(), |c, gl| {
             clear(BG, gl);
@@ -441,15 +451,16 @@ impl Circuit {
                 ellipse(color, ellipse::circle(output_pos[0], output_pos[1], CIRCLE_RAD), c.transform, gl);
 
                 // draw lines connecting outputs with their values
-                if let Some(producer) = self.get_receiver(output.into()).producer {
+                if let Some(producer) = self.get_receiver(gates, output.into()).producer {
                     let connection_start_pos = producer_pos(producer);
                     line_from_to(color, CONNECTION_RAD, connection_start_pos, output_pos, c.transform, gl);
                 }
             }
 
             // draw each gate
-            for (_, gate) in self.gates.iter() {
-                let [gate_x, gate_y, gate_width, gate_height] = gate_box(gate);
+            for gate_index in self.gates.iter() {
+                let gate = &gates[*gate_index];
+                let [gate_x, gate_y, gate_width, gate_height] = gate_box(&gate);
 
                 rectangle(GATE_COLOR, [gate_x, gate_y, gate_width, gate_height], c.transform, gl);
                 // TODO: draw gate name
@@ -461,7 +472,7 @@ impl Circuit {
                     let input_pos @ [x, y] = gate_input_pos(input_receiver);
                     ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
 
-                    if let Some(producer) = self.get_receiver(input_receiver.into()).producer {
+                    if let Some(producer) = self.get_receiver(gates, input_receiver.into()).producer {
                         let connection_start_pos = producer_pos(producer);
                         line_from_to(color, CONNECTION_RAD, connection_start_pos, input_pos, c.transform, gl);
                     }
