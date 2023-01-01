@@ -58,7 +58,6 @@ impl CircuitDef {
 
         for (producer_bundle, receiver_bundle) in inputs.into_iter().zip(input_bundles) {
             connect_bundle(&mut circuit_state.circuit, producer_bundle, receiver_bundle)?;
-            // circuit_state.circuit.connect(input_value, gate_input_node.into());
         }
 
         Some(output_bundles)
