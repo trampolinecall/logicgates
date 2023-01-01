@@ -6,7 +6,6 @@ use std::collections::HashMap;
 use crate::circuit;
 
 use bundle::ProducerBundle;
-use bundle::ReceiverBundle;
 use circuit_def::CircuitDef;
 
 use super::error::CompileError;
@@ -15,7 +14,7 @@ use super::parser::ast;
 
 enum Error<'file> {
     Duplicate(&'file str),
-    OutOfRange { expr_size: usize, index: usize },
+    NoField { ty: ast::Type, field_name: &'file str }, // TODO: list names of fields that do exist
     NoSuchLocal(&'file str),
     NoSuchCircuit(&'file str),
     TypeMismatchInAssignment { value_type: ast::Type, pattern_type: ast::Type },
@@ -53,7 +52,7 @@ impl From<Error<'_>> for CompileError {
     fn from(val: Error) -> Self {
         match val {
             Error::Duplicate(name) => CompileError { message: format!("circuit '{name}' defined more than once") },
-            Error::OutOfRange { expr_size: local_size, index } => CompileError { message: format!("get out of range: expression has a size of {local_size} and the index is {index}") },
+            Error::NoField { ty, field_name } => CompileError { message: format!("no field called '{field_name}' on type '{ty}'") },
             Error::NoSuchLocal(name) => CompileError { message: format!("no local called '{name}'") },
             Error::NoSuchCircuit(name) => CompileError { message: format!("no circuit called '`{name}'") },
             Error::TypeMismatchInAssignment { value_type: value_size, pattern_type: pattern_size } => {
@@ -121,7 +120,7 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circu
     circuit_state.circuit.set_num_outputs(output_value.type_().size());
     assert_eq!(circuit_state.circuit.num_outputs(), output_value.type_().size(), "number of circuit outputs should be equal to the number of output producers");
 
-    let output_bundle = bundle::make_receiver_bundle(&output_value.type_(), circuit_state.circuit.output_indexes().map(|output_idx| output_idx.into()));
+    let output_bundle = bundle::make_receiver_bundle(&output_value.type_(), &mut circuit_state.circuit.output_indexes().map(|output_idx| output_idx.into()));
     bundle::connect_bundle(&mut circuit_state.circuit, &output_value, &output_bundle);
 
     circuit_state.circuit.calculate_locations();
@@ -162,28 +161,27 @@ fn convert_expr(global_state: &GlobalGenState, circuit_state: &mut CircuitGenSta
 
         ast::Expr::Const(val) => CircuitDef::Const(val).add_gate(circuit_state, &[]),
 
-        ast::Expr::Get(expr, slots) => {
+        ast::Expr::Get(expr, field_name) => {
             let expr = convert_expr(global_state, circuit_state, *expr)?;
-            /*
-            [slots]
-                .into_iter()
-                .map(|slot| {
-                    if slot < expr.len() {
-                        Some(expr[slot])
-                    } else {
-                        CircuitGenError::OutOfRange { expr_size: expr.len(), index: slot }.report();
-                        None
-                    }
-                })
-                .collect::<Option<_>>()
-                */
-            todo!("get expr")
+            let field = match &expr {
+                ProducerBundle::Single(_) => None,
+                ProducerBundle::Array(items) => match field_name.parse::<usize>() {
+                    Ok(i) if i < items.len() => Some(items[i].clone()),
+                    _ => None,
+                },
+            };
+            if let Some(r) = field {
+                Some(r)
+            } else {
+                Error::NoField { ty: expr.type_(), field_name }.report();
+                None
+            }
         }
+
         ast::Expr::Multiple(exprs) => {
             let results = exprs.into_iter().map(|e| convert_expr(global_state, circuit_state, e));
-            // let results_no_none: Option<_> = results.collect::<Option<Vec<Vec<circuit::ProducerIdx>>>>(); // TODO: dont stop at the first one in order to report all the errors
-            // Some(results_no_none?.into_iter().flatten().collect::<Vec<circuit::ProducerIdx>>())
-            todo!("multiple expr")
+            let results_no_none = results.collect::<Option<Vec<ProducerBundle>>>()?; // TODO: dont stop at the first one in order to report all the errors
+            Some(ProducerBundle::Array(results_no_none))
         }
     }
 }

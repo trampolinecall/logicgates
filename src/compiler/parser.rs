@@ -180,11 +180,23 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     fn expr(&mut self) -> Result<ast::Expr<'file>, ParseError> {
         let primary = self.primary_expr()?;
 
-        if Token::is_semicolon(self.peek()) {
+        if Token::is_dot(self.peek()) {
             self.next();
-            let index = self.expect("get index", Token::is_number)?;
-            let index = index.as_number().unwrap();
-            Ok(ast::Expr::Get(Box::new(primary), *index))
+
+            let field: &'file str = match self.peek() {
+                Token::Number(n_str, _) => {
+                    Ok(n_str)
+                }
+
+                Token::Identifier(i) => {
+                    Ok(i)
+                }
+
+                _ => Err(self.expected("field name (a number or identifier)")),
+            }?;
+            self.next();
+
+            Ok(ast::Expr::Get(Box::new(primary), field))
         } else {
             Ok(primary)
         }
@@ -192,7 +204,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
     fn primary_expr(&mut self) -> Result<ast::Expr<'file>, ParseError> {
         match self.peek() {
-            Token::Number(_) => {
+            Token::Number(_, _) => {
                 let n = self.next();
                 let n = n.as_number().unwrap();
 
@@ -258,8 +270,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let ty = self.type_()?;
 
-                // Ok(ast::Type::Array(*len, Box::new(ty)))
-                todo!("array types")
+                Ok(ast::Type::Array(*len, Box::new(ty)))
             }
 
             _ => Err(self.expected("type")),
@@ -358,13 +369,13 @@ mod test {
 
     #[test]
     fn const_false_expr() {
-        let tokens = vec![Token::Number(0)];
+        let tokens = vec![Token::Number("0", 0)];
         assert_eq!(Parser { tokens: make_token_stream(tokens) }.expr(), Ok(ast::Expr::Const(false)))
     }
 
     #[test]
     fn const_true_expr() {
-        let tokens = vec![Token::Number(1)];
+        let tokens = vec![Token::Number("0", 1)];
         assert_eq!(Parser { tokens: make_token_stream(tokens) }.expr(), Ok(ast::Expr::Const(true)))
     }
 
@@ -382,7 +393,9 @@ mod test {
 
     #[test]
     fn multiple_expr() {
-        let tokens = vec![Token::OBrack, Token::Identifier("a"), Token::Comma, Token::Identifier("b"), Token::Comma, Token::Number(0), Token::Comma, Token::Number(1), Token::CBrack];
+        let tokens = vec![Token::OBrack, Token::Identifier("a"), Token::Comma, Token::Identifier("b"), Token::Comma, Token::Number("0", 0), Token::Comma, Token::Number("0", 1), Token::CBrack];
         assert_eq!(Parser { tokens: make_token_stream(tokens) }.expr(), Ok(ast::Expr::Multiple(vec![ast::Expr::Ref("a"), ast::Expr::Ref("b"), ast::Expr::Const(false), ast::Expr::Const(true)])))
     }
+
+    // TODO: test array types, types in general
 }
