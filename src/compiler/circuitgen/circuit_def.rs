@@ -28,7 +28,7 @@ impl CircuitDef {
         let make_producer_bundle = |circuit_state: &CircuitGenState, type_: &ast::Type, gate_i| {
             let outputs = circuit_state.circuit.get_gate(gate_i).outputs();
             assert_eq!(type_.size(), outputs.len(), "producer bundle has a different size than the number of output nodes on the gate"); // sanity check
-            make_producer_bundle(&type_, &mut outputs.map(|output| output.into()))
+            make_producer_bundle(type_, &mut outputs.map(|output| output.into()))
         };
 
         match self {
