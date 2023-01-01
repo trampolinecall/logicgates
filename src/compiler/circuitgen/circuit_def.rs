@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use super::bundle::ProducerBundle;
 use super::bundle::ReceiverBundle;
+use super::ty;
 use super::CircuitGenState;
 use super::Error;
 use crate::circuit;
@@ -10,10 +11,9 @@ use crate::compiler::circuitgen::bundle::make_producer_bundle;
 use crate::compiler::circuitgen::bundle::make_receiver_bundle;
 use crate::compiler::error::Report;
 use crate::compiler::error::Span;
-use crate::compiler::parser::ast;
 
 pub(super) enum CircuitDef {
-    Circuit { circuit: circuit::Circuit, input_type: ast::Type, result_type: ast::Type },
+    Circuit { circuit: circuit::Circuit, input_type: ty::Type, result_type: ty::Type },
     And,
     Not,
     Const(bool),
@@ -21,12 +21,12 @@ pub(super) enum CircuitDef {
 impl CircuitDef {
     fn to_gate(&self, circuit_state: &mut CircuitGenState) -> (circuit::GateIndex, ReceiverBundle, ProducerBundle) {
         // TODO: refactor this and probably refactor the rest of the module too
-        let make_receiver_bundle = |circuit_state: &CircuitGenState, type_: &ast::Type, gate_i| {
+        let make_receiver_bundle = |circuit_state: &CircuitGenState, type_: &ty::Type, gate_i| {
             let inputs = circuit_state.circuit.get_gate(gate_i).inputs();
             assert_eq!(type_.size(), inputs.len(), "receiver bundles have a different total size than the number of input nodes on the gate"); // sanity check
             make_receiver_bundle(type_, &mut inputs.map(|input| input.into()))
         };
-        let make_producer_bundle = |circuit_state: &CircuitGenState, type_: &ast::Type, gate_i| {
+        let make_producer_bundle = |circuit_state: &CircuitGenState, type_: &ty::Type, gate_i| {
             let outputs = circuit_state.circuit.get_gate(gate_i).outputs();
             assert_eq!(type_.size(), outputs.len(), "producer bundle has a different size than the number of output nodes on the gate"); // sanity check
             make_producer_bundle(type_, &mut outputs.map(|output| output.into()))
@@ -39,15 +39,15 @@ impl CircuitDef {
             }
             CircuitDef::And => {
                 let gate_i = circuit_state.circuit.new_and_gate();
-                (gate_i, make_receiver_bundle(circuit_state, &ast::Type::Product(vec![ast::Type::Bit, ast::Type::Bit]), gate_i), make_producer_bundle(circuit_state, &ast::Type::Bit, gate_i))
+                (gate_i, make_receiver_bundle(circuit_state, &ty::Type::Product(vec![ty::Type::Bit, ty::Type::Bit]), gate_i), make_producer_bundle(circuit_state, &ty::Type::Bit, gate_i))
             }
             CircuitDef::Not => {
                 let gate_i = circuit_state.circuit.new_not_gate();
-                (gate_i, make_receiver_bundle(circuit_state, &ast::Type::Product(vec![ast::Type::Bit]), gate_i), make_producer_bundle(circuit_state, &ast::Type::Bit, gate_i))
+                (gate_i, make_receiver_bundle(circuit_state, &ty::Type::Bit, gate_i), make_producer_bundle(circuit_state, &ty::Type::Bit, gate_i))
             }
             CircuitDef::Const(value) => {
                 let gate_i = circuit_state.circuit.new_const_gate(*value);
-                (gate_i, make_receiver_bundle(circuit_state, &ast::Type::Product(vec![]), gate_i), make_producer_bundle(circuit_state, &ast::Type::Bit, gate_i))
+                (gate_i, make_receiver_bundle(circuit_state, &ty::Type::Product(vec![]), gate_i), make_producer_bundle(circuit_state, &ty::Type::Bit, gate_i))
             }
         }
     }
