@@ -3,7 +3,7 @@ use crate::compiler::error::Span;
 // TODO: make enums into Thing and ThingKind
 #[derive(PartialEq, Debug)]
 pub(crate) struct Circuit<'file> {
-    pub(crate) name: Span<'file>,
+    pub(crate) name: (Span<'file>, &'file str),
     pub(crate) input: Pattern<'file>,
     pub(crate) lets: Vec<Let<'file>>,
     pub(crate) output: Expr<'file>,
@@ -17,16 +17,16 @@ pub(crate) struct Let<'file> {
 
 #[derive(PartialEq, Debug)]
 pub(crate) enum Expr<'file> {
-    Ref(Span<'file>),
-    Call(Span<'file>, bool, Box<Expr<'file>>),
+    Ref(Span<'file>, &'file str),
+    Call((Span<'file>, &'file str), bool, Box<Expr<'file>>),
     Const(Span<'file>, bool),
-    Get(Box<Expr<'file>>, Span<'file>),
+    Get(Box<Expr<'file>>, (Span<'file>, &'file str)),
     Multiple(Span<'file>, Vec<Expr<'file>>),
 }
 
 #[derive(PartialEq, Debug)]
 pub(crate) enum Pattern<'file> {
-    Identifier(Span<'file>, LType<'file>),
+    Identifier((Span<'file>, &'file str), LType<'file>),
     Product(Span<'file>, Vec<Pattern<'file>>),
 }
 
@@ -49,7 +49,7 @@ impl<'file> Pattern<'file> {
 
     pub(crate) fn span(&self) -> Span<'file> {
         match self {
-            Pattern::Identifier(sp, ty) => *sp + ty.span(),
+            Pattern::Identifier((sp, _), ty) => *sp + ty.span(),
             Pattern::Product(sp, _) => *sp,
         }
     }
@@ -90,10 +90,10 @@ impl std::fmt::Display for Type {
 impl<'file> Expr<'file> {
     pub(crate) fn span(&self) -> Span<'file> {
         match self {
-            Expr::Ref(sp) => *sp,
-            Expr::Call(circuit_name, _, arg) => *circuit_name + arg.span(),
+            Expr::Ref(sp, _) => *sp,
+            Expr::Call((circuit_name_sp, _), _, arg) => *circuit_name_sp + arg.span(),
             Expr::Const(sp, _) => *sp,
-            Expr::Get(expr, field) => expr.span() + *field,
+            Expr::Get(expr, (field_sp, _)) => expr.span() + *field_sp,
             Expr::Multiple(sp, _) => *sp,
         }
     }

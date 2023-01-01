@@ -22,7 +22,7 @@ pub(crate) enum Token<'file> {
     // TODO: variadic arguments / bundles
     Backtick(Span<'file>),
 
-    Number(Span<'file>, usize),
+    Number(Span<'file>, &'file str, usize),
     Identifier(Span<'file>, &'file str),
 }
 
@@ -43,7 +43,7 @@ impl<'file> Token<'file> {
             Token::Inputs(sp) => *sp,
             Token::Outputs(sp) => *sp,
             Token::Backtick(sp) => *sp,
-            Token::Number(sp, _) => *sp,
+            Token::Number(sp, _, _) => *sp,
             Token::Identifier(sp, _) => *sp,
         }
     }
@@ -150,8 +150,8 @@ define_matcher!(outputs_matcher, 'file, Span<'file>, names::OUTPUTS, Token::Outp
 
 define_matcher!(backtick_matcher, 'file, Span<'file>, names::BACKTICK, Token::Backtick(sp) => sp);
 
-define_matcher!(number_matcher, 'file, usize, names::NUMBER_DESC_NAME, Token::Number(_, n) => n);
-define_matcher!(identifier_matcher, 'file, Span<'file>, names::IDENTIFIER_DESC_NAME, Token::Identifier(sp, _) => sp);
+define_matcher!(number_matcher, 'file, (Span<'file>, &'file str, usize), names::NUMBER_DESC_NAME, Token::Number(sp, n_str, n) => (sp, n_str, n));
+define_matcher!(identifier_matcher, 'file, (Span<'file>, &'file str), names::IDENTIFIER_DESC_NAME, Token::Identifier(sp, i) => (sp, i));
 
 impl std::fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -176,7 +176,7 @@ impl std::fmt::Display for Token<'_> {
 
             Token::Backtick(_) => write!(f, "{}", names::BACKTICK),
 
-            Token::Number(_, n) => write!(f, "'{n}'"),
+            Token::Number(_, _, n) => write!(f, "'{n}'"),
             Token::Identifier(_, i) => write!(f, "'{i}'"),
         }
     }
