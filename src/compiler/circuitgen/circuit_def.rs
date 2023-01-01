@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     circuit,
     compiler::{error::Report, parser::ast},
@@ -19,7 +21,7 @@ impl CircuitDef {
         match self {
             CircuitDef::Circuit { circuit, input_types, result_type } => {
                 let gate_i = circuit_state.circuit.new_subcircuit_gate(circuit.clone());
-                (gate_i, make_receiver_bundles(input_types, circuit_state.circuit.get_gate(gate_i).inputs()), make_producer_bundle(result_type, circuit_state.circuit.get_gate(gate_i).outputs()))
+                (gate_i, make_receiver_bundles(input_types, circuit_state.circuit.get_gate(gate_i).inputs().map(|output| output.into())), make_producer_bundle(result_type, circuit_state.circuit.get_gate(gate_i).outputs().map(|output| output.into())))
             }
             CircuitDef::And => {
                 let gate_i = circuit_state.circuit.new_and_gate();
@@ -62,14 +64,13 @@ impl CircuitDef {
         Some(output_bundles)
     }
     pub(crate) fn inline_gate(&self, circuit_state: &mut CircuitGenState, inputs: Vec<ProducerBundle>) -> Option<ProducerBundle> {
-        todo!("inlining gates")
-        /*
-        if let CircuitEntity::Circuit(subcircuit) = self {
+        if let CircuitDef::Circuit { circuit: subcircuit, input_types, result_type } = self {
             use crate::circuit::GateIndex;
 
+            let flat_inputs: Vec<_> = inputs.iter().flat_map(ProducerBundle::flatten).collect();
             let mut gate_number_mapping: HashMap<GateIndex, GateIndex> = HashMap::new();
             let convert_producer_idx = |p, circuit: &circuit::Circuit, gate_number_mapping: &HashMap<GateIndex, GateIndex>| match p {
-                circuit::ProducerIdx::CI(ci) => inputs[ci.0],
+                circuit::ProducerIdx::CI(ci) => flat_inputs[ci.0],
                 circuit::ProducerIdx::GO(go) => circuit::ProducerIdx::GO(
                     circuit
                         .get_gate(gate_number_mapping[&go.0])
@@ -79,12 +80,12 @@ impl CircuitDef {
                 ),
             };
 
-            for (subcircuit_gate_i, gate) in subcircuit_state.circuit.gates.iter() {
+            for (subcircuit_gate_i, gate) in subcircuit.gates.iter() {
                 let (inner_inputs, gate_added_to_main_circuit) = match &gate.kind {
                     circuit::GateKind::And(inputs, _) => (&inputs[..], circuit_state.circuit.new_and_gate()),
                     circuit::GateKind::Not(inputs, _) => (&inputs[..], circuit_state.circuit.new_not_gate()),
                     circuit::GateKind::Const(inputs, [circuit::Producer { value, .. }]) => (&inputs[..], circuit_state.circuit.new_const_gate(*value)),
-                    circuit::GateKind::Subcircuit(inputs, _, subcircuit) => (&inputs[..], circuit_state.circuit.new_subcircuit_gate(subcircuit_state.circuit.borrow().clone())),
+                    circuit::GateKind::Subcircuit(inputs, _, subcircuit) => (&inputs[..], circuit_state.circuit.new_subcircuit_gate(subcircuit.borrow().clone())),
                 };
 
                 for (input, new_gate_input) in inner_inputs.iter().zip(circuit_state.circuit.get_gate(gate_added_to_main_circuit).inputs().collect::<Vec<_>>().into_iter()) {
@@ -97,21 +98,18 @@ impl CircuitDef {
                 gate_number_mapping.insert(subcircuit_gate_i, gate_added_to_main_circuit);
             }
 
-            Some(
-                subcircuit
-                    .output_indexes()
-                    .flat_map(|o| subcircuit_state.circuit.get_receiver(o.into()).producer.map(|producer| convert_producer_idx(producer, &circuit_state.circuit, &gate_number_mapping)))
-                    .collect(),
-            ) // TODO: allow unconnected nodes
+            Some(make_producer_bundle(
+                result_type,
+                subcircuit.output_indexes().flat_map(|o| subcircuit.get_receiver(o.into()).producer.map(|producer| convert_producer_idx(producer, &circuit_state.circuit, &gate_number_mapping))),
+            )) // TODO: allow unconnected nodes
         } else {
             self.add_gate(circuit_state, inputs)
         }
-        */
     }
 }
 
 // TODO: refactor
-fn make_receiver_bundles(types: &[ast::Type], mut inputs: impl Iterator<Item = circuit::GateInputNodeIdx>) -> Vec<ReceiverBundle> {
+fn make_receiver_bundles(types: &[ast::Type], mut inputs: impl Iterator<Item = circuit::ReceiverIdx>) -> Vec<ReceiverBundle> {
     let mut bundles = Vec::new();
     for input_type in types {
         bundles.push(make_receiver_bundle(input_type, &mut inputs))
@@ -120,14 +118,14 @@ fn make_receiver_bundles(types: &[ast::Type], mut inputs: impl Iterator<Item = c
     bundles
 }
 
-fn make_receiver_bundle(type_: &ast::Type, inputs: &mut impl Iterator<Item = circuit::GateInputNodeIdx>) -> ReceiverBundle {
+fn make_receiver_bundle(type_: &ast::Type, inputs: &mut impl Iterator<Item = circuit::ReceiverIdx>) -> ReceiverBundle {
     match type_ {
-        ast::Type::Bit => ReceiverBundle::Single(inputs.next().expect("inputs should not run out when converting to bundle").into()),
+        ast::Type::Bit => ReceiverBundle::Single(inputs.next().expect("inputs should not run out when converting to bundle")),
     }
 }
 
-fn make_producer_bundle(type_: &ast::Type, mut outputs: impl Iterator<Item = circuit::GateOutputNodeIdx>) -> ProducerBundle {
+fn make_producer_bundle(type_: &ast::Type, mut outputs: impl Iterator<Item = circuit::ProducerIdx>) -> ProducerBundle {
     match type_ {
-        ast::Type::Bit => ProducerBundle::Single(outputs.next().expect("outputs should not run out when converting to bundle").into()),
+        ast::Type::Bit => ProducerBundle::Single(outputs.next().expect("outputs should not run out when converting to bundle")),
     }
 }
