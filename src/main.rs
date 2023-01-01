@@ -5,32 +5,35 @@ pub(crate) mod compiler;
 pub(crate) mod position;
 pub(crate) mod utils;
 
+use generational_arena::Arena;
 use piston::{self, PressEvent, RenderEvent, UpdateEvent};
 
 pub(crate) struct App {
     gl: opengl_graphics::GlGraphics,
+    gates: Arena<circuit::Gate>,
     circuit: circuit::Circuit,
 }
 
 impl App {
-    fn new(gl: opengl_graphics::GlGraphics, circuit: circuit::Circuit) -> App {
-        App { gl, circuit }
+    pub(crate) fn new(gl: opengl_graphics::GlGraphics, gates: Arena<circuit::Gate>, circuit: circuit::Circuit) -> Self {
+        Self { gl, gates, circuit }
     }
 
     fn render(&mut self, render_args: &piston::RenderArgs) {
-        self.circuit.render(&mut self.gl, render_args);
+        self.circuit.render(&self.gates, &mut self.gl, render_args);
     }
 
     fn update(&mut self, _: &piston::UpdateArgs) {}
 }
 
 fn main() {
-    let circuit = compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap();
+    let mut gates = Arena::new();
+    let circuit = compiler::compile(&std::env::args().nth(1).expect("expected input file"), &mut gates).unwrap();
     let opengl = opengl_graphics::OpenGL::V3_2;
 
     let mut window: glutin_window::GlutinWindow = piston::WindowSettings::new("logic gates", [1280, 720]).graphics_api(opengl).resizable(true).samples(4).exit_on_esc(true).build().unwrap();
 
-    let mut app = App::new(opengl_graphics::GlGraphics::new(opengl), circuit);
+    let mut app = App::new(opengl_graphics::GlGraphics::new(opengl), gates, circuit);
 
     let mut events = piston::Events::new(piston::EventSettings::new());
     while let Some(e) = events.next(&mut window) {
@@ -84,7 +87,7 @@ fn main() {
                 _ => None,
             } {
                 if index < app.circuit.num_inputs() {
-                    app.circuit.toggle_input(index);
+                    app.circuit.toggle_input(&mut app.gates, index);
                 }
             }
         }

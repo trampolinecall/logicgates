@@ -1,8 +1,10 @@
 use std::collections::{BTreeMap, HashMap};
 
+use generational_arena::Arena;
+
 use crate::circuit;
 
-pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit::GateIndex, (u32, f64)> {
+pub(crate) fn calculate_locations(circuit: &circuit::Circuit, gates: &Arena<circuit::Gate>) -> HashMap<circuit::GateIndex, (u32, f64)> {
     /* old iterative position calculating algorithm based on a loss function and trying to find a minimum loss
     // gate position scoring; lower is better
     let score = |current_idx: usize, current_loc @ [x, y]: [f64; 2], gate: &circuit::Gate| -> f64 {
@@ -71,38 +73,39 @@ pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit
 
     // group them into columns with each one going one column right of its rightmost dependency
     let mut xs: BTreeMap<circuit::GateIndex, u32> = BTreeMap::new();
-    for (gate_i, gate) in circuit.gates.iter() {
-        let input_producer_x = |input: circuit::GateInputNodeIdx| match circuit.get_receiver(input.into()).producer {
-            Some(producer) => match circuit.get_producer(producer).gate {
+    for gate_i in circuit.gates.iter() {
+        let gate = &gates[*gate_i];
+        let input_producer_x = |input: circuit::GateInputNodeIdx| match circuit.get_receiver(gates, input.into()).producer {
+            Some(producer) => match circuit.get_producer(gates, producer).gate {
                 Some(producer_gate) => xs[&producer_gate], // receiver node connected to other gate output node
-                None => 0, // receiver node connected to circuit input node
-            }
-            None => 0, // receiver node not connected
-        };
-        xs.insert(gate_i, gate.inputs().map(input_producer_x).max().unwrap_or(0) + 1);
-    }
-
-    // within each column sort them by the average of their input ys
-    let mut ys: BTreeMap<circuit::GateIndex, f64> = BTreeMap::new();// circuit.gates.iter().map(|(index, _)| (index, 0.0)).collect();
-    for x in 1..=*xs.values().max().unwrap_or(&0) {
-        let input_producer_y = |input: circuit::GateInputNodeIdx| match circuit.get_receiver(input.into()).producer {
-            Some(producer) => match circuit.get_producer(producer).gate {
-                // TODO: find better solution than to cast on i32
-                Some(producer_gate) => ys[&producer_gate] as i32, // receiver node connected to other node
-                None => 0, // receiver node connected to circuit input node
+                None => 0,                                 // receiver node connected to circuit input node
             },
             None => 0, // receiver node not connected
         };
-        let mut on_current_column: Vec<_> = circuit.gates.iter().filter(|(gate_i, _)| xs[gate_i] == x).collect();
-        on_current_column.sort_by_cached_key(|(_, gate)| gate.inputs().map(|input| input_producer_y(input)).sum::<i32>()); // sum can be used as average because they are only being compared to each other
+        xs.insert(*gate_i, gate.inputs().map(input_producer_x).max().unwrap_or(0) + 1);
+    }
+
+    // within each column sort them by the average of their input ys
+    let mut ys: BTreeMap<circuit::GateIndex, f64> = BTreeMap::new(); // circuit.gates.iter().map(|(index, _)| (index, 0.0)).collect();
+    for x in 1..=*xs.values().max().unwrap_or(&0) {
+        let input_producer_y = |input: circuit::GateInputNodeIdx| match circuit.get_receiver(gates, input.into()).producer {
+            Some(producer) => match circuit.get_producer(gates, producer).gate {
+                // TODO: find better solution than to cast on i32
+                Some(producer_gate) => ys[&producer_gate] as i32, // receiver node connected to other node
+                None => 0,                                        // receiver node connected to circuit input node
+            },
+            None => 0, // receiver node not connected
+        };
+        let mut on_current_column: Vec<_> = circuit.gates.iter().filter(|gate_i| xs[gate_i] == x).copied().collect();
+        on_current_column.sort_by_cached_key(|gate_i| gates[*gate_i].inputs().map(|input| input_producer_y(input)).sum::<i32>()); // sum can be used as average because they are only being compared to each other
 
         // set the y values
         const PADDING: f64 = 20.0;
-        let all_height: f64 = on_current_column.iter().map(|(_, g)| (g.display_size())[1]).sum::<f64>() + PADDING * (on_current_column.len() - 1) as f64;
+        let all_height: f64 = on_current_column.iter().map(|gate_i| (gates[*gate_i].display_size())[1]).sum::<f64>() + PADDING * (on_current_column.len() - 1) as f64;
         let mut start_y = -all_height / 2.0;
-        for (gate_i, gate) in on_current_column.iter() {
+        for gate_i in on_current_column.iter() {
             ys.insert(*gate_i, start_y);
-            start_y += (gate.display_size())[1];
+            start_y += (gates[*gate_i].display_size())[1];
             start_y += PADDING;
         }
     }
