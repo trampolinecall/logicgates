@@ -6,7 +6,6 @@ use std::collections::HashMap;
 use crate::circuit;
 
 use bundle::ProducerBundle;
-use bundle::ReceiverBundle;
 use circuit_def::CircuitDef;
 
 use super::error::CompileError;
@@ -161,9 +160,7 @@ fn convert_expr(global_state: &GlobalGenState, circuit_state: &mut CircuitGenSta
             }
         }
 
-        ast::Expr::Const(val) => {
-            CircuitDef::Const(val).add_gate(circuit_state, &[])
-        }
+        ast::Expr::Const(val) => CircuitDef::Const(val).add_gate(circuit_state, &[]),
 
         ast::Expr::Get(expr, slots) => {
             let expr = convert_expr(global_state, circuit_state, *expr)?;

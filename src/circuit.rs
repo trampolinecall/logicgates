@@ -253,11 +253,11 @@ impl Circuit {
 }
 
 impl Gate {
-    pub(crate) fn inputs(&self) -> impl Iterator<Item = GateInputNodeIdx> + '_ {
+    pub(crate) fn inputs(&self) -> impl ExactSizeIterator<Item = GateInputNodeIdx> + '_ {
         (0..self._inputs().len()).map(|i| GateInputNodeIdx(self.index, i))
     }
 
-    pub(crate) fn outputs(&self) -> impl Iterator<Item = GateOutputNodeIdx> + '_ {
+    pub(crate) fn outputs(&self) -> impl ExactSizeIterator<Item = GateOutputNodeIdx> + '_ {
         (0..self._outputs().len()).map(|i| GateOutputNodeIdx(self.index, i))
     }
 
@@ -420,8 +420,7 @@ impl Circuit {
         */
         let bool_color = |value| if value { ON_COLOR } else { OFF_COLOR };
         let producer_color = |producer: ProducerIdx| bool_color(self.get_producer(producer).value);
-        let receiver_color =
-            |receiver: ReceiverIdx| bool_color(if let Some(producer) = self.get_receiver(receiver).producer { self.get_producer(producer).value } else { false });
+        let receiver_color = |receiver: ReceiverIdx| bool_color(if let Some(producer) = self.get_receiver(receiver).producer { self.get_producer(producer).value } else { false });
 
         graphics.draw(args.viewport(), |c, gl| {
             clear(BG, gl);
