@@ -1,30 +1,30 @@
 pub(crate) mod token;
 
-use super::error::{CompileError, Report};
+use super::error::{CompileError, Report, Span, File};
 
 pub(crate) use token::Token;
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum LexError {
-    BadChar(char),
+pub(crate) enum LexError<'file> {
+    BadChar(Span<'file>, char),
 }
 
-impl From<LexError> for CompileError {
-    fn from(le: LexError) -> Self {
+impl<'file> From<LexError<'file>> for CompileError<'file> {
+    fn from(le: LexError<'file>) -> Self {
         match le {
-            LexError::BadChar(c) => CompileError { message: format!("bad character: '{c}'") },
+            LexError::BadChar(sp, c) => CompileError::new(sp, format!("bad character: '{c}'")),
         }
     }
 }
 
-struct Lexer<'file>(&'file str, std::iter::Peekable<std::str::CharIndices<'file>>);
+struct Lexer<'file>(&'file File, std::iter::Peekable<std::str::CharIndices<'file>>);
 
 impl<'file> Lexer<'file> {
-    fn slice(&mut self, start: usize) -> &'file str {
+    fn span(&mut self, start: usize) -> Span<'file> {
         if let Some((end, _)) = self.1.peek() {
-            &self.0[start..*end]
+            self.0.span(start, *end)
         } else {
-            &self.0[start..]
+            self.0.span_to_end(start)
         }
     }
 
@@ -43,33 +43,36 @@ impl<'file> Lexer<'file> {
 
     fn next_tok(&mut self) -> Token<'file> {
         let Some((start_i, start_c)) = self.1.next() else {
-            return Token::EOF
+            return Token::EOF({
+                self.0.eof_span()
+            })
         };
 
         let res = match start_c {
-            '[' => Ok(Some(Token::OBrack)),
-            ']' => Ok(Some(Token::CBrack)),
-            ';' => Ok(Some(Token::Semicolon)),
+            '[' => Ok(Some(Token::OBrack(self.span(start_i)))),
+            ']' => Ok(Some(Token::CBrack(self.span(start_i)))),
+            ';' => Ok(Some(Token::Semicolon(self.span(start_i)))),
 
-            '.' => Ok(Some(Token::Dot)),
-            ',' => Ok(Some(Token::Comma)),
+            '.' => Ok(Some(Token::Dot(self.span(start_i)))),
+            ',' => Ok(Some(Token::Comma(self.span(start_i)))),
 
-            '=' => Ok(Some(Token::Equals)),
+            '=' => Ok(Some(Token::Equals(self.span(start_i)))),
             '-' if matches!(self.1.peek(), Some((_, '>'))) => {
                 self.1.next();
-                Ok(Some(Token::Arrow))
+                Ok(Some(Token::Arrow(self.span(start_i))))
             }
 
-            '`' => Ok(Some(Token::Backtick)),
+            '`' => Ok(Some(Token::Backtick(self.span(start_i)))),
 
             '0'..='9' => {
                 while self.peek_is_digit() {
                     self.1.next();
                 }
 
-                let number_str = self.slice(start_i);
+                let span = self.span(start_i);
+                let number_str = span.slice();
                 let number = number_str.parse().expect("integer parse error impossible because slice only contains digits");
-                Ok(Some(Token::Number(number_str, number)))
+                Ok(Some(Token::Number(span, number)))
             }
 
             'a'..='z' | 'A'..='Z' => {
@@ -77,19 +80,21 @@ impl<'file> Lexer<'file> {
                     self.1.next();
                 }
 
-                match self.slice(start_i) {
-                    "let" => Ok(Some(Token::Let)),
-                    "inline" => Ok(Some(Token::Inline)),
-                    "bundle" => Ok(Some(Token::Bundle)),
-                    "inputs" => Ok(Some(Token::Inputs)),
-                    "outputs" => Ok(Some(Token::Outputs)),
-                    iden => Ok(Some(Token::Identifier(iden))),
+                let span = self.span(start_i);
+                let slice = span.slice();
+                match slice {
+                    "let" => Ok(Some(Token::Let(span))),
+                    "inline" => Ok(Some(Token::Inline(span))),
+                    "bundle" => Ok(Some(Token::Bundle(span))),
+                    "inputs" => Ok(Some(Token::Inputs(span))),
+                    "outputs" => Ok(Some(Token::Outputs(span))),
+                    iden => Ok(Some(Token::Identifier(span, iden))),
                 }
             }
 
             ' ' | '\n' => Ok(None),
 
-            _ => Err(LexError::BadChar(start_c)),
+            _ => Err(LexError::BadChar(self.span(start_i), start_c)),
         };
 
         match res {
@@ -111,8 +116,8 @@ impl<'file> Iterator for Lexer<'file> {
     }
 }
 
-pub(crate) fn lex(file: &str) -> impl Iterator<Item = Token> + '_ {
-    Lexer(file, file.char_indices().peekable())
+pub(crate) fn lex(file: &File) -> impl Iterator<Item = Token> + '_ {
+    Lexer(file, file.contents.char_indices().peekable())
 }
 
 #[cfg(test)]

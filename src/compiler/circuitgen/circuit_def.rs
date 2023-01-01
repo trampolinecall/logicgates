@@ -51,20 +51,20 @@ impl CircuitDef {
         }
     }
 
-    pub(super) fn add_gate(&self, circuit_state: &mut CircuitGenState, input_value: ProducerBundle) -> Option<ProducerBundle> {
+    pub(super) fn add_gate(&self, circuit_state: &mut CircuitGenState, expr: &ast::Expr, input_value: ProducerBundle) -> Option<ProducerBundle> {
         let (_, input_bundle, output_bundle) = self.to_gate(circuit_state);
 
-        connect_bundle(&mut circuit_state.circuit, &input_value, &input_bundle)?;
+        connect_bundle(&mut circuit_state.circuit, expr, &input_value, &input_bundle)?;
 
         Some(output_bundle)
     }
-    pub(crate) fn inline_gate(&self, circuit_state: &mut CircuitGenState, inputs: ProducerBundle) -> Option<ProducerBundle> {
+    pub(crate) fn inline_gate(&self, circuit_state: &mut CircuitGenState, expr: &ast::Expr, inputs: ProducerBundle) -> Option<ProducerBundle> {
         if let CircuitDef::Circuit { circuit: subcircuit, input_type: expected_input_types, result_type } = self {
             use crate::circuit::GateIndex;
 
             let actual_input_type = inputs.type_();
             if actual_input_type != *expected_input_types {
-                Error::TypeMismatchInCall { actual_type: actual_input_type, expected_type: expected_input_types.clone() }.report();
+                Error::TypeMismatchInCall { expr, actual_type: actual_input_type, expected_type: expected_input_types.clone() }.report();
                 None?
             }
 
@@ -104,7 +104,7 @@ impl CircuitDef {
                 &mut subcircuit.output_indexes().flat_map(|o| subcircuit.get_receiver(o.into()).producer.map(|producer| convert_producer_idx(producer, &circuit_state.circuit, &gate_number_mapping))),
             )) // TODO: allow unconnected nodes
         } else {
-            self.add_gate(circuit_state, inputs)
+            self.add_gate(circuit_state, expr, inputs)
         }
     }
 }

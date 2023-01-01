@@ -63,9 +63,9 @@ pub(super) fn make_producer_bundle(type_: &ast::Type, outputs: &mut impl Iterato
     }
 }
 
-pub(super) fn connect_bundle(circuit: &mut circuit::Circuit, producer_bundle: &ProducerBundle, receiver_bundle: &ReceiverBundle) -> Option<()> {
+pub(super) fn connect_bundle(circuit: &mut circuit::Circuit, expr: &ast::Expr, producer_bundle: &ProducerBundle, receiver_bundle: &ReceiverBundle) -> Option<()> {
     if producer_bundle.type_() != receiver_bundle.type_() {
-        Error::TypeMismatchInCall { actual_type: producer_bundle.type_(), expected_type: receiver_bundle.type_() }.report();
+        Error::TypeMismatchInCall { expr, actual_type: producer_bundle.type_(), expected_type: receiver_bundle.type_() }.report();
         None?
     }
 
@@ -74,7 +74,7 @@ pub(super) fn connect_bundle(circuit: &mut circuit::Circuit, producer_bundle: &P
         (ProducerBundle::Product(producers), ReceiverBundle::Product(receivers)) => {
             assert_eq!(producers.len(), receivers.len(), "cannot connect different amount of producers and receivers"); // sanity check
             for (p, r) in producers.iter().zip(receivers.iter()) {
-                connect_bundle(circuit, p, r); // not ideal that this rechecks the item types but
+                connect_bundle(circuit, expr, p, r); // not ideal that this rechecks the item types but
             }
         }
 

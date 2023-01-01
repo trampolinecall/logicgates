@@ -17,9 +17,9 @@ struct ParseError<'file> {
     got: Token<'file>,
 }
 
-impl From<ParseError<'_>> for CompileError {
-    fn from(ParseError { expected, got }: ParseError) -> Self {
-        CompileError { message: format!("expected {expected}, got {got}") }
+impl<'file> From<ParseError<'file>> for CompileError<'file> {
+    fn from(ParseError { expected, got }: ParseError<'file>) -> Self {
+        CompileError::new(got.span(), format!("expected {expected}, got {got}"))
     }
 }
 
@@ -127,7 +127,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
     fn pattern(&mut self) -> Result<ast::Pattern<'file>, ParseError<'file>> {
         match self.peek() {
-            Token::Identifier(_) => {
+            Token::Identifier(_, _) => {
                 let iden = Token::identifier_matcher().convert(self.next());
 
                 self.expect(Token::semicolon_matcher())?;
@@ -137,11 +137,12 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 Ok(ast::Pattern::Identifier(iden, type_))
             }
 
-            Token::OBrack => {
+            Token::OBrack(obrack_sp) => {
+                let obrack_sp = *obrack_sp;
                 self.next();
 
                 let patterns = self.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::pattern)?;
-                Ok(ast::Pattern::Product(patterns))
+                Ok(ast::Pattern::Product(obrack_sp, patterns)) // TODO: cbrack_sp
             }
             _ => Err(self.expected_and_next("pattern")),
         }
@@ -153,10 +154,10 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         while Token::dot_matcher().matches(self.peek()) {
             self.next();
 
-            let field: &'file str = match self.peek() {
-                Token::Number(n_str, _) => Ok(n_str),
+            let field = match self.peek() {
+                Token::Number(n_sp, _) => Ok(*n_sp),
 
-                Token::Identifier(i) => Ok(i),
+                Token::Identifier(i, _) => Ok(*i),
 
                 _ => Err(self.expected_and_next("field name (a number or identifier)")),
             }?;
@@ -170,16 +171,16 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
     fn primary_expr(&mut self) -> Result<ast::Expr<'file>, ParseError<'file>> {
         match self.peek() {
-            Token::Number(_, _) => {
+            &Token::Number(n_sp, _) => {
                 let n = Token::number_matcher().convert(self.next());
 
                 match n {
-                    0 => Ok(ast::Expr::Const(false)),
-                    1 => Ok(ast::Expr::Const(true)),
+                    0 => Ok(ast::Expr::Const(n_sp, false)),
+                    1 => Ok(ast::Expr::Const(n_sp, true)),
                     _ => Err(self.expected_and_next("'0' or '1'")),
                 }
             }
-            Token::Backtick => {
+            Token::Backtick(_) => {
                 let _ = self.next();
                 let i = self.expect(/* "circuit name after '`'", */ Token::identifier_matcher())?;
 
@@ -190,13 +191,14 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 Ok(ast::Expr::Call(i, inline, Box::new(arg)))
             }
 
-            Token::Identifier(_) => {
+            Token::Identifier(_, _) => {
                 let i = Token::identifier_matcher().convert(self.next());
 
                 Ok(ast::Expr::Ref(i))
             }
 
-            Token::OBrack => {
+            Token::OBrack(obrack_sp) => {
+                let obrack_sp = *obrack_sp;
                 self.next();
 
                 let mut items = Vec::new();
@@ -209,23 +211,23 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                     }
                 }
 
-                self.expect(Token::cbrack_matcher())?;
+                let cbrack_sp = self.expect(Token::cbrack_matcher())?;
 
-                Ok(ast::Expr::Multiple(items))
+                Ok(ast::Expr::Multiple(obrack_sp + cbrack_sp, items))
             }
 
             _ => Err(self.expected_and_next("expression"))?,
         }
     }
 
-    fn type_(&mut self) -> Result<ast::Type, ParseError<'file>> {
+    fn type_(&mut self) -> Result<ast::LType<'file>, ParseError<'file>> {
         match self.peek() {
-            Token::Backtick => {
+            &Token::Backtick(sp) => {
                 let _ = self.next();
-                Ok(ast::Type::Bit)
+                Ok(ast::LType(sp, ast::Type::Bit))
             }
 
-            Token::OBrack => {
+            Token::OBrack(_) => {
                 let _ = self.next();
 
                 match self.peek() {
@@ -236,12 +238,12 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                         let ty = self.type_()?;
 
-                        Ok(ast::Type::Product((0..len).map(|_| ty.clone()).collect()))
+                        Ok(ast::LType(todo!(), ast::Type::Product((0..len).map(|_| ty.1.clone()).collect())))
                     }
 
                     _ => {
                         let tys = self.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::type_)?;
-                        Ok(ast::Type::Product(tys))
+                        Ok(ast::LType(todo!(), ast::Type::Product(tys.into_iter().map(|ty| ty.1).collect())))
                     }
                 }
             }
