@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use crate::circuit;
 
 use bundle::ProducerBundle;
+use bundle::ReceiverBundle;
 use circuit_def::CircuitDef;
 
 use super::error::CompileError;
@@ -96,13 +97,13 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circu
     let name = circuit_ast.name;
 
     let mut circuit_state = CircuitGenState::new(name.to_string());
-    circuit_state.circuit.set_num_inputs(circuit_ast.inputs.iter().map(|(_, ty)| ty.size()).sum());
 
-    assert_eq!(circuit_ast.inputs.len(), circuit_state.circuit.num_inputs());
-    let mut input_idxs = circuit_state.circuit.input_indexes();
-    for arg_pat in circuit_ast.inputs.iter() {
-        let producers = ProducerBundle::Single(input_idxs.next().expect("input_idxs should have the same length as the pattern length").into());
-        circuit_state.locals.insert(arg_pat.0 .0, producers);
+    circuit_state.circuit.set_num_inputs(circuit_ast.inputs.iter().map(|(_, ty)| ty.size()).sum());
+    assert_eq!(circuit_ast.inputs.iter().map(|(_, ty)| ty.size()).sum::<usize>(), circuit_state.circuit.num_inputs(), "number of circuit inputs should be equal to the number of input bits");
+
+    let mut input_idxs = circuit_state.circuit.input_indexes().map(|circuit_input_idx| circuit_input_idx.into());
+    for (arg_pat, arg_ty) in circuit_ast.inputs.iter() {
+        circuit_state.locals.insert(arg_pat.0, bundle::make_producer_bundle(&arg_ty, &mut input_idxs));
     }
 
     for ast::Let { pat, val, type_ } in circuit_ast.lets {
@@ -113,20 +114,19 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circu
             None?
         }
 
-        let mut result = result.flatten().into_iter();
-        circuit_state.locals.insert(pat.0, ProducerBundle::Single(result.next().unwrap()));
+        circuit_state.locals.insert(pat.0, result);
     }
 
-    let output_values = convert_expr(global_state, &mut circuit_state, circuit_ast.outputs)?;
-    circuit_state.circuit.set_num_outputs(output_values.size());
-    assert_eq!(circuit_state.circuit.num_outputs(), output_values.size(), "number of circuit outputs should be equal to the number of output producers");
-    for (output_producer, output_receiver) in output_values.flatten().into_iter().zip(circuit_state.circuit.output_indexes()) {
-        circuit_state.circuit.connect(output_producer, output_receiver.into());
-    }
+    let output_value = convert_expr(global_state, &mut circuit_state, circuit_ast.outputs)?;
+    circuit_state.circuit.set_num_outputs(output_value.size());
+    assert_eq!(circuit_state.circuit.num_outputs(), output_value.size(), "number of circuit outputs should be equal to the number of output producers");
+
+    let output_bundle = bundle::make_receiver_bundle(&output_value.type_(), circuit_state.circuit.output_indexes().map(|output_idx| output_idx.into()));
+    bundle::connect_bundle(&mut circuit_state.circuit, &output_value, &output_bundle);
 
     circuit_state.circuit.calculate_locations();
 
-    Some((name, circuit_state.circuit, circuit_ast.inputs.into_iter().map(|(_, ty)| ty).collect(), output_values.type_()))
+    Some((name, circuit_state.circuit, circuit_ast.inputs.into_iter().map(|(_, ty)| ty).collect(), output_value.type_()))
 }
 
 fn convert_expr(global_state: &GlobalGenState, circuit_state: &mut CircuitGenState, expr: ast::Expr) -> Option<ProducerBundle> {

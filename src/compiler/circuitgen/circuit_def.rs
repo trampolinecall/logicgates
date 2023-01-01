@@ -5,6 +5,9 @@ use super::bundle::ReceiverBundle;
 use super::CircuitGenState;
 use super::Error;
 use crate::circuit;
+use crate::compiler::circuitgen::bundle::connect_bundle;
+use crate::compiler::circuitgen::bundle::make_producer_bundle;
+use crate::compiler::circuitgen::bundle::make_receiver_bundles;
 use crate::compiler::error::Report;
 use crate::compiler::parser::ast;
 
@@ -49,7 +52,7 @@ impl CircuitDef {
     }
 
     pub(super) fn add_gate(&self, circuit_state: &mut CircuitGenState, inputs: &[ProducerBundle]) -> Option<ProducerBundle> {
-        let (gate_i, input_bundles, output_bundles) = self.to_gate(circuit_state);
+        let (_, input_bundles, output_bundles) = self.to_gate(circuit_state);
 
         // connect the inputs
         let input_types: Vec<_> = inputs.iter().map(|bundle| bundle.type_()).collect();
@@ -119,39 +122,4 @@ impl CircuitDef {
             self.add_gate(circuit_state, inputs)
         }
     }
-}
-
-// TODO: refactor
-fn make_receiver_bundles(types: &[ast::Type], mut inputs: impl Iterator<Item = circuit::ReceiverIdx>) -> Vec<ReceiverBundle> {
-    let mut bundles = Vec::new();
-    for input_type in types {
-        bundles.push(make_receiver_bundle(input_type, &mut inputs))
-    }
-
-    bundles
-}
-
-fn make_receiver_bundle(type_: &ast::Type, inputs: &mut impl Iterator<Item = circuit::ReceiverIdx>) -> ReceiverBundle {
-    match type_ {
-        ast::Type::Bit => ReceiverBundle::Single(inputs.next().expect("inputs should not run out when converting to bundle")),
-    }
-}
-
-fn make_producer_bundle(type_: &ast::Type, mut outputs: impl Iterator<Item = circuit::ProducerIdx>) -> ProducerBundle {
-    match type_ {
-        ast::Type::Bit => ProducerBundle::Single(outputs.next().expect("outputs should not run out when converting to bundle")),
-    }
-}
-
-fn connect_bundle(circuit: &mut circuit::Circuit, producer_bundle: &ProducerBundle, receiver_bundle: &ReceiverBundle) -> Option<()> {
-    if producer_bundle.type_() != receiver_bundle.type_() {
-        Error::TypeMismatchInCall { actual_type: producer_bundle.type_(), expected_type: receiver_bundle.type_() }.report();
-        None?
-    }
-
-    match (producer_bundle, receiver_bundle) {
-        (ProducerBundle::Single(producer_index), ReceiverBundle::Single(receiver_index)) => circuit.connect(*producer_index, *receiver_index),
-    }
-
-    Some(())
 }
