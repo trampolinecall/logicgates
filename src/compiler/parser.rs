@@ -178,9 +178,9 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     }
 
     fn expr(&mut self) -> Result<ast::Expr<'file>, ParseError> {
-        let primary = self.primary_expr()?;
+        let mut left = self.primary_expr()?;
 
-        if Token::is_dot(self.peek()) {
+        while Token::is_dot(self.peek()) {
             self.next();
 
             let field: &'file str = match self.peek() {
@@ -192,10 +192,10 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             }?;
             self.next();
 
-            Ok(ast::Expr::Get(Box::new(primary), field))
-        } else {
-            Ok(primary)
+            left = ast::Expr::Get(Box::new(left), field);
         }
+
+        Ok(left)
     }
 
     fn primary_expr(&mut self) -> Result<ast::Expr<'file>, ParseError> {
