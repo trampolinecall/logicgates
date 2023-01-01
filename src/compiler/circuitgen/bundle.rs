@@ -12,12 +12,6 @@ pub(super) enum ReceiverBundle {
 }
 
 impl ProducerBundle {
-    pub(super) fn size(&self) -> usize {
-        match self {
-            ProducerBundle::Single(_) => 1,
-            // ProducerBundle::List(subbundles) => subbundles.iter().map(ProducerBundle::size).sum::<usize>(),
-        }
-    }
     pub(super) fn type_(&self) -> ast::Type {
         match self {
             ProducerBundle::Single(_) => ast::Type::Bit,
