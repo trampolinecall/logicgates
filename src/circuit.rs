@@ -112,10 +112,10 @@ impl Circuit {
     }
 
     pub(crate) fn input_indexes(&self) -> impl Iterator<Item = CircuitInputNodeIdx> {
-        (0..self.inputs.len()).map(|i| CircuitInputNodeIdx(i))
+        (0..self.inputs.len()).map(CircuitInputNodeIdx)
     }
     pub(crate) fn output_indexes(&self) -> impl Iterator<Item = CircuitOutputNodeIdx> {
-        (0..self.outputs.len()).map(|i| CircuitOutputNodeIdx(i))
+        (0..self.outputs.len()).map(CircuitOutputNodeIdx)
     }
 
     fn output_values(&self) -> impl Iterator<Item = bool> + '_ {
@@ -180,7 +180,7 @@ impl Circuit {
 
     pub(crate) fn toggle_input(&mut self, i: usize) {
         assert!(i < self.inputs.len(), "toggle input out of range of number of inputs");
-        self.set_input(CircuitInputNodeIdx(i).into(), !self.get_producer(CircuitInputNodeIdx(i).into()).value);
+        self.set_input(CircuitInputNodeIdx(i), !self.get_producer(CircuitInputNodeIdx(i).into()).value);
     }
     pub(crate) fn set_input(&mut self, ci: CircuitInputNodeIdx, value: bool) {
         self.set_producer_value(ci.into(), value);
@@ -314,28 +314,28 @@ impl Gate {
     pub(crate) fn get_input(&self, input: GateInputNodeIdx) -> &Receiver {
         assert_eq!(self.index, input.0, "get input node with index that is not this node");
         let inputs = self._inputs();
-        inputs.get(input.1).expect(&format!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", input.1, self.name(), inputs.len()))
+        inputs.get(input.1).unwrap_or_else(|| panic!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", input.1, self.name(), inputs.len()))
     }
     pub(crate) fn get_input_mut(&mut self, input: GateInputNodeIdx) -> &mut Receiver {
         assert_eq!(self.index, input.0, "get input node with index that is not this node");
         let name = self.name();
         let inputs = self._inputs_mut();
         let len = inputs.len();
-        inputs.get_mut(input.1).expect(&format!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", input.1, name, len))
+        inputs.get_mut(input.1).unwrap_or_else(|| panic!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", input.1, name, len))
         // TODO: there is probably a better way of doing this that doesnt need this code to be copy pasted
         // TODO: there is also probably a better way of doing this that doesnt need
     }
     pub(crate) fn get_output(&self, index: GateOutputNodeIdx) -> &Producer {
         assert_eq!(self.index, index.0, "get output node with index that is not this node");
         let outputs = self._outputs();
-        outputs.get(index.1).expect(&format!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, self.name(), outputs.len()))
+        outputs.get(index.1).unwrap_or_else(|| panic!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, self.name(), outputs.len()))
     }
     pub(crate) fn get_output_mut(&mut self, index: GateOutputNodeIdx) -> &mut Producer {
         assert_eq!(self.index, index.0, "get output node with index that is not this node");
         let name = self.name();
         let outputs = self._outputs_mut();
         let len = outputs.len();
-        outputs.get_mut(index.1).expect(&format!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, name, len))
+        outputs.get_mut(index.1).unwrap_or_else(|| panic!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, name, len))
     }
 
     pub(crate) fn display_size(&self) -> [f64; 2] {
@@ -344,10 +344,6 @@ impl Gate {
 
         let gate_height = (std::cmp::max(self.num_inputs(), self.num_outputs()) - 1) as f64 * VERTICAL_VALUE_SPACING + EXTRA_VERTICAL_HEIGHT;
         [GATE_WIDTH, gate_height]
-    }
-
-    pub(crate) fn num_args(&self) -> usize {
-        todo!()
     }
 }
 
@@ -456,7 +452,7 @@ impl Circuit {
                 // text(BLACK, 10, gate.name(), /* character cache */, c.transform, gl);
 
                 // draw gate input dots and connections to their values
-                for input_receiver in gate.inputs().into_iter() {
+                for input_receiver in gate.inputs() {
                     let color = receiver_color(input_receiver.into());
                     let input_pos @ [x, y] = gate_input_pos(input_receiver);
                     ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
@@ -467,7 +463,7 @@ impl Circuit {
                     }
                 }
                 // draw gate output dots
-                for output in gate.outputs().into_iter() {
+                for output in gate.outputs() {
                     let color = producer_color(output.into());
                     let [x, y] = gate_output_pos(output);
                     ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);

@@ -26,7 +26,7 @@ impl CircuitDef {
                 (
                     gate_i,
                     circuit_state.circuit.get_gate(gate_i).inputs().map(|input| ReceiverBundle::Single(input.into())).collect(),
-                    ProducerBundle::Single(circuit_state.circuit.get_gate(gate_i).outputs().nth(0).expect("and gate should have exactly one output").into()),
+                    ProducerBundle::Single(circuit_state.circuit.get_gate(gate_i).outputs().next().expect("and gate should have exactly one output").into()),
                 )
             }
             CircuitDef::Not => {
@@ -34,7 +34,7 @@ impl CircuitDef {
                 (
                     gate_i,
                     circuit_state.circuit.get_gate(gate_i).inputs().map(|input| ReceiverBundle::Single(input.into())).collect(),
-                    ProducerBundle::Single(circuit_state.circuit.get_gate(gate_i).outputs().nth(0).expect("and gate should have exactly one output").into()),
+                    ProducerBundle::Single(circuit_state.circuit.get_gate(gate_i).outputs().next().expect("and gate should have exactly one output").into()),
                 )
             }
         }
