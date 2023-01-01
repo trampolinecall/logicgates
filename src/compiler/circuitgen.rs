@@ -39,19 +39,6 @@ impl<'file> GlobalGenState<'file> {
     }
 }
 
-fn connect_bundle(circuit: &mut circuit::Circuit, producer_bundle: ProducerBundle, receiver_bundle: ReceiverBundle) -> Option<()> {
-    if producer_bundle.type_() != receiver_bundle.type_() {
-        Error::TypeMismatchInCall { actual_type: producer_bundle.type_(), expected_type: receiver_bundle.type_() }.report();
-        None?
-    }
-
-    for (producer_node, receiver_node) in producer_bundle.flatten().into_iter().zip(receiver_bundle.flatten().into_iter()) {
-        circuit.connect(producer_node, receiver_node)
-    }
-
-    Some(())
-}
-
 struct CircuitGenState<'file> {
     locals: HashMap<&'file str, ProducerBundle>,
     circuit: circuit::Circuit,
