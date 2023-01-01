@@ -58,7 +58,7 @@ struct CircuitGenState<'file> {
 }
 impl CircuitGenState<'_> {
     fn new(name: String) -> Self {
-        Self { locals: HashMap::<_, _>::default(), circuit: circuit::Circuit::new(name) }
+        Self { locals: HashMap::default(), circuit: circuit::Circuit::new(name) }
     }
 }
 
@@ -87,7 +87,7 @@ pub(crate) fn generate(ast: Vec<ast::Circuit>) -> Option<circuit::Circuit> {
     let mut global_state = GlobalGenState::new();
 
     for circuit in ast {
-        let (name, circuit, input_types, result_type) = convert_circuit(&mut global_state, circuit)?; // TODO: report multiple errors from this
+        let (name, circuit, input_types, result_type) = convert_circuit(&global_state, circuit)?; // TODO: report multiple errors from this
         if global_state.circuit_table.contains_key(name) {
             Error::Duplicate(name).report();
             None?
@@ -112,7 +112,7 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circu
     let mut circuit_state = CircuitGenState::new(name.to_string());
     circuit_state.circuit.set_num_inputs(circuit_ast.inputs.iter().map(|(_, ty)| ty.size()).sum());
 
-    assert_eq!(circuit_ast.inputs.len(), circuit_state.circuit.input_indexes().collect::<Vec<_>>().len());
+    assert_eq!(circuit_ast.inputs.len(), circuit_state.circuit.num_inputs());
     let mut input_idxs = circuit_state.circuit.input_indexes();
     for arg_pat in circuit_ast.inputs.iter() {
         let producers = ProducerBundle::Single(input_idxs.next().expect("input_idxs should have the same length as the pattern length").into());
@@ -128,9 +128,7 @@ fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circu
         }
 
         let mut result = result.flatten().into_iter();
-        for sub_pat in [pat] {
-            circuit_state.locals.insert(sub_pat.0, ProducerBundle::Single(result.next().unwrap()));
-        }
+        circuit_state.locals.insert(pat.0, ProducerBundle::Single(result.next().unwrap()));
     }
 
     let output_values = convert_expr(global_state, &mut circuit_state, circuit_ast.outputs)?;

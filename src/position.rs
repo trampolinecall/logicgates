@@ -94,7 +94,7 @@ pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit
             None => 0, // receiver node not connected
         };
         let mut on_current_column: Vec<_> = circuit.gates.iter().filter(|(gate_i, _)| xs[gate_i] == x).collect();
-        on_current_column.sort_by_cached_key(|(_, gate)| gate.inputs().map(|input| input_producer_y(input)).sum::<i32>()); // sum can be used as average because they are only being compared to each other
+        on_current_column.sort_by_cached_key(|(_, gate)| gate.inputs().map(input_producer_y).sum::<i32>()); // sum can be used as average because they are only being compared to each other
 
         // set the y values
         const PADDING: f64 = 20.0;
