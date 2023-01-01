@@ -28,14 +28,14 @@ pub(crate) struct Pattern<'file>(pub(crate) &'file str);
 #[derive(PartialEq, Debug, Clone)]
 pub(crate) enum Type {
     Bit,
-    Array(usize, Box<Type>),
+    Product(Vec<Type>), // TODO: named product types
 }
 
 impl Type {
     pub(crate) fn size(&self) -> usize {
         match self {
             Type::Bit => 1,
-            Type::Array(len, item_type) => item_type.size() * len
+            Type::Product(items) => items.iter().map(Type::size).sum(),
         }
     }
 }
@@ -44,7 +44,18 @@ impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Bit => write!(f, "`"),
-            Type::Array(len, item_type) => write!(f, "[{len}]{item_type}")
+            Type::Product(items) => {
+                write!(f, "[")?;
+                if let Some((first, more)) = items.split_first() {
+                    write!(f, "{first}")?;
+                    for more in more {
+                        write!(f, ", {more}")?;
+                    }
+                }
+                write!(f, "]")?;
+
+                Ok(())
+            }
         }
     }
 }
