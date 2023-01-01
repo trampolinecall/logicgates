@@ -1,16 +1,9 @@
 use std::collections::HashMap;
 
-use super::bundle::ProducerBundle;
-use super::bundle::ReceiverBundle;
 use super::ty;
 use super::CircuitGenState;
-use super::Error;
 use crate::circuit;
-use crate::compiler::circuitgen::bundle::connect_bundle;
-use crate::compiler::circuitgen::bundle::make_producer_bundle;
-use crate::compiler::circuitgen::bundle::make_receiver_bundle;
-use crate::compiler::error::Report;
-use crate::compiler::error::Span;
+use crate::compiler::circuitgen::bundle;
 
 pub(super) enum CircuitDef {
     Circuit { circuit: circuit::Circuit, input_type: ty::Type, result_type: ty::Type },
@@ -19,67 +12,60 @@ pub(super) enum CircuitDef {
     Const(bool),
 }
 impl CircuitDef {
-    fn to_gate(&self, circuit_state: &mut CircuitGenState) -> (circuit::GateIndex, ReceiverBundle, ProducerBundle) {
-        // TODO: refactor this and probably refactor the rest of the module too
-        let make_receiver_bundle = |circuit_state: &CircuitGenState, type_: &ty::Type, gate_i| {
-            let inputs = circuit_state.circuit.get_gate(gate_i).inputs();
-            assert_eq!(type_.size(), inputs.len(), "receiver bundles have a different total size than the number of input nodes on the gate"); // sanity check
-            make_receiver_bundle(type_, &mut inputs.map(|input| input.into()))
-        };
-        let make_producer_bundle = |circuit_state: &CircuitGenState, type_: &ty::Type, gate_i| {
-            let outputs = circuit_state.circuit.get_gate(gate_i).outputs();
-            assert_eq!(type_.size(), outputs.len(), "producer bundle has a different size than the number of output nodes on the gate"); // sanity check
-            make_producer_bundle(type_, &mut outputs.map(|output| output.into()))
-        };
-
+    fn input_type(&self) -> ty::Type {
         match self {
-            CircuitDef::Circuit { circuit, input_type, result_type } => {
-                let gate_i = circuit_state.circuit.new_subcircuit_gate(circuit.clone());
-                (gate_i, make_receiver_bundle(circuit_state, input_type, gate_i), make_producer_bundle(circuit_state, result_type, gate_i))
-            }
-            CircuitDef::And => {
-                let gate_i = circuit_state.circuit.new_and_gate();
-                (gate_i, make_receiver_bundle(circuit_state, &ty::Type::Product(vec![ty::Type::Bit, ty::Type::Bit]), gate_i), make_producer_bundle(circuit_state, &ty::Type::Bit, gate_i))
-            }
-            CircuitDef::Not => {
-                let gate_i = circuit_state.circuit.new_not_gate();
-                (gate_i, make_receiver_bundle(circuit_state, &ty::Type::Bit, gate_i), make_producer_bundle(circuit_state, &ty::Type::Bit, gate_i))
-            }
-            CircuitDef::Const(value) => {
-                let gate_i = circuit_state.circuit.new_const_gate(*value);
-                (gate_i, make_receiver_bundle(circuit_state, &ty::Type::Product(vec![]), gate_i), make_producer_bundle(circuit_state, &ty::Type::Bit, gate_i))
-            }
+            CircuitDef::Circuit { circuit: _, input_type, result_type: _ } => input_type.clone(), // clone will be gone when type interner is implemented (TODO)
+            CircuitDef::And => ty::Type::Product(vec![ty::Type::Bit, ty::Type::Bit]),
+            CircuitDef::Not => ty::Type::Bit,
+            CircuitDef::Const(_) => ty::Type::Product(vec![]),
+        }
+    }
+    fn output_type(&self) -> ty::Type {
+        match self {
+            CircuitDef::Circuit { circuit: _, input_type: _, result_type } => result_type.clone(),
+            CircuitDef::And => ty::Type::Bit,
+            CircuitDef::Not => ty::Type::Bit,
+            CircuitDef::Const(_) => ty::Type::Bit,
         }
     }
 
-    pub(super) fn add_gate(&self, circuit_state: &mut CircuitGenState, expr_span: Span, input_value: ProducerBundle) -> Option<ProducerBundle> {
-        let (_, input_bundle, output_bundle) = self.to_gate(circuit_state);
-
-        connect_bundle(&mut circuit_state.circuit, expr_span, &input_value, &input_bundle)?;
-
-        Some(output_bundle)
+    fn make_receiver_bundle(&self, inputs: &mut impl ExactSizeIterator<Item = circuit::ReceiverIdx>) -> bundle::ReceiverBundle {
+        assert_eq!(self.input_type().size(), inputs.len(), "receiver bundles have a different total size than the number of input nodes on the gate"); // sanity check
+        bundle::make_receiver_bundle(&self.input_type(), inputs)
     }
-    pub(crate) fn inline_gate(&self, circuit_state: &mut CircuitGenState, expr_span: Span, inputs: ProducerBundle) -> Option<ProducerBundle> {
-        if let CircuitDef::Circuit { circuit: subcircuit, input_type: expected_input_types, result_type } = self {
+
+    fn make_producer_bundle(&self, outputs: &mut impl ExactSizeIterator<Item = circuit::ProducerIdx>) -> bundle::ProducerBundle {
+        assert_eq!(self.output_type().size(), outputs.len(), "producer bundle has a different size than the number of output nodes on the gate"); // sanity check
+        bundle::make_producer_bundle(&self.output_type(), outputs)
+    }
+
+    pub(super) fn add_gate(&self, circuit_state: &mut CircuitGenState) -> Option<(bundle::ReceiverBundle, bundle::ProducerBundle)> {
+        let gate_i = match self {
+            CircuitDef::Circuit { circuit, input_type: _, result_type: _ } => circuit_state.circuit.new_subcircuit_gate(circuit.clone()),
+            CircuitDef::And => circuit_state.circuit.new_and_gate(),
+            CircuitDef::Not => circuit_state.circuit.new_not_gate(),
+            CircuitDef::Const(value) => circuit_state.circuit.new_const_gate(*value),
+        };
+
+        let input_bundle = self.make_receiver_bundle(&mut circuit_state.circuit.get_gate(gate_i).inputs().map(|input| input.into()));
+        let output_bundle = self.make_producer_bundle(&mut circuit_state.circuit.get_gate(gate_i).outputs().map(|output| output.into()));
+
+        Some((input_bundle, output_bundle))
+    }
+    pub(crate) fn inline_gate(&self, circuit_state: &mut CircuitGenState) -> Option<(bundle::ReceiverBundle, bundle::ProducerBundle)> {
+        if let CircuitDef::Circuit { circuit: subcircuit, input_type: _, result_type: _ } = self {
             use crate::circuit::GateIndex;
 
-            let actual_input_type = inputs.type_();
-            if actual_input_type != *expected_input_types {
-                Error::TypeMismatchInCall { expr_span, actual_type: actual_input_type, expected_type: expected_input_types.clone() }.report();
-                None?
-            }
-
-            let flat_inputs = inputs.flatten();
             let mut gate_number_mapping: HashMap<GateIndex, GateIndex> = HashMap::new();
             let convert_producer_idx = |p, circuit: &circuit::Circuit, gate_number_mapping: &HashMap<GateIndex, GateIndex>| match p {
-                circuit::ProducerIdx::CI(ci) => flat_inputs[ci.0],
-                circuit::ProducerIdx::GO(go) => circuit::ProducerIdx::GO(
+                circuit::ProducerIdx::CI(_) => None, // circuit inputs are left unconnected, will be connected by caller
+                circuit::ProducerIdx::GO(go) => Some(circuit::ProducerIdx::GO(
                     circuit
                         .get_gate(gate_number_mapping[&go.0])
                         .outputs()
                         .nth(go.1)
                         .expect("gate index should be in range for the same gate type when converting producer index for inlining subcircuit"),
-                ),
+                )),
             };
 
             for (subcircuit_gate_i, gate) in subcircuit.gates.iter() {
@@ -93,19 +79,32 @@ impl CircuitDef {
                 for (input, new_gate_input) in inner_inputs.iter().zip(circuit_state.circuit.get_gate(gate_added_to_main_circuit).inputs().collect::<Vec<_>>().into_iter()) {
                     // TODO: dont clone this
                     if let Some(inner_producer_idx) = input.producer {
-                        circuit_state.circuit.connect(convert_producer_idx(inner_producer_idx, &circuit_state.circuit, &gate_number_mapping), new_gate_input.into())
+                        if let Some(producer) = convert_producer_idx(inner_producer_idx, &circuit_state.circuit, &gate_number_mapping) {
+                            circuit_state.circuit.connect(producer, new_gate_input.into())
+                        }
                     }
                 }
 
                 gate_number_mapping.insert(subcircuit_gate_i, gate_added_to_main_circuit);
             }
 
-            Some(make_producer_bundle(
-                result_type,
-                &mut subcircuit.output_indexes().flat_map(|o| subcircuit.get_receiver(o.into()).producer.map(|producer| convert_producer_idx(producer, &circuit_state.circuit, &gate_number_mapping))),
-            )) // TODO: allow unconnected nodes
+            // prerequisites
+            // - null producers and null/void type (unconnected inputs)
+            // - multiple receivers (producer that connects to multiple outputs)
+            todo!("inlining gates")
+            /*
+            Some((
+                todo!(),
+                self.make_producer_bundle(
+                    &mut subcircuit
+                        .output_indexes()
+                        .flat_map(|co| subcircuit.get_receiver(co.into()).producer.map(|producer| convert_producer_idx(producer, &circuit_state.circuit, &gate_number_mapping))),
+                ),
+            ))
+            */
+            // TODO: allow unconnected nodes
         } else {
-            self.add_gate(circuit_state, expr_span, inputs)
+            self.add_gate(circuit_state)
         }
     }
 }
