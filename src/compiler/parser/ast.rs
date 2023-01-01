@@ -32,7 +32,7 @@ pub(crate) enum Type {
 }
 
 impl Type {
-    fn size(&self) -> usize {
+    pub(crate) fn size(&self) -> usize {
         match self {
             Type::Bit => 1,
             // Type::Array(len, item_type) => item_type.size() * len
