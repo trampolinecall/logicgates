@@ -165,7 +165,7 @@ fn convert_expr(global_state: &GlobalGenState, circuit_state: &mut CircuitGenSta
             let expr = convert_expr(global_state, circuit_state, *expr)?;
             let field = match &expr {
                 ProducerBundle::Single(_) => None,
-                ProducerBundle::Array(items) => match field_name.parse::<usize>() {
+                ProducerBundle::Product(items) => match field_name.parse::<usize>() {
                     Ok(i) if i < items.len() => Some(items[i].clone()),
                     _ => None,
                 },
@@ -181,7 +181,7 @@ fn convert_expr(global_state: &GlobalGenState, circuit_state: &mut CircuitGenSta
         ast::Expr::Multiple(exprs) => {
             let results = exprs.into_iter().map(|e| convert_expr(global_state, circuit_state, e));
             let results_no_none = results.collect::<Option<Vec<ProducerBundle>>>()?; // TODO: dont stop at the first one in order to report all the errors
-            Some(ProducerBundle::Array(results_no_none))
+            Some(ProducerBundle::Product(results_no_none))
         }
     }
 }

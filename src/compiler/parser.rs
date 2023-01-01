@@ -184,13 +184,9 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             self.next();
 
             let field: &'file str = match self.peek() {
-                Token::Number(n_str, _) => {
-                    Ok(n_str)
-                }
+                Token::Number(n_str, _) => Ok(n_str),
 
-                Token::Identifier(i) => {
-                    Ok(i)
-                }
+                Token::Identifier(i) => Ok(i),
 
                 _ => Err(self.expected("field name (a number or identifier)")),
             }?;
@@ -264,13 +260,24 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
             Token::OBrack => {
                 let _ = self.next();
-                let len = self.expect("array length", Token::is_number)?;
-                let len = len.as_number().unwrap();
-                let _ = self.expect("']'", Token::is_cbrack)?;
 
-                let ty = self.type_()?;
+                match self.peek() {
+                    Token::Number(_, _) => {
+                        let len = self.next();
+                        let len = len.as_number().unwrap();
 
-                Ok(ast::Type::Array(*len, Box::new(ty)))
+                        let _ = self.expect("']'", Token::is_cbrack)?;
+
+                        let ty = self.type_()?;
+
+                        Ok(ast::Type::Product((0..*len).map(|_| ty.clone()).collect()))
+                    }
+
+                    _ => {
+                        let tys = self.finish_list(Token::is_comma, "']'", Token::is_cbrack, Parser::type_)?;
+                        Ok(ast::Type::Product(tys))
+                    }
+                }
             }
 
             _ => Err(self.expected("type")),
