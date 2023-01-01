@@ -1,14 +1,12 @@
 use std::collections::HashMap;
 
-use crate::{
-    circuit,
-    compiler::{error::Report, parser::ast},
-};
-
-use super::{
-    bundle::{ProducerBundle, ReceiverBundle},
-    CircuitGenState, Error,
-};
+use super::bundle::ProducerBundle;
+use super::bundle::ReceiverBundle;
+use super::CircuitGenState;
+use super::Error;
+use crate::circuit;
+use crate::compiler::error::Report;
+use crate::compiler::parser::ast;
 
 pub(super) enum CircuitDef {
     Circuit { circuit: circuit::Circuit, input_types: Vec<ast::Type>, result_type: ast::Type },
@@ -19,8 +17,17 @@ pub(super) enum CircuitDef {
 impl CircuitDef {
     fn to_gate(&self, circuit_state: &mut CircuitGenState) -> (circuit::GateIndex, Vec<ReceiverBundle>, ProducerBundle) {
         // TODO: refactor this and probably refactor the rest of the module too
-        let make_receiver_bundles = |circuit_state: &CircuitGenState, types, gate_i| make_receiver_bundles(types, circuit_state.circuit.get_gate(gate_i).inputs().map(|input| input.into()));
-        let make_producer_bundle = |circuit_state: &CircuitGenState, types, gate_i| make_producer_bundle(types, circuit_state.circuit.get_gate(gate_i).outputs().map(|output| output.into()));
+        let make_receiver_bundles = |circuit_state: &CircuitGenState, types: &[ast::Type], gate_i| {
+            let inputs = circuit_state.circuit.get_gate(gate_i).inputs();
+            assert_eq!(types.iter().map(|type_| type_.size()).sum::<usize>(), inputs.len(), "receiver bundles have a different total size than the number of input nodes on the gate"); // sanity check
+            make_receiver_bundles(types, inputs.map(|input| input.into()))
+        };
+        let make_producer_bundle = |circuit_state: &CircuitGenState, type_: &ast::Type, gate_i| {
+            let outputs = circuit_state.circuit.get_gate(gate_i).outputs();
+            assert_eq!(type_.size(), outputs.len(), "producer bundle has a different size than the number of output nodes on the gate"); // sanity check
+            make_producer_bundle(&type_, outputs.map(|output| output.into()))
+        };
+
         match self {
             CircuitDef::Circuit { circuit, input_types, result_type } => {
                 let gate_i = circuit_state.circuit.new_subcircuit_gate(circuit.clone());
@@ -52,7 +59,7 @@ impl CircuitDef {
             None?
         }
 
-        for (producer_bundle, receiver_bundle) in inputs.into_iter().zip(input_bundles) {
+        for (producer_bundle, receiver_bundle) in inputs.iter().zip(input_bundles) {
             connect_bundle(&mut circuit_state.circuit, producer_bundle, &receiver_bundle)?;
         }
 
@@ -63,8 +70,8 @@ impl CircuitDef {
             use crate::circuit::GateIndex;
 
             let actual_input_types: Vec<_> = inputs.iter().map(|bundle| bundle.type_()).collect();
-            if actual_input_types.len() != (&expected_input_types).len() {
-                Error::ArgNumMismatchInCall { actual_arity: actual_input_types.len(), expected_arity: (&expected_input_types).len() }.report();
+            if actual_input_types.len() != expected_input_types.len() {
+                Error::ArgNumMismatchInCall { actual_arity: actual_input_types.len(), expected_arity: expected_input_types.len() }.report();
                 None?
             }
             for (input_type, expected_type) in actual_input_types.iter().zip(expected_input_types) {
