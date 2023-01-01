@@ -47,7 +47,6 @@ impl ReceiverBundle {
     }
 }
 
-// TODO: refactor
 pub(super) fn make_receiver_bundle(type_: &ty::Type, inputs: &mut impl Iterator<Item = circuit::ReceiverIdx>) -> ReceiverBundle {
     match type_ {
         ty::Type::Bit => ReceiverBundle::Single(inputs.next().expect("inputs should not run out when converting to bundle")),

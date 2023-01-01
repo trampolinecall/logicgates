@@ -161,7 +161,7 @@ fn convert_expr<'file>(global_state: &GlobalGenState, circuit_state: &mut Circui
             Some(name_resolved.clone())
         }
 
-        ast::Expr::Call(circuit_name, inline, input) => {
+        ast::Expr::Call(circuit_name, inline, arg) => {
             let name_resolved = match global_state.circuit_table.get(circuit_name.1) {
                 Some(n) => n,
                 None => {
@@ -170,15 +170,16 @@ fn convert_expr<'file>(global_state: &GlobalGenState, circuit_state: &mut Circui
                 }
             };
 
-            let input = convert_expr(global_state, circuit_state, *input)?;
-            if inline {
-                name_resolved.inline_gate(circuit_state, span, input)
-            } else {
-                name_resolved.add_gate(circuit_state, span, input)
-            }
+            let arg = convert_expr(global_state, circuit_state, *arg)?;
+            let (receiver, producer) = if inline { name_resolved.inline_gate(circuit_state) } else { name_resolved.add_gate(circuit_state) }?;
+            bundle::connect_bundle(&mut circuit_state.circuit, span, &arg, &receiver)?;
+            Some(producer)
         }
 
-        ast::Expr::Const(_, val) => CircuitDef::Const(val).add_gate(circuit_state, expr.span(), ProducerBundle::Product(Vec::new())),
+        ast::Expr::Const(_, val) => {
+            let (_, p) = CircuitDef::Const(val).add_gate(circuit_state)?;
+            Some(p)
+        }
 
         ast::Expr::Get(expr, field_name) => {
             let expr = convert_expr(global_state, circuit_state, *expr)?;
