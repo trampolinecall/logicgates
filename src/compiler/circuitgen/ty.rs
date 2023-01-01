@@ -19,8 +19,8 @@ impl Type {
         // TODO: this should have to happen through name resolution
         match ty {
             ast::Type::Bit(_) => Type::Bit,
-            ast::Type::Product { obrack, types, cbrack } => Type::Product(types.iter().map(Type::from_ast).collect()),
-            ast::Type::RepProduct { obrack, num, cbrack, type_ } => {
+            ast::Type::Product { obrack: _, types, cbrack: _ } => Type::Product(types.iter().map(Type::from_ast).collect()),
+            ast::Type::RepProduct { obrack: _, num, cbrack: _, type_ } => {
                 let ty = Type::from_ast(type_);
                 Type::Product((0..num.1).map(|_| ty.clone()).collect())
             }
