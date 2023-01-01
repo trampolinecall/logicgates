@@ -1,6 +1,9 @@
+use crate::compiler::error::Span;
+
+// TODO: make enums into Thing and ThingKind
 #[derive(PartialEq, Debug)]
 pub(crate) struct Circuit<'file> {
-    pub(crate) name: &'file str,
+    pub(crate) name: Span<'file>,
     pub(crate) input: Pattern<'file>,
     pub(crate) lets: Vec<Let<'file>>,
     pub(crate) output: Expr<'file>,
@@ -14,30 +17,40 @@ pub(crate) struct Let<'file> {
 
 #[derive(PartialEq, Debug)]
 pub(crate) enum Expr<'file> {
-    Ref(&'file str),
-    Call(&'file str, bool, Box<Expr<'file>>),
-    Const(bool),
-    Get(Box<Expr<'file>>, &'file str),
-    Multiple(Vec<Expr<'file>>),
+    Ref(Span<'file>),
+    Call(Span<'file>, bool, Box<Expr<'file>>),
+    Const(Span<'file>, bool),
+    Get(Box<Expr<'file>>, Span<'file>),
+    Multiple(Span<'file>, Vec<Expr<'file>>),
 }
 
 #[derive(PartialEq, Debug)]
 pub(crate) enum Pattern<'file> {
-    Identifier( &'file str, Type),
-    Product(Vec<Pattern<'file>>),
+    Identifier(Span<'file>, LType<'file>),
+    Product(Span<'file>, Vec<Pattern<'file>>),
 }
 
 #[derive(PartialEq, Debug, Clone)]
+pub(crate) struct LType<'file>(pub(crate) Span<'file>, pub(crate) Type); // TODO: turn this into ast::Type
+#[derive(PartialEq, Debug, Clone)]
 pub(crate) enum Type {
+    // TODO: turn this into ir::Type
     Bit,
     Product(Vec<Type>), // TODO: named product types
 }
 
-impl Pattern<'_> {
+impl<'file> Pattern<'file> {
     pub(crate) fn type_(&self) -> Type {
         match self {
-            Pattern::Identifier(_, ty) => ty.clone(),
-            Pattern::Product(pats) => Type::Product(pats.iter().map(Pattern::type_).collect()),
+            Pattern::Identifier(_, ty) => ty.1.clone(),
+            Pattern::Product(_, pats) => Type::Product(pats.iter().map(Pattern::type_).collect()),
+        }
+    }
+
+    pub(crate) fn span(&self) -> Span<'file> {
+        match self {
+            Pattern::Identifier(sp, ty) => *sp + ty.span(),
+            Pattern::Product(sp, _) => *sp,
         }
     }
 }
@@ -47,6 +60,11 @@ impl Type {
             Type::Bit => 1,
             Type::Product(items) => items.iter().map(Type::size).sum(),
         }
+    }
+}
+impl<'file> LType<'file> {
+    fn span(&self) -> Span<'file> {
+        self.0
     }
 }
 
@@ -66,6 +84,17 @@ impl std::fmt::Display for Type {
 
                 Ok(())
             }
+        }
+    }
+}
+impl<'file> Expr<'file> {
+    pub(crate) fn span(&self) -> Span<'file> {
+        match self {
+            Expr::Ref(sp) => *sp,
+            Expr::Call(circuit_name, _, arg) => *circuit_name + arg.span(),
+            Expr::Const(sp, _) => *sp,
+            Expr::Get(expr, field) => expr.span() + *field,
+            Expr::Multiple(sp, _) => *sp,
         }
     }
 }
