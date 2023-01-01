@@ -11,13 +11,13 @@ struct Parser<'file, T: Iterator<Item = Token<'file>>> {
 }
 
 #[derive(Debug, PartialEq)]
-struct ParseError {
+struct ParseError<'file> {
     // TODO: more descriptive messages
     expected: &'static str,
-    got: String,
+    got: Token<'file>,
 }
 
-impl From<ParseError> for CompileError {
+impl From<ParseError<'_>> for CompileError {
     fn from(ParseError { expected, got }: ParseError) -> Self {
         CompileError { message: format!("expected {expected}, got {got}") }
     }
@@ -31,11 +31,11 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         self.tokens.next().unwrap()
     }
 
-    fn expect<TokData>(&mut self, matcher: TokenMatcher<'file, TokData>) -> Result<TokData, ParseError> {
+    fn expect<TokData>(&mut self, matcher: TokenMatcher<'file, TokData>) -> Result<TokData, ParseError<'file>> {
         if matcher.matches(self.peek()) {
             Ok(matcher.convert(self.next()))
         } else {
-            Err(self.expected(matcher.name()))
+            Err(self.expected_and_next(matcher.name()))
         }
     }
     fn maybe_consume<TokData>(&mut self, matcher: TokenMatcher<'file, TokData>) -> Option<TokData> {
@@ -46,8 +46,8 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         }
     }
 
-    fn expected(&mut self, thing: &'static str) -> ParseError {
-        ParseError { expected: thing, got: self.peek().to_string() }
+    fn expected_and_next(&mut self, thing: &'static str) -> ParseError<'file> {
+        ParseError { expected: thing, got: self.next() }
     }
 
     fn list<StartData, DelimData, EndData, A>(
@@ -55,8 +55,8 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         start: TokenMatcher<'file, StartData>,
         delim: TokenMatcher<'file, DelimData>,
         ending: TokenMatcher<'file, EndData>,
-        thing: impl for<'p> FnMut(&'p mut Parser<'file, T>) -> Result<A, ParseError>,
-    ) -> Result<Vec<A>, ParseError> {
+        thing: impl for<'p> FnMut(&'p mut Parser<'file, T>) -> Result<A, ParseError<'file>>,
+    ) -> Result<Vec<A>, ParseError<'file>> {
         self.expect(start)?;
         self.finish_list(delim, ending, thing)
     }
@@ -65,8 +65,8 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         &mut self,
         delim: TokenMatcher<'file, DelimData>,
         ending: TokenMatcher<'file, EndData>,
-        mut thing: impl for<'p> FnMut(&'p mut Parser<'file, T>) -> Result<A, ParseError>,
-    ) -> Result<Vec<A>, ParseError> {
+        mut thing: impl for<'p> FnMut(&'p mut Parser<'file, T>) -> Result<A, ParseError<'file>>,
+    ) -> Result<Vec<A>, ParseError<'file>> {
         let mut items = Vec::new();
 
         while !ending.matches(self.peek()) {
@@ -92,7 +92,6 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             match self.circuit() {
                 Ok(circuit) => circuits.push(circuit),
                 Err(e) => {
-                    self.next();
                     e.report();
                 }
             }
@@ -101,7 +100,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         Some(circuits)
     }
 
-    fn circuit(&mut self) -> Result<ast::Circuit<'file>, ParseError> {
+    fn circuit(&mut self) -> Result<ast::Circuit<'file>, ParseError<'file>> {
         self.expect(/* TODO: "circuit name (starting with '`')", */ Token::backtick_matcher())?;
         let name = self.expect(/* "circuit name after '`'", */ Token::identifier_matcher())?;
         let arguments = self.pattern()?;
@@ -116,7 +115,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         Ok(ast::Circuit { name, input: arguments, lets, output: ret })
     }
 
-    fn r#let(&mut self) -> Result<ast::Let<'file>, ParseError> {
+    fn r#let(&mut self) -> Result<ast::Let<'file>, ParseError<'file>> {
         self.expect(Token::let_matcher())?;
         let pat = self.pattern()?;
 
@@ -126,7 +125,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         Ok(ast::Let { pat, val })
     }
 
-    fn pattern(&mut self) -> Result<ast::Pattern<'file>, ParseError> {
+    fn pattern(&mut self) -> Result<ast::Pattern<'file>, ParseError<'file>> {
         match self.peek() {
             Token::Identifier(_) => {
                 let iden = Token::identifier_matcher().convert(self.next());
@@ -144,11 +143,11 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 let patterns = self.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::pattern)?;
                 Ok(ast::Pattern::Product(patterns))
             }
-            _ => Err(self.expected("pattern")),
+            _ => Err(self.expected_and_next("pattern")),
         }
     }
 
-    fn expr(&mut self) -> Result<ast::Expr<'file>, ParseError> {
+    fn expr(&mut self) -> Result<ast::Expr<'file>, ParseError<'file>> {
         let mut left = self.primary_expr()?;
 
         while Token::dot_matcher().matches(self.peek()) {
@@ -159,7 +158,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 Token::Identifier(i) => Ok(i),
 
-                _ => Err(self.expected("field name (a number or identifier)")),
+                _ => Err(self.expected_and_next("field name (a number or identifier)")),
             }?;
             self.next();
 
@@ -169,7 +168,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         Ok(left)
     }
 
-    fn primary_expr(&mut self) -> Result<ast::Expr<'file>, ParseError> {
+    fn primary_expr(&mut self) -> Result<ast::Expr<'file>, ParseError<'file>> {
         match self.peek() {
             Token::Number(_, _) => {
                 let n = Token::number_matcher().convert(self.next());
@@ -177,7 +176,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 match n {
                     0 => Ok(ast::Expr::Const(false)),
                     1 => Ok(ast::Expr::Const(true)),
-                    _ => Err(self.expected("'0' or '1'")),
+                    _ => Err(self.expected_and_next("'0' or '1'")),
                 }
             }
             Token::Backtick => {
@@ -215,11 +214,11 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 Ok(ast::Expr::Multiple(items))
             }
 
-            _ => Err(self.expected("expression"))?,
+            _ => Err(self.expected_and_next("expression"))?,
         }
     }
 
-    fn type_(&mut self) -> Result<ast::Type, ParseError> {
+    fn type_(&mut self) -> Result<ast::Type, ParseError<'file>> {
         match self.peek() {
             Token::Backtick => {
                 let _ = self.next();
@@ -247,7 +246,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 }
             }
 
-            _ => Err(self.expected("type")),
+            _ => Err(self.expected_and_next("type")),
         }
     }
 }
