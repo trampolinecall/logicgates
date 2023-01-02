@@ -6,6 +6,8 @@ use crate::compiler::lexer::token::TokenMatcher;
 use crate::compiler::lexer::Token;
 use std::iter::Peekable;
 
+use super::ir;
+
 struct Parser<'file, T: Iterator<Item = Token<'file>>> {
     tokens: Peekable<T>,
 }
@@ -86,7 +88,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 }
 
 impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
-    fn parse(&mut self) -> Option<Vec<ast::Circuit<'file>>> {
+    fn parse(&mut self) -> Vec<ast::Circuit<'file>> {
         let mut circuits = Vec::new();
         while !Token::eof_matcher().matches(self.peek()) {
             match self.circuit() {
@@ -97,7 +99,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             }
         }
 
-        Some(circuits)
+        circuits
     }
 
     fn circuit(&mut self) -> Result<ast::Circuit<'file>, ParseError<'file>> {
@@ -134,14 +136,14 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let type_ = self.type_()?;
 
-                Ok(ast::Pattern::Identifier(iden, type_))
+                Ok(ast::Pattern { kind: ir::PatternKind::Identifier(iden.0, iden.1, type_), type_info: () })
             }
 
             &Token::OBrack(obrack) => {
                 self.next();
 
                 let (patterns, cbrack) = self.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::pattern)?;
-                Ok(ast::Pattern::Product(obrack + cbrack, patterns))
+                Ok(ast::Pattern { kind: ir::PatternKind::Product(obrack + cbrack, patterns), type_info: () })
             }
             _ => Err(self.expected_and_next("pattern")),
         }
@@ -162,7 +164,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             }?;
             self.next();
 
-            left = ast::Expr::Get(Box::new(left), field);
+            left = ast::Expr { kind: ir::ExprKind::Get(Box::new(left), field), type_info: () };
         }
 
         Ok(left)
@@ -174,8 +176,8 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 let (n_sp, _, n) = Token::number_matcher().convert(self.next());
 
                 match n {
-                    0 => Ok(ast::Expr::Const(n_sp, false)),
-                    1 => Ok(ast::Expr::Const(n_sp, true)),
+                    0 => Ok(ast::Expr { kind: ir::ExprKind::Const(n_sp, false), type_info: () }),
+                    1 => Ok(ast::Expr { kind: ir::ExprKind::Const(n_sp, true), type_info: () }),
                     _ => Err(self.expected_and_next("'0' or '1'")),
                 }
             }
@@ -187,13 +189,13 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let arg = self.expr()?;
 
-                Ok(ast::Expr::Call(i, inline, Box::new(arg)))
+                Ok(ast::Expr { kind: ir::ExprKind::Call(i, inline, Box::new(arg)), type_info: () })
             }
 
             Token::Identifier(_, _) => {
                 let i = Token::identifier_matcher().convert(self.next());
 
-                Ok(ast::Expr::Ref(i.0, i.1))
+                Ok(ast::Expr { kind: ir::ExprKind::Ref(i.0, i.1), type_info: () })
             }
 
             Token::OBrack(obrack_sp) => {
@@ -212,7 +214,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let cbrack_sp = self.expect(Token::cbrack_matcher())?;
 
-                Ok(ast::Expr::Multiple(obrack_sp + cbrack_sp, items))
+                Ok(ast::Expr { kind: ir::ExprKind::Multiple(obrack_sp + cbrack_sp, items), type_info: () })
             }
 
             _ => Err(self.expected_and_next("expression"))?,
@@ -265,7 +267,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     }
 }
 
-pub(crate) fn parse<'file>(tokens: impl Iterator<Item = Token<'file>>) -> Option<Vec<ast::Circuit<'file>>> {
+pub(crate) fn parse<'file>(tokens: impl Iterator<Item = Token<'file>>) -> Vec<ast::Circuit<'file>> {
     Parser { tokens: tokens.peekable() }.parse()
 }
 
@@ -291,7 +293,10 @@ mod test {
 
         let tokens = make_token_stream([Token::OBrack(sp), Token::Identifier(sp, "a"), Token::Comma(sp), Token::Identifier(sp, "b"), Token::CBrack(sp)], sp);
 
-        assert_eq!(Parser { tokens }.list(Token::obrack_matcher(), Token::comma_matcher(), Token::cbrack_matcher(), Parser::expr), Ok((vec![ast::Expr::Ref(sp, "a"), ast::Expr::Ref(sp, "b")], sp)));
+        assert_eq!(
+            Parser { tokens }.list(Token::obrack_matcher(), Token::comma_matcher(), Token::cbrack_matcher(), Parser::expr),
+            Ok((vec![ir::ExprKind::Ref(sp, "a"), ir::ExprKind::Ref(sp, "b")], sp))
+        );
     }
 
     #[test]
@@ -301,7 +306,10 @@ mod test {
 
         let tokens = make_token_stream([Token::OBrack(sp), Token::Identifier(sp, "a"), Token::Comma(sp), Token::Identifier(sp, "b"), Token::Comma(sp), Token::CBrack(sp)], sp);
 
-        assert_eq!(Parser { tokens }.list(Token::obrack_matcher(), Token::comma_matcher(), Token::cbrack_matcher(), Parser::expr), Ok((vec![ast::Expr::Ref(sp, "a"), ast::Expr::Ref(sp, "b")], sp)));
+        assert_eq!(
+            Parser { tokens }.list(Token::obrack_matcher(), Token::comma_matcher(), Token::cbrack_matcher(), Parser::expr),
+            Ok((vec![ir::ExprKind::Ref(sp, "a"), ir::ExprKind::Ref(sp, "b")], sp))
+        );
     }
 
     // TODO: test inline calls
@@ -346,9 +354,9 @@ mod test {
                 input: ast::Pattern::Identifier((sp, "arg"), ast::Type::Bit(sp)),
                 lets: vec![ast::Let {
                     pat: ast::Pattern::Identifier((sp, "res"), ast::Type::Bit(sp)),
-                    val: ast::Expr::Call((sp, "and"), false, Box::new(ast::Expr::Multiple(sp, vec![ast::Expr::Ref(sp, "arg"), ast::Expr::Ref(sp, "arg")])))
+                    val: ir::ExprKind::Call((sp, "and"), false, Box::new(ir::ExprKind::Multiple(sp, vec![ir::ExprKind::Ref(sp, "arg"), ir::ExprKind::Ref(sp, "arg")])))
                 }],
-                output: ast::Expr::Ref(sp, "res")
+                output: ir::ExprKind::Ref(sp, "res")
             }])
         );
     }
@@ -359,7 +367,7 @@ mod test {
         let sp = file.eof_span();
 
         let tokens = make_token_stream([Token::Let(sp), Token::Identifier(sp, "a"), Token::Semicolon(sp), Token::Backtick(sp), Token::Equals(sp), Token::Identifier(sp, "b")], sp);
-        assert_eq!(Parser { tokens: tokens }.r#let(), Ok(ast::Let { pat: ast::Pattern::Identifier((sp, "a"), ast::Type::Bit(sp)), val: ast::Expr::Ref(sp, "b") }));
+        assert_eq!(Parser { tokens: tokens }.r#let(), Ok(ast::Let { pat: ast::Pattern::Identifier((sp, "a"), ast::Type::Bit(sp)), val: ir::ExprKind::Ref(sp, "b") }));
     }
 
     #[test]
@@ -377,10 +385,10 @@ mod test {
         let sp = file.eof_span();
 
         let tokens_0 = make_token_stream([Token::Number(sp, "0", 0)], sp);
-        assert_eq!(Parser { tokens: tokens_0 }.expr(), Ok(ast::Expr::Const(sp, false)));
+        assert_eq!(Parser { tokens: tokens_0 }.expr(), Ok(ir::ExprKind::Const(sp, false)));
 
         let tokens_1 = make_token_stream([Token::Number(sp, "1", 1)], sp);
-        assert_eq!(Parser { tokens: tokens_1 }.expr(), Ok(ast::Expr::Const(sp, true)));
+        assert_eq!(Parser { tokens: tokens_1 }.expr(), Ok(ir::ExprKind::Const(sp, true)));
     }
 
     #[test]
@@ -389,7 +397,7 @@ mod test {
         let sp = file.eof_span();
 
         let tokens = make_token_stream([Token::Backtick(sp), Token::Identifier(sp, "a"), Token::Identifier(sp, "b")], sp);
-        assert_eq!(Parser { tokens: tokens }.expr(), Ok(ast::Expr::Call((sp, "a"), false, Box::new(ast::Expr::Ref(sp, "b")))));
+        assert_eq!(Parser { tokens: tokens }.expr(), Ok(ir::ExprKind::Call((sp, "a"), false, Box::new(ir::ExprKind::Ref(sp, "b")))));
     }
 
     #[test]
@@ -398,7 +406,7 @@ mod test {
         let sp = file.eof_span();
 
         let tokens = make_token_stream([Token::Identifier(sp, "a")], sp);
-        assert_eq!(Parser { tokens }.expr(), Ok(ast::Expr::Ref(sp, "a")));
+        assert_eq!(Parser { tokens }.expr(), Ok(ir::ExprKind::Ref(sp, "a")));
     }
 
     #[test]
@@ -420,7 +428,10 @@ mod test {
             ],
             sp,
         );
-        assert_eq!(Parser { tokens }.expr(), Ok(ast::Expr::Multiple(sp, vec![ast::Expr::Ref(sp, "a"), ast::Expr::Ref(sp, "b"), ast::Expr::Const(sp, false), ast::Expr::Const(sp, true)])));
+        assert_eq!(
+            Parser { tokens }.expr(),
+            Ok(ir::ExprKind::Multiple(sp, vec![ir::ExprKind::Ref(sp, "a"), ir::ExprKind::Ref(sp, "b"), ir::ExprKind::Const(sp, false), ir::ExprKind::Const(sp, true)]))
+        );
     }
 
     // TODO: test array types, types in general

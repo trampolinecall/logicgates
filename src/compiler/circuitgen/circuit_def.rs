@@ -7,49 +7,46 @@ use crate::compiler::circuitgen::bundle;
 
 pub(super) enum CircuitDef {
     Circuit { circuit: circuit::Circuit, input_type: ty::TypeSym, result_type: ty::TypeSym },
-    And,
-    Not,
-    Const(bool),
+    And { input_type: ty::TypeSym, result_type: ty::TypeSym },
+    Not { input_type: ty::TypeSym, result_type: ty::TypeSym },
+    Const { value: bool, input_type: ty::TypeSym, result_type: ty::TypeSym },
 }
 impl<'types> CircuitDef {
-    fn input_type(&self, types: &'types mut ty::Types) -> ty::TypeSym {
+    fn input_type(&self) -> ty::TypeSym {
         match self {
             CircuitDef::Circuit { circuit: _, input_type, result_type: _ } => *input_type,
-            CircuitDef::And => {
-                let ty = ty::Type::Product(vec![("0".to_string(), types.intern(ty::Type::Bit)), ("1".to_string(), types.intern(ty::Type::Bit))]);
-                types.intern(ty)
-            }
-            CircuitDef::Not => types.intern(ty::Type::Bit),
-            CircuitDef::Const(_) => types.intern(ty::Type::Product(vec![])),
+            CircuitDef::And { input_type, result_type: _ } => *input_type,
+            CircuitDef::Not { input_type, result_type: _ } => *input_type,
+            CircuitDef::Const { value: _, input_type, result_type: _ } => *input_type,
         }
     }
-    fn output_type(&self, types: &'types mut ty::Types) -> ty::TypeSym {
+    fn output_type(&self) -> ty::TypeSym {
         match self {
             CircuitDef::Circuit { circuit: _, input_type: _, result_type } => *result_type,
-            CircuitDef::And => types.intern(ty::Type::Bit),
-            CircuitDef::Not => types.intern(ty::Type::Bit),
-            CircuitDef::Const(_) => types.intern(ty::Type::Bit),
+            CircuitDef::And { input_type: _, result_type } => *result_type,
+            CircuitDef::Not { input_type: _, result_type } => *result_type,
+            CircuitDef::Const { value: _, input_type: _, result_type } => *result_type,
         }
     }
 
-    fn make_receiver_bundle(&self, types: &'types mut ty::Types, inputs: &mut impl ExactSizeIterator<Item = circuit::ReceiverIdx>) -> bundle::ReceiverBundle {
-        let input_type = self.input_type(types);
+    fn make_receiver_bundle(&self, types: &'types ty::Types, inputs: &mut impl ExactSizeIterator<Item = circuit::ReceiverIdx>) -> bundle::ReceiverBundle {
+        let input_type = self.input_type();
         assert_eq!(types.get(input_type).size(types), inputs.len(), "receiver bundles have a different total size than the number of input nodes on the gate"); // sanity check
         bundle::make_receiver_bundle(types, input_type, inputs)
     }
 
-    fn make_producer_bundle(&self, types: &'types mut ty::Types, outputs: &mut impl ExactSizeIterator<Item = circuit::ProducerIdx>) -> bundle::ProducerBundle {
-        let output_type = self.output_type(types);
+    fn make_producer_bundle(&self, types: &'types ty::Types, outputs: &mut impl ExactSizeIterator<Item = circuit::ProducerIdx>) -> bundle::ProducerBundle {
+        let output_type = self.output_type();
         assert_eq!(types.get(output_type).size(types), outputs.len(), "producer bundle has a different size than the number of output nodes on the gate"); // sanity check
         bundle::make_producer_bundle(types, output_type, outputs)
     }
 
-    pub(super) fn add_gate(&self, types: &'types mut ty::Types, circuit_state: &mut CircuitGenState) -> Option<(bundle::ReceiverBundle, bundle::ProducerBundle)> {
+    pub(super) fn add_gate(&self, types: &'types ty::Types, circuit_state: &mut CircuitGenState) -> Option<(bundle::ReceiverBundle, bundle::ProducerBundle)> {
         let gate_i = match self {
             CircuitDef::Circuit { circuit, input_type: _, result_type: _ } => circuit_state.circuit.new_subcircuit_gate(circuit.clone()),
-            CircuitDef::And => circuit_state.circuit.new_and_gate(),
-            CircuitDef::Not => circuit_state.circuit.new_not_gate(),
-            CircuitDef::Const(value) => circuit_state.circuit.new_const_gate(*value),
+            CircuitDef::And { input_type: _, result_type: _ } => circuit_state.circuit.new_and_gate(),
+            CircuitDef::Not { input_type: _, result_type: _ } => circuit_state.circuit.new_not_gate(),
+            CircuitDef::Const { value, input_type: _, result_type: _ } => circuit_state.circuit.new_const_gate(*value),
         };
 
         let input_bundle = self.make_receiver_bundle(types, &mut circuit_state.circuit.get_gate(gate_i).inputs().map(|input| input.into()));
@@ -57,7 +54,7 @@ impl<'types> CircuitDef {
 
         Some((input_bundle, output_bundle))
     }
-    pub(crate) fn inline_gate(&self, types: &'types mut ty::Types, circuit_state: &mut CircuitGenState) -> Option<(bundle::ReceiverBundle, bundle::ProducerBundle)> {
+    pub(crate) fn inline_gate(&self, types: &'types ty::Types, circuit_state: &mut CircuitGenState) -> Option<(bundle::ReceiverBundle, bundle::ProducerBundle)> {
         if let CircuitDef::Circuit { circuit: subcircuit, input_type: _, result_type: _ } = self {
             use crate::circuit::GateIndex;
 

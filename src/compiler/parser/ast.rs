@@ -1,34 +1,10 @@
-use crate::compiler::error::Span;
+use crate::compiler::{error::Span, ir};
 
 // TODO: make enums into Thing and ThingKind
-#[derive(PartialEq, Debug)]
-pub(crate) struct Circuit<'file> {
-    pub(crate) name: (Span<'file>, &'file str),
-    pub(crate) input: Pattern<'file>,
-    pub(crate) lets: Vec<Let<'file>>,
-    pub(crate) output: Expr<'file>,
-}
-
-#[derive(PartialEq, Debug)]
-pub(crate) struct Let<'file> {
-    pub(crate) pat: Pattern<'file>,
-    pub(crate) val: Expr<'file>,
-}
-
-#[derive(PartialEq, Debug)]
-pub(crate) enum Expr<'file> {
-    Ref(Span<'file>, &'file str),
-    Call((Span<'file>, &'file str), bool, Box<Expr<'file>>),
-    Const(Span<'file>, bool),
-    Get(Box<Expr<'file>>, (Span<'file>, &'file str)),
-    Multiple(Span<'file>, Vec<Expr<'file>>),
-}
-
-#[derive(PartialEq, Debug)]
-pub(crate) enum Pattern<'file> {
-    Identifier((Span<'file>, &'file str), Type<'file>),
-    Product(Span<'file>, Vec<Pattern<'file>>),
-}
+pub(crate) type Circuit<'file> = ir::Circuit<'file, Pattern<'file>, Expr<'file>>;
+pub(crate) type Let<'file> = ir::Let<Pattern<'file>, Expr<'file>>;
+pub(crate) type Pattern<'file> = ir::Pattern<'file, ()>;
+pub(crate) type Expr<'file> = ir::Expr<'file, ()>;
 
 #[derive(PartialEq, Debug, Clone)]
 pub(crate) enum Type<'file> {
@@ -45,26 +21,6 @@ impl<'file> Type<'file> {
             Type::Product { obrack, types: _, cbrack } => *obrack + *cbrack,
             Type::RepProduct { obrack, num: _, cbrack: _, type_ } => *obrack + type_.span(),
             Type::NamedProduct { obrack, named: _, types: _, cbrack } => *obrack + *cbrack,
-        }
-    }
-}
-
-impl<'file> Pattern<'file> {
-    pub(crate) fn span(&self) -> Span<'file> {
-        match self {
-            Pattern::Identifier((sp, _), ty) => *sp + ty.span(),
-            Pattern::Product(sp, _) => *sp,
-        }
-    }
-}
-impl<'file> Expr<'file> {
-    pub(crate) fn span(&self) -> Span<'file> {
-        match self {
-            Expr::Ref(sp, _) => *sp,
-            Expr::Call((circuit_name_sp, _), _, arg) => *circuit_name_sp + arg.span(),
-            Expr::Const(sp, _) => *sp,
-            Expr::Get(expr, (field_sp, _)) => expr.span() + *field_sp,
-            Expr::Multiple(sp, _) => *sp,
         }
     }
 }

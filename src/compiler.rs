@@ -1,8 +1,11 @@
 mod circuitgen;
 #[macro_use]
 mod error;
+mod ir;
 mod lexer;
 mod parser;
+mod ty;
+mod typing;
 
 use crate::circuit;
 
@@ -18,5 +21,5 @@ pub(crate) fn compile(filename: &str) -> Option<circuit::Circuit> {
         }
     };
 
-    circuitgen::generate(&file, parser::parse(lexer::lex(&file))?)
+    circuitgen::generate(&file, typing::type_(parser::parse(lexer::lex(&file))))
 }
