@@ -34,7 +34,7 @@ pub(crate) enum Pattern<'file> {
 pub(crate) enum Type<'file> {
     Bit(Span<'file>),
     Product { obrack: Span<'file>, types: Vec<Type<'file>>, cbrack: Span<'file> }, // TODO: named product types
-    RepProduct { obrack: Span<'file>, num: (Span<'file>, usize), cbrack: Span<'file>, type_: Box<Type<'file>> }
+    RepProduct { obrack: Span<'file>, num: (Span<'file>, usize), cbrack: Span<'file>, type_: Box<Type<'file>> },
 }
 
 impl<'file> Type<'file> {

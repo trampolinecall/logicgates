@@ -12,7 +12,7 @@ pub(crate) fn compile(filename: &str) -> Option<circuit::Circuit> {
     // TODO: do not return result if any errors are generated
     let file = match File::load(filename) {
         Ok(file) => file,
-        Err(e) =>  {
+        Err(e) => {
             eprintln!("error: {e}");
             return None;
         }

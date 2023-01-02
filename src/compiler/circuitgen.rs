@@ -32,7 +32,7 @@ struct GlobalGenState<'file> {
     circuit_table: HashMap<&'file str, CircuitDef>,
 }
 
-impl<'file, 'types> GlobalGenState<'file> {
+impl<'file> GlobalGenState<'file> {
     fn new() -> Self {
         let mut circuit_table = HashMap::new();
         circuit_table.insert("and", CircuitDef::And);
@@ -111,13 +111,13 @@ fn convert_circuit<'ggs, 'types, 'file>(
     assert_eq!(input_type.size(types), circuit_state.circuit.num_inputs(), "number of circuit inputs should be equal to the number of input bits"); // sanity check
 
     let input_bundle = bundle::make_producer_bundle(types, input_type_sym, &mut circuit_state.circuit.input_indexes().map(|circuit_input_idx| circuit_input_idx.into()));
-    if let Err(e) = assign_pattern(global_state, types, &mut circuit_state, &circuit_ast.input, input_bundle) {
+    if let Err(e) = assign_pattern(types, &mut circuit_state, &circuit_ast.input, input_bundle) {
         (&*types, e).report();
     }
 
     for ast::Let { pat, val } in circuit_ast.lets {
         let result = convert_expr(global_state, types, &mut circuit_state, val)?;
-        if let Err(e) = assign_pattern(global_state, types, &mut circuit_state, &pat, result) {
+        if let Err(e) = assign_pattern(types, &mut circuit_state, &pat, result) {
             (&*types, e).report();
         }
     }
@@ -139,13 +139,7 @@ fn convert_circuit<'ggs, 'types, 'file>(
     Some((name, circuit_state.circuit, ty::Type::pat_type(types, &circuit_ast.input), output_value.type_(types)))
 }
 
-fn assign_pattern<'ggs, 'types, 'cgs, 'file>(
-    global_state: &'ggs GlobalGenState<'file>,
-    types: &'types mut ty::Types,
-    circuit_state: &'cgs mut CircuitGenState<'file>,
-    pat: &ast::Pattern<'file>,
-    bundle: ProducerBundle,
-) -> Result<(), Error<'file>> {
+fn assign_pattern<'types, 'cgs, 'file>(types: &'types mut ty::Types, circuit_state: &'cgs mut CircuitGenState<'file>, pat: &ast::Pattern<'file>, bundle: ProducerBundle) -> Result<(), Error<'file>> {
     if bundle.type_(types) != ty::Type::pat_type(types, pat) {
         Err(Error::TypeMismatchInAssignment { pat_sp: pat.span(), actual_type: bundle.type_(types), pattern_type: ty::Type::pat_type(types, pat) })?
     }
@@ -157,7 +151,7 @@ fn assign_pattern<'ggs, 'types, 'cgs, 'file>(
         (ast::Pattern::Product(_, subpats), ProducerBundle::Product(subbundles)) => {
             assert_eq!(subpats.len(), subbundles.len(), "assign product pattern to procut bundle with different length"); // sanity check
             for (subpat, subbundle) in subpats.iter().zip(subbundles) {
-                assign_pattern(global_state, types, circuit_state, subpat, subbundle)?;
+                assign_pattern(types, circuit_state, subpat, subbundle)?;
             }
         }
 
