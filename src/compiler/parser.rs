@@ -98,8 +98,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     }
 
     fn circuit(&mut self) -> Result<ast::CircuitAST<'file>, ParseError<'file>> {
-        self.expect(/* TODO: "circuit name (starting with '`')", */ Token::apostrophe_matcher())?;
-        let name = self.expect(/* "circuit name after '`'", */ Token::identifier_matcher())?;
+        let name = self.expect(/* "circuit name", */ Token::identifier_matcher())?;
 
         let input_type = self.type_()?;
         let output_type = self.type_()?;
