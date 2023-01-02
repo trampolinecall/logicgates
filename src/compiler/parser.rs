@@ -105,7 +105,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     }
 
     fn circuit(&mut self) -> Result<ast::CircuitAST<'file>, ParseError<'file>> {
-        self.expect(/* TODO: "circuit name (starting with '`')", */ Token::backtick_matcher())?;
+        self.expect(/* TODO: "circuit name (starting with '`')", */ Token::quote_matcher())?;
         let name = self.expect(/* "circuit name after '`'", */ Token::identifier_matcher())?;
         let arguments = self.pattern()?;
         let mut lets = Vec::new();
@@ -183,7 +183,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                     _ => Err(self.expected_and_next("'0' or '1'")),
                 }
             }
-            Token::Backtick(_) => {
+            Token::Quote(_) => {
                 let _ = self.next();
                 let i = self.expect(/* "circuit name after '`'", */ Token::identifier_matcher())?;
 
@@ -224,7 +224,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
     fn type_(&mut self) -> Result<ast::TypeAST<'file>, ParseError<'file>> {
         match *self.peek() {
-            Token::Backtick(sp) => {
+            Token::Quote(sp) => {
                 let _ = self.next();
                 Ok(ast::TypeAST::Bit(sp))
             }
@@ -322,17 +322,17 @@ mod test {
         */
         let tokens = make_token_stream(
             [
-                Token::Backtick(sp),
+                Token::Quote(sp),
                 Token::Identifier(sp, "thingy"),
                 Token::Identifier(sp, "arg"),
                 Token::Semicolon(sp),
-                Token::Backtick(sp),
+                Token::Quote(sp),
                 Token::Let(sp),
                 Token::Identifier(sp, "res"),
                 Token::Semicolon(sp),
-                Token::Backtick(sp),
+                Token::Quote(sp),
                 Token::Equals(sp),
-                Token::Backtick(sp),
+                Token::Quote(sp),
                 Token::Identifier(sp, "and"),
                 Token::OBrack(sp),
                 Token::Identifier(sp, "arg"),
@@ -363,7 +363,7 @@ mod test {
         let file = File::test_file();
         let sp = file.eof_span();
 
-        let tokens = make_token_stream([Token::Let(sp), Token::Identifier(sp, "a"), Token::Semicolon(sp), Token::Backtick(sp), Token::Equals(sp), Token::Identifier(sp, "b")], sp);
+        let tokens = make_token_stream([Token::Let(sp), Token::Identifier(sp, "a"), Token::Semicolon(sp), Token::Quote(sp), Token::Equals(sp), Token::Identifier(sp, "b")], sp);
         assert_eq!(
             Parser { tokens: tokens }.r#let(),
             Ok(ast::LetAST { pat: ast::PatternAST { kind: ir::PatternKind::Identifier(sp, "a", ast::TypeAST::Bit(sp)), type_info: () }, val: ir::Expr::Ref(sp, "b") })
@@ -375,7 +375,7 @@ mod test {
         let file = File::test_file();
         let sp = file.eof_span();
 
-        let tokens = make_token_stream([Token::Identifier(sp, "iden"), Token::Semicolon(sp), Token::Backtick(sp)], sp);
+        let tokens = make_token_stream([Token::Identifier(sp, "iden"), Token::Semicolon(sp), Token::Quote(sp)], sp);
         assert_eq!(Parser { tokens }.pattern(), Ok(ast::PatternAST { kind: ir::PatternKind::Identifier(sp, "iden", ast::TypeAST::Bit(sp)), type_info: () }));
     }
 
@@ -396,7 +396,7 @@ mod test {
         let file = File::test_file();
         let sp = file.eof_span();
 
-        let tokens = make_token_stream([Token::Backtick(sp), Token::Identifier(sp, "a"), Token::Identifier(sp, "b")], sp);
+        let tokens = make_token_stream([Token::Quote(sp), Token::Identifier(sp, "a"), Token::Identifier(sp, "b")], sp);
         assert_eq!(Parser { tokens: tokens }.expr(), Ok(ir::Expr::Call((sp, "a"), false, Box::new(ir::Expr::Ref(sp, "b")))));
     }
 

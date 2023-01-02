@@ -70,7 +70,7 @@ impl<'file> Lexer<'file> {
                 Ok(Some(Token::Arrow(self.span(start_i))))
             }
 
-            '`' => Ok(Some(Token::Backtick(self.span(start_i)))),
+            '\'' => Ok(Some(Token::Quote(self.span(start_i)))),
 
             '0'..='9' => {
                 while self.peek_is_digit() {
@@ -204,20 +204,20 @@ mod test {
     }
 
     #[test]
-    fn backticks_and_circuit_identifiers() {
+    fn quotes_and_circuit_identifiers() {
         let mut file = File::test_file();
         let expected = make_spans!(file,
             [
-                ("`", sp => Some(Token::Backtick(sp))),
+                ("'", sp => Some(Token::Quote(sp))),
                 ("a", sp => Some(Token::Identifier(sp, "a"))),
                 (" ", _sp => None),
-                ("`", sp => Some(Token::Backtick(sp))),
+                ("'", sp => Some(Token::Quote(sp))),
                 ("abc", sp => Some(Token::Identifier(sp, "abc"))),
                 (" ", _sp => None),
-                ("`", sp => Some(Token::Backtick(sp))),
+                ("'", sp => Some(Token::Quote(sp))),
                 ("abc87", sp => Some(Token::Identifier(sp, "abc87"))),
                 (" ", _sp => None),
-                ("`", sp => Some(Token::Backtick(sp))),
+                ("'", sp => Some(Token::Quote(sp))),
                 ("abC-'()", sp => Some(Token::Identifier(sp, "abC-'()"))),
             ],
             sp => Some(Token::EOF(sp)),

@@ -22,7 +22,7 @@ pub(crate) enum Token<'file> {
     Named(Span<'file>),
 
     // TODO: variadic arguments / bundles
-    Backtick(Span<'file>),
+    Quote(Span<'file>),
 
     Number(Span<'file>, &'file str, usize),
     Identifier(Span<'file>, &'file str),
@@ -44,7 +44,7 @@ impl<'file> Token<'file> {
             Token::Bundle(sp) => *sp,
             Token::Inputs(sp) => *sp,
             Token::Outputs(sp) => *sp,
-            Token::Backtick(sp) => *sp,
+            Token::Quote(sp) => *sp,
             Token::Number(sp, _, _) => *sp,
             Token::Identifier(sp, _) => *sp,
             Token::Named(sp) => *sp,
@@ -93,7 +93,7 @@ mod names {
     pub(super) const OUTPUTS: &str = "'outputs'";
     pub(super) const NAMED: &str = "'named'";
 
-    pub(super) const BACKTICK: &str = "'`'";
+    pub(super) const QUOTE: &str = "'''";
 
     // different names to hopefully signal to me writing the Display impl that these constants should not be used for that
     pub(super) const NUMBER_DESC_NAME: &str = "number";
@@ -152,7 +152,7 @@ define_matcher!(bundle_matcher, 'file, Span<'file>, names::BUNDLE, Token::Bundle
 define_matcher!(inputs_matcher, 'file, Span<'file>, names::INPUTS, Token::Inputs(sp) => sp);
 define_matcher!(outputs_matcher, 'file, Span<'file>, names::OUTPUTS, Token::Outputs(sp) => sp);
 
-define_matcher!(backtick_matcher, 'file, Span<'file>, names::BACKTICK, Token::Backtick(sp) => sp);
+define_matcher!(quote_matcher, 'file, Span<'file>, names::QUOTE, Token::Quote(sp) => sp);
 
 define_matcher!(number_matcher, 'file, (Span<'file>, &'file str, usize), names::NUMBER_DESC_NAME, Token::Number(sp, n_str, n) => (sp, n_str, n));
 define_matcher!(identifier_matcher, 'file, (Span<'file>, &'file str), names::IDENTIFIER_DESC_NAME, Token::Identifier(sp, i) => (sp, i));
@@ -179,7 +179,7 @@ impl std::fmt::Display for Token<'_> {
             Token::Outputs(_) => write!(f, "{}", names::OUTPUTS),
             Token::Named(_) => write!(f, "{}", names::NAMED),
 
-            Token::Backtick(_) => write!(f, "{}", names::BACKTICK),
+            Token::Quote(_) => write!(f, "{}", names::QUOTE),
 
             Token::Number(_, _, n) => write!(f, "'{n}'"),
             Token::Identifier(_, i) => write!(f, "'{i}'"),
