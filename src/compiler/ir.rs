@@ -21,7 +21,7 @@ pub(crate) struct GateInstance<'file> {
 }
 #[derive(PartialEq, Debug)]
 pub(crate) struct Connection<'file> {
-    pub(crate) span: Span<'file>,
+    pub(crate) arrow_span: Span<'file>,
     pub(crate) producer: Expr<'file>,
     pub(crate) receiver: Expr<'file>,
 }

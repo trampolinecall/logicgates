@@ -135,12 +135,12 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     }
 
     fn connect(&mut self) -> Result<ir::Connection<'file>, ParseError<'file>> {
-        let connect = self.expect(Token::connect_matcher())?;
+        self.expect(Token::connect_matcher())?;
         let producer = self.expr()?;
-        self.expect(Token::arrow_matcher())?;
+        let arrow = self.expect(Token::arrow_matcher())?;
         let receiver = self.expr()?;
 
-        Ok(ir::Connection { span: connect + receiver.span(), producer, receiver })
+        Ok(ir::Connection { arrow_span: arrow, producer, receiver })
     }
 
     fn expr(&mut self) -> Result<ir::Expr<'file>, ParseError<'file>> {
