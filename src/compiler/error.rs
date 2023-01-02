@@ -28,21 +28,21 @@ macro_rules! make_spans {
                 contents
             };
 
-
-            let mut things = Vec::new();
             let mut cur_idx = 0;
-
-            $(
+            let things = [
+                $(
+                    {
+                        let $sp = $file.span(cur_idx, cur_idx + $str.len());
+                        #[allow(unused_assignments)]
+                        (cur_idx += $str.len());
+                        $thing
+                    },
+                )*
                 {
-                    let $sp = $file.span(cur_idx, cur_idx + $str.len());
-                    things.push($thing);
-                    #[allow(unused_assignments)]
-                    (cur_idx += $str.len());
-                }
-            )*
-
-            let $eof_span = $file.eof_span();
-            things.push($eof_thing);
+                    let $eof_span = $file.eof_span();
+                    $eof_thing
+                },
+            ];
 
             things
         }

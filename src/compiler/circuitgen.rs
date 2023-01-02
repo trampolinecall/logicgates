@@ -23,7 +23,6 @@ enum Error<'file> {
     TypeMismatchInAssignment { pat_sp: Span<'file>, actual_type: ty::Type, pattern_type: ty::Type },
     TypeMismatchInCall { expr_span: Span<'file>, actual_type: ty::Type, expected_type: ty::Type },
     NoMain(&'file File),
-    // AndWith0 { actual_size: usize },
 }
 
 #[derive(Default)]
