@@ -35,7 +35,7 @@ impl Type {
         use std::fmt::Write;
         let mut s = String::new();
         match self {
-            Type::Bit => write!(s, "`").unwrap(),
+            Type::Bit => write!(s, "'").unwrap(),
             Type::Product(items) => {
                 write!(s, "[named ").unwrap();
                 if let Some(((first_name, first), more)) = items.split_first() {
