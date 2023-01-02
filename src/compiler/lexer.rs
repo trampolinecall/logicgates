@@ -97,6 +97,7 @@ impl<'file> Lexer<'file> {
                     "inputs" => Ok(Some(Token::Inputs(span))),
                     "outputs" => Ok(Some(Token::Outputs(span))),
                     "named" => Ok(Some(Token::Named(span))),
+                    "connect" => Ok(Some(Token::Connect(span))),
                     iden => Ok(Some(Token::Identifier(span, iden))),
                 }
             }

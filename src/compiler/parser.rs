@@ -107,48 +107,40 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     fn circuit(&mut self) -> Result<ast::CircuitAST<'file>, ParseError<'file>> {
         self.expect(/* TODO: "circuit name (starting with '`')", */ Token::apostrophe_matcher())?;
         let name = self.expect(/* "circuit name after '`'", */ Token::identifier_matcher())?;
-        let arguments = self.pattern()?;
-        let mut lets = Vec::new();
+
+        let input_type = self.type_()?;
+        let output_type = self.type_()?;
+
+        let mut gates = Vec::new();
 
         while Token::let_matcher().matches(self.peek()) {
-            lets.push(self.r#let()?);
+            gates.push(self.gate_instance()?);
         }
 
-        let ret = self.expr()?;
+        let mut connections = Vec::new();
+        while Token::connect_matcher().matches(self.peek()) {
+            connections.push(self.connect()?);
+        }
 
-        Ok(ast::CircuitAST { name, input: arguments, lets, output: ret })
+        Ok(ast::CircuitAST { name, input_type, output_type, gates, connections })
     }
 
-    fn r#let(&mut self) -> Result<ast::LetAST<'file>, ParseError<'file>> {
+    fn gate_instance(&mut self) -> Result<ir::GateInstance<'file>, ParseError<'file>> {
         self.expect(Token::let_matcher())?;
-        let pat = self.pattern()?;
-
+        let local_name = self.expect(Token::identifier_matcher())?;
         self.expect(Token::equals_matcher())?;
+        let gate_name = self.expect(Token::identifier_matcher())?;
 
-        let val = self.expr()?;
-        Ok(ast::LetAST { pat, val })
+        Ok(ir::GateInstance { local_name, gate_name })
     }
 
-    fn pattern(&mut self) -> Result<ast::PatternAST<'file>, ParseError<'file>> {
-        match self.peek() {
-            Token::Identifier(_, _) => {
-                let iden = Token::identifier_matcher().convert(self.next());
+    fn connect(&mut self) -> Result<ir::Connection<'file>, ParseError<'file>> {
+        let connect = self.expect(Token::connect_matcher())?;
+        let producer = self.expr()?;
+        self.expect(Token::arrow_matcher())?;
+        let receiver = self.expr()?;
 
-                self.expect(Token::semicolon_matcher())?;
-
-                let type_ = self.type_()?;
-
-                Ok(ast::PatternAST { kind: ir::PatternKind::Identifier(iden.0, iden.1, type_), type_info: () })
-            }
-
-            &Token::OBrack(obrack) => {
-                self.next();
-
-                let (patterns, cbrack) = self.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::pattern)?;
-                Ok(ast::PatternAST { kind: ir::PatternKind::Product(obrack + cbrack, patterns), type_info: () })
-            }
-            _ => Err(self.expected_and_next("pattern")),
-        }
+        Ok(ir::Connection { span: connect + receiver.span(), producer, receiver })
     }
 
     fn expr(&mut self) -> Result<ir::Expr<'file>, ParseError<'file>> {
@@ -182,16 +174,6 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                     1 => Ok(ir::Expr::Const(n_sp, true)),
                     _ => Err(self.expected_and_next("'0' or '1'")),
                 }
-            }
-            Token::Apostrophe(_) => {
-                let _ = self.next();
-                let i = self.expect(/* "circuit name after '`'", */ Token::identifier_matcher())?;
-
-                let inline = self.maybe_consume(Token::inline_matcher()).is_some();
-
-                let arg = self.expr()?;
-
-                Ok(ir::Expr::Call(i, inline, Box::new(arg)))
             }
 
             Token::Identifier(_, _) => {
@@ -365,7 +347,7 @@ mod test {
 
         let tokens = make_token_stream([Token::Let(sp), Token::Identifier(sp, "a"), Token::Semicolon(sp), Token::Apostrophe(sp), Token::Equals(sp), Token::Identifier(sp, "b")], sp);
         assert_eq!(
-            Parser { tokens: tokens }.r#let(),
+            Parser { tokens: tokens }.gate_instance(),
             Ok(ast::LetAST { pat: ast::PatternAST { kind: ir::PatternKind::Identifier(sp, "a", ast::TypeAST::Bit(sp)), type_info: () }, val: ir::Expr::Ref(sp, "b") })
         );
     }
