@@ -1,5 +1,6 @@
 use crate::compiler::error::Span;
 
+// TODO: make Token and TokenKind
 #[derive(PartialEq, Debug)]
 pub(crate) enum Token<'file> {
     EOF(Span<'file>),
@@ -17,6 +18,7 @@ pub(crate) enum Token<'file> {
     Let(Span<'file>),
     Inline(Span<'file>),
     Bundle(Span<'file>),
+    Connect(Span<'file>),
     Inputs(Span<'file>),
     Outputs(Span<'file>),
     Named(Span<'file>),
@@ -48,6 +50,7 @@ impl<'file> Token<'file> {
             Token::Number(sp, _, _) => *sp,
             Token::Identifier(sp, _) => *sp,
             Token::Named(sp) => *sp,
+            Token::Connect(sp) => *sp,
         }
     }
 }
@@ -92,6 +95,7 @@ mod names {
     pub(super) const INPUTS: &str = "'inputs'";
     pub(super) const OUTPUTS: &str = "'outputs'";
     pub(super) const NAMED: &str = "'named'";
+    pub(super) const CONNECT: &str = "'connect'";
 
     pub(super) const APOSTROPHE: &str = "'''";
 
@@ -151,6 +155,7 @@ define_matcher!(inline_matcher, 'file, Span<'file>, names::INLINE, Token::Inline
 define_matcher!(bundle_matcher, 'file, Span<'file>, names::BUNDLE, Token::Bundle(sp) => sp);
 define_matcher!(inputs_matcher, 'file, Span<'file>, names::INPUTS, Token::Inputs(sp) => sp);
 define_matcher!(outputs_matcher, 'file, Span<'file>, names::OUTPUTS, Token::Outputs(sp) => sp);
+define_matcher!(connect_matcher, 'file, Span<'file>, names::CONNECT, Token::Connect(sp) => sp);
 
 define_matcher!(apostrophe_matcher, 'file, Span<'file>, names::APOSTROPHE, Token::Apostrophe(sp) => sp);
 
@@ -178,6 +183,7 @@ impl std::fmt::Display for Token<'_> {
             Token::Inputs(_) => write!(f, "{}", names::INPUTS),
             Token::Outputs(_) => write!(f, "{}", names::OUTPUTS),
             Token::Named(_) => write!(f, "{}", names::NAMED),
+            Token::Connect(_) => write!(f, "{}", names::CONNECT),
 
             Token::Apostrophe(_) => write!(f, "{}", names::APOSTROPHE),
 

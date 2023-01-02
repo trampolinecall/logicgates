@@ -1,8 +1,6 @@
 use crate::compiler::{error::Span, ir};
 
-pub(crate) type CircuitAST<'file> = ir::Circuit<'file, ()>;
-pub(crate) type LetAST<'file> = ir::Let<'file, ()>;
-pub(crate) type PatternAST<'file> = ir::Pattern<'file, ()>;
+pub(crate) type CircuitAST<'file> = ir::Circuit<'file, TypeAST<'file>>;
 
 #[derive(PartialEq, Debug, Clone)]
 pub(crate) enum TypeAST<'file> {
