@@ -74,16 +74,21 @@ pub(crate) fn generate(file: &File, ast: Vec<ast::Circuit>) -> Option<circuit::C
     let mut types = ty::Types::new();
     let mut global_state = GlobalGenState::new();
 
+    let mut errored = false;
+
     for circuit in ast {
-        let ((name_sp, name), circuit, input_type, result_type) = convert_circuit(&global_state, &mut types, circuit)?; // TODO: report multiple errors from this
+        let ((name_sp, name), circuit, input_type, result_type) = convert_circuit(&global_state, &mut types, circuit)?;
         if global_state.circuit_table.contains_key(name) {
             (&types, Error::Duplicate(name_sp, name)).report();
-            None?
+            errored = true;
         } else {
             global_state.circuit_table.insert(name, CircuitDef::Circuit { circuit, input_type, result_type });
         }
     }
 
+    if errored {
+        None?
+    }
     match global_state.circuit_table.remove("main") {
         Some(CircuitDef::Circuit { circuit: r, .. }) => Some(r),
         Some(_) => unreachable!("non user-defined circuit called main"),
@@ -215,9 +220,19 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
         }
 
         ast::Expr::Multiple(_, exprs) => {
-            let results = exprs.into_iter().map(|e| convert_expr(global_state, types, circuit_state, e));
-            let results_no_none = results.collect::<Option<Vec<ProducerBundle>>>()?; // TODO: dont stop at the first one in order to report all the errors
-            Some(ProducerBundle::Product(results_no_none))
+            let mut results = Some(Vec::new());
+
+            for expr in exprs {
+                if let Some(expr) = convert_expr(global_state, types, circuit_state, expr) {
+                    if let Some(ref mut results) = results {
+                        results.push(expr);
+                    }
+                } else {
+                    results = None;
+                }
+            }
+
+            Some(ProducerBundle::Product(results?))
         }
     }
 }
