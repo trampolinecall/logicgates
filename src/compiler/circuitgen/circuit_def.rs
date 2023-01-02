@@ -7,24 +7,21 @@ use crate::compiler::circuitgen::bundle;
 
 pub(super) enum CircuitDef {
     Circuit { circuit: circuit::Circuit, input_type: ty::TypeSym, result_type: ty::TypeSym },
-    And { input_type: ty::TypeSym, result_type: ty::TypeSym },
-    Not { input_type: ty::TypeSym, result_type: ty::TypeSym },
+    Nand { input_type: ty::TypeSym, result_type: ty::TypeSym },
     Const { value: bool, input_type: ty::TypeSym, result_type: ty::TypeSym },
 }
 impl CircuitDef {
     fn input_type(&self) -> ty::TypeSym {
         match self {
             CircuitDef::Circuit { circuit: _, input_type, result_type: _ } => *input_type,
-            CircuitDef::And { input_type, result_type: _ } => *input_type,
-            CircuitDef::Not { input_type, result_type: _ } => *input_type,
+            CircuitDef::Nand { input_type, result_type: _ } => *input_type,
             CircuitDef::Const { value: _, input_type, result_type: _ } => *input_type,
         }
     }
     fn output_type(&self) -> ty::TypeSym {
         match self {
             CircuitDef::Circuit { circuit: _, input_type: _, result_type } => *result_type,
-            CircuitDef::And { input_type: _, result_type } => *result_type,
-            CircuitDef::Not { input_type: _, result_type } => *result_type,
+            CircuitDef::Nand { input_type: _, result_type } => *result_type,
             CircuitDef::Const { value: _, input_type: _, result_type } => *result_type,
         }
     }
@@ -44,8 +41,7 @@ impl CircuitDef {
     pub(super) fn add_gate(&self, types: &ty::Types, circuit_state: &mut CircuitGenState) -> Option<(bundle::ReceiverBundle, bundle::ProducerBundle)> {
         let gate_i = match self {
             CircuitDef::Circuit { circuit, input_type: _, result_type: _ } => circuit_state.circuit.new_subcircuit_gate(circuit.clone()),
-            CircuitDef::And { input_type: _, result_type: _ } => circuit_state.circuit.new_and_gate(),
-            CircuitDef::Not { input_type: _, result_type: _ } => circuit_state.circuit.new_not_gate(),
+            CircuitDef::Nand { input_type: _, result_type: _ } => circuit_state.circuit.new_nand_gate(),
             CircuitDef::Const { value, input_type: _, result_type: _ } => circuit_state.circuit.new_const_gate(*value),
         };
 
@@ -72,8 +68,7 @@ impl CircuitDef {
 
             for (subcircuit_gate_i, gate) in subcircuit.gates.iter() {
                 let (inner_inputs, gate_added_to_main_circuit) = match &gate.kind {
-                    circuit::GateKind::And(inputs, _) => (&inputs[..], circuit_state.circuit.new_and_gate()),
-                    circuit::GateKind::Not(inputs, _) => (&inputs[..], circuit_state.circuit.new_not_gate()),
+                    circuit::GateKind::Nand(inputs, _) => (&inputs[..], circuit_state.circuit.new_nand_gate()),
                     circuit::GateKind::Const(inputs, [circuit::Producer { value, .. }]) => (&inputs[..], circuit_state.circuit.new_const_gate(*value)),
                     circuit::GateKind::Subcircuit(inputs, _, subcircuit) => (&inputs[..], circuit_state.circuit.new_subcircuit_gate(subcircuit.borrow().clone())),
                 };

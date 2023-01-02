@@ -40,8 +40,8 @@ impl<'file> GlobalGenState<'file> {
     fn new(types: &mut ty::Types) -> Self {
         let mut circuit_table = HashMap::new();
         circuit_table.insert(
-            "and",
-            CircuitDef::And {
+            "nand",
+            CircuitDef::Nand {
                 input_type: {
                     let b = types.intern(ty::Type::Bit);
                     types.intern(ty::Type::Product(vec![("0".into(), b), ("1".into(), b)]))
@@ -49,7 +49,6 @@ impl<'file> GlobalGenState<'file> {
                 result_type: types.intern(ty::Type::Bit),
             },
         );
-        circuit_table.insert("not", CircuitDef::Not { input_type: types.intern(ty::Type::Bit), result_type: types.intern(ty::Type::Bit) });
 
         let const_0 = CircuitDef::Const { value: false, input_type: types.intern(ty::Type::Product(vec![])), result_type: types.intern(ty::Type::Bit) };
         let const_1 = CircuitDef::Const { value: true, input_type: types.intern(ty::Type::Product(vec![])), result_type: types.intern(ty::Type::Bit) };
