@@ -41,8 +41,8 @@ impl<'file> Type<'file> {
     fn span(&self) -> Span<'file> {
         match self {
             Type::Bit(sp) => *sp,
-            Type::Product { obrack, types, cbrack } => *obrack + *cbrack,
-            Type::RepProduct { obrack, num, cbrack, type_ } => *obrack + type_.span(),
+            Type::Product { obrack, types: _, cbrack } => *obrack + *cbrack,
+            Type::RepProduct { obrack, num: _, cbrack: _, type_ } => *obrack + type_.span(),
         }
     }
 }
