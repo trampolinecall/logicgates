@@ -60,18 +60,17 @@ pub(super) fn make_producer_bundle(types: &ty::Types, type_: ty::TypeSym, output
 }
 
 pub(super) fn connect_bundle<'types>(
-    types: &'types mut ty::Types,
+    types: &mut ty::Types,
     circuit: &mut circuit::Circuit,
-    producer_span: Span,
-    receiver_span: Span,
-    arrow_span: Span,
+    // got_span: Span,
+    expected_span: Span,
     producer_bundle: &ProducerBundle,
     receiver_bundle: &ReceiverBundle,
 ) -> Option<()> {
     let producer_type = producer_bundle.type_(types);
     let receiver_type = receiver_bundle.type_(types);
     if producer_type != receiver_type {
-        (&*types, Error::TypeMismatch { producer_type, receiver_type, producer_span, arrow_span, receiver_span }).report();
+        (&*types, Error::TypeMismatch { got_type: producer_type, expected_type: receiver_type, /* got_span, */ expected_span }).report();
         None?
     }
 
@@ -80,7 +79,7 @@ pub(super) fn connect_bundle<'types>(
         (ProducerBundle::Product(producers), ReceiverBundle::Product(receivers)) => {
             assert_eq!(producers.len(), receivers.len(), "cannot connect different amount of producers and receivers"); // sanity check
             for ((_, p), (_, r)) in producers.iter().zip(receivers.iter()) {
-                connect_bundle(types, circuit, producer_span, receiver_span, arrow_span, p, r);
+                connect_bundle(types, circuit, /* got_span, */ expected_span, p, r);
                 // not ideal that this rechecks the item types but
             }
         }
