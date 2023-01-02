@@ -23,6 +23,6 @@ pub(crate) fn compile(filename: &str) -> Option<circuit::Circuit> {
 
     let (circuits, type_decls) = parser::parse(lexer::lex(&file));
     let mut types = ty::Types::new();
-    let (type_table, typed) = typing::type_(&mut types, circuits, type_decls)?;
+    let typed = typing::type_(&mut types, circuits, type_decls)?;
     circuitgen::generate(&file, &mut types, typed)
 }

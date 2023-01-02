@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::{ir, parser::ast, ty};
 
-pub(crate) fn type_<'file>(types: &mut ty::Types, circuits: Vec<ast::CircuitAST<'file>>, type_decls: Vec<ast::NamedTypeDecl>) -> Option<(HashMap<String, ty::TypeSym>, Vec<ir::TypedCircuit<'file>>)> {
+pub(crate) fn type_<'file>(types: &mut ty::Types, circuits: Vec<ast::CircuitAST<'file>>, type_decls: Vec<ast::NamedTypeDecl>) -> Option<Vec<ir::TypedCircuit<'file>>> {
     let mut type_table = HashMap::new();
     for decl in type_decls {
         let ty = convert_type(types, &type_table, &decl.ty)?;
@@ -15,20 +15,22 @@ pub(crate) fn type_<'file>(types: &mut ty::Types, circuits: Vec<ast::CircuitAST<
         type_table.insert(decl.name.1.into(), named_type);
     }
 
-    let circuits = circuits
-        .into_iter()
-        .map(|circuit| {
-            Some(ir::Circuit {
-                name: circuit.name,
-                input_type: convert_type(types, &type_table, &circuit.input_type)?,
-                output_type: convert_type(types, &type_table, &circuit.output_type)?,
-                gates: circuit.gates,
-                connections: circuit.connections,
-            })
-        })
-        .collect::<Option<Vec<_>>>()?; // TODO: report more than just the first error
+    // TODO: report more than just the first error
 
-    Some((type_table, circuits))
+    Some(
+        circuits
+            .into_iter()
+            .map(|circuit| {
+                Some(ir::Circuit {
+                    name: circuit.name,
+                    input_type: convert_type(types, &type_table, &circuit.input_type)?,
+                    output_type: convert_type(types, &type_table, &circuit.output_type)?,
+                    gates: circuit.gates,
+                    connections: circuit.connections,
+                })
+            })
+            .collect::<Option<Vec<_>>>()?,
+    )
 }
 
 fn convert_type(types: &mut ty::Types, type_table: &HashMap<String, ty::TypeSym>, ty: &ast::TypeAST) -> Option<ty::TypeSym> {

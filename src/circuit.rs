@@ -207,7 +207,7 @@ impl Circuit {
         // caller should call update next
     }
 
-    fn update_gate(&mut self, update_stack: &mut Vec<GateIndex>, gate: GateIndex) -> bool{
+    fn update_gate(&mut self, update_stack: &mut Vec<GateIndex>, gate: GateIndex) -> bool {
         let gate = self.get_gate(gate);
         let outputs = gate.kind.compute(self);
         assert_eq!(outputs.len(), gate.num_outputs());
