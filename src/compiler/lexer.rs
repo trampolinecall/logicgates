@@ -1,6 +1,6 @@
 pub(crate) mod token;
 
-use super::error::{CompileError, Report, Span, File};
+use super::error::{CompileError, File, Report, Span};
 
 pub(crate) use token::Token;
 
@@ -132,57 +132,114 @@ pub(crate) fn lex(file: &File) -> impl Iterator<Item = Token> + '_ {
 mod test {
     use super::lex;
     use super::Token;
+    use crate::compiler::error::File;
+
+    fn check_lexer_output<'file>(mut l: impl Iterator<Item = Token<'file>>, expected: impl IntoIterator<Item = Token<'file>>) -> () {
+        let mut expected = expected.into_iter();
+        loop {
+            let l_next = l.next();
+            let expected_next = expected.next();
+
+            assert_eq!(l_next, expected_next);
+
+            if let Some(Token::EOF(_)) | None = l_next {
+                break;
+            }
+        }
+    }
 
     #[test]
     fn punctuation() {
-        let mut l = lex(",[]=.;");
-        assert_eq!(l.next(), Some(Token::Comma));
-        assert_eq!(l.next(), Some(Token::OBrack));
-        assert_eq!(l.next(), Some(Token::CBrack));
-        assert_eq!(l.next(), Some(Token::Equals));
-        assert_eq!(l.next(), Some(Token::Dot));
-        assert_eq!(l.next(), Some(Token::Semicolon));
-        assert_eq!(l.next(), Some(Token::EOF));
+        let mut file = File::test_file();
+        let expected = make_spans!(file,
+            [
+                (",", sp => Token::Comma(sp)),
+                ("[", sp => Token::OBrack(sp)),
+                ("]", sp => Token::CBrack(sp)),
+                ("=", sp => Token::Equals(sp)),
+                (".", sp => Token::Dot(sp)),
+                (";", sp => Token::Semicolon(sp)),
+            ],
+            sp => Token::EOF(sp),
+        );
+
+        check_lexer_output(lex(&file), expected);
     }
 
     #[test]
     fn numbers() {
-        let mut l = lex("1 2 123");
-        assert_eq!(l.next(), Some(Token::Number("1", 1)));
-        assert_eq!(l.next(), Some(Token::Number("2", 2)));
-        assert_eq!(l.next(), Some(Token::Number("123", 123)));
-        assert_eq!(l.next(), Some(Token::EOF));
+        let mut file = File::test_file();
+        let expected = make_spans!(file,
+            [
+                ("1", sp => Some(Token::Number(sp, "1", 1))),
+                (" ", _sp => None),
+                ("2", sp => Some(Token::Number(sp, "2", 2))),
+                (" ", _sp => None),
+                ("123", sp => Some(Token::Number(sp, "123", 123))),
+            ],
+            sp => Some(Token::EOF(sp)),
+        );
+
+        check_lexer_output(lex(&file), expected.into_iter().flatten());
     }
 
     #[test]
     fn identifiers() {
-        let mut l = lex("a abc abc87 abC-'()");
-        assert_eq!(l.next(), Some(Token::Identifier("a")));
-        assert_eq!(l.next(), Some(Token::Identifier("abc")));
-        assert_eq!(l.next(), Some(Token::Identifier("abc87")));
-        assert_eq!(l.next(), Some(Token::Identifier("abC-'()")));
-        assert_eq!(l.next(), Some(Token::EOF));
+        let mut file = File::test_file();
+        let expected = make_spans!(file,
+            [
+                ("a", sp => Some(Token::Identifier(sp, "a"))),
+                (" ", _sp => None),
+                ("abc", sp => Some(Token::Identifier(sp, "abc"))),
+                (" ", _sp => None),
+                ("abc87", sp => Some(Token::Identifier(sp, "abc87"))),
+                (" ", _sp => None),
+                ("abC-'()", sp => Some(Token::Identifier(sp, "abC-'()"))),
+            ],
+            sp => Some(Token::EOF(sp)),
+        );
+
+        check_lexer_output(lex(&file), expected.into_iter().flatten());
     }
 
     #[test]
     fn backticks_and_circuit_identifiers() {
-        let mut l = lex("`a `abc `abc87 `abC-'()");
-        assert_eq!(l.next(), Some(Token::Backtick));
-        assert_eq!(l.next(), Some(Token::Identifier("a")));
-        assert_eq!(l.next(), Some(Token::Backtick));
-        assert_eq!(l.next(), Some(Token::Identifier("abc")));
-        assert_eq!(l.next(), Some(Token::Backtick));
-        assert_eq!(l.next(), Some(Token::Identifier("abc87")));
-        assert_eq!(l.next(), Some(Token::Backtick));
-        assert_eq!(l.next(), Some(Token::Identifier("abC-'()")));
-        assert_eq!(l.next(), Some(Token::EOF));
+        let mut file = File::test_file();
+        let expected = make_spans!(file,
+            [
+                ("`", sp => Some(Token::Backtick(sp))),
+                ("a", sp => Some(Token::Identifier(sp, "a"))),
+                (" ", _sp => None),
+                ("`", sp => Some(Token::Backtick(sp))),
+                ("abc", sp => Some(Token::Identifier(sp, "abc"))),
+                (" ", _sp => None),
+                ("`", sp => Some(Token::Backtick(sp))),
+                ("abc87", sp => Some(Token::Identifier(sp, "abc87"))),
+                (" ", _sp => None),
+                ("`", sp => Some(Token::Backtick(sp))),
+                ("abC-'()", sp => Some(Token::Identifier(sp, "abC-'()"))),
+            ],
+            sp => Some(Token::EOF(sp)),
+        );
+
+        check_lexer_output(lex(&file), expected.into_iter().flatten());
     }
 
     #[test]
     fn whitespace() {
-        let mut l = lex("    abc\n   2");
-        assert_eq!(l.next(), Some(Token::Identifier("abc")));
-        assert_eq!(l.next(), Some(Token::Number("2", 2)));
-        assert_eq!(l.next(), Some(Token::EOF));
+        let mut file = File::test_file();
+        let expected = make_spans!(file,
+            [
+                ("    ", _sp => None),
+                ("abc", sp => Some(Token::Identifier(sp, "abc"))),
+                ("\n", _sp => None),
+                ("   ", _sp => None),
+                ("2", sp => Some(Token::Number(sp, "2", 2)))
+            ],
+            sp => Some(Token::EOF(sp)),
+        );
+
+        check_lexer_output(lex(&file), expected.into_iter().flatten());
     }
+    // TODO: test keywords
 }

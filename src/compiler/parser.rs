@@ -262,115 +262,153 @@ mod test {
     use super::ast;
     use super::parse;
     use super::Parser;
+    use crate::compiler::error::File;
+    use crate::compiler::error::Span;
     use crate::compiler::lexer::Token;
 
     use std::iter::Peekable;
 
-    fn make_token_stream(tokens: Vec<Token>) -> Peekable<impl Iterator<Item = Token>> {
-        tokens.into_iter().chain(std::iter::repeat_with(|| Token::EOF)).peekable()
+    fn make_token_stream<'file>(tokens: impl IntoIterator<Item = Token<'file>>, sp: Span<'file>) -> Peekable<impl Iterator<Item = Token<'file>>> {
+        tokens.into_iter().chain(std::iter::repeat_with(move || Token::EOF(sp))).peekable()
     }
 
     #[test]
     fn list() {
-        let tokens = vec![Token::OBrack, Token::Identifier("a"), Token::Comma, Token::Identifier("b"), Token::CBrack];
-        assert_eq!(
-            Parser { tokens: make_token_stream(tokens) }.list(Token::obrack_matcher(), Token::comma_matcher(), Token::cbrack_matcher(), Parser::expr),
-            Ok(vec![ast::Expr::Ref("a"), ast::Expr::Ref("b")])
-        )
+        let file = File::test_file();
+        let sp = file.eof_span();
+
+        let tokens = make_token_stream([Token::OBrack(sp), Token::Identifier(sp, "a"), Token::Comma(sp), Token::Identifier(sp, "b"), Token::CBrack(sp)], sp);
+
+        assert_eq!(Parser { tokens }.list(Token::obrack_matcher(), Token::comma_matcher(), Token::cbrack_matcher(), Parser::expr), Ok(vec![ast::Expr::Ref(sp, "a"), ast::Expr::Ref(sp, "b")]));
     }
 
     #[test]
     fn list_trailing_delim() {
-        let tokens = vec![Token::OBrack, Token::Identifier("a"), Token::Comma, Token::Identifier("b"), Token::Comma, Token::CBrack];
-        assert_eq!(
-            Parser { tokens: make_token_stream(tokens) }.list(Token::obrack_matcher(), Token::comma_matcher(), Token::cbrack_matcher(), Parser::expr),
-            Ok(vec![ast::Expr::Ref("a"), ast::Expr::Ref("b")])
-        )
+        let file = File::test_file();
+        let sp = file.eof_span();
+
+        let tokens = make_token_stream([Token::OBrack(sp), Token::Identifier(sp, "a"), Token::Comma(sp), Token::Identifier(sp, "b"), Token::Comma(sp), Token::CBrack(sp)], sp);
+
+        assert_eq!(Parser { tokens }.list(Token::obrack_matcher(), Token::comma_matcher(), Token::cbrack_matcher(), Parser::expr), Ok(vec![ast::Expr::Ref(sp, "a"), ast::Expr::Ref(sp, "b")]));
     }
 
     // TODO: test inline calls
     #[test]
     fn circuit() {
+        let file = File::test_file();
+        let sp = file.eof_span();
+
         /*
         `thingy arg; `
             let res; ` = `and [arg, arg]
             res
         */
-        let tokens = vec![
-            Token::Backtick,
-            Token::Identifier("thingy"),
-            Token::Identifier("arg"),
-            Token::Semicolon,
-            Token::Backtick,
-            Token::Let,
-            Token::Identifier("res"),
-            Token::Semicolon,
-            Token::Backtick,
-            Token::Equals,
-            Token::Backtick,
-            Token::Identifier("and"),
-            Token::OBrack,
-            Token::Identifier("arg"),
-            Token::Comma,
-            Token::Identifier("arg"),
-            Token::CBrack,
-            Token::Identifier("res"),
-        ];
+        let tokens = make_token_stream(
+            [
+                Token::Backtick(sp),
+                Token::Identifier(sp, "thingy"),
+                Token::Identifier(sp, "arg"),
+                Token::Semicolon(sp),
+                Token::Backtick(sp),
+                Token::Let(sp),
+                Token::Identifier(sp, "res"),
+                Token::Semicolon(sp),
+                Token::Backtick(sp),
+                Token::Equals(sp),
+                Token::Backtick(sp),
+                Token::Identifier(sp, "and"),
+                Token::OBrack(sp),
+                Token::Identifier(sp, "arg"),
+                Token::Comma(sp),
+                Token::Identifier(sp, "arg"),
+                Token::CBrack(sp),
+                Token::Identifier(sp, "res"),
+            ],
+            sp,
+        );
 
         assert_eq!(
-            parse(make_token_stream(tokens)),
+            parse(tokens),
             Some(vec![ast::Circuit {
-                name: "thingy",
-                input: ast::Pattern::Identifier("arg", ast::Type::Bit),
+                name: (sp, "thingy"),
+                input: ast::Pattern::Identifier((sp, "arg"), ast::Type::Bit(sp)),
                 lets: vec![ast::Let {
-                    pat: ast::Pattern::Identifier("res", ast::Type::Bit),
-                    val: ast::Expr::Call("and", false, Box::new(ast::Expr::Multiple(vec![ast::Expr::Ref("arg"), ast::Expr::Ref("arg")])))
+                    pat: ast::Pattern::Identifier((sp, "res"), ast::Type::Bit(sp)),
+                    val: ast::Expr::Call((sp, "and"), false, Box::new(ast::Expr::Multiple(sp, vec![ast::Expr::Ref(sp, "arg"), ast::Expr::Ref(sp, "arg")])))
                 }],
-                output: ast::Expr::Ref("res")
+                output: ast::Expr::Ref(sp, "res")
             }])
-        )
+        );
     }
 
     #[test]
     fn r#let() {
-        let tokens = vec![Token::Let, Token::Identifier("a"), Token::Semicolon, Token::Backtick, Token::Equals, Token::Identifier("b")];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.r#let(), Ok(ast::Let { pat: ast::Pattern::Identifier("a", ast::Type::Bit), val: ast::Expr::Ref("b") }))
+        let file = File::test_file();
+        let sp = file.eof_span();
+
+        let tokens = make_token_stream([Token::Let(sp), Token::Identifier(sp, "a"), Token::Semicolon(sp), Token::Backtick(sp), Token::Equals(sp), Token::Identifier(sp, "b")], sp);
+        assert_eq!(Parser { tokens: tokens }.r#let(), Ok(ast::Let { pat: ast::Pattern::Identifier((sp, "a"), ast::Type::Bit(sp)), val: ast::Expr::Ref(sp, "b") }));
     }
 
     #[test]
     fn iden_pattern() {
-        let tokens = vec![Token::Identifier("iden"), Token::Semicolon, Token::Backtick];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.pattern(), Ok(ast::Pattern::Identifier("iden", ast::Type::Bit)))
+        let file = File::test_file();
+        let sp = file.eof_span();
+
+        let tokens = make_token_stream([Token::Identifier(sp, "iden"), Token::Semicolon(sp), Token::Backtick(sp)], sp);
+        assert_eq!(Parser { tokens }.pattern(), Ok(ast::Pattern::Identifier((sp, "iden"), ast::Type::Bit(sp))));
     }
 
     #[test]
-    fn const_false_expr() {
-        let tokens = vec![Token::Number("0", 0)];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.expr(), Ok(ast::Expr::Const(false)))
-    }
+    fn const_exprs() {
+        let file = File::test_file();
+        let sp = file.eof_span();
 
-    #[test]
-    fn const_true_expr() {
-        let tokens = vec![Token::Number("0", 1)];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.expr(), Ok(ast::Expr::Const(true)))
+        let tokens_0 = make_token_stream([Token::Number(sp, "0", 0)], sp);
+        assert_eq!(Parser { tokens: tokens_0 }.expr(), Ok(ast::Expr::Const(sp, false)));
+
+        let tokens_1 = make_token_stream([Token::Number(sp, "1", 1)], sp);
+        assert_eq!(Parser { tokens: tokens_1 }.expr(), Ok(ast::Expr::Const(sp, true)));
     }
 
     #[test]
     fn call_expr() {
-        let tokens = vec![Token::Backtick, Token::Identifier("a"), Token::Identifier("b")];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.expr(), Ok(ast::Expr::Call("a", false, Box::new(ast::Expr::Ref("b")))))
+        let file = File::test_file();
+        let sp = file.eof_span();
+
+        let tokens = make_token_stream([Token::Backtick(sp), Token::Identifier(sp, "a"), Token::Identifier(sp, "b")], sp);
+        assert_eq!(Parser { tokens: tokens }.expr(), Ok(ast::Expr::Call((sp, "a"), false, Box::new(ast::Expr::Ref(sp, "b")))));
     }
 
     #[test]
     fn iden_expr() {
-        let tokens = vec![Token::Identifier("a")];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.expr(), Ok(ast::Expr::Ref("a")))
+        let file = File::test_file();
+        let sp = file.eof_span();
+
+        let tokens = make_token_stream([Token::Identifier(sp, "a")], sp);
+        assert_eq!(Parser { tokens }.expr(), Ok(ast::Expr::Ref(sp, "a")));
     }
 
     #[test]
     fn multiple_expr() {
-        let tokens = vec![Token::OBrack, Token::Identifier("a"), Token::Comma, Token::Identifier("b"), Token::Comma, Token::Number("0", 0), Token::Comma, Token::Number("0", 1), Token::CBrack];
-        assert_eq!(Parser { tokens: make_token_stream(tokens) }.expr(), Ok(ast::Expr::Multiple(vec![ast::Expr::Ref("a"), ast::Expr::Ref("b"), ast::Expr::Const(false), ast::Expr::Const(true)])))
+        let file = File::test_file();
+        let sp = file.eof_span();
+
+        let tokens = make_token_stream(
+            [
+                Token::OBrack(sp),
+                Token::Identifier(sp, "a"),
+                Token::Comma(sp),
+                Token::Identifier(sp, "b"),
+                Token::Comma(sp),
+                Token::Number(sp, "0", 0),
+                Token::Comma(sp),
+                Token::Number(sp, "0", 1),
+                Token::CBrack(sp),
+            ],
+            sp,
+        );
+        assert_eq!(Parser { tokens }.expr(), Ok(ast::Expr::Multiple(sp, vec![ast::Expr::Ref(sp, "a"), ast::Expr::Ref(sp, "b"), ast::Expr::Const(sp, false), ast::Expr::Const(sp, true)])));
     }
 
     // TODO: test array types, types in general
