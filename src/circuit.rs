@@ -22,8 +22,7 @@ pub(crate) struct Gate {
 
 #[derive(Clone)]
 pub(crate) enum GateKind {
-    And([Receiver; 2], [Producer; 1]), // TODO: figure out a better way of doing this
-    Not([Receiver; 1], [Producer; 1]),
+    Nand([Receiver; 2], [Producer; 1]), // TODO: figure out a better way of doing this
     Const([Receiver; 0], [Producer; 1]),
     Subcircuit(Vec<Receiver>, Vec<Producer>, RefCell<Circuit>),
 }
@@ -125,20 +124,13 @@ impl Circuit {
 
     // TODO: tests
     // default value for the outputs is whatever value results from having all false inputs
-    pub(crate) fn new_and_gate(&mut self) -> GateIndex {
+    pub(crate) fn new_nand_gate(&mut self) -> GateIndex {
         self.gates.insert_with(|index| Gate {
             index,
-            kind: GateKind::And(
+            kind: GateKind::Nand(
                 [Receiver { gate: Some(index), producer: None }, Receiver { gate: Some(index), producer: None }],
-                [Producer { gate: Some(index), dependants: HashSet::new(), value: false }],
+                [Producer { gate: Some(index), dependants: HashSet::new(), value: true }],
             ),
-            location: (0, 0.0),
-        })
-    }
-    pub(crate) fn new_not_gate(&mut self) -> GateIndex {
-        self.gates.insert_with(|index| Gate {
-            index,
-            kind: GateKind::Not([Receiver { gate: Some(index), producer: None }], [Producer { gate: Some(index), dependants: HashSet::new(), value: true }]),
             location: (0, 0.0),
         })
     }
@@ -299,8 +291,7 @@ impl Gate {
     pub(crate) fn name(&self) -> String {
         // TODO: hopefully somehow turn this into &str
         match &self.kind {
-            GateKind::And(_, _) => "and".to_string(),
-            GateKind::Not(_, _) => "not".to_string(),
+            GateKind::Nand(_, _) => "nand".to_string(),
             GateKind::Const(_, [Producer { value: true, .. }]) => "true".to_string(),
             GateKind::Const(_, [Producer { value: false, .. }]) => "false".to_string(),
             GateKind::Subcircuit(_, _, subcircuit) => subcircuit.borrow().name.clone(),
@@ -309,32 +300,28 @@ impl Gate {
 
     pub(crate) fn _inputs(&self) -> &[Receiver] {
         match &self.kind {
-            GateKind::And(i, _) => i,
-            GateKind::Not(i, _) => i,
+            GateKind::Nand(i, _) => i,
             GateKind::Const(i, _) => i,
             GateKind::Subcircuit(i, _, _) => i,
         }
     }
     pub(crate) fn _outputs(&self) -> &[Producer] {
         match &self.kind {
-            GateKind::And(_, o) => o,
-            GateKind::Not(_, o) => o,
+            GateKind::Nand(_, o) => o,
             GateKind::Const(_, o) => o,
             GateKind::Subcircuit(_, o, _) => o,
         }
     }
     pub(crate) fn _inputs_mut(&mut self) -> &mut [Receiver] {
         match &mut self.kind {
-            GateKind::And(i, _) => i,
-            GateKind::Not(i, _) => i,
+            GateKind::Nand(i, _) => i,
             GateKind::Const(i, _) => i,
             GateKind::Subcircuit(i, _, _) => i,
         }
     }
     pub(crate) fn _outputs_mut(&mut self) -> &mut [Producer] {
         match &mut self.kind {
-            GateKind::And(_, o) => o,
-            GateKind::Not(_, o) => o,
+            GateKind::Nand(_, o) => o,
             GateKind::Const(_, o) => o,
             GateKind::Subcircuit(_, o, _) => o,
         }
@@ -380,8 +367,7 @@ impl GateKind {
         let get_producer_value = |producer_idx| if let Some(producer_idx) = producer_idx { circuit.get_producer(producer_idx).value } else { false };
         // TODO: figure out a way for this to set its outputs
         match self {
-            GateKind::And([a, b], _) => vec![get_producer_value(a.producer) && get_producer_value(b.producer)],
-            GateKind::Not([i], _) => vec![!get_producer_value(i.producer)],
+            GateKind::Nand([a, b], _) => vec![!(get_producer_value(a.producer) && get_producer_value(b.producer))],
             GateKind::Const(_, [o]) => vec![o.value],
             GateKind::Subcircuit(inputs, _, subcircuit) => {
                 let mut subcircuit = subcircuit.borrow_mut();
