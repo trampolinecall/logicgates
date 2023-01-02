@@ -31,23 +31,23 @@ pub(crate) enum Token<'file> {
 impl<'file> Token<'file> {
     pub(crate) fn span(&self) -> Span<'file> {
         match self {
-            Token::EOF(sp) => *sp,
-            Token::OBrack(sp) => *sp,
-            Token::CBrack(sp) => *sp,
-            Token::Semicolon(sp) => *sp,
-            Token::Dot(sp) => *sp,
-            Token::Comma(sp) => *sp,
-            Token::Equals(sp) => *sp,
-            Token::Arrow(sp) => *sp,
-            Token::Let(sp) => *sp,
-            Token::Inline(sp) => *sp,
-            Token::Bundle(sp) => *sp,
-            Token::Inputs(sp) => *sp,
-            Token::Outputs(sp) => *sp,
-            Token::Apostrophe(sp) => *sp,
-            Token::Number(sp, _, _) => *sp,
-            Token::Identifier(sp, _) => *sp,
-            Token::Named(sp) => *sp,
+            Token::EOF(sp)
+            | Token::OBrack(sp)
+            | Token::CBrack(sp)
+            | Token::Semicolon(sp)
+            | Token::Dot(sp)
+            | Token::Comma(sp)
+            | Token::Equals(sp)
+            | Token::Arrow(sp)
+            | Token::Let(sp)
+            | Token::Inline(sp)
+            | Token::Bundle(sp)
+            | Token::Inputs(sp)
+            | Token::Outputs(sp)
+            | Token::Apostrophe(sp)
+            | Token::Number(sp, _, _)
+            | Token::Identifier(sp, _)
+            | Token::Named(sp) => *sp,
         }
     }
 }
@@ -107,7 +107,8 @@ macro_rules! define_matcher {
             use super::Token;
             use crate::compiler::error::Span;
 
-            pub(super) fn matches(tok: &Token) -> bool {
+            #[inline]
+            pub(super) const fn matches(tok: &Token) -> bool {
                 #[allow(unused_variables)]
                 if let $tok_pat = tok {
                     true
@@ -116,6 +117,7 @@ macro_rules! define_matcher {
                 }
             }
 
+            #[inline]
             pub(super) fn convert<$file>(tok: Token<$file>) -> $tok_data {
                 if let $tok_pat = tok {
                     $tok_extract
@@ -127,6 +129,7 @@ macro_rules! define_matcher {
 
         impl<$file> Token<$file> {
             #[allow(dead_code)]
+            #[inline]
             pub(crate) const fn $matcher_name() -> TokenMatcher<$file, $tok_data> {
                 TokenMatcher { name: $name, matches: $matcher_name::matches, convert: $matcher_name::convert }
             }

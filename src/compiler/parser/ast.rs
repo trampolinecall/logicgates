@@ -22,11 +22,9 @@ pub(crate) enum TypeAST<'file> {
 impl<'file> TypeAST<'file> {
     pub(crate) fn span(&self) -> Span<'file> {
         match self {
-            TypeAST::Bit(sp) => *sp,
-            TypeAST::Product { obrack, types: _, cbrack } => *obrack + *cbrack,
+            TypeAST::Bit(sp) | TypeAST::Named(sp, _) => *sp,
             TypeAST::RepProduct { obrack, num: _, cbrack: _, type_ } => *obrack + type_.span(),
-            TypeAST::NamedProduct { obrack, named: _, types: _, cbrack } => *obrack + *cbrack,
-            TypeAST::Named(sp, _) => *sp,
+            TypeAST::Product { obrack, types: _, cbrack } | TypeAST::NamedProduct { obrack, named: _, types: _, cbrack } => *obrack + *cbrack,
         }
     }
 }

@@ -59,7 +59,7 @@ pub(super) fn make_producer_bundle(types: &ty::Types, type_: ty::TypeSym, output
     }
 }
 
-pub(super) fn connect_bundle<'types>(
+pub(super) fn connect_bundle(
     types: &mut ty::Types,
     circuit: &mut circuit::Circuit,
     // got_span: Span,
@@ -71,7 +71,7 @@ pub(super) fn connect_bundle<'types>(
     let receiver_type = receiver_bundle.type_(types);
     if producer_type != receiver_type {
         (&*types, Error::TypeMismatch { got_type: producer_type, expected_type: receiver_type, /* got_span, */ expected_span }).report();
-        None?
+        None?;
     }
 
     match (producer_bundle, receiver_bundle) {

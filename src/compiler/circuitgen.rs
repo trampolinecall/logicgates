@@ -95,7 +95,7 @@ pub(crate) fn generate(file: &File, types: &mut ty::Types, ast: Vec<ir::TypedCir
     }
 
     if errored {
-        None?
+        None?;
     }
     match global_state.circuit_table.remove("main") {
         Some(CircuitDef::Circuit { circuit: r, .. }) => Some(r),
@@ -121,7 +121,7 @@ fn convert_circuit<'ggs, 'types, 'file>(
     circuit_state.circuit.set_num_inputs(input_type.size(types));
     assert_eq!(input_type.size(types), circuit_state.circuit.num_inputs(), "number of circuit inputs should be equal to the number of input bits"); // sanity check
 
-    let input_bundle = bundle::make_producer_bundle(types, input_type_sym, &mut circuit_state.circuit.input_indexes().map(|circuit_input_idx| circuit_input_idx.into()));
+    let input_bundle = bundle::make_producer_bundle(types, input_type_sym, &mut circuit_state.circuit.input_indexes().map(Into::into));
     if let Err(e) = assign_pattern(types, &mut circuit_state, &circuit_ast.input, input_bundle) {
         (&*types, e).report();
     }
@@ -143,7 +143,7 @@ fn convert_circuit<'ggs, 'types, 'file>(
     circuit_state.circuit.set_num_outputs(output_type.size(types));
     assert_eq!(circuit_state.circuit.num_outputs(), output_type.size(types), "number of circuit outputs should be equal to the number of output producers");
 
-    let output_bundle = bundle::make_receiver_bundle(types, output_type_sym, &mut circuit_state.circuit.output_indexes().map(|output_idx| output_idx.into()));
+    let output_bundle = bundle::make_receiver_bundle(types, output_type_sym, &mut circuit_state.circuit.output_indexes().map(Into::into));
     bundle::connect_bundle(types, &mut circuit_state.circuit, output_value_span, &output_value, &output_bundle);
 
     circuit_state.circuit.calculate_locations();
@@ -158,7 +158,7 @@ fn assign_pattern<'types, 'cgs, 'file>(
     bundle: ProducerBundle,
 ) -> Result<(), Error<'file>> {
     if bundle.type_(types) != pat.type_info {
-        Err(Error::TypeMismatch { expected_span: pat.kind.span(), got_type: bundle.type_(types), expected_type: pat.type_info })?
+        Err(Error::TypeMismatch { expected_span: pat.kind.span(), got_type: bundle.type_(types), expected_type: pat.type_info })?;
         // TODO
     }
 
@@ -183,39 +183,36 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
     let span = expr.span();
     match expr {
         ir::Expr::Ref(name_sp, name) => {
-            let name_resolved = match circuit_state.locals.get(name) {
-                Some(resolved) => resolved,
-                None => {
-                    (&*types, Error::NoSuchLocal(name_sp, name)).report();
-                    None?
-                }
+            let name_resolved = if let Some(resolved) = circuit_state.locals.get(name) {
+                resolved
+            } else {
+                (&*types, Error::NoSuchLocal(name_sp, name)).report();
+                None?
             };
 
             Some(name_resolved.clone())
         }
 
         ir::Expr::Call(circuit_name, inline, arg) => {
-            let name_resolved = match global_state.circuit_table.get(circuit_name.1) {
-                Some(n) => n,
-                None => {
-                    (&*types, Error::NoSuchCircuit(circuit_name.0, circuit_name.1)).report();
-                    None?
-                }
+            let name_resolved = if let Some(n) = global_state.circuit_table.get(circuit_name.1) {
+                n
+            } else {
+                (&*types, Error::NoSuchCircuit(circuit_name.0, circuit_name.1)).report();
+                None?
             };
 
             let arg = convert_expr(global_state, types, circuit_state, *arg)?;
-            let (receiver, producer) = if inline { name_resolved.inline_gate(types, circuit_state) } else { name_resolved.add_gate(types, circuit_state) }?;
+            let (receiver, producer) = if inline { name_resolved.inline_gate(types, circuit_state) } else { name_resolved.add_gate(types, circuit_state) };
             bundle::connect_bundle(types, &mut circuit_state.circuit, span, &arg, &receiver)?;
             Some(producer)
         }
 
         ir::Expr::Const(_, value) => {
-            let (_, p) = if value { &global_state.const_1 } else { &global_state.const_0 }.add_gate(types, circuit_state)?;
+            let (_, p) = if value { &global_state.const_1 } else { &global_state.const_0 }.add_gate(types, circuit_state);
             Some(p)
         }
 
         ir::Expr::Get(expr, (field_name_sp, field_name)) => {
-            let expr = convert_expr(global_state, types, circuit_state, *expr)?;
             fn get_field(expr: &ProducerBundle, field_name: &str) -> Option<ProducerBundle> {
                 match expr {
                     ProducerBundle::Single(_) => None,
@@ -224,6 +221,7 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
                 }
             }
 
+            let expr = convert_expr(global_state, types, circuit_state, *expr)?;
             let field = get_field(&expr, field_name);
             if let Some(r) = field {
                 Some(r)
