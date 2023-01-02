@@ -26,13 +26,6 @@ impl<'types> ProducerBundle {
             }
         }
     }
-
-    pub(super) fn flatten(&self) -> Vec<circuit::ProducerIdx> {
-        match self {
-            ProducerBundle::Single(i) => vec![*i],
-            ProducerBundle::Product(items) => items.iter().flat_map(|(_, subbundle)| subbundle.flatten()).collect(),
-        }
-    }
 }
 impl<'types> ReceiverBundle {
     pub(super) fn type_(&self, types: &'types mut ty::Types) -> ty::TypeSym {
@@ -42,13 +35,6 @@ impl<'types> ReceiverBundle {
                 let ty = ty::Type::Product(tys.iter().map(|(name, subbundle)| (name.to_string(), subbundle.type_(types))).collect());
                 types.intern(ty)
             }
-        }
-    }
-
-    pub(super) fn flatten(&self) -> Vec<circuit::ReceiverIdx> {
-        match self {
-            ReceiverBundle::Single(i) => vec![*i],
-            ReceiverBundle::Product(items) => items.iter().flat_map(|(name, subbundle)| subbundle.flatten()).collect(),
         }
     }
 }
