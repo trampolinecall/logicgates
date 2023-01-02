@@ -7,15 +7,12 @@ pub(crate) fn type_<'file>(types: &mut ty::Types, circuits: Vec<ast::CircuitAST<
             name: circuit.name,
             input_type: convert_type(types, &circuit.input_type),
             output_type: convert_type(types, &circuit.output_type),
-            gates: circuit.gates.into_iter().map(|gate| type_gate(types, gate)).collect(),
+            gates: circuit.gates,
             connections: circuit.connections,
         })
         .collect()
 }
 
-fn type_gate<'file>(types: &mut ty::Types, gate: ir::GateInstance<'file>) -> ir::GateInstance<'file> {
-    gate
-}
 
 fn convert_type(types: &mut ty::Types, ty: &ast::TypeAST) -> ty::TypeSym {
     match ty {
