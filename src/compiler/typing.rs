@@ -17,20 +17,18 @@ pub(crate) fn type_<'file>(types: &mut ty::Types, circuits: Vec<ast::CircuitAST<
 
     // TODO: report more than just the first error
 
-    Some(
-        circuits
-            .into_iter()
-            .map(|circuit| {
-                Some(ir::Circuit {
-                    name: circuit.name,
-                    input_type: convert_type(types, &type_table, &circuit.input_type)?,
-                    output_type: convert_type(types, &type_table, &circuit.output_type)?,
-                    gates: circuit.gates,
-                    connections: circuit.connections,
-                })
+    circuits
+        .into_iter()
+        .map(|circuit| {
+            Some(ir::Circuit {
+                name: circuit.name,
+                input_type: convert_type(types, &type_table, &circuit.input_type)?,
+                output_type: convert_type(types, &type_table, &circuit.output_type)?,
+                gates: circuit.gates,
+                connections: circuit.connections,
             })
-            .collect::<Option<Vec<_>>>()?,
-    )
+        })
+        .collect::<Option<Vec<_>>>()
 }
 
 fn convert_type(types: &mut ty::Types, type_table: &HashMap<String, ty::TypeSym>, ty: &ast::TypeAST) -> Option<ty::TypeSym> {
