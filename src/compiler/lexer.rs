@@ -92,10 +92,10 @@ impl<'file> Lexer<'file> {
                 let slice = self.slice(start_i);
                 match slice {
                     "let" => Ok(Some(Token::Let(span))),
-                    "inline" => Ok(Some(Token::Inline(span))),
-                    "bundle" => Ok(Some(Token::Bundle(span))),
-                    "inputs" => Ok(Some(Token::Inputs(span))),
-                    "outputs" => Ok(Some(Token::Outputs(span))),
+                    // "inline" => Ok(Some(Token::Inline(span))),
+                    // "bundle" => Ok(Some(Token::Bundle(span))),
+                    // "inputs" => Ok(Some(Token::Inputs(span))),
+                    // "outputs" => Ok(Some(Token::Outputs(span))),
                     "named" => Ok(Some(Token::Named(span))),
                     "connect" => Ok(Some(Token::Connect(span))),
                     iden => Ok(Some(Token::Identifier(span, iden))),
@@ -161,6 +161,7 @@ mod test {
                 ("=", sp => Token::Equals(sp)),
                 (".", sp => Token::Dot(sp)),
                 (";", sp => Token::Semicolon(sp)),
+                ("'", sp => Token::Apostrophe(sp)),
             ],
             sp => Token::EOF(sp),
         );
@@ -196,29 +197,6 @@ mod test {
                 (" ", _sp => None),
                 ("abc87", sp => Some(Token::Identifier(sp, "abc87"))),
                 (" ", _sp => None),
-                ("abC-'()", sp => Some(Token::Identifier(sp, "abC-'()"))),
-            ],
-            sp => Some(Token::EOF(sp)),
-        );
-
-        check_lexer_output(lex(&file), expected.into_iter().flatten());
-    }
-
-    #[test]
-    fn quotes_and_circuit_identifiers() {
-        let mut file = File::test_file();
-        let expected = make_spans!(file,
-            [
-                ("'", sp => Some(Token::Apostrophe(sp))),
-                ("a", sp => Some(Token::Identifier(sp, "a"))),
-                (" ", _sp => None),
-                ("'", sp => Some(Token::Apostrophe(sp))),
-                ("abc", sp => Some(Token::Identifier(sp, "abc"))),
-                (" ", _sp => None),
-                ("'", sp => Some(Token::Apostrophe(sp))),
-                ("abc87", sp => Some(Token::Identifier(sp, "abc87"))),
-                (" ", _sp => None),
-                ("'", sp => Some(Token::Apostrophe(sp))),
                 ("abC-'()", sp => Some(Token::Identifier(sp, "abC-'()"))),
             ],
             sp => Some(Token::EOF(sp)),
