@@ -220,13 +220,13 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     }
 
     fn type_(&mut self) -> Result<ast::Type<'file>, ParseError<'file>> {
-        match self.peek() {
-            &Token::Backtick(sp) => {
+        match *self.peek() {
+            Token::Backtick(sp) => {
                 let _ = self.next();
                 Ok(ast::Type::Bit(sp))
             }
 
-            &Token::OBrack(obrack) => {
+            Token::OBrack(obrack) => {
                 let _ = self.next();
 
                 match self.peek() {
@@ -241,8 +241,8 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                     }
 
                     _ => {
-                        let (tys, cbrack) = self.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::type_)?;
-                        Ok(ast::Type::Product { types: tys.into_iter().map(|ty| ty).collect(), obrack, cbrack })
+                        let (types, cbrack) = self.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::type_)?;
+                        Ok(ast::Type::Product { types, obrack, cbrack })
                     }
                 }
             }

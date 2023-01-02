@@ -6,7 +6,7 @@ pub(crate) enum Type {
     Bit,
     Product(Vec<Type>), // TODO: named product types
 }
-impl<'file> Type {
+impl Type {
     pub(crate) fn size(&self) -> usize {
         match self {
             Type::Bit => 1,
@@ -15,7 +15,7 @@ impl<'file> Type {
     }
 }
 impl Type {
-    pub(crate) fn from_ast<'file>(ty: &ast::Type<'file>) -> Type {
+    pub(crate) fn from_ast(ty: &ast::Type) -> Type {
         // TODO: this should have to happen through name resolution
         match ty {
             ast::Type::Bit(_) => Type::Bit,
