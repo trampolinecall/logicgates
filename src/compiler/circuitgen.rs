@@ -119,9 +119,7 @@ fn convert_circuit<'ggs, 'types, 'file>(
     types: &'types mut ty::Types,
     circuit_ast: ir::TypedCircuit<'file>,
 ) -> Option<((Span<'file>, &'file str), circuit::Circuit, ty::TypeSym, ty::TypeSym)> {
-    let name = circuit_ast.name;
-
-    let mut circuit_state = CircuitGenState::new(name.1.to_string());
+    let mut circuit_state = CircuitGenState::new(circuit_ast.name.1.to_string());
 
     {
         let input_type_resolved = types.get(circuit_ast.input_type);
@@ -166,7 +164,7 @@ fn convert_circuit<'ggs, 'types, 'file>(
 
     circuit_state.circuit.calculate_locations();
 
-    Some((name, circuit_state.circuit, circuit_ast.input_type, circuit_ast.output_type))
+    Some((circuit_ast.name, circuit_state.circuit, circuit_ast.input_type, circuit_ast.output_type))
 }
 
 // TODO: there is probably a better way of doing this so that it doesnt need to be copied and pasted between the two functions

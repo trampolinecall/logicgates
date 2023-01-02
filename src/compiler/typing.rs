@@ -13,7 +13,6 @@ pub(crate) fn type_<'file>(types: &mut ty::Types, circuits: Vec<ast::CircuitAST<
         .collect()
 }
 
-
 fn convert_type(types: &mut ty::Types, ty: &ast::TypeAST) -> ty::TypeSym {
     match ty {
         ast::TypeAST::Bit(_) => types.intern(ty::Type::Bit),
