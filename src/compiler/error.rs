@@ -1,3 +1,5 @@
+// TODO: reorganize this module
+
 #[derive(Debug)]
 pub(crate) struct File {
     pub(crate) name: String,
@@ -9,12 +11,50 @@ pub(crate) struct Span<'file>(&'file File, usize, usize);
 
 impl PartialEq for Span<'_> {
     fn eq(&self, other: &Self) -> bool {
-        self as *const _ == other as *const _
+        self.0 as *const _ == other.0 as *const _ && self.1 == other.1 && self.2 == other.2
     }
 }
 impl Eq for Span<'_> {}
 
+#[cfg(test)]
+macro_rules! make_spans {
+    ($file:expr, [$(($str:literal, $sp:ident => $thing:expr)),* $(,)?], $eof_span:ident => $eof_thing:expr $(,)?) => {
+        {
+            $file.contents = {
+                let mut contents = String::new();
+                $(
+                    contents += $str;
+                )*
+                contents
+            };
+
+
+            let mut things = Vec::new();
+            let mut cur_idx = 0;
+
+            $(
+                {
+                    let $sp = $file.span(cur_idx, cur_idx + $str.len());
+                    things.push($thing);
+                    #[allow(unused_assignments)]
+                    (cur_idx += $str.len());
+                }
+            )*
+
+            let $eof_span = $file.eof_span();
+            things.push($eof_thing);
+
+            things
+        }
+    }
+}
+
 impl File {
+    #[cfg(test)]
+    pub(crate) fn test_file() -> File {
+        File { name: "<test file>".into(), contents: "".into() }
+    }
+
     pub(crate) fn eof_span(&self) -> Span {
         self.span_to_end(self.contents.len())
     }

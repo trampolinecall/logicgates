@@ -1,4 +1,5 @@
 mod circuitgen;
+#[macro_use]
 mod error;
 mod lexer;
 mod parser;
