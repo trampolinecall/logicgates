@@ -91,7 +91,7 @@ impl<'file> Lexer<'file> {
                 let span = self.span(start_i);
                 let slice = self.slice(start_i);
                 match slice {
-                    "let" => Ok(Some(Token::Let(span))),
+                    "use" => Ok(Some(Token::Use(span))),
                     // "inline" => Ok(Some(Token::Inline(span))),
                     // "bundle" => Ok(Some(Token::Bundle(span))),
                     // "inputs" => Ok(Some(Token::Inputs(span))),
