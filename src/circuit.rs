@@ -138,7 +138,7 @@ impl Circuit {
     pub(crate) fn new_not_gate(&mut self) -> GateIndex {
         self.gates.insert_with(|index| Gate {
             index,
-            kind: GateKind::Not([Receiver { gate: Some(index), producer: None }], [Producer { gate: Some(index), dependants: HashSet::new(), value: false }]),
+            kind: GateKind::Not([Receiver { gate: Some(index), producer: None }], [Producer { gate: Some(index), dependants: HashSet::new(), value: true }]),
             location: (0, 0.0),
         })
     }
@@ -184,25 +184,53 @@ impl Circuit {
     }
     pub(crate) fn set_input(&mut self, ci: CircuitInputNodeIdx, value: bool) {
         self.set_producer_value(ci.into(), value);
+        // TODO: consider whether or not this is supposed to call update()
+    }
+
+    pub(crate) fn update(&mut self) {
+        let mut stack: Vec<_> = self.gates.iter().map(|(i, _)| i).collect();
+        let mut changed = HashSet::new();
+        while let Some(gate) = stack.pop() {
+            if changed.contains(&gate) {
+                continue;
+            }
+
+            let gate_changed = self.update_gate(&mut stack, gate);
+            if gate_changed {
+                changed.insert(gate);
+            }
+        }
     }
     pub(crate) fn set_producer_value(&mut self, index: ProducerIdx, value: bool) {
         let producer = self.get_producer_mut(index);
         producer.value = value;
-        for dependant in producer.dependants.clone().into_iter() {
-            // clone so that the borrow checker is happy, TODO: find better solution to this
-            self.update_receiver(dependant)
-        }
+        // caller should call update next
     }
 
-    pub(crate) fn update_receiver(&mut self, receiver: ReceiverIdx) {
-        if let Some(gate) = self.get_receiver(receiver).gate {
-            let gate = self.get_gate(gate);
-            let outputs = gate.kind.compute(self);
-            assert_eq!(outputs.len(), gate.num_outputs());
-            for (output, node) in outputs.into_iter().zip(gate.outputs().collect::<Vec<_>>().into_iter()) {
-                self.set_producer_value(node.into(), output);
+    fn update_gate(&mut self, update_stack: &mut Vec<GateIndex>, gate: GateIndex) -> bool{
+        let gate = self.get_gate(gate);
+        let outputs = gate.kind.compute(self);
+        assert_eq!(outputs.len(), gate.num_outputs());
+
+        let mut changed = false;
+
+        for (new_value, output_node) in outputs.into_iter().zip(gate.outputs().collect::<Vec<_>>().into_iter()) {
+            let as_producer_index = output_node.into();
+            let old_value = self.get_producer(as_producer_index).value;
+            if old_value != new_value {
+                changed = true;
+            }
+            self.set_producer_value(as_producer_index, new_value);
+
+            for dependant in self.get_producer(as_producer_index).dependants.clone().into_iter() {
+                // clone so that the borrow checker is happy, TODO: find better solution to this
+                if let Some(gate) = self.get_receiver(dependant).gate {
+                    update_stack.push(gate);
+                }
             }
         }
+
+        changed
     }
 
     pub(crate) fn set_num_inputs(&mut self, num: usize) {

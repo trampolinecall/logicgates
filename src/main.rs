@@ -21,7 +21,9 @@ impl App {
         self.circuit.render(&mut self.gl, render_args);
     }
 
-    fn update(&mut self, _: &piston::UpdateArgs) {}
+    fn update(&mut self, update_args: &piston::UpdateArgs) {
+        self.circuit.update();
+    }
 }
 
 fn main() {
@@ -32,14 +34,10 @@ fn main() {
 
     let mut app = App::new(opengl_graphics::GlGraphics::new(opengl), circuit);
 
-    let mut events = piston::Events::new(piston::EventSettings::new());
+    let mut events = piston::Events::new(piston::EventSettings { ups: 20, ..Default::default() });
     while let Some(e) = events.next(&mut window) {
         if let Some(args) = e.render_args() {
             app.render(&args);
-        }
-
-        if let Some(args) = e.update_args() {
-            app.update(&args);
         }
 
         if let Some(piston::Button::Keyboard(key)) = e.press_args() {
@@ -87,6 +85,10 @@ fn main() {
                     app.circuit.toggle_input(index);
                 }
             }
+        }
+
+        if let Some(args) = e.update_args() {
+            app.update(&args);
         }
     }
 }

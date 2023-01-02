@@ -70,7 +70,7 @@ pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit
     // TODO: test this
 
     // group them into columns with each one going one column right of its rightmost dependency
-    let mut xs: BTreeMap<circuit::GateIndex, u32> = BTreeMap::new();
+    let mut xs: BTreeMap<circuit::GateIndex, u32> = circuit.gates.iter().map(|(g_i, _)| (g_i, 0)).collect();
     for (gate_i, gate) in circuit.gates.iter() {
         let input_producer_x = |input: circuit::GateInputNodeIdx| match circuit.get_receiver(input.into()).producer {
             Some(producer) => match circuit.get_producer(producer).gate {
