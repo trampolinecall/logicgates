@@ -182,8 +182,8 @@ impl std::fmt::Display for Token<'_> {
 
             Token::Apostrophe(_) => write!(f, "{}", names::APOSTROPHE),
 
-            Token::Number(_, _, n) => write!(f, "'{n}'"),
-            Token::Identifier(_, i) => write!(f, "'{i}'"),
+            Token::Number(_, _, n) => write!(f, "number '{n}'"),
+            Token::Identifier(_, i) => write!(f, "identifier '{i}'"),
         }
     }
 }
