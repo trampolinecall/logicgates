@@ -83,18 +83,28 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 }
 
 impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
-    fn parse(&mut self) -> Vec<ast::CircuitAST<'file>> {
+    fn parse(&mut self) -> (Vec<ast::CircuitAST<'file>>, Vec<ast::NamedTypeDecl<'file>>) {
         let mut circuits = Vec::new();
+        let mut type_decls = Vec::new();
+
         while !Token::eof_matcher().matches(self.peek()) {
-            match self.circuit() {
-                Ok(circuit) => circuits.push(circuit),
-                Err(e) => {
-                    e.report();
-                }
+            match self.peek() {
+                Token::Named(_) => match self.named_type_decl() {
+                    Ok(type_decl) => type_decls.push(type_decl),
+                    Err(e) => {
+                        e.report();
+                    }
+                },
+                _ => match self.circuit() {
+                    Ok(circuit) => circuits.push(circuit),
+                    Err(e) => {
+                        e.report();
+                    }
+                },
             }
         }
 
-        circuits
+        (circuits, type_decls)
     }
 
     fn circuit(&mut self) -> Result<ast::CircuitAST<'file>, ParseError<'file>> {
@@ -115,6 +125,14 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         }
 
         Ok(ast::CircuitAST { name, input_type, output_type, gates, connections })
+    }
+
+    fn named_type_decl(&mut self) -> Result<ast::NamedTypeDecl<'file>, ParseError<'file>> {
+        self.expect(Token::named_matcher())?;
+        let name = self.expect(Token::identifier_matcher())?;
+        let ty = self.type_()?;
+
+        Ok(ast::NamedTypeDecl { name, ty })
     }
 
     fn gate_instance(&mut self) -> Result<ir::GateInstance<'file>, ParseError<'file>> {
@@ -236,12 +254,18 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 }
             }
 
+            Token::Identifier(_, _) => {
+                let iden = Token::identifier_matcher().convert(self.next());
+
+                Ok(ast::TypeAST::Named(iden.0, iden.1))
+            }
+
             _ => Err(self.expected_and_next("type")),
         }
     }
 }
 
-pub(crate) fn parse<'file>(tokens: impl Iterator<Item = Token<'file>>) -> Vec<ast::CircuitAST<'file>> {
+pub(crate) fn parse<'file>(tokens: impl Iterator<Item = Token<'file>>) -> (Vec<ast::CircuitAST<'file>>, Vec<ast::NamedTypeDecl<'file>>) {
     Parser { tokens: tokens.peekable() }.parse()
 }
 

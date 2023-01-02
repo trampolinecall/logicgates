@@ -21,8 +21,9 @@ pub(crate) fn compile(filename: &str) -> Option<circuit::Circuit> {
         }
     };
 
-    let ast = parser::parse(lexer::lex(&file));
+    let (circuits, type_decls) = parser::parse(lexer::lex(&file));
     let mut types = ty::Types::new();
-    let typed = typing::type_(&mut types, ast);
+    let type_table = typing::define_types(&mut types, type_decls, )?;
+    let typed = typing::type_(&mut types, &type_table, circuits)?;
     circuitgen::generate(&file, &mut types, typed)
 }
