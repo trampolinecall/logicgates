@@ -90,10 +90,10 @@ mod names {
     pub(super) const ARROW: &str = "'->'";
 
     pub(super) const LET: &str = "'let'";
-    pub(super) const INLINE: &str = "'inline'";
-    pub(super) const BUNDLE: &str = "'bundle'";
-    pub(super) const INPUTS: &str = "'inputs'";
-    pub(super) const OUTPUTS: &str = "'outputs'";
+    // pub(super) const INLINE: &str = "'inline'";
+    // pub(super) const BUNDLE: &str = "'bundle'";
+    // pub(super) const INPUTS: &str = "'inputs'";
+    // pub(super) const OUTPUTS: &str = "'outputs'";
     pub(super) const NAMED: &str = "'named'";
     pub(super) const CONNECT: &str = "'connect'";
 
