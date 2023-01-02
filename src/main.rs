@@ -21,7 +21,7 @@ impl App {
         self.circuit.render(&mut self.gl, render_args);
     }
 
-    fn update(&mut self, update_args: &piston::UpdateArgs) {
+    fn update(&mut self, _: &piston::UpdateArgs) {
         self.circuit.update();
     }
 }

@@ -105,7 +105,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
         let mut gates = Vec::new();
 
-        while Token::let_matcher().matches(self.peek()) {
+        while Token::use_matcher().matches(self.peek()) {
             gates.push(self.gate_instance()?);
         }
 
@@ -118,10 +118,9 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     }
 
     fn gate_instance(&mut self) -> Result<ir::GateInstance<'file>, ParseError<'file>> {
-        self.expect(Token::let_matcher())?;
-        let local_name = self.expect(Token::identifier_matcher())?;
-        self.expect(Token::equals_matcher())?;
+        self.expect(Token::use_matcher())?;
         let gate_name = self.expect(Token::identifier_matcher())?;
+        let local_name = self.expect(Token::identifier_matcher())?;
 
         Ok(ir::GateInstance { local_name, gate_name })
     }
@@ -301,7 +300,7 @@ mod test {
                 Token::Identifier(sp, "arg"),
                 Token::Semicolon(sp),
                 Token::Apostrophe(sp),
-                Token::Let(sp),
+                Token::Use(sp),
                 Token::Identifier(sp, "res"),
                 Token::Semicolon(sp),
                 Token::Apostrophe(sp),
@@ -337,7 +336,7 @@ mod test {
         let file = File::test_file();
         let sp = file.eof_span();
 
-        let tokens = make_token_stream([Token::Let(sp), Token::Identifier(sp, "a"), Token::Semicolon(sp), Token::Apostrophe(sp), Token::Equals(sp), Token::Identifier(sp, "b")], sp);
+        let tokens = make_token_stream([Token::Use(sp), Token::Identifier(sp, "a"), Token::Semicolon(sp), Token::Apostrophe(sp), Token::Equals(sp), Token::Identifier(sp, "b")], sp);
         assert_eq!(
             Parser { tokens: tokens }.gate_instance(),
             Ok(ast::LetAST { pat: ast::PatternAST { kind: ir::PatternKind::Identifier(sp, "a", ast::TypeAST::Bit(sp)), type_info: () }, val: ir::Expr::Ref(sp, "b") })
