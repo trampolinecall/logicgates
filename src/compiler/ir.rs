@@ -1,5 +1,9 @@
-use super::parser::ast;
+use super::{parser::ast, ty};
 use crate::compiler::error::Span;
+
+pub(crate) type TypedCircuit<'file> = Circuit<'file, TypedPattern<'file>>;
+pub(crate) type TypedLet<'file> = Let<'file, TypedPattern<'file>>;
+pub(crate) type TypedPattern<'file> = Pattern<'file, ty::TypeSym>;
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct Circuit<'file, Pattern> {
@@ -31,14 +35,14 @@ pub(crate) struct Pattern<'file, TypeInfo> {
 }
 #[derive(PartialEq, Debug)]
 pub(crate) enum PatternKind<'file, TypeInfo> {
-    Identifier(Span<'file>, &'file str, ast::Type<'file>),
+    Identifier(Span<'file>, &'file str, ast::TypeAST<'file>),
     Product(Span<'file>, Vec<Pattern<'file, TypeInfo>>),
 }
 
 impl<'file, TypeInfo> PatternKind<'file, TypeInfo> {
     pub(crate) fn span(&self) -> Span<'file> {
         match self {
-            PatternKind::Identifier(sp, _, _) => *sp,
+            PatternKind::Identifier(sp, _, ty) => *sp + ty.span(),
             PatternKind::Product(sp, _) => *sp,
         }
     }
