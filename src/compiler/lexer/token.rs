@@ -155,6 +155,7 @@ define_matcher!(use_matcher, 'file, Span<'file>, names::USE, Token::Use(sp) => s
 // define_matcher!(bundle_matcher, 'file, Span<'file>, names::BUNDLE, Token::Bundle(sp) => sp);
 // define_matcher!(inputs_matcher, 'file, Span<'file>, names::INPUTS, Token::Inputs(sp) => sp);
 // define_matcher!(outputs_matcher, 'file, Span<'file>, names::OUTPUTS, Token::Outputs(sp) => sp);
+define_matcher!(named_matcher, 'file, Span<'file>, names::NAMED, Token::Named(sp) => sp);
 define_matcher!(connect_matcher, 'file, Span<'file>, names::CONNECT, Token::Connect(sp) => sp);
 
 // define_matcher!(apostrophe_matcher, 'file, Span<'file>, names::APOSTROPHE, Token::Apostrophe(sp) => sp);

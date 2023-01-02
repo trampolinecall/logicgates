@@ -193,10 +193,16 @@ fn convert_receiver(global_state: &GlobalGenState, types: &mut ty::Types, circui
 
         ir::Expr::Get(expr, (field_name_sp, field_name)) => {
             let expr = convert_receiver(global_state, types, circuit_state, *expr)?;
-            let field = match &expr {
-                ReceiverBundle::Single(_) => None,
-                ReceiverBundle::Product(items) => items.iter().find(|(name, _)| name == field_name).map(|(_, bundle)| bundle).cloned(),
-            };
+            fn get_field(expr: &ReceiverBundle, field_name: &str) -> Option<ReceiverBundle> {
+                match expr {
+                    ReceiverBundle::Single(_) => None,
+                    ReceiverBundle::Product(items) => items.iter().find(|(name, _)| name == field_name).map(|(_, bundle)| bundle).cloned(),
+                    ReceiverBundle::InstanceOfNamed(_, sub) => get_field(sub, field_name),
+                }
+            }
+
+            let field = get_field(&expr, field_name);
+
             if let Some(r) = field {
                 Some(r)
             } else {
@@ -245,10 +251,16 @@ fn convert_producer(global_state: &GlobalGenState, types: &mut ty::Types, circui
 
         ir::Expr::Get(expr, (field_name_sp, field_name)) => {
             let expr = convert_producer(global_state, types, circuit_state, *expr)?;
-            let field = match &expr {
-                ProducerBundle::Single(_) => None,
-                ProducerBundle::Product(items) => items.iter().find(|(name, _)| name == field_name).map(|(_, bundle)| bundle).cloned(),
-            };
+            // TODO: refactor so that this does not need to be copied and pasted
+            fn get_field(expr: &ProducerBundle, field_name: &str) -> Option<ProducerBundle> {
+                match expr {
+                    ProducerBundle::Single(_) => None,
+                    ProducerBundle::Product(items) => items.iter().find(|(name, _)| name == field_name).map(|(_, bundle)| bundle).cloned(),
+                    ProducerBundle::InstanceOfNamed(_, sub) => get_field(sub, field_name),
+                }
+            }
+
+            let field = get_field(&expr, field_name);
             if let Some(r) = field {
                 Some(r)
             } else {
