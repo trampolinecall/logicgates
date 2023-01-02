@@ -16,7 +16,7 @@ impl<'types> CircuitDef {
         match self {
             CircuitDef::Circuit { circuit: _, input_type, result_type: _ } => *input_type,
             CircuitDef::And => {
-                let ty = ty::Type::Product(vec![types.intern(ty::Type::Bit), types.intern(ty::Type::Bit)]);
+                let ty = ty::Type::Product(vec![("0".to_string(), types.intern(ty::Type::Bit)), ("1".to_string(), types.intern(ty::Type::Bit))]);
                 types.intern(ty)
             }
             CircuitDef::Not => types.intern(ty::Type::Bit),

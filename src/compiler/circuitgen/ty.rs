@@ -8,7 +8,7 @@ pub(crate) type TypeSym = symtern::Sym<usize>;
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub(crate) enum Type {
     Bit,
-    Product(Vec<TypeSym>), // TODO: named product types
+    Product(Vec<(String, TypeSym)>),
 }
 impl Types {
     pub(crate) fn new() -> Self {
@@ -27,7 +27,7 @@ impl Type {
     pub(crate) fn size(&self, types: &Types) -> usize {
         match self {
             Type::Bit => 1,
-            Type::Product(fields) => fields.iter().map(|tyi| types.get(*tyi).size(types)).sum(),
+            Type::Product(fields) => fields.iter().map(|(_, tyi)| types.get(*tyi).size(types)).sum(),
         }
     }
 
@@ -36,12 +36,17 @@ impl Type {
         match ty {
             ast::Type::Bit(_) => types.intern(Type::Bit),
             ast::Type::Product { obrack: _, types: subtypes, cbrack: _ } => {
-                let ty = Type::Product(subtypes.iter().map(|subty_ast| Type::from_ast(types, subty_ast)).collect());
+                let ty = Type::Product(subtypes.iter().enumerate().map(|(ind, subty_ast)| (ind.to_string(), Type::from_ast(types, subty_ast))).collect());
                 types.intern(ty)
             }
             ast::Type::RepProduct { obrack: _, num, cbrack: _, type_ } => {
                 let ty = Type::from_ast(types, type_);
-                types.intern(Type::Product((0..num.1).map(|_| ty).collect()))
+                types.intern(Type::Product((0..num.1).map(|ind| (ind.to_string(), ty)).collect()))
+            }
+            ast::Type::NamedProduct { obrack: _, named: _, types: subtypes, cbrack: _ } => {
+                let ty = Type::Product(subtypes.iter().map(|(name, ty)| (name.1.to_string(), Type::from_ast(types, ty))).collect());
+                // TODO: report error if there are any duplicate fields
+                types.intern(ty)
             }
         }
     }
@@ -51,7 +56,7 @@ impl Type {
         match pat {
             ast::Pattern::Identifier(_, ty) => Type::from_ast(types, ty),
             ast::Pattern::Product(_, pats) => {
-                let ty = Type::Product(pats.iter().map(|subpat| Type::pat_type(types, subpat)).collect());
+                let ty = Type::Product(pats.iter().enumerate().map(|(ind, subpat)| (ind.to_string(), Type::pat_type(types, subpat))).collect());
                 types.intern(ty)
             }
         }
@@ -64,11 +69,11 @@ impl Type {
         match self {
             Type::Bit => write!(s, "`").unwrap(),
             Type::Product(items) => {
-                write!(s, "[").unwrap();
-                if let Some((first, more)) = items.split_first() {
-                    write!(s, "{}", types.get(*first).fmt(types)).unwrap();
-                    for more in more {
-                        write!(s, ", {}", types.get(*more).fmt(types)).unwrap();
+                write!(s, "[named ").unwrap();
+                if let Some(((first_name, first), more)) = items.split_first() {
+                    write!(s, "{}; {}", first_name, types.get(*first).fmt(types)).unwrap();
+                    for (more_name, more) in more {
+                        write!(s, ", {}; {}", more_name, types.get(*more).fmt(types)).unwrap();
                     }
                 }
                 write!(s, "]").unwrap();

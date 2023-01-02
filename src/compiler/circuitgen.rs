@@ -155,7 +155,7 @@ fn assign_pattern<'types, 'cgs, 'file>(types: &'types mut ty::Types, circuit_sta
         }
         (ast::Pattern::Product(_, subpats), ProducerBundle::Product(subbundles)) => {
             assert_eq!(subpats.len(), subbundles.len(), "assign product pattern to procut bundle with different length"); // sanity check
-            for (subpat, subbundle) in subpats.iter().zip(subbundles) {
+            for (subpat, (_, subbundle)) in subpats.iter().zip(subbundles) {
                 assign_pattern(types, circuit_state, subpat, subbundle)?;
             }
         }
@@ -201,20 +201,17 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
             Some(p)
         }
 
-        ast::Expr::Get(expr, field_name) => {
+        ast::Expr::Get(expr, (field_name_sp, field_name)) => {
             let expr = convert_expr(global_state, types, circuit_state, *expr)?;
             let field = match &expr {
                 ProducerBundle::Single(_) => None,
-                ProducerBundle::Product(items) => match field_name.1.parse::<usize>() {
-                    Ok(i) if i < items.len() => Some(items[i].clone()),
-                    _ => None,
-                },
+                ProducerBundle::Product(items) => items.iter().find(|(name, _)| name == field_name).map(|(_, bundle)| bundle).cloned(),
             };
             if let Some(r) = field {
                 Some(r)
             } else {
                 let ty = expr.type_(types);
-                (&*types, Error::NoField { ty, field_name: field_name.1, field_name_sp: field_name.0 }).report();
+                (&*types, Error::NoField { ty, field_name, field_name_sp }).report();
                 None
             }
         }
@@ -222,10 +219,10 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
         ast::Expr::Multiple(_, exprs) => {
             let mut results = Some(Vec::new());
 
-            for expr in exprs {
+            for (ind, expr) in exprs.into_iter().enumerate() {
                 if let Some(expr) = convert_expr(global_state, types, circuit_state, expr) {
                     if let Some(ref mut results) = results {
-                        results.push(expr);
+                        results.push((ind.to_string(), expr));
                     }
                 } else {
                     results = None;
