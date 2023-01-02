@@ -16,11 +16,14 @@ pub(super) enum ReceiverBundle {
     Product(Vec<ReceiverBundle>),
 }
 
-impl ProducerBundle {
-    pub(super) fn type_(&self) -> ty::Type {
+impl<'types> ProducerBundle {
+    pub(super) fn type_(&self, types: &'types mut ty::Types) -> ty::TypeSym {
         match self {
-            ProducerBundle::Single(_) => ty::Type::Bit,
-            ProducerBundle::Product(tys) => ty::Type::Product(tys.iter().map(ProducerBundle::type_).collect()),
+            ProducerBundle::Single(_) => types.intern(ty::Type::Bit),
+            ProducerBundle::Product(tys) => {
+                let ty = ty::Type::Product(tys.iter().map(|subbundle| subbundle.type_(types)).collect());
+                types.intern(ty)
+            }
         }
     }
 
@@ -31,11 +34,14 @@ impl ProducerBundle {
         }
     }
 }
-impl ReceiverBundle {
-    pub(super) fn type_(&self) -> ty::Type {
+impl<'types> ReceiverBundle {
+    pub(super) fn type_(&self, types: &'types mut ty::Types) -> ty::TypeSym {
         match self {
-            ReceiverBundle::Single(_) => ty::Type::Bit,
-            ReceiverBundle::Product(tys) => ty::Type::Product(tys.iter().map(ReceiverBundle::type_).collect()),
+            ReceiverBundle::Single(_) => types.intern(ty::Type::Bit),
+            ReceiverBundle::Product(tys) => {
+                let ty = ty::Type::Product(tys.iter().map(|subbundle| subbundle.type_(types)).collect());
+                types.intern(ty)
+            }
         }
     }
 
@@ -47,23 +53,25 @@ impl ReceiverBundle {
     }
 }
 
-pub(super) fn make_receiver_bundle(type_: &ty::Type, inputs: &mut impl Iterator<Item = circuit::ReceiverIdx>) -> ReceiverBundle {
-    match type_ {
+pub(super) fn make_receiver_bundle(types: &ty::Types, type_: ty::TypeSym, inputs: &mut impl Iterator<Item = circuit::ReceiverIdx>) -> ReceiverBundle {
+    match types.get(type_) {
         ty::Type::Bit => ReceiverBundle::Single(inputs.next().expect("inputs should not run out when converting to bundle")),
-        ty::Type::Product(tys) => ReceiverBundle::Product(tys.iter().map(|ty| make_receiver_bundle(ty, inputs)).collect()),
+        ty::Type::Product(tys) => ReceiverBundle::Product(tys.iter().map(|ty| make_receiver_bundle(types, *ty, inputs)).collect()),
     }
 }
 
-pub(super) fn make_producer_bundle(type_: &ty::Type, outputs: &mut impl Iterator<Item = circuit::ProducerIdx>) -> ProducerBundle {
-    match type_ {
+pub(super) fn make_producer_bundle(types: &ty::Types, type_: ty::TypeSym, outputs: &mut impl Iterator<Item = circuit::ProducerIdx>) -> ProducerBundle {
+    match types.get(type_) {
         ty::Type::Bit => ProducerBundle::Single(outputs.next().expect("outputs should not run out when converting to bundle")),
-        ty::Type::Product(tys) => ProducerBundle::Product(tys.iter().map(|ty| make_producer_bundle(ty, outputs)).collect()),
+        ty::Type::Product(tys) => ProducerBundle::Product(tys.iter().map(|ty| make_producer_bundle(types, *ty, outputs)).collect()),
     }
 }
 
-pub(super) fn connect_bundle(circuit: &mut circuit::Circuit, expr_span: Span, producer_bundle: &ProducerBundle, receiver_bundle: &ReceiverBundle) -> Option<()> {
-    if producer_bundle.type_() != receiver_bundle.type_() {
-        Error::TypeMismatchInCall { expr_span, actual_type: producer_bundle.type_(), expected_type: receiver_bundle.type_() }.report();
+pub(super) fn connect_bundle<'types>(types: &'types mut ty::Types, circuit: &mut circuit::Circuit, expr_span: Span, producer_bundle: &ProducerBundle, receiver_bundle: &ReceiverBundle) -> Option<()> {
+    let producer_type = producer_bundle.type_(types);
+    let receiver_type = receiver_bundle.type_(types);
+    if producer_type != receiver_type {
+        (&*types, Error::TypeMismatchInCall { expr_span, actual_type: producer_type, expected_type: receiver_type }).report();
         None?
     }
 
@@ -72,7 +80,7 @@ pub(super) fn connect_bundle(circuit: &mut circuit::Circuit, expr_span: Span, pr
         (ProducerBundle::Product(producers), ReceiverBundle::Product(receivers)) => {
             assert_eq!(producers.len(), receivers.len(), "cannot connect different amount of producers and receivers"); // sanity check
             for (p, r) in producers.iter().zip(receivers.iter()) {
-                connect_bundle(circuit, expr_span, p, r); // not ideal that this rechecks the item types but
+                connect_bundle(types, circuit, expr_span, p, r); // not ideal that this rechecks the item types but
             }
         }
 
