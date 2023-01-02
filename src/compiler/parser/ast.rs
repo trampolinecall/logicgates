@@ -1,7 +1,7 @@
 use crate::compiler::{error::Span, ir};
 
-pub(crate) type CircuitAST<'file> = ir::Circuit<'file, PatternAST<'file>>;
-pub(crate) type LetAST<'file> = ir::Let<'file, PatternAST<'file>>;
+pub(crate) type CircuitAST<'file> = ir::Circuit<'file, ()>;
+pub(crate) type LetAST<'file> = ir::Let<'file, ()>;
 pub(crate) type PatternAST<'file> = ir::Pattern<'file, ()>;
 
 #[derive(PartialEq, Debug, Clone)]

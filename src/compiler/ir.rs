@@ -1,21 +1,21 @@
 use super::{parser::ast, ty};
 use crate::compiler::error::Span;
 
-pub(crate) type TypedCircuit<'file> = Circuit<'file, TypedPattern<'file>>;
-pub(crate) type TypedLet<'file> = Let<'file, TypedPattern<'file>>;
+pub(crate) type TypedCircuit<'file> = Circuit<'file, ty::TypeSym>;
+pub(crate) type TypedLet<'file> = Let<'file, ty::TypeSym>;
 pub(crate) type TypedPattern<'file> = Pattern<'file, ty::TypeSym>;
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct Circuit<'file, Pattern> {
+pub(crate) struct Circuit<'file, TypeInfo> {
     pub(crate) name: (Span<'file>, &'file str),
-    pub(crate) input: Pattern,
-    pub(crate) lets: Vec<Let<'file, Pattern>>,
+    pub(crate) input: Pattern<'file, TypeInfo>,
+    pub(crate) lets: Vec<Let<'file, TypeInfo>>,
     pub(crate) output: Expr<'file>,
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct Let<'file, Pattern> {
-    pub(crate) pat: Pattern,
+pub(crate) struct Let<'file, TypeInfo> {
+    pub(crate) pat: Pattern<'file, TypeInfo>,
     pub(crate) val: Expr<'file>,
 }
 
