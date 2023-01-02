@@ -79,7 +79,7 @@ impl<'file> From<(&ty::Types, Error<'file>)> for CompileError<'file> {
     }
 }
 
-pub(crate) fn generate(file: &File, types: &mut ty::Types, ast: Vec<ir::Circuit<ir::Pattern<ty::TypeSym>, >>) -> Option<circuit::Circuit> {
+pub(crate) fn generate(file: &File, types: &mut ty::Types, ast: Vec<ir::Circuit<ir::Pattern<ty::TypeSym>>>) -> Option<circuit::Circuit> {
     let mut global_state = GlobalGenState::new(types);
 
     let mut errored = false;
@@ -110,7 +110,7 @@ pub(crate) fn generate(file: &File, types: &mut ty::Types, ast: Vec<ir::Circuit<
 fn convert_circuit<'ggs, 'types, 'file>(
     global_state: &'ggs GlobalGenState<'file>,
     types: &'types mut ty::Types,
-    circuit_ast: ir::Circuit<'file, ir::Pattern<ty::TypeSym>, >,
+    circuit_ast: ir::Circuit<'file, ir::Pattern<ty::TypeSym>>,
 ) -> Option<((Span<'file>, &'file str), circuit::Circuit, ty::TypeSym, ty::TypeSym)> {
     let name = circuit_ast.name;
 
@@ -152,7 +152,12 @@ fn convert_circuit<'ggs, 'types, 'file>(
     Some((name, circuit_state.circuit, input_type_sym, output_value.type_(types)))
 }
 
-fn assign_pattern<'types, 'cgs, 'file>(types: &'types mut ty::Types, circuit_state: &'cgs mut CircuitGenState<'file>, pat: &ir::Pattern<'file, ty::TypeSym>, bundle: ProducerBundle) -> Result<(), Error<'file>> {
+fn assign_pattern<'types, 'cgs, 'file>(
+    types: &'types mut ty::Types,
+    circuit_state: &'cgs mut CircuitGenState<'file>,
+    pat: &ir::Pattern<'file, ty::TypeSym>,
+    bundle: ProducerBundle,
+) -> Result<(), Error<'file>> {
     if bundle.type_(types) != pat.type_info {
         Err(Error::TypeMismatchInAssignment { pat_sp: pat.kind.span(), actual_type: bundle.type_(types), pattern_type: pat.type_info })?
     }
