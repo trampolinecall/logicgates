@@ -52,6 +52,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         ParseError { expected: thing, got: self.next() }
     }
 
+    /* (unused)
     fn list<StartData, DelimData, EndData, A>(
         &mut self,
         start: TokenMatcher<'file, StartData>,
@@ -62,6 +63,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         self.expect(start)?;
         self.finish_list(delim, ending, thing)
     }
+    */
 
     fn finish_list<DelimData, EndData, A>(
         &mut self,
@@ -286,14 +288,15 @@ mod test {
         tokens.into_iter().chain(std::iter::repeat_with(move || Token::EOF(sp))).peekable()
     }
 
+    // TODO: test list() if used
     #[test]
     fn list() {
         let file = File::test_file();
         let sp = file.eof_span();
 
-        let tokens = make_token_stream([Token::OBrack(sp), Token::Identifier(sp, "a"), Token::Comma(sp), Token::Identifier(sp, "b"), Token::CBrack(sp)], sp);
+        let tokens = make_token_stream([Token::Identifier(sp, "a"), Token::Comma(sp), Token::Identifier(sp, "b"), Token::CBrack(sp)], sp);
 
-        assert_eq!(Parser { tokens }.list(Token::obrack_matcher(), Token::comma_matcher(), Token::cbrack_matcher(), Parser::expr), Ok((vec![ir::Expr::Ref(sp, "a"), ir::Expr::Ref(sp, "b")], sp)));
+        assert_eq!(Parser { tokens }.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::expr), Ok((vec![ir::Expr::Ref(sp, "a"), ir::Expr::Ref(sp, "b")], sp)));
     }
 
     #[test]
@@ -301,9 +304,9 @@ mod test {
         let file = File::test_file();
         let sp = file.eof_span();
 
-        let tokens = make_token_stream([Token::OBrack(sp), Token::Identifier(sp, "a"), Token::Comma(sp), Token::Identifier(sp, "b"), Token::Comma(sp), Token::CBrack(sp)], sp);
+        let tokens = make_token_stream([Token::Identifier(sp, "a"), Token::Comma(sp), Token::Identifier(sp, "b"), Token::Comma(sp), Token::CBrack(sp)], sp);
 
-        assert_eq!(Parser { tokens }.list(Token::obrack_matcher(), Token::comma_matcher(), Token::cbrack_matcher(), Parser::expr), Ok((vec![ir::Expr::Ref(sp, "a"), ir::Expr::Ref(sp, "b")], sp)));
+        assert_eq!(Parser { tokens }.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::expr), Ok((vec![ir::Expr::Ref(sp, "a"), ir::Expr::Ref(sp, "b")], sp)));
     }
 
     // TODO: test inline calls
