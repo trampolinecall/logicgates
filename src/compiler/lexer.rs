@@ -91,13 +91,12 @@ impl<'file> Lexer<'file> {
                 let span = self.span(start_i);
                 let slice = self.slice(start_i);
                 match slice {
-                    "use" => Ok(Some(Token::Use(span))),
-                    // "inline" => Ok(Some(Token::Inline(span))),
-                    // "bundle" => Ok(Some(Token::Bundle(span))),
-                    // "inputs" => Ok(Some(Token::Inputs(span))),
-                    // "outputs" => Ok(Some(Token::Outputs(span))),
+                    "let" => Ok(Some(Token::Let(span))),
+                    "inline" => Ok(Some(Token::Inline(span))),
+                    "bundle" => Ok(Some(Token::Bundle(span))),
+                    "inputs" => Ok(Some(Token::Inputs(span))),
+                    "outputs" => Ok(Some(Token::Outputs(span))),
                     "named" => Ok(Some(Token::Named(span))),
-                    "connect" => Ok(Some(Token::Connect(span))),
                     iden => Ok(Some(Token::Identifier(span, iden))),
                 }
             }

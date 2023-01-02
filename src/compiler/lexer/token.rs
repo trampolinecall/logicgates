@@ -1,6 +1,5 @@
 use crate::compiler::error::Span;
 
-// TODO: make Token and TokenKind
 #[derive(PartialEq, Debug)]
 pub(crate) enum Token<'file> {
     EOF(Span<'file>),
@@ -15,12 +14,11 @@ pub(crate) enum Token<'file> {
     Equals(Span<'file>),
     Arrow(Span<'file>),
 
-    Use(Span<'file>),
-    // Inline(Span<'file>),
-    // Bundle(Span<'file>),
-    Connect(Span<'file>),
-    // Inputs(Span<'file>),
-    // Outputs(Span<'file>),
+    Let(Span<'file>),
+    Inline(Span<'file>),
+    Bundle(Span<'file>),
+    Inputs(Span<'file>),
+    Outputs(Span<'file>),
     Named(Span<'file>),
 
     // TODO: variadic arguments / bundles
@@ -41,16 +39,15 @@ impl<'file> Token<'file> {
             Token::Comma(sp) => *sp,
             Token::Equals(sp) => *sp,
             Token::Arrow(sp) => *sp,
-            Token::Use(sp) => *sp,
-            // Token::Inline(sp) => *sp,
-            // Token::Bundle(sp) => *sp,
-            // Token::Inputs(sp) => *sp,
-            // Token::Outputs(sp) => *sp,
+            Token::Let(sp) => *sp,
+            Token::Inline(sp) => *sp,
+            Token::Bundle(sp) => *sp,
+            Token::Inputs(sp) => *sp,
+            Token::Outputs(sp) => *sp,
             Token::Apostrophe(sp) => *sp,
             Token::Number(sp, _, _) => *sp,
             Token::Identifier(sp, _) => *sp,
             Token::Named(sp) => *sp,
-            Token::Connect(sp) => *sp,
         }
     }
 }
@@ -89,13 +86,12 @@ mod names {
     pub(super) const EQUALS: &str = "'='";
     pub(super) const ARROW: &str = "'->'";
 
-    pub(super) const USE: &str = "'use'";
-    // pub(super) const INLINE: &str = "'inline'";
-    // pub(super) const BUNDLE: &str = "'bundle'";
-    // pub(super) const INPUTS: &str = "'inputs'";
-    // pub(super) const OUTPUTS: &str = "'outputs'";
+    pub(super) const LET: &str = "'let'";
+    pub(super) const INLINE: &str = "'inline'";
+    pub(super) const BUNDLE: &str = "'bundle'";
+    pub(super) const INPUTS: &str = "'inputs'";
+    pub(super) const OUTPUTS: &str = "'outputs'";
     pub(super) const NAMED: &str = "'named'";
-    pub(super) const CONNECT: &str = "'connect'";
 
     pub(super) const APOSTROPHE: &str = "'''";
 
@@ -150,15 +146,14 @@ define_matcher!(comma_matcher, 'file, Span<'file>, names::COMMA, Token::Comma(sp
 define_matcher!(equals_matcher, 'file, Span<'file>, names::EQUALS, Token::Equals(sp) => sp);
 define_matcher!(arrow_matcher, 'file, Span<'file>, names::ARROW, Token::Arrow(sp) => sp);
 
-define_matcher!(use_matcher, 'file, Span<'file>, names::USE, Token::Use(sp) => sp);
-// define_matcher!(inline_matcher, 'file, Span<'file>, names::INLINE, Token::Inline(sp) => sp);
-// define_matcher!(bundle_matcher, 'file, Span<'file>, names::BUNDLE, Token::Bundle(sp) => sp);
-// define_matcher!(inputs_matcher, 'file, Span<'file>, names::INPUTS, Token::Inputs(sp) => sp);
-// define_matcher!(outputs_matcher, 'file, Span<'file>, names::OUTPUTS, Token::Outputs(sp) => sp);
+define_matcher!(let_matcher, 'file, Span<'file>, names::LET, Token::Let(sp) => sp);
+define_matcher!(inline_matcher, 'file, Span<'file>, names::INLINE, Token::Inline(sp) => sp);
+define_matcher!(bundle_matcher, 'file, Span<'file>, names::BUNDLE, Token::Bundle(sp) => sp);
+define_matcher!(inputs_matcher, 'file, Span<'file>, names::INPUTS, Token::Inputs(sp) => sp);
+define_matcher!(outputs_matcher, 'file, Span<'file>, names::OUTPUTS, Token::Outputs(sp) => sp);
 define_matcher!(named_matcher, 'file, Span<'file>, names::NAMED, Token::Named(sp) => sp);
-define_matcher!(connect_matcher, 'file, Span<'file>, names::CONNECT, Token::Connect(sp) => sp);
 
-// define_matcher!(apostrophe_matcher, 'file, Span<'file>, names::APOSTROPHE, Token::Apostrophe(sp) => sp);
+define_matcher!(apostrophe_matcher, 'file, Span<'file>, names::APOSTROPHE, Token::Apostrophe(sp) => sp);
 
 define_matcher!(number_matcher, 'file, (Span<'file>, &'file str, usize), names::NUMBER_DESC_NAME, Token::Number(sp, n_str, n) => (sp, n_str, n));
 define_matcher!(identifier_matcher, 'file, (Span<'file>, &'file str), names::IDENTIFIER_DESC_NAME, Token::Identifier(sp, i) => (sp, i));
@@ -178,13 +173,12 @@ impl std::fmt::Display for Token<'_> {
             Token::Equals(_) => write!(f, "{}", names::EQUALS),
             Token::Arrow(_) => write!(f, "{}", names::ARROW),
 
-            Token::Use(_) => write!(f, "{}", names::USE),
-            // Token::Inline(_) => write!(f, "{}", names::INLINE),
-            // Token::Bundle(_) => write!(f, "{}", names::BUNDLE),
-            // Token::Inputs(_) => write!(f, "{}", names::INPUTS),
-            // Token::Outputs(_) => write!(f, "{}", names::OUTPUTS),
+            Token::Let(_) => write!(f, "{}", names::LET),
+            Token::Inline(_) => write!(f, "{}", names::INLINE),
+            Token::Bundle(_) => write!(f, "{}", names::BUNDLE),
+            Token::Inputs(_) => write!(f, "{}", names::INPUTS),
+            Token::Outputs(_) => write!(f, "{}", names::OUTPUTS),
             Token::Named(_) => write!(f, "{}", names::NAMED),
-            Token::Connect(_) => write!(f, "{}", names::CONNECT),
 
             Token::Apostrophe(_) => write!(f, "{}", names::APOSTROPHE),
 

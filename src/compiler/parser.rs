@@ -41,6 +41,14 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         }
     }
 
+    fn maybe_consume<TokData>(&mut self, matcher: TokenMatcher<'file, TokData>) -> Option<TokData> {
+        if matcher.matches(self.peek()) {
+            Some(matcher.convert(self.next()))
+        } else {
+            None
+        }
+    }
+
     fn expected_and_next(&mut self, thing: &'static str) -> ParseError<'file> {
         ParseError { expected: thing, got: self.next() }
     }
@@ -108,23 +116,17 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     }
 
     fn circuit(&mut self) -> Result<ast::CircuitAST<'file>, ParseError<'file>> {
-        let name = self.expect(/* "circuit name", */ Token::identifier_matcher())?;
-
-        let input_type = self.type_()?;
-        let output_type = self.type_()?;
-
-        let mut gates = Vec::new();
-
-        while Token::use_matcher().matches(self.peek()) {
-            gates.push(self.gate_instance()?);
+        self.expect(/* TODO: "circuit name (starting with '`')", */ Token::apostrophe_matcher())?;
+        let name = self.expect(/* "circuit name after '`'", */ Token::identifier_matcher())?;
+        let arguments = self.pattern()?;
+        let mut lets = Vec::new();
+        while Token::let_matcher().matches(self.peek()) {
+            lets.push(self.r#let()?);
         }
 
-        let mut connections = Vec::new();
-        while Token::connect_matcher().matches(self.peek()) {
-            connections.push(self.connect()?);
-        }
+        let ret = self.expr()?;
 
-        Ok(ast::CircuitAST { name, input_type, output_type, gates, connections })
+        Ok(ast::CircuitAST { name, input: arguments, lets, output: ret })
     }
 
     fn named_type_decl(&mut self) -> Result<ast::NamedTypeDecl<'file>, ParseError<'file>> {
@@ -135,21 +137,35 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         Ok(ast::NamedTypeDecl { name, ty })
     }
 
-    fn gate_instance(&mut self) -> Result<ir::GateInstance<'file>, ParseError<'file>> {
-        self.expect(Token::use_matcher())?;
-        let gate_name = self.expect(Token::identifier_matcher())?;
-        let local_name = self.expect(Token::identifier_matcher())?;
+    fn r#let(&mut self) -> Result<ast::LetAST<'file>, ParseError<'file>> {
+        self.expect(Token::let_matcher())?;
+        let pat = self.pattern()?;
 
-        Ok(ir::GateInstance { local_name, gate_name })
+        self.expect(Token::equals_matcher())?;
+
+        let val = self.expr()?;
+        Ok(ast::LetAST { pat, val })
     }
 
-    fn connect(&mut self) -> Result<ir::Connection<'file>, ParseError<'file>> {
-        self.expect(Token::connect_matcher())?;
-        let producer = self.expr()?;
-        let arrow = self.expect(Token::arrow_matcher())?;
-        let receiver = self.expr()?;
+    fn pattern(&mut self) -> Result<ast::PatternAST<'file>, ParseError<'file>> {
+        match self.peek() {
+            Token::Identifier(_, _) => {
+                let iden = Token::identifier_matcher().convert(self.next());
+                self.expect(Token::semicolon_matcher())?;
 
-        Ok(ir::Connection { arrow_span: arrow, producer, receiver })
+                let type_ = self.type_()?;
+
+                Ok(ast::PatternAST { kind: ir::PatternKind::Identifier(iden.0, iden.1, type_), type_info: () })
+            }
+
+            &Token::OBrack(obrack) => {
+                self.next();
+
+                let (patterns, cbrack) = self.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::pattern)?;
+                Ok(ast::PatternAST { kind: ir::PatternKind::Product(obrack + cbrack, patterns), type_info: () })
+            }
+            _ => Err(self.expected_and_next("pattern")),
+        }
     }
 
     fn expr(&mut self) -> Result<ir::Expr<'file>, ParseError<'file>> {
@@ -183,6 +199,16 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                     1 => Ok(ir::Expr::Const(n_sp, true)),
                     _ => Err(self.expected_and_next("'0' or '1'")),
                 }
+            }
+            Token::Apostrophe(_) => {
+                let _ = self.next();
+                let i = self.expect(/* "circuit name after '`'", */ Token::identifier_matcher())?;
+
+                let inline = self.maybe_consume(Token::inline_matcher()).is_some();
+
+                let arg = self.expr()?;
+
+                Ok(ir::Expr::Call(i, inline, Box::new(arg)))
             }
 
             Token::Identifier(_, _) => {
@@ -362,7 +388,7 @@ mod test {
 
         let tokens = make_token_stream([Token::Use(sp), Token::Identifier(sp, "a"), Token::Semicolon(sp), Token::Apostrophe(sp), Token::Equals(sp), Token::Identifier(sp, "b")], sp);
         assert_eq!(
-            Parser { tokens: tokens }.gate_instance(),
+            Parser { tokens: tokens }.r#let(),
             Ok(ast::LetAST { pat: ast::PatternAST { kind: ir::PatternKind::Identifier(sp, "a", ast::TypeAST::Bit(sp)), type_info: () }, val: ir::Expr::Ref(sp, "b") })
         );
     }
