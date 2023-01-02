@@ -7,7 +7,6 @@ pub(crate) struct Types {
 pub(crate) type TypeSym = symtern::Sym<usize>;
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub(crate) enum Type {
-    // TODO: type interner
     Bit,
     Product(Vec<TypeSym>), // TODO: named product types
 }
