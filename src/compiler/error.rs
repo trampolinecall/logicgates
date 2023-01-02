@@ -102,5 +102,5 @@ impl<'a, T: Into<CompileError<'a>>> Report for T {
 
 fn report(e: CompileError) {
     // TODO: better error reporting
-    eprintln!("error: {}", e.message);
+    eprintln!("error at {}, bytes {}-{}: {}", e.span.0.name, e.span.1, e.span.2, e.message);
 }
