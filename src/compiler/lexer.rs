@@ -96,6 +96,7 @@ impl<'file> Lexer<'file> {
                     "bundle" => Ok(Some(Token::Bundle(span))),
                     "inputs" => Ok(Some(Token::Inputs(span))),
                     "outputs" => Ok(Some(Token::Outputs(span))),
+                    "named" => Ok(Some(Token::Named(span))),
                     iden => Ok(Some(Token::Identifier(span, iden))),
                 }
             }

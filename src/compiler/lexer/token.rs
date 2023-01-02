@@ -19,6 +19,8 @@ pub(crate) enum Token<'file> {
     Bundle(Span<'file>),
     Inputs(Span<'file>),
     Outputs(Span<'file>),
+    Named(Span<'file>),
+
     // TODO: variadic arguments / bundles
     Backtick(Span<'file>),
 
@@ -45,6 +47,7 @@ impl<'file> Token<'file> {
             Token::Backtick(sp) => *sp,
             Token::Number(sp, _, _) => *sp,
             Token::Identifier(sp, _) => *sp,
+            Token::Named(sp) => *sp,
         }
     }
 }
@@ -88,6 +91,7 @@ mod names {
     pub(super) const BUNDLE: &str = "'bundle'";
     pub(super) const INPUTS: &str = "'inputs'";
     pub(super) const OUTPUTS: &str = "'outputs'";
+    pub(super) const NAMED: &str = "'named'";
 
     pub(super) const BACKTICK: &str = "'`'";
 
@@ -173,6 +177,7 @@ impl std::fmt::Display for Token<'_> {
             Token::Bundle(_) => write!(f, "{}", names::BUNDLE),
             Token::Inputs(_) => write!(f, "{}", names::INPUTS),
             Token::Outputs(_) => write!(f, "{}", names::OUTPUTS),
+            Token::Named(_) => write!(f, "{}", names::NAMED),
 
             Token::Backtick(_) => write!(f, "{}", names::BACKTICK),
 

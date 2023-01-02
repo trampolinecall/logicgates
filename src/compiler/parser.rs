@@ -230,6 +230,19 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 let _ = self.next();
 
                 match self.peek() {
+                    &Token::Named(named) => {
+                        let _ = self.next();
+
+                        let (types, cbrack) = self.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), |parser| {
+                            let name = parser.expect(Token::identifier_matcher())?;
+                            let _ = parser.expect(Token::semicolon_matcher())?;
+                            let ty = parser.type_()?;
+                            Ok((name, ty))
+                        })?;
+
+                        Ok(ast::Type::NamedProduct { types, obrack, cbrack, named })
+                    }
+
                     Token::Number(_, _, _) => {
                         let (len_sp, _, len) = Token::number_matcher().convert(self.next());
 
