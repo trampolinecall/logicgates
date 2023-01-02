@@ -79,7 +79,7 @@ impl<'file> From<(&ty::Types, Error<'file>)> for CompileError<'file> {
     }
 }
 
-pub(crate) fn generate(file: &File, types: &mut ty::Types, ast: Vec<ir::Circuit<ir::Pattern<ty::TypeSym>, ir::Expr>>) -> Option<circuit::Circuit> {
+pub(crate) fn generate(file: &File, types: &mut ty::Types, ast: Vec<ir::Circuit<ir::Pattern<ty::TypeSym>, >>) -> Option<circuit::Circuit> {
     let mut global_state = GlobalGenState::new(types);
 
     let mut errored = false;
@@ -110,7 +110,7 @@ pub(crate) fn generate(file: &File, types: &mut ty::Types, ast: Vec<ir::Circuit<
 fn convert_circuit<'ggs, 'types, 'file>(
     global_state: &'ggs GlobalGenState<'file>,
     types: &'types mut ty::Types,
-    circuit_ast: ir::Circuit<'file, ir::Pattern<ty::TypeSym>, ir::Expr>,
+    circuit_ast: ir::Circuit<'file, ir::Pattern<ty::TypeSym>, >,
 ) -> Option<((Span<'file>, &'file str), circuit::Circuit, ty::TypeSym, ty::TypeSym)> {
     let name = circuit_ast.name;
 

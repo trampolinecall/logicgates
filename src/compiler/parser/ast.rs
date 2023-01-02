@@ -1,10 +1,9 @@
 use crate::compiler::{error::Span, ir};
 
 // TODO: make enums into Thing and ThingKind
-pub(crate) type Circuit<'file> = ir::Circuit<'file, Pattern<'file>, Expr<'file>>;
-pub(crate) type Let<'file> = ir::Let<Pattern<'file>, Expr<'file>>;
+pub(crate) type Circuit<'file> = ir::Circuit<'file, Pattern<'file>>;
+pub(crate) type Let<'file> = ir::Let<'file, Pattern<'file>>;
 pub(crate) type Pattern<'file> = ir::Pattern<'file, ()>;
-pub(crate) type Expr<'file> = ir::Expr<'file>;
 
 #[derive(PartialEq, Debug, Clone)]
 pub(crate) enum Type<'file> {
