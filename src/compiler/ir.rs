@@ -1,4 +1,4 @@
-use super::{parser::ast, ty};
+use super::parser::ast;
 use crate::compiler::error::Span;
 
 #[derive(PartialEq, Debug)]
@@ -16,17 +16,12 @@ pub(crate) struct Let<Pattern, Expr> {
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct Expr<'file, TypeInfo> {
-    pub(crate) kind: ExprKind<'file, TypeInfo>,
-    pub(crate) type_info: TypeInfo,
-}
-#[derive(PartialEq, Debug)]
-pub(crate) enum ExprKind<'file, TypeInfo> {
+pub(crate) enum Expr<'file> {
     Ref(Span<'file>, &'file str),
-    Call((Span<'file>, &'file str), bool, Box<Expr<'file, TypeInfo>>),
+    Call((Span<'file>, &'file str), bool, Box<Expr<'file>>),
     Const(Span<'file>, bool),
-    Get(Box<Expr<'file, TypeInfo>>, (Span<'file>, &'file str)),
-    Multiple(Span<'file>, Vec<Expr<'file, TypeInfo>>),
+    Get(Box<Expr<'file>>, (Span<'file>, &'file str)),
+    Multiple(Span<'file>, Vec<Expr<'file>>),
 }
 
 #[derive(PartialEq, Debug)]
@@ -49,14 +44,14 @@ impl<'file, TypeInfo> PatternKind<'file, TypeInfo> {
     }
 }
 
-impl<'file, TypeInfo> ExprKind<'file, TypeInfo> {
+impl<'file> Expr<'file> {
     pub(crate) fn span(&self) -> Span<'file> {
         match self {
-            ExprKind::Ref(sp, _) => *sp,
-            ExprKind::Call((circuit_name_sp, _), _, arg) => *circuit_name_sp + arg.kind.span(),
-            ExprKind::Const(sp, _) => *sp,
-            ExprKind::Get(expr, (field_sp, _)) => expr.kind.span() + *field_sp,
-            ExprKind::Multiple(sp, _) => *sp,
+            Expr::Ref(sp, _) => *sp,
+            Expr::Call((circuit_name_sp, _), _, arg) => *circuit_name_sp + arg.span(),
+            Expr::Const(sp, _) => *sp,
+            Expr::Get(expr, (field_sp, _)) => expr.span() + *field_sp,
+            Expr::Multiple(sp, _) => *sp,
         }
     }
 }

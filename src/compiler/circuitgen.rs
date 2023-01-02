@@ -79,16 +79,15 @@ impl<'file> From<(&ty::Types, Error<'file>)> for CompileError<'file> {
     }
 }
 
-pub(crate) fn generate(file: &File, ast: Vec<ir::Circuit<ir::Pattern<ty::TypeSym>, ir::Expr<ty::TypeSym>>>) -> Option<circuit::Circuit> {
-    let mut types = ty::Types::new();
-    let mut global_state = GlobalGenState::new(&mut types);
+pub(crate) fn generate(file: &File, types: &mut ty::Types, ast: Vec<ir::Circuit<ir::Pattern<ty::TypeSym>, ir::Expr>>) -> Option<circuit::Circuit> {
+    let mut global_state = GlobalGenState::new(types);
 
     let mut errored = false;
 
     for circuit in ast {
-        let ((name_sp, name), circuit, input_type, result_type) = convert_circuit(&global_state, &mut types, circuit)?;
+        let ((name_sp, name), circuit, input_type, result_type) = convert_circuit(&global_state, types, circuit)?;
         if global_state.circuit_table.contains_key(name) {
-            (&types, Error::Duplicate(name_sp, name)).report();
+            (&*types, Error::Duplicate(name_sp, name)).report();
             errored = true;
         } else {
             global_state.circuit_table.insert(name, CircuitDef::Circuit { circuit, input_type, result_type });
@@ -102,7 +101,7 @@ pub(crate) fn generate(file: &File, ast: Vec<ir::Circuit<ir::Pattern<ty::TypeSym
         Some(CircuitDef::Circuit { circuit: r, .. }) => Some(r),
         Some(_) => unreachable!("non user-defined circuit called main"),
         None => {
-            (&types, Error::NoMain(file)).report();
+            (&*types, Error::NoMain(file)).report();
             None?
         }
     }
@@ -111,7 +110,7 @@ pub(crate) fn generate(file: &File, ast: Vec<ir::Circuit<ir::Pattern<ty::TypeSym
 fn convert_circuit<'ggs, 'types, 'file>(
     global_state: &'ggs GlobalGenState<'file>,
     types: &'types mut ty::Types,
-    circuit_ast: ir::Circuit<'file, ir::Pattern<ty::TypeSym>, ir::Expr<ty::TypeSym>>,
+    circuit_ast: ir::Circuit<'file, ir::Pattern<ty::TypeSym>, ir::Expr>,
 ) -> Option<((Span<'file>, &'file str), circuit::Circuit, ty::TypeSym, ty::TypeSym)> {
     let name = circuit_ast.name;
 
@@ -136,7 +135,7 @@ fn convert_circuit<'ggs, 'types, 'file>(
         }
     }
 
-    let output_span = circuit_ast.output.kind.span();
+    let output_span = circuit_ast.output.span();
     let output_value = convert_expr(global_state, types, &mut circuit_state, circuit_ast.output)?;
     let (output_type_sym, output_type) = {
         let sym = output_value.type_(types);
@@ -175,10 +174,10 @@ fn assign_pattern<'types, 'cgs, 'file>(types: &'types mut ty::Types, circuit_sta
     Ok(())
 }
 
-fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'types mut ty::Types, circuit_state: &mut CircuitGenState, expr: ir::Expr<'file, ty::TypeSym>) -> Option<ProducerBundle> {
-    let span = expr.kind.span();
-    match expr.kind {
-        ir::ExprKind::Ref(name_sp, name) => {
+fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'types mut ty::Types, circuit_state: &mut CircuitGenState, expr: ir::Expr) -> Option<ProducerBundle> {
+    let span = expr.span();
+    match expr {
+        ir::Expr::Ref(name_sp, name) => {
             let name_resolved = match circuit_state.locals.get(name) {
                 Some(resolved) => resolved,
                 None => {
@@ -190,7 +189,7 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
             Some(name_resolved.clone())
         }
 
-        ir::ExprKind::Call(circuit_name, inline, arg) => {
+        ir::Expr::Call(circuit_name, inline, arg) => {
             let name_resolved = match global_state.circuit_table.get(circuit_name.1) {
                 Some(n) => n,
                 None => {
@@ -205,12 +204,12 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
             Some(producer)
         }
 
-        ir::ExprKind::Const(_, value) => {
+        ir::Expr::Const(_, value) => {
             let (_, p) = CircuitDef::Const { value, input_type: todo!(), result_type: todo!() }.add_gate(types, circuit_state)?;
             Some(p)
         }
 
-        ir::ExprKind::Get(expr, (field_name_sp, field_name)) => {
+        ir::Expr::Get(expr, (field_name_sp, field_name)) => {
             let expr = convert_expr(global_state, types, circuit_state, *expr)?;
             let field = match &expr {
                 ProducerBundle::Single(_) => None,
@@ -225,7 +224,7 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
             }
         }
 
-        ir::ExprKind::Multiple(_, exprs) => {
+        ir::Expr::Multiple(_, exprs) => {
             let mut results = Some(Vec::new());
 
             for (ind, expr) in exprs.into_iter().enumerate() {
