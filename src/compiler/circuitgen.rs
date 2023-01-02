@@ -15,13 +15,15 @@ use super::error::Report;
 use super::error::Span;
 use super::parser::ast;
 
+// TODO: calculate types first to prevent repeated calls to intern
+
 enum Error<'file> {
     Duplicate(Span<'file>, &'file str),
-    NoField { ty: ty::Type, field_name_sp: Span<'file>, field_name: &'file str }, // TODO: list names of fields that do exist
+    NoField { ty: ty::TypeSym, field_name_sp: Span<'file>, field_name: &'file str }, // TODO: list names of fields that do exist
     NoSuchLocal(Span<'file>, &'file str),
     NoSuchCircuit(Span<'file>, &'file str),
-    TypeMismatchInAssignment { pat_sp: Span<'file>, actual_type: ty::Type, pattern_type: ty::Type },
-    TypeMismatchInCall { expr_span: Span<'file>, actual_type: ty::Type, expected_type: ty::Type },
+    TypeMismatchInAssignment { pat_sp: Span<'file>, actual_type: ty::TypeSym, pattern_type: ty::TypeSym },
+    TypeMismatchInCall { expr_span: Span<'file>, actual_type: ty::TypeSym, expected_type: ty::TypeSym },
     NoMain(&'file File),
 }
 
@@ -30,7 +32,7 @@ struct GlobalGenState<'file> {
     circuit_table: HashMap<&'file str, CircuitDef>,
 }
 
-impl<'file> GlobalGenState<'file> {
+impl<'file, 'types> GlobalGenState<'file> {
     fn new() -> Self {
         let mut circuit_table = HashMap::new();
         circuit_table.insert("and", CircuitDef::And);
@@ -49,31 +51,33 @@ impl CircuitGenState<'_> {
     }
 }
 
-impl<'file> From<Error<'file>> for CompileError<'file> {
-    fn from(val: Error<'file>) -> Self {
+impl<'file> From<(&ty::Types, Error<'file>)> for CompileError<'file> {
+    fn from((types, val): (&ty::Types, Error<'file>)) -> Self {
         match val {
             Error::Duplicate(name_sp, name) => CompileError::new(name_sp, format!("circuit '{}' defined more than once", name)),
-            Error::NoField { ty, field_name_sp, field_name } => CompileError::new(field_name_sp, format!("no field called '{}' on type '{ty}'", field_name)),
+            Error::NoField { ty, field_name_sp, field_name } => CompileError::new(field_name_sp, format!("no field called '{}' on type '{}'", field_name, types.get(ty).fmt(types))),
             Error::NoSuchLocal(name_sp, name) => CompileError::new(name_sp, format!("no local called '{}'", name)),
             Error::NoSuchCircuit(name_sp, name) => CompileError::new(name_sp, format!("no circuit called '`{}'", name)),
             Error::TypeMismatchInAssignment { pat_sp, actual_type: value_type, pattern_type } => {
-                CompileError::new(pat_sp, format!("type mismatch in assignment: value has type {value_type} but pattern has type {pattern_type}"))
+                CompileError::new(pat_sp, format!("type mismatch in assignment: value has type {} but pattern has type {}", types.get(value_type).fmt(types), types.get(pattern_type).fmt(types)))
             }
             Error::NoMain(f) => CompileError::new(f.eof_span(), "no '`main' circuit".into()),
-            Error::TypeMismatchInCall { actual_type, expected_type, expr_span } => {
-                CompileError::new(expr_span, format!("type mismatch in subcircuit: arguments have type {actual_type} but subcircuit expects type {expected_type}"))
-            }
+            Error::TypeMismatchInCall { actual_type, expected_type, expr_span } => CompileError::new(
+                expr_span,
+                format!("type mismatch in subcircuit: arguments have type {} but subcircuit expects type {}", types.get(actual_type).fmt(types), types.get(expected_type).fmt(types)),
+            ),
         }
     }
 }
 
 pub(crate) fn generate(file: &File, ast: Vec<ast::Circuit>) -> Option<circuit::Circuit> {
+    let mut types = ty::Types::new();
     let mut global_state = GlobalGenState::new();
 
     for circuit in ast {
-        let ((name_sp, name), circuit, input_type, result_type) = convert_circuit(&global_state, circuit)?; // TODO: report multiple errors from this
+        let ((name_sp, name), circuit, input_type, result_type) = convert_circuit(&global_state, &mut types, circuit)?; // TODO: report multiple errors from this
         if global_state.circuit_table.contains_key(name) {
-            Error::Duplicate(name_sp, name).report();
+            (&types, Error::Duplicate(name_sp, name)).report();
             None?
         } else {
             global_state.circuit_table.insert(name, CircuitDef::Circuit { circuit, input_type, result_type });
@@ -84,48 +88,66 @@ pub(crate) fn generate(file: &File, ast: Vec<ast::Circuit>) -> Option<circuit::C
         Some(CircuitDef::Circuit { circuit: r, .. }) => Some(r),
         Some(_) => unreachable!("non user-defined circuit called main"),
         None => {
-            Error::NoMain(file).report();
+            (&types, Error::NoMain(file)).report();
             None?
         }
     }
 }
 
-fn convert_circuit<'file>(global_state: &GlobalGenState, circuit_ast: ast::Circuit<'file>) -> Option<((Span<'file>, &'file str), circuit::Circuit, ty::Type, ty::Type)> {
+fn convert_circuit<'ggs, 'types, 'file>(
+    global_state: &'ggs GlobalGenState<'file>,
+    types: &'types mut ty::Types,
+    circuit_ast: ast::Circuit<'file>,
+) -> Option<((Span<'file>, &'file str), circuit::Circuit, ty::TypeSym, ty::TypeSym)> {
     let name = circuit_ast.name;
 
     let mut circuit_state = CircuitGenState::new(name.1.to_string());
 
-    circuit_state.circuit.set_num_inputs(ty::Type::pat_type(&circuit_ast.input).size());
-    assert_eq!(ty::Type::pat_type(&circuit_ast.input).size(), circuit_state.circuit.num_inputs(), "number of circuit inputs should be equal to the number of input bits");
+    let (input_type_sym, input_type) = {
+        let sym = ty::Type::pat_type(types, &circuit_ast.input);
+        (sym, types.get(sym))
+    };
+    circuit_state.circuit.set_num_inputs(input_type.size(types));
+    assert_eq!(input_type.size(types), circuit_state.circuit.num_inputs(), "number of circuit inputs should be equal to the number of input bits"); // sanity check
 
-    let input_bundle = bundle::make_producer_bundle(&ty::Type::pat_type(&circuit_ast.input), &mut circuit_state.circuit.input_indexes().map(|circuit_input_idx| circuit_input_idx.into()));
-    if let Err(e) = assign_pattern(&mut circuit_state, &circuit_ast.input, input_bundle) {
-        e.report();
+    let input_bundle = bundle::make_producer_bundle(types, input_type_sym, &mut circuit_state.circuit.input_indexes().map(|circuit_input_idx| circuit_input_idx.into()));
+    if let Err(e) = assign_pattern(global_state, types, &mut circuit_state, &circuit_ast.input, input_bundle) {
+        (&*types, e).report();
     }
 
     for ast::Let { pat, val } in circuit_ast.lets {
-        let result = convert_expr(global_state, &mut circuit_state, val)?;
-        if let Err(e) = assign_pattern(&mut circuit_state, &pat, result) {
-            e.report();
+        let result = convert_expr(global_state, types, &mut circuit_state, val)?;
+        if let Err(e) = assign_pattern(global_state, types, &mut circuit_state, &pat, result) {
+            (&*types, e).report();
         }
     }
 
     let output_span = circuit_ast.output.span();
-    let output_value = convert_expr(global_state, &mut circuit_state, circuit_ast.output)?;
-    circuit_state.circuit.set_num_outputs(output_value.type_().size());
-    assert_eq!(circuit_state.circuit.num_outputs(), output_value.type_().size(), "number of circuit outputs should be equal to the number of output producers");
+    let output_value = convert_expr(global_state, types, &mut circuit_state, circuit_ast.output)?;
+    let (output_type_sym, output_type) = {
+        let sym = output_value.type_(types);
+        (sym, types.get(sym))
+    };
+    circuit_state.circuit.set_num_outputs(output_type.size(types));
+    assert_eq!(circuit_state.circuit.num_outputs(), output_type.size(types), "number of circuit outputs should be equal to the number of output producers");
 
-    let output_bundle = bundle::make_receiver_bundle(&output_value.type_(), &mut circuit_state.circuit.output_indexes().map(|output_idx| output_idx.into()));
-    bundle::connect_bundle(&mut circuit_state.circuit, output_span, &output_value, &output_bundle);
+    let output_bundle = bundle::make_receiver_bundle(types, output_type_sym, &mut circuit_state.circuit.output_indexes().map(|output_idx| output_idx.into()));
+    bundle::connect_bundle(types, &mut circuit_state.circuit, output_span, &output_value, &output_bundle);
 
     circuit_state.circuit.calculate_locations();
 
-    Some((name, circuit_state.circuit, ty::Type::pat_type(&circuit_ast.input), output_value.type_()))
+    Some((name, circuit_state.circuit, ty::Type::pat_type(types, &circuit_ast.input), output_value.type_(types)))
 }
 
-fn assign_pattern<'cgs, 'file>(circuit_state: &'cgs mut CircuitGenState<'file>, pat: &ast::Pattern<'file>, bundle: ProducerBundle) -> Result<(), Error<'file>> {
-    if bundle.type_() != ty::Type::pat_type(pat) {
-        Err(Error::TypeMismatchInAssignment { pat_sp: pat.span(), actual_type: bundle.type_(), pattern_type: ty::Type::pat_type(pat) })?
+fn assign_pattern<'ggs, 'types, 'cgs, 'file>(
+    global_state: &'ggs GlobalGenState<'file>,
+    types: &'types mut ty::Types,
+    circuit_state: &'cgs mut CircuitGenState<'file>,
+    pat: &ast::Pattern<'file>,
+    bundle: ProducerBundle,
+) -> Result<(), Error<'file>> {
+    if bundle.type_(types) != ty::Type::pat_type(types, pat) {
+        Err(Error::TypeMismatchInAssignment { pat_sp: pat.span(), actual_type: bundle.type_(types), pattern_type: ty::Type::pat_type(types, pat) })?
     }
 
     match (pat, bundle) {
@@ -135,7 +157,7 @@ fn assign_pattern<'cgs, 'file>(circuit_state: &'cgs mut CircuitGenState<'file>, 
         (ast::Pattern::Product(_, subpats), ProducerBundle::Product(subbundles)) => {
             assert_eq!(subpats.len(), subbundles.len(), "assign product pattern to procut bundle with different length"); // sanity check
             for (subpat, subbundle) in subpats.iter().zip(subbundles) {
-                assign_pattern(circuit_state, subpat, subbundle)?;
+                assign_pattern(global_state, types, circuit_state, subpat, subbundle)?;
             }
         }
 
@@ -145,14 +167,14 @@ fn assign_pattern<'cgs, 'file>(circuit_state: &'cgs mut CircuitGenState<'file>, 
     Ok(())
 }
 
-fn convert_expr<'file>(global_state: &GlobalGenState, circuit_state: &mut CircuitGenState, expr: ast::Expr<'file>) -> Option<ProducerBundle> {
+fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'types mut ty::Types, circuit_state: &mut CircuitGenState, expr: ast::Expr<'file>) -> Option<ProducerBundle> {
     let span = expr.span();
     match expr {
         ast::Expr::Ref(name_sp, name) => {
             let name_resolved = match circuit_state.locals.get(name) {
                 Some(resolved) => resolved,
                 None => {
-                    Error::NoSuchLocal(name_sp, name).report();
+                    (&*types, Error::NoSuchLocal(name_sp, name)).report();
                     None?
                 }
             };
@@ -164,24 +186,24 @@ fn convert_expr<'file>(global_state: &GlobalGenState, circuit_state: &mut Circui
             let name_resolved = match global_state.circuit_table.get(circuit_name.1) {
                 Some(n) => n,
                 None => {
-                    Error::NoSuchCircuit(circuit_name.0, circuit_name.1).report();
+                    (&*types, Error::NoSuchCircuit(circuit_name.0, circuit_name.1)).report();
                     None?
                 }
             };
 
-            let arg = convert_expr(global_state, circuit_state, *arg)?;
-            let (receiver, producer) = if inline { name_resolved.inline_gate(circuit_state) } else { name_resolved.add_gate(circuit_state) }?;
-            bundle::connect_bundle(&mut circuit_state.circuit, span, &arg, &receiver)?;
+            let arg = convert_expr(global_state, types, circuit_state, *arg)?;
+            let (receiver, producer) = if inline { name_resolved.inline_gate(types, circuit_state) } else { name_resolved.add_gate(types, circuit_state) }?;
+            bundle::connect_bundle(types, &mut circuit_state.circuit, span, &arg, &receiver)?;
             Some(producer)
         }
 
         ast::Expr::Const(_, val) => {
-            let (_, p) = CircuitDef::Const(val).add_gate(circuit_state)?;
+            let (_, p) = CircuitDef::Const(val).add_gate(types, circuit_state)?;
             Some(p)
         }
 
         ast::Expr::Get(expr, field_name) => {
-            let expr = convert_expr(global_state, circuit_state, *expr)?;
+            let expr = convert_expr(global_state, types, circuit_state, *expr)?;
             let field = match &expr {
                 ProducerBundle::Single(_) => None,
                 ProducerBundle::Product(items) => match field_name.1.parse::<usize>() {
@@ -192,13 +214,14 @@ fn convert_expr<'file>(global_state: &GlobalGenState, circuit_state: &mut Circui
             if let Some(r) = field {
                 Some(r)
             } else {
-                Error::NoField { ty: expr.type_(), field_name: field_name.1, field_name_sp: field_name.0 }.report();
+                let ty = expr.type_(types);
+                (&*types, Error::NoField { ty, field_name: field_name.1, field_name_sp: field_name.0 }).report();
                 None
             }
         }
 
         ast::Expr::Multiple(_, exprs) => {
-            let results = exprs.into_iter().map(|e| convert_expr(global_state, circuit_state, e));
+            let results = exprs.into_iter().map(|e| convert_expr(global_state, types, circuit_state, e));
             let results_no_none = results.collect::<Option<Vec<ProducerBundle>>>()?; // TODO: dont stop at the first one in order to report all the errors
             Some(ProducerBundle::Product(results_no_none))
         }
