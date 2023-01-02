@@ -164,6 +164,8 @@ fn convert_circuit<'ggs, 'types, 'file>(
         bundle::connect_bundle(types, &mut circuit_state.circuit, arrow_span, producer_span, receiver_span, &producer, &receiver);
     }
 
+    circuit_state.circuit.calculate_locations();
+
     Some((name, circuit_state.circuit, circuit_ast.input_type, circuit_ast.output_type))
 }
 

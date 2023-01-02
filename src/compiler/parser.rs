@@ -40,13 +40,6 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             Err(self.expected_and_next(matcher.name()))
         }
     }
-    fn maybe_consume<TokData>(&mut self, matcher: TokenMatcher<'file, TokData>) -> Option<TokData> {
-        if matcher.matches(self.peek()) {
-            Some(matcher.convert(self.next()))
-        } else {
-            None
-        }
-    }
 
     fn expected_and_next(&mut self, thing: &'static str) -> ParseError<'file> {
         ParseError { expected: thing, got: self.next() }
