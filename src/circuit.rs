@@ -201,7 +201,7 @@ impl Circuit {
             }
         }
     }
-    pub(crate) fn set_producer_value(&mut self, index: ProducerIdx, value: bool) {
+    fn set_producer_value(&mut self, index: ProducerIdx, value: bool) {
         let producer = self.get_producer_mut(index);
         producer.value = value;
         // caller should call update next
@@ -389,6 +389,7 @@ impl GateKind {
                     subcircuit.set_producer_value(subcircuit_input_node.into(), get_producer_value(input_node.producer))
                 }
 
+                // TODO: run subcircuit.update() / move everything into one global Gate arena which means figuring out lifetimes and things
                 subcircuit
                     .output_indexes()
                     .into_iter()
