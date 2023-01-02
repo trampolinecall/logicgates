@@ -2,17 +2,17 @@ use super::parser::ast;
 use crate::compiler::error::Span;
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct Circuit<'file, Pattern, Expr> {
+pub(crate) struct Circuit<'file, Pattern> {
     pub(crate) name: (Span<'file>, &'file str),
     pub(crate) input: Pattern,
-    pub(crate) lets: Vec<Let<Pattern, Expr>>,
-    pub(crate) output: Expr,
+    pub(crate) lets: Vec<Let<'file, Pattern>>,
+    pub(crate) output: Expr<'file>,
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct Let<Pattern, Expr> {
+pub(crate) struct Let<'file, Pattern> {
     pub(crate) pat: Pattern,
-    pub(crate) val: Expr,
+    pub(crate) val: Expr<'file>,
 }
 
 #[derive(PartialEq, Debug)]

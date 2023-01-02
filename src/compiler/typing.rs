@@ -1,18 +1,13 @@
 use super::{ir, parser::ast, ty};
 
-pub(crate) fn type_<'file>(types: &mut ty::Types, circuits: Vec<ast::Circuit<'file>>) -> Vec<ir::Circuit<'file, ir::Pattern<'file, ty::TypeSym>, ir::Expr<'file>>> {
+pub(crate) fn type_<'file>(types: &mut ty::Types, circuits: Vec<ast::Circuit<'file>>) -> Vec<ir::Circuit<'file, ir::Pattern<'file, ty::TypeSym>>> {
     circuits
         .into_iter()
-        .map(|circuit| ir::Circuit {
-            name: circuit.name,
-            input: type_pat(types, circuit.input),
-            lets: circuit.lets.into_iter().map(|let_| type_let(types, let_)).collect(),
-            output: circuit.output,
-        })
+        .map(|circuit| ir::Circuit { name: circuit.name, input: type_pat(types, circuit.input), lets: circuit.lets.into_iter().map(|let_| type_let(types, let_)).collect(), output: circuit.output })
         .collect()
 }
 
-fn type_let<'file>(types: &mut ty::Types, let_: ir::Let<ir::Pattern<'file, ()>, ir::Expr<'file>>) -> ir::Let<ir::Pattern<'file, ty::TypeSym>, ir::Expr<'file>> {
+fn type_let<'file>(types: &mut ty::Types, let_: ir::Let<'file, ir::Pattern<'file, ()>>) -> ir::Let<'file, ir::Pattern<'file, ty::TypeSym>> {
     ir::Let { pat: type_pat(types, let_.pat), val: let_.val }
 }
 
