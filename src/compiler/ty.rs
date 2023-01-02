@@ -1,7 +1,4 @@
-use crate::compiler::parser::ast;
 use symtern::prelude::*;
-
-use super::ir;
 
 pub(crate) struct Types {
     types: symtern::Pool<Type>, // ideally, i would use a interner crate that doesnt use ids to access types but they dont handle cyclic references nicely

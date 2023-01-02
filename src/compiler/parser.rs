@@ -164,7 +164,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             }?;
             self.next();
 
-            left = ast::Expr { kind: ir::ExprKind::Get(Box::new(left), field), type_info: () };
+            left = ast::Expr::Get(Box::new(left), field);
         }
 
         Ok(left)
@@ -176,8 +176,8 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 let (n_sp, _, n) = Token::number_matcher().convert(self.next());
 
                 match n {
-                    0 => Ok(ast::Expr { kind: ir::ExprKind::Const(n_sp, false), type_info: () }),
-                    1 => Ok(ast::Expr { kind: ir::ExprKind::Const(n_sp, true), type_info: () }),
+                    0 => Ok(ast::Expr::Const(n_sp, false)),
+                    1 => Ok(ast::Expr::Const(n_sp, true)),
                     _ => Err(self.expected_and_next("'0' or '1'")),
                 }
             }
@@ -189,13 +189,13 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let arg = self.expr()?;
 
-                Ok(ast::Expr { kind: ir::ExprKind::Call(i, inline, Box::new(arg)), type_info: () })
+                Ok(ast::Expr::Call(i, inline, Box::new(arg)))
             }
 
             Token::Identifier(_, _) => {
                 let i = Token::identifier_matcher().convert(self.next());
 
-                Ok(ast::Expr { kind: ir::ExprKind::Ref(i.0, i.1), type_info: () })
+                Ok(ast::Expr::Ref(i.0, i.1))
             }
 
             Token::OBrack(obrack_sp) => {
@@ -214,7 +214,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let cbrack_sp = self.expect(Token::cbrack_matcher())?;
 
-                Ok(ast::Expr { kind: ir::ExprKind::Multiple(obrack_sp + cbrack_sp, items), type_info: () })
+                Ok(ast::Expr::Multiple(obrack_sp + cbrack_sp, items))
             }
 
             _ => Err(self.expected_and_next("expression"))?,
