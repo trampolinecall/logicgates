@@ -27,9 +27,10 @@ enum Error<'file> {
     NoMain(&'file File),
 }
 
-#[derive(Default)]
 struct GlobalGenState<'file> {
     circuit_table: HashMap<&'file str, CircuitDef>,
+    const_0: CircuitDef,
+    const_1: CircuitDef,
 }
 
 impl<'file> GlobalGenState<'file> {
@@ -46,7 +47,10 @@ impl<'file> GlobalGenState<'file> {
             },
         );
         circuit_table.insert("not", CircuitDef::Not { input_type: types.intern(ty::Type::Bit), result_type: types.intern(ty::Type::Bit) });
-        Self { circuit_table }
+
+        let const_0 = CircuitDef::Const { value: false, input_type: types.intern(ty::Type::Product(vec![])), result_type: types.intern(ty::Type::Bit) };
+        let const_1 = CircuitDef::Const { value: true, input_type: types.intern(ty::Type::Product(vec![])), result_type: types.intern(ty::Type::Bit) };
+        Self { circuit_table, const_0, const_1 }
     }
 }
 
@@ -210,7 +214,7 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
         }
 
         ir::Expr::Const(_, value) => {
-            let (_, p) = CircuitDef::Const { value, input_type: todo!(), result_type: todo!() }.add_gate(types, circuit_state)?;
+            let (_, p) = if value { &global_state.const_1 } else { &global_state.const_0 }.add_gate(types, circuit_state)?;
             Some(p)
         }
 
