@@ -13,16 +13,12 @@ pub(super) enum CircuitDef {
 impl CircuitDef {
     fn input_type(&self) -> ty::TypeSym {
         match self {
-            CircuitDef::Circuit { circuit: _, input_type, result_type: _ } => *input_type,
-            CircuitDef::Nand { input_type, result_type: _ } => *input_type,
-            CircuitDef::Const { value: _, input_type, result_type: _ } => *input_type,
+            CircuitDef::Circuit { circuit: _, input_type, result_type: _ } | CircuitDef::Nand { input_type, result_type: _ } | CircuitDef::Const { value: _, input_type, result_type: _ } => *input_type,
         }
     }
     fn output_type(&self) -> ty::TypeSym {
         match self {
-            CircuitDef::Circuit { circuit: _, input_type: _, result_type } => *result_type,
-            CircuitDef::Nand { input_type: _, result_type } => *result_type,
-            CircuitDef::Const { value: _, input_type: _, result_type } => *result_type,
+            CircuitDef::Circuit { circuit: _, input_type: _, result_type } | CircuitDef::Nand { input_type: _, result_type } | CircuitDef::Const { value: _, input_type: _, result_type } => *result_type,
         }
     }
 
@@ -38,19 +34,19 @@ impl CircuitDef {
         bundle::make_producer_bundle(types, output_type, outputs)
     }
 
-    pub(super) fn add_gate(&self, types: &ty::Types, circuit_state: &mut CircuitGenState) -> Option<(bundle::ReceiverBundle, bundle::ProducerBundle)> {
+    pub(super) fn add_gate(&self, types: &ty::Types, circuit_state: &mut CircuitGenState) -> (bundle::ReceiverBundle, bundle::ProducerBundle) {
         let gate_i = match self {
             CircuitDef::Circuit { circuit, input_type: _, result_type: _ } => circuit_state.circuit.new_subcircuit_gate(circuit.clone()),
             CircuitDef::Nand { input_type: _, result_type: _ } => circuit_state.circuit.new_nand_gate(),
             CircuitDef::Const { value, input_type: _, result_type: _ } => circuit_state.circuit.new_const_gate(*value),
         };
 
-        let input_bundle = self.make_receiver_bundle(types, &mut circuit_state.circuit.get_gate(gate_i).inputs().map(|input| input.into()));
-        let output_bundle = self.make_producer_bundle(types, &mut circuit_state.circuit.get_gate(gate_i).outputs().map(|output| output.into()));
+        let input_bundle = self.make_receiver_bundle(types, &mut circuit_state.circuit.get_gate(gate_i).inputs().map(Into::into));
+        let output_bundle = self.make_producer_bundle(types, &mut circuit_state.circuit.get_gate(gate_i).outputs().map(Into::into));
 
-        Some((input_bundle, output_bundle))
+        (input_bundle, output_bundle)
     }
-    pub(crate) fn inline_gate(&self, types: &ty::Types, circuit_state: &mut CircuitGenState) -> Option<(bundle::ReceiverBundle, bundle::ProducerBundle)> {
+    pub(crate) fn inline_gate(&self, types: &ty::Types, circuit_state: &mut CircuitGenState) -> (bundle::ReceiverBundle, bundle::ProducerBundle) {
         if let CircuitDef::Circuit { circuit: subcircuit, input_type: _, result_type: _ } = self {
             use crate::circuit::GateIndex;
 
@@ -77,7 +73,7 @@ impl CircuitDef {
                     // TODO: dont clone this
                     if let Some(inner_producer_idx) = input.producer {
                         if let Some(producer) = convert_producer_idx(inner_producer_idx, &circuit_state.circuit, &gate_number_mapping) {
-                            circuit_state.circuit.connect(producer, new_gate_input.into())
+                            circuit_state.circuit.connect(producer, new_gate_input.into());
                         }
                     }
                 }

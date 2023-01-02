@@ -43,8 +43,7 @@ impl<'file> Lexer<'file> {
     fn peek_in_identifier(&mut self) -> bool {
         match self.1.peek() {
             // TODO: this is duplicated code from the first few match arms of the main lexer loop
-            Some((_, ' ' | '\n' | ',' | '[' | ']' | '=' | '.' | ';')) => false,
-            None => false,
+            Some((_, ' ' | '\n' | ',' | '[' | ']' | '=' | '.' | ';')) | None => false,
             _ => true,
         }
     }

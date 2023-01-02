@@ -96,7 +96,7 @@ pub(crate) trait Report {
 
 impl<'a, T: Into<CompileError<'a>>> Report for T {
     fn report(self) {
-        report(self.into())
+        report(self.into());
     }
 }
 

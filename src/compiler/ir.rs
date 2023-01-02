@@ -51,9 +51,8 @@ impl<'file, TypeInfo> PatternKind<'file, TypeInfo> {
 impl<'file> Expr<'file> {
     pub(crate) fn span(&self) -> Span<'file> {
         match self {
-            Expr::Ref(sp, _) => *sp,
+            Expr::Ref(sp, _) | Expr::Const(sp, _) => *sp,
             Expr::Call((circuit_name_sp, _), _, arg) => *circuit_name_sp + arg.span(),
-            Expr::Const(sp, _) => *sp,
             Expr::Get(expr, (field_sp, _)) => expr.span() + *field_sp,
             Expr::Multiple { obrack, cbrack, exprs: _ } => *obrack + *cbrack,
         }

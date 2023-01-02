@@ -214,7 +214,7 @@ impl Circuit {
             }
             self.set_producer_value(as_producer_index, new_value);
 
-            for dependant in self.get_producer(as_producer_index).dependants.clone().into_iter() {
+            for dependant in self.get_producer(as_producer_index).dependants.clone() {
                 // clone so that the borrow checker is happy, TODO: find better solution to this
                 if let Some(gate) = self.get_receiver(dependant).gate {
                     update_stack.push(gate);
@@ -226,7 +226,7 @@ impl Circuit {
     }
 
     pub(crate) fn set_num_inputs(&mut self, num: usize) {
-        self.inputs.resize(num, Producer { gate: None, dependants: HashSet::new(), value: false })
+        self.inputs.resize(num, Producer { gate: None, dependants: HashSet::new(), value: false });
     }
     pub(crate) fn set_num_outputs(&mut self, num: usize) {
         self.outputs.resize(num, Receiver { gate: None, producer: None });
@@ -307,8 +307,7 @@ impl Gate {
     }
     pub(crate) fn _outputs(&self) -> &[Producer] {
         match &self.kind {
-            GateKind::Nand(_, o) => o,
-            GateKind::Const(_, o) => o,
+            GateKind::Nand(_, o) | GateKind::Const(_, o) => o,
             GateKind::Subcircuit(_, o, _) => o,
         }
     }
@@ -321,8 +320,7 @@ impl Gate {
     }
     pub(crate) fn _outputs_mut(&mut self) -> &mut [Producer] {
         match &mut self.kind {
-            GateKind::Nand(_, o) => o,
-            GateKind::Const(_, o) => o,
+            GateKind::Nand(_, o) | GateKind::Const(_, o) => o,
             GateKind::Subcircuit(_, o, _) => o,
         }
     }
@@ -372,7 +370,7 @@ impl GateKind {
             GateKind::Subcircuit(inputs, _, subcircuit) => {
                 let mut subcircuit = subcircuit.borrow_mut();
                 for (input_node, subcircuit_input_node) in inputs.iter().zip(subcircuit.input_indexes()) {
-                    subcircuit.set_producer_value(subcircuit_input_node.into(), get_producer_value(input_node.producer))
+                    subcircuit.set_producer_value(subcircuit_input_node.into(), get_producer_value(input_node.producer));
                 }
 
                 // TODO: move everything into one global Gate arena which means figuring out lifetimes and things
