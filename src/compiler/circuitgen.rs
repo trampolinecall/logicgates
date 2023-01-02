@@ -24,11 +24,10 @@ enum Error<'file> {
     NoField { ty: ty::TypeSym, field_name_sp: Span<'file>, field_name: &'file str }, // TODO: list names of fields that do exist
     NoSuchLocal(Span<'file>, &'file str),
     NoSuchCircuit(Span<'file>, &'file str),
-    TypeMismatchInAssignment { pat_sp: Span<'file>, actual_type: ty::TypeSym, pattern_type: ty::TypeSym },
-    TypeMismatchInCall { expr_span: Span<'file>, actual_type: ty::TypeSym, expected_type: ty::TypeSym },
+    TypeMismatch { producer_span: Span<'file>, arrow_span: Span<'file>, receiver_span: Span<'file>, producer_type: ty::TypeSym, receiver_type: ty::TypeSym },
     NoMain(&'file File),
     NotAReceiver(Span<'file>),
-    NotAProducer(Span<'file>),
+    // NotAProducer(Span<'file>),
 }
 
 struct GlobalGenState<'file> {
@@ -75,16 +74,14 @@ impl<'file> From<(&ty::Types, Error<'file>)> for CompileError<'file> {
             Error::NoField { ty, field_name_sp, field_name } => CompileError::new(field_name_sp, format!("no field called '{}' on type '{}'", field_name, types.get(ty).fmt(types))),
             Error::NoSuchLocal(name_sp, name) => CompileError::new(name_sp, format!("no local called '{}'", name)),
             Error::NoSuchCircuit(name_sp, name) => CompileError::new(name_sp, format!("no circuit called '`{}'", name)),
-            Error::TypeMismatchInAssignment { pat_sp, actual_type: value_type, pattern_type } => {
-                CompileError::new(pat_sp, format!("type mismatch in assignment: value has type {} but pattern has type {}", types.get(value_type).fmt(types), types.get(pattern_type).fmt(types)))
-            }
             Error::NoMain(f) => CompileError::new(f.eof_span(), "no '`main' circuit".into()),
-            Error::TypeMismatchInCall { actual_type, expected_type, expr_span } => CompileError::new(
-                expr_span,
-                format!("type mismatch in subcircuit: arguments have type {} but subcircuit expects type {}", types.get(actual_type).fmt(types), types.get(expected_type).fmt(types)),
+            Error::TypeMismatch { producer_span: _producer_span, arrow_span, receiver_span: _receiver_span, producer_type, receiver_type } => CompileError::new(
+                // TODO: show on the producer and receiver spans which has which type
+                arrow_span,
+                format!("type mismatch: connecting {} to {}", types.get(producer_type).fmt(types), types.get(receiver_type).fmt(types)),
             ),
-            Error::NotAReceiver(_) => todo!(),
-            Error::NotAProducer(_) => todo!(),
+            Error::NotAReceiver(sp) => CompileError::new(sp, "not a receiver".into()),
+            // Error::NotAProducer(sp) => CompileError::new(sp, "not a producer".into()),
         }
     }
 }
@@ -159,10 +156,12 @@ fn convert_circuit<'ggs, 'types, 'file>(
         circuit_state.locals.insert(local_name.1, gate_added);
     }
 
-    for ir::Connection { span, producer, receiver } in circuit_ast.connections {
+    for ir::Connection { arrow_span, producer, receiver } in circuit_ast.connections {
+        let producer_span = producer.span();
+        let receiver_span = receiver.span();
         let producer = convert_producer(global_state, types, &mut circuit_state, producer)?;
         let receiver = convert_receiver(global_state, types, &mut circuit_state, receiver)?;
-        bundle::connect_bundle(types, &mut circuit_state.circuit, span, &producer, &receiver);
+        bundle::connect_bundle(types, &mut circuit_state.circuit, arrow_span, producer_span, receiver_span, &producer, &receiver);
     }
 
     Some((name, circuit_state.circuit, circuit_ast.input_type, circuit_ast.output_type))
