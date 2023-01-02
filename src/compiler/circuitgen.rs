@@ -126,6 +126,7 @@ fn convert_circuit<'ggs, 'types, 'file>(
         (&*types, e).report();
     }
 
+    // TODO: allowing recursive lets
     for ir::Let { pat, val } in circuit_ast.lets {
         let result = convert_expr(global_state, types, &mut circuit_state, val)?;
         if let Err(e) = assign_pattern(types, &mut circuit_state, &pat, result) {
