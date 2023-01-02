@@ -151,7 +151,7 @@ fn convert_circuit<'ggs, 'types, 'file>(
             }
         };
         let gate_added = gate_def.add_gate(types, &mut circuit_state)?;
-        circuit_state.locals.insert(local_name.1, gate_added);
+        circuit_state.locals.insert(local_name.1, gate_added); // TODO: error on duplicate locals
     }
 
     for ir::Connection { arrow_span, producer, receiver } in circuit_ast.connections {
