@@ -21,7 +21,7 @@ pub(crate) enum Expr<'file> {
     Call((Span<'file>, &'file str), bool, Box<Expr<'file>>),
     Const(Span<'file>, bool),
     Get(Box<Expr<'file>>, (Span<'file>, &'file str)),
-    Multiple(Span<'file>, Vec<Expr<'file>>),
+    Multiple { obrack: Span<'file>, exprs: Vec<Expr<'file>>, cbrack: Span<'file> },
 }
 
 #[derive(PartialEq, Debug)]
@@ -51,7 +51,7 @@ impl<'file> Expr<'file> {
             Expr::Call((circuit_name_sp, _), _, arg) => *circuit_name_sp + arg.span(),
             Expr::Const(sp, _) => *sp,
             Expr::Get(expr, (field_sp, _)) => expr.span() + *field_sp,
-            Expr::Multiple(sp, _) => *sp,
+            Expr::Multiple { obrack, cbrack, exprs: _ } => *obrack + *cbrack,
         }
     }
 }

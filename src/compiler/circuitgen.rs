@@ -233,7 +233,7 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
             }
         }
 
-        ir::Expr::Multiple(_, exprs) => {
+        ir::Expr::Multiple { exprs , .. } => {
             let mut results = Some(Vec::new());
 
             for (ind, expr) in exprs.into_iter().enumerate() {

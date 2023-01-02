@@ -198,8 +198,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 Ok(ir::Expr::Ref(i.0, i.1))
             }
 
-            Token::OBrack(obrack_sp) => {
-                let obrack_sp = *obrack_sp;
+            &Token::OBrack(obrack) => {
                 self.next();
 
                 let mut items = Vec::new();
@@ -212,9 +211,9 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                     }
                 }
 
-                let cbrack_sp = self.expect(Token::cbrack_matcher())?;
+                let cbrack = self.expect(Token::cbrack_matcher())?;
 
-                Ok(ir::Expr::Multiple(obrack_sp + cbrack_sp, items))
+                Ok(ir::Expr::Multiple { obrack, cbrack, exprs: items })
             }
 
             _ => Err(self.expected_and_next("expression"))?,
