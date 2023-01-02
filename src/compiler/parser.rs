@@ -175,7 +175,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
     fn primary_expr(&mut self) -> Result<ir::Expr<'file>, ParseError<'file>> {
         match self.peek() {
-            &Token::Number(_, _, _) => {
+            Token::Number(_, _, _) => {
                 let (n_sp, _, n) = Token::number_matcher().convert(self.next());
 
                 match n {
