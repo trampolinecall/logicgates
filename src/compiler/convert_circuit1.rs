@@ -39,8 +39,8 @@ struct CircuitGenState<'file> {
     circuit: circuit2::CustomCircuit,
 }
 impl CircuitGenState<'_> {
-    fn new(name: String, input_type: ty::TypeSym, result_type: ty::TypeSym) -> Self {
-        Self { locals: HashMap::default(), circuit: (CustomCircuit::new(name, input_type, result_type)) }
+    fn new(name: String, input_type: ty::TypeSym, output_type: ty::TypeSym) -> Self {
+        Self { locals: HashMap::default(), circuit: (CustomCircuit::new(name, input_type, output_type)) }
     }
 }
 

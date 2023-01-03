@@ -9,7 +9,7 @@ pub(crate) fn convert(types: &mut ty::Types, circuit: &ir::circuit2::Circuit) ->
     if let ir::circuit2::Circuit::CustomCircuit(circuit) = circuit {
         let mut new_circuit = circuit::Circuit::new(circuit.name.clone()); // TODO: consume
         new_circuit.set_num_inputs(types.get(circuit.input_type).size(types));
-        new_circuit.set_num_outputs(types.get(circuit.result_type).size(types)); // TODO: rename this to output_type instead of result_type
+        new_circuit.set_num_outputs(types.get(circuit.output_type).size(types));
         let mut gate_index_map = HashMap::new();
 
         for (old_gate_i, gate) in circuit.iter_gates() {
