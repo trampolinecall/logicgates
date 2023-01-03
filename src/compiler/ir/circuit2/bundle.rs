@@ -18,7 +18,7 @@ pub(crate) enum ReceiverBundle {
 }
 
 impl<'types> ProducerBundle {
-    pub(crate) fn type_(&self, types: &'types mut ty::Types, circuit: &super::CustomCircuit) -> ty::TypeSym {
+    pub(crate) fn type_(&self, types: &'types mut ty::Types, circuit: &super::Circuit) -> ty::TypeSym {
         match self {
             ProducerBundle::CurCircuitInput => circuit.input_type,
             ProducerBundle::GateOutput(gate_idx) => circuit.get_gate(*gate_idx).output_type(types),
@@ -34,7 +34,7 @@ impl<'types> ProducerBundle {
     }
 }
 impl<'types> ReceiverBundle {
-    pub(crate) fn type_(&self, types: &'types mut ty::Types, circuit: &super::CustomCircuit) -> ty::TypeSym {
+    pub(crate) fn type_(&self, types: &'types mut ty::Types, circuit: &super::Circuit) -> ty::TypeSym {
         match self {
             ReceiverBundle::CurCircuitOutput => circuit.output_type,
             ReceiverBundle::GateInput(gate_idx) => circuit.get_gate(*gate_idx).input_type(types),
