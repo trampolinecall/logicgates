@@ -11,7 +11,7 @@ pub(crate) struct CustomCircuit {
     gates: Vec<Circuit>,
     connections: Vec<(bundle::ProducerBundle, bundle::ReceiverBundle)>,
     pub(crate) input_type: ty::TypeSym,
-    pub(crate) result_type: ty::TypeSym,
+    pub(crate) output_type: ty::TypeSym,
 }
 
 #[derive(Clone, Debug)]
@@ -24,7 +24,7 @@ pub(crate) enum Circuit {
 impl Circuit {
     fn input_type(&self, types: &mut ty::Types) -> ty::TypeSym {
         match self {
-            Circuit::CustomCircuit(CustomCircuit { input_type, result_type: _, gates: _, connections: _, name: _ }) => *input_type,
+            Circuit::CustomCircuit(CustomCircuit { input_type, output_type: _, gates: _, connections: _, name: _ }) => *input_type,
             Circuit::Nand {} => {
                 let b = types.intern(ty::Type::Bit);
                 types.intern(ty::Type::Product(vec![("0".into(), b), ("1".into(), b)]))
@@ -34,7 +34,7 @@ impl Circuit {
     }
     fn output_type(&self, types: &mut ty::Types) -> ty::TypeSym {
         match self {
-            Circuit::CustomCircuit(CustomCircuit { input_type: _, result_type, gates: _, connections: _, name: _ }) => *result_type,
+            Circuit::CustomCircuit(CustomCircuit { input_type: _, output_type, gates: _, connections: _, name: _ }) => *output_type,
             Circuit::Nand {} => types.intern(ty::Type::Bit),
             Circuit::Const(_) => types.intern(ty::Type::Bit),
         }
@@ -124,8 +124,8 @@ impl Circuit {
     */
 }
 impl CustomCircuit {
-    pub(crate) fn new(name: String, input_type: symtern::Sym<usize>, result_type: symtern::Sym<usize>) -> CustomCircuit {
-        CustomCircuit { name, input_type, result_type, gates: Vec::new(), connections: Vec::new() }
+    pub(crate) fn new(name: String, input_type: symtern::Sym<usize>, output_type: symtern::Sym<usize>) -> CustomCircuit {
+        CustomCircuit { name, input_type, output_type, gates: Vec::new(), connections: Vec::new() }
     }
 
     pub(crate) fn add_gate(&mut self, gate: Circuit) -> GateIdx {

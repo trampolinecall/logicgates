@@ -36,7 +36,7 @@ impl<'types> ProducerBundle {
 impl<'types> ReceiverBundle {
     pub(crate) fn type_(&self, types: &'types mut ty::Types, circuit: &super::CustomCircuit) -> ty::TypeSym {
         match self {
-            ReceiverBundle::CurCircuitOutput => circuit.result_type,
+            ReceiverBundle::CurCircuitOutput => circuit.output_type,
             ReceiverBundle::GateInput(gate_idx) => circuit.get_gate(*gate_idx).input_type(types),
             /*
             ReceiverBundle::Get(producer, field) => {
