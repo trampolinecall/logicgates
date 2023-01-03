@@ -1,5 +1,5 @@
 use crate::compiler::{
-    error::{File, Span, CompileError},
+    error::{CompileError, File, Span},
     ir::ty,
 };
 
@@ -28,4 +28,3 @@ impl<'file> From<(&ty::Types, Error<'file>)> for CompileError<'file> {
         }
     }
 }
-

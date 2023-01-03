@@ -40,7 +40,7 @@ struct CircuitGenState<'file> {
 }
 impl CircuitGenState<'_> {
     fn new(name: String, input_type: ty::TypeSym, result_type: ty::TypeSym) -> Self {
-        Self { locals: HashMap::default(), circuit: (CustomCircuit { gates: Vec::new(), connections: Vec::new(), input_type, result_type, name }) }
+        Self { locals: HashMap::default(), circuit: (CustomCircuit::new(name, input_type, result_type)) }
     }
 }
 
@@ -110,18 +110,15 @@ fn assign_pattern<'types, 'cgs, 'file>(
         Err(error::Error::TypeMismatch { expected_span: pat.kind.span(), got_type: bundle.type_(types, &circuit_state.circuit), expected_type: pat.type_info })?;
     }
 
-    match (&pat.kind, bundle) {
-        (ir::circuit1::PatternKind::Identifier(_, iden, _), bundle) => {
+    match &pat.kind {
+        ir::circuit1::PatternKind::Identifier(_, iden, _) => {
             circuit_state.locals.insert(iden, bundle);
         }
-        (ir::circuit1::PatternKind::Product(_, subpats), ProducerBundle::Product(subbundles)) => {
-            assert_eq!(subpats.len(), subbundles.len(), "assign product pattern to procut bundle with different length"); // sanity check
-            for (subpat, (_, subbundle)) in subpats.iter().zip(subbundles) {
-                assign_pattern(types, circuit_state, subpat, subbundle)?;
+        ir::circuit1::PatternKind::Product(_ , subpats) => {
+            for (subpat_i, subpat) in subpats.iter().enumerate() { // when named product expressions are implemented, this should not be enumerate
+                assign_pattern(types, circuit_state, subpat, ProducerBundle::Get(Box::new(bundle.clone()), subpat_i.to_string()))?;
             }
         }
-
-        (pat, bundle) => unreachable!("assign pattern to bundle with different type after type checking: pattern = {pat:?}, bundle = {bundle:?}"),
     }
 
     Ok(())

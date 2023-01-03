@@ -2,20 +2,21 @@ use super::ty;
 
 pub(crate) mod bundle;
 
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, Eq, Hash, PartialEq)]
 pub(crate) struct GateIdx(usize);
 
 #[derive(Clone, Debug)]
 pub(crate) struct CustomCircuit {
     pub(crate) name: String,
-    pub(crate) gates: Vec<Circuit>,
-    pub(crate) connections: Vec<(bundle::ProducerBundle, bundle::ReceiverBundle)>,
+    gates: Vec<Circuit>,
+    connections: Vec<(bundle::ProducerBundle, bundle::ReceiverBundle)>,
     pub(crate) input_type: ty::TypeSym,
     pub(crate) result_type: ty::TypeSym,
 }
 
 #[derive(Clone, Debug)]
 pub(crate) enum Circuit {
+    // TODO: rename to gate
     CustomCircuit(CustomCircuit),
     Nand,
     Const(bool),
@@ -123,6 +124,10 @@ impl Circuit {
     */
 }
 impl CustomCircuit {
+    pub(crate) fn new(name: String, input_type: symtern::Sym<usize>, result_type: symtern::Sym<usize>) -> CustomCircuit {
+        CustomCircuit { name, input_type, result_type, gates: Vec::new(), connections: Vec::new() }
+    }
+
     pub(crate) fn add_gate(&mut self, gate: Circuit) -> GateIdx {
         self.gates.push(gate);
         GateIdx(self.gates.len() - 1)
@@ -133,6 +138,15 @@ impl CustomCircuit {
     }
 
     pub(crate) fn add_connection(&mut self, producer: bundle::ProducerBundle, receiver: bundle::ReceiverBundle) {
+        // TODO: probably should put type error here or assertion
         self.connections.push((producer, receiver));
+    }
+
+    pub(crate) fn iter_gates(&self) -> impl Iterator<Item = (GateIdx, &Circuit)> {
+        self.gates.iter().enumerate().map(|(i, g)| (GateIdx(i), g))
+    }
+
+    pub(crate) fn iter_connections(&self) -> std::slice::Iter<(bundle::ProducerBundle, bundle::ReceiverBundle)> {
+        self.connections.iter()
     }
 }
