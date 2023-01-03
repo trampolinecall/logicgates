@@ -14,6 +14,8 @@ pub(crate) type TypedPattern<'file> = Pattern<'file, ty::TypeSym>;
 pub(crate) struct Circuit<'file, TypeInfo> {
     pub(crate) name: (Span<'file>, &'file str),
     pub(crate) input: Pattern<'file, TypeInfo>,
+    pub(crate) output_type_annotation: TypeExpr<'file>, // TODO: probably make TypeInfo TypeExpr instead of ()
+    pub(crate) output_type: TypeInfo,
     pub(crate) lets: Vec<Let<'file, TypeInfo>>,
     pub(crate) output: Expr<'file>,
 }

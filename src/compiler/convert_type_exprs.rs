@@ -25,11 +25,14 @@ pub(crate) fn convert<'file>(
     circuits
         .into_iter()
         .map(|circuit| {
+            let output_type = convert_type_ast(types, &type_table, &circuit.output_type_annotation)?;
             Some(ir::circuit1::Circuit {
                 name: circuit.name,
                 input: type_pat(types, &type_table, circuit.input)?,
                 lets: circuit.lets.into_iter().map(|let_| type_let(types, &type_table, let_)).collect::<Option<Vec<_>>>()?, // TODO: report more than just the first error
                 output: circuit.output,
+                output_type_annotation: circuit.output_type_annotation,
+                output_type,
             })
         })
         .collect::<Option<Vec<_>>>()

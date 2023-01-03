@@ -1,30 +1,42 @@
-use std::collections::HashMap;
-
 use super::ty;
-use crate::circuit;
-use crate::compiler::ir::bundle;
 
-pub(crate) enum CircuitDef {
-    Circuit { circuit: circuit::Circuit, input_type: ty::TypeSym, result_type: ty::TypeSym },
+pub(crate) mod bundle;
+
+#[derive(Clone, Debug, Copy)]
+pub(crate) struct GateIdx(usize);
+
+#[derive(Clone, Debug)]
+pub(crate) struct CustomCircuit {
+    pub(crate) name: String,
+    pub(crate) gates: Vec<Circuit>,
+    pub(crate) connections: Vec<(bundle::ProducerBundle, bundle::ReceiverBundle)>,
+    pub(crate) input_type: ty::TypeSym,
+    pub(crate) result_type: ty::TypeSym,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum Circuit {
+    CustomCircuit(CustomCircuit),
     Nand { input_type: ty::TypeSym, result_type: ty::TypeSym },
     Const { value: bool, input_type: ty::TypeSym, result_type: ty::TypeSym },
 }
-impl CircuitDef {
+impl Circuit {
     fn input_type(&self) -> ty::TypeSym {
         match self {
-            CircuitDef::Circuit { circuit: _, input_type, result_type: _ } | CircuitDef::Nand { input_type, result_type: _ } | CircuitDef::Const { value: _, input_type, result_type: _ } => {
-                *input_type
-            }
+            Circuit::CustomCircuit(CustomCircuit { input_type, result_type: _, gates: _, connections: _, name: _ })
+            | Circuit::Nand { input_type, result_type: _ }
+            | Circuit::Const { value: _, input_type, result_type: _ } => *input_type,
         }
     }
     fn output_type(&self) -> ty::TypeSym {
         match self {
-            CircuitDef::Circuit { circuit: _, input_type: _, result_type } | CircuitDef::Nand { input_type: _, result_type } | CircuitDef::Const { value: _, input_type: _, result_type } => {
-                *result_type
-            }
+            Circuit::CustomCircuit(CustomCircuit { input_type: _, result_type, gates: _, connections: _, name: _ })
+            | Circuit::Nand { input_type: _, result_type }
+            | Circuit::Const { value: _, input_type: _, result_type } => *result_type,
         }
     }
 
+    /*
     fn make_receiver_bundle(&self, types: &ty::Types, inputs: &mut impl ExactSizeIterator<Item = circuit::ReceiverIdx>) -> bundle::ReceiverBundle {
         let input_type = self.input_type();
         assert_eq!(types.get(input_type).size(types), inputs.len(), "receiver bundles have a different total size than the number of input nodes on the gate"); // sanity check
@@ -36,12 +48,14 @@ impl CircuitDef {
         assert_eq!(types.get(output_type).size(types), outputs.len(), "producer bundle has a different size than the number of output nodes on the gate"); // sanity check
         bundle::make_producer_bundle(types, output_type, outputs)
     }
+    */
 
+    /*
     pub(crate) fn add_gate(&self, types: &ty::Types, circuit: &mut circuit::Circuit) -> (bundle::ReceiverBundle, bundle::ProducerBundle) {
         let gate_i = match self {
-            CircuitDef::Circuit { circuit: circuit_def, input_type: _, result_type: _ } => circuit.new_subcircuit_gate(circuit_def.clone()),
-            CircuitDef::Nand { input_type: _, result_type: _ } => circuit.new_nand_gate(),
-            CircuitDef::Const { value, input_type: _, result_type: _ } => circuit.new_const_gate(*value),
+            Circuit::Circuit { circuit: circuit_def, input_type: _, result_type: _ } => circuit.new_subcircuit_gate(circuit_def.clone()),
+            Circuit::Nand { input_type: _, result_type: _ } => circuit.new_nand_gate(),
+            Circuit::Const { value, input_type: _, result_type: _ } => circuit.new_const_gate(*value),
         };
 
         let input_bundle = self.make_receiver_bundle(types, &mut circuit.get_gate(gate_i).inputs().map(Into::into));
@@ -50,7 +64,7 @@ impl CircuitDef {
         (input_bundle, output_bundle)
     }
     pub(crate) fn inline_gate(&self, types: &ty::Types, circuit: &mut circuit::Circuit) -> (bundle::ReceiverBundle, bundle::ProducerBundle) {
-        if let CircuitDef::Circuit { circuit: subcircuit, input_type: _, result_type: _ } = self {
+        if let Circuit::Circuit { circuit: subcircuit, input_type: _, result_type: _ } = self {
             use crate::circuit::GateIndex;
 
             let mut gate_number_mapping: HashMap<GateIndex, GateIndex> = HashMap::new();
@@ -102,5 +116,16 @@ impl CircuitDef {
         } else {
             self.add_gate(types, circuit)
         }
+    }
+    */
+}
+impl CustomCircuit {
+    pub(crate) fn add_gate(&mut self, gate: Circuit) -> GateIdx {
+        self.gates.push(gate);
+        GateIdx(self.gates.len() - 1)
+    }
+
+    pub(crate) fn add_connection(&mut self, producer: bundle::ProducerBundle, receiver: bundle::ReceiverBundle) {
+        self.connections.push((producer, receiver));
     }
 }
