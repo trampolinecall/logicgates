@@ -117,6 +117,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         self.expect(/* TODO: "circuit name (starting with '`')", */ Token::apostrophe_matcher())?;
         let name = self.expect(/* "circuit name after '`'", */ Token::identifier_matcher())?;
         let arguments = self.pattern()?;
+        let output_type = self.type_()?;
         let mut lets = Vec::new();
         while Token::let_matcher().matches(self.peek()) {
             lets.push(self.r#let()?);
@@ -124,7 +125,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
         let ret = self.expr()?;
 
-        Ok(ir::circuit1::UntypedCircuit { name, input: arguments, lets, output: ret })
+        Ok(ir::circuit1::UntypedCircuit { name, input: arguments, lets, output: ret, output_type: (), output_type_annotation: output_type })
     }
 
     fn named_type_decl(&mut self) -> Result<ir::type_decl::TypeDecl<'file>, ParseError<'file>> {

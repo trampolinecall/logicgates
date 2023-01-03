@@ -1,8 +1,10 @@
-mod circuitgen;
 #[macro_use]
 mod error;
-mod convert_type_exprs;
+
 mod ir;
+
+mod convert_circuit;
+mod convert_type_exprs;
 mod lexer;
 mod parser;
 
@@ -20,8 +22,9 @@ pub(crate) fn compile(filename: &str) -> Option<circuit::Circuit> {
         }
     };
 
-    let (circuits, type_decls) = parser::parse(lexer::lex(&file));
+    let (circuit1s, type_decls) = parser::parse(lexer::lex(&file));
     let mut types = ir::ty::Types::new();
-    let typed = convert_type_exprs::convert(&mut types, circuits, type_decls)?;
-    circuitgen::generate(&file, &mut types, typed)
+    let typed = convert_type_exprs::convert(&mut types, circuit1s, type_decls)?;
+    let circuit2 = convert_circuit::convert(&file, &mut types, typed);
+    todo!()
 }
