@@ -6,7 +6,7 @@ pub(crate) mod bundle;
 pub(crate) struct GateIdx(usize);
 
 #[derive(Clone, Debug)]
-pub(crate) struct CustomCircuit {
+pub(crate) struct Circuit {
     pub(crate) name: String,
     gates: Vec<Gate>,
     connections: Vec<(bundle::ProducerBundle, bundle::ReceiverBundle)>,
@@ -17,14 +17,14 @@ pub(crate) struct CustomCircuit {
 #[derive(Clone, Debug)]
 pub(crate) enum Gate {
     // TODO: rename to gate
-    Custom(CustomCircuit),
+    Custom(Circuit),
     Nand,
     Const(bool),
 }
 impl Gate {
     fn input_type(&self, types: &mut ty::Types) -> ty::TypeSym {
         match self {
-            Gate::Custom(CustomCircuit { input_type, output_type: _, gates: _, connections: _, name: _ }) => *input_type,
+            Gate::Custom(Circuit { input_type, output_type: _, gates: _, connections: _, name: _ }) => *input_type,
             Gate::Nand {} => {
                 let b = types.intern(ty::Type::Bit);
                 types.intern(ty::Type::Product(vec![("0".into(), b), ("1".into(), b)]))
@@ -34,7 +34,7 @@ impl Gate {
     }
     fn output_type(&self, types: &mut ty::Types) -> ty::TypeSym {
         match self {
-            Gate::Custom(CustomCircuit { input_type: _, output_type, gates: _, connections: _, name: _ }) => *output_type,
+            Gate::Custom(Circuit { input_type: _, output_type, gates: _, connections: _, name: _ }) => *output_type,
             Gate::Nand {} | Gate::Const(_) => types.intern(ty::Type::Bit),
         }
     }
@@ -122,9 +122,9 @@ impl Gate {
     }
     */
 }
-impl CustomCircuit {
-    pub(crate) fn new(name: String, input_type: symtern::Sym<usize>, output_type: symtern::Sym<usize>) -> CustomCircuit {
-        CustomCircuit { name, input_type, output_type, gates: Vec::new(), connections: Vec::new() }
+impl Circuit {
+    pub(crate) fn new(name: String, input_type: symtern::Sym<usize>, output_type: symtern::Sym<usize>) -> Circuit {
+        Circuit { name, input_type, output_type, gates: Vec::new(), connections: Vec::new() }
     }
 
     pub(crate) fn add_gate(&mut self, gate: Gate) -> GateIdx {

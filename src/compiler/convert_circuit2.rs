@@ -5,7 +5,7 @@ use crate::circuit;
 
 // TODO: clean up all imports everywhere
 
-pub(crate) fn convert(types: &mut ty::Types, circuit: &ir::circuit2::CustomCircuit) -> circuit::Circuit {
+pub(crate) fn convert(types: &mut ty::Types, circuit: &ir::circuit2::Circuit) -> circuit::Circuit {
     let mut new_circuit = circuit::Circuit::new(circuit.name.clone());
     new_circuit.set_num_inputs(types.get(circuit.input_type).size(types));
     new_circuit.set_num_outputs(types.get(circuit.output_type).size(types));
@@ -35,7 +35,7 @@ fn add_gate(types: &mut ty::Types, new_circuit: &mut circuit::Circuit, gate: &ir
 
 fn connect(
     types: &mut ty::Types,
-    old_circuit: &ir::circuit2::CustomCircuit,
+    old_circuit: &ir::circuit2::Circuit,
     new_circuit: &mut circuit::Circuit,
     gate_index_map: &mut HashMap<ir::circuit2::GateIdx, generational_arena::Index>,
     producer: &ir::circuit2::bundle::ProducerBundle,
@@ -51,7 +51,7 @@ fn connect(
 
 fn convert_producer_bundle(
     types: &mut ty::Types,
-    old_circuit: &ir::circuit2::CustomCircuit,
+    old_circuit: &ir::circuit2::Circuit,
     new_circuit: &mut circuit::Circuit,
     gate_index_map: &mut HashMap<ir::circuit2::GateIdx, generational_arena::Index>,
     producer: &ir::circuit2::bundle::ProducerBundle,
@@ -72,7 +72,7 @@ fn convert_producer_bundle(
 }
 fn convert_receiver_bundle(
     _: &mut ty::Types, // keep arguments for symmetry with convert_producer_bundle
-    _: &ir::circuit2::CustomCircuit,
+    _: &ir::circuit2::Circuit,
     new_circuit: &mut circuit::Circuit,
     gate_index_map: &mut HashMap<ir::circuit2::GateIdx, generational_arena::Index>,
     receiver: &ir::circuit2::bundle::ReceiverBundle,

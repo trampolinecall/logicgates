@@ -9,7 +9,7 @@ use super::ir;
 use super::ir::circuit1::TypedPattern;
 use super::ir::circuit2;
 use super::ir::circuit2::bundle::ProducerBundle;
-use super::ir::circuit2::CustomCircuit;
+use super::ir::circuit2::Circuit;
 use super::ir::ty;
 use circuit2::bundle::ReceiverBundle;
 
@@ -36,15 +36,15 @@ impl<'file> GlobalGenState<'file> {
 
 struct CircuitGenState<'file> {
     locals: HashMap<&'file str, ProducerBundle>,
-    circuit: circuit2::CustomCircuit,
+    circuit: circuit2::Circuit,
 }
 impl CircuitGenState<'_> {
     fn new(name: String, input_type: ty::TypeSym, output_type: ty::TypeSym) -> Self {
-        Self { locals: HashMap::default(), circuit: (CustomCircuit::new(name, input_type, output_type)) }
+        Self { locals: HashMap::default(), circuit: (Circuit::new(name, input_type, output_type)) }
     }
 }
 
-pub(crate) fn convert(file: &File, types: &mut ty::Types, ast: Vec<ir::circuit1::TypedCircuit>) -> Option<circuit2::CustomCircuit> {
+pub(crate) fn convert(file: &File, types: &mut ty::Types, ast: Vec<ir::circuit1::TypedCircuit>) -> Option<circuit2::Circuit> {
     let mut global_state = GlobalGenState::new();
 
     let mut errored = false;
@@ -76,7 +76,7 @@ fn convert_circuit<'ggs, 'types, 'file>(
     global_state: &'ggs GlobalGenState<'file>,
     types: &'types mut ty::Types,
     circuit_ast: ir::circuit1::TypedCircuit<'file>,
-) -> Option<((Span<'file>, &'file str), circuit2::CustomCircuit)> {
+) -> Option<((Span<'file>, &'file str), circuit2::Circuit)> {
     let mut circuit_state = CircuitGenState::new(circuit_ast.name.1.to_string(), circuit_ast.input.type_info, circuit_ast.output_type);
 
     if let Err(e) = assign_pattern(types, &mut circuit_state, &circuit_ast.input, circuit2::bundle::ProducerBundle::CurCircuitInput) {
