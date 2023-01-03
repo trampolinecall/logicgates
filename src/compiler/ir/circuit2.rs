@@ -35,8 +35,7 @@ impl Circuit {
     fn output_type(&self, types: &mut ty::Types) -> ty::TypeSym {
         match self {
             Circuit::Custom(CustomCircuit { input_type: _, output_type, gates: _, connections: _, name: _ }) => *output_type,
-            Circuit::Nand {} => types.intern(ty::Type::Bit),
-            Circuit::Const(_) => types.intern(ty::Type::Bit),
+            Circuit::Nand {} | Circuit::Const(_) => types.intern(ty::Type::Bit),
         }
     }
 
