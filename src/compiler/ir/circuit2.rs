@@ -125,7 +125,12 @@ impl CustomCircuit {
         GateIdx(self.gates.len() - 1)
     }
 
+    fn get_gate(&self, gate_idx: GateIdx) -> &Circuit {
+        &self.gates[gate_idx.0]
+    }
+
     pub(crate) fn add_connection(&mut self, producer: bundle::ProducerBundle, receiver: bundle::ReceiverBundle) {
         self.connections.push((producer, receiver));
     }
+
 }

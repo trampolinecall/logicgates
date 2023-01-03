@@ -66,11 +66,11 @@ impl Type {
         s
     }
 
-    pub(crate) fn has_field(&self, types: &Types, name: &str) -> bool {
+    pub(crate) fn field_type(&self, types: &Types, field: &str) -> Option<TypeSym> {
         match self {
-            Type::Bit => false,
-            Type::Product(fields) => fields.iter().find(|(field_name, _)| field_name == name).is_some(),
-            Type::Named(named_index) => types.get(types.get_named(*named_index).1).has_field(types, name),
+            Type::Bit => None,
+            Type::Product(fields) => fields.iter().find_map(|(field_name, field_type)| if field_name == field { Some(field_type) } else { None }).copied(),
+            Type::Named(named_index) => types.get(types.get_named(*named_index).1).field_type(types, field),
         }
     }
 }

@@ -183,7 +183,7 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
 
             let expr = convert_expr(global_state, types, circuit_state, *expr)?;
             let expr_type = expr.type_(types, &circuit_state.circuit);
-            if types.get(expr_type).has_field(types, field_name) {
+            if types.get(expr_type).field_type(types, field_name).is_some() {
                 // TODO: make .fields.contains() instead of has_field
                 Some(ProducerBundle::Get(Box::new(expr), field_name.into()))
             } else {
