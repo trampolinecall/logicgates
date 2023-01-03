@@ -4,8 +4,7 @@ mod error;
 mod ir;
 mod lexer;
 mod parser;
-mod ty;
-mod typing;
+mod convert_type_exprs;
 
 use crate::circuit;
 
@@ -22,7 +21,7 @@ pub(crate) fn compile(filename: &str) -> Option<circuit::Circuit> {
     };
 
     let (circuits, type_decls) = parser::parse(lexer::lex(&file));
-    let mut types = ty::Types::new();
-    let typed = typing::type_(&mut types, circuits, type_decls)?;
+    let mut types = ir::ty::Types::new();
+    let typed = convert_type_exprs::convert(&mut types, circuits, type_decls)?;
     circuitgen::generate(&file, &mut types, typed)
 }
