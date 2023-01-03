@@ -44,7 +44,7 @@ impl CircuitGenState<'_> {
     }
 }
 
-pub(crate) fn convert(file: &File, types: &mut ty::Types, ast: Vec<ir::circuit1::TypedCircuit>) -> Option<circuit2::Circuit> {
+pub(crate) fn convert(file: &File, types: &mut ty::Types, ast: Vec<ir::circuit1::TypedCircuit>) -> Option<circuit2::CustomCircuit> {
     let mut global_state = GlobalGenState::new();
 
     let mut errored = false;
@@ -63,7 +63,8 @@ pub(crate) fn convert(file: &File, types: &mut ty::Types, ast: Vec<ir::circuit1:
         None?;
     }
     match global_state.circuit_table.remove("main") {
-        Some(r) => Some(r),
+        Some(Circuit::CustomCircuit(c)) => Some(c),
+        Some(_) => unreachable!("builtin circuit called main"),
         None => {
             (&*types, error::Error::NoMain(file)).report();
             None?
@@ -114,8 +115,9 @@ fn assign_pattern<'types, 'cgs, 'file>(
         ir::circuit1::PatternKind::Identifier(_, iden, _) => {
             circuit_state.locals.insert(iden, bundle);
         }
-        ir::circuit1::PatternKind::Product(_ , subpats) => {
-            for (subpat_i, subpat) in subpats.iter().enumerate() { // when named product expressions are implemented, this should not be enumerate
+        ir::circuit1::PatternKind::Product(_, subpats) => {
+            for (subpat_i, subpat) in subpats.iter().enumerate() {
+                // when named product expressions are implemented, this should not be enumerate
                 assign_pattern(types, circuit_state, subpat, ProducerBundle::Get(Box::new(bundle.clone()), subpat_i.to_string()))?;
             }
         }
