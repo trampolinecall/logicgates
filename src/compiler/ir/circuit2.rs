@@ -17,14 +17,14 @@ pub(crate) struct CustomCircuit {
 #[derive(Clone, Debug)]
 pub(crate) enum Circuit {
     // TODO: rename to gate
-    CustomCircuit(CustomCircuit),
+    Custom(CustomCircuit),
     Nand,
     Const(bool),
 }
 impl Circuit {
     fn input_type(&self, types: &mut ty::Types) -> ty::TypeSym {
         match self {
-            Circuit::CustomCircuit(CustomCircuit { input_type, output_type: _, gates: _, connections: _, name: _ }) => *input_type,
+            Circuit::Custom(CustomCircuit { input_type, output_type: _, gates: _, connections: _, name: _ }) => *input_type,
             Circuit::Nand {} => {
                 let b = types.intern(ty::Type::Bit);
                 types.intern(ty::Type::Product(vec![("0".into(), b), ("1".into(), b)]))
@@ -34,7 +34,7 @@ impl Circuit {
     }
     fn output_type(&self, types: &mut ty::Types) -> ty::TypeSym {
         match self {
-            Circuit::CustomCircuit(CustomCircuit { input_type: _, output_type, gates: _, connections: _, name: _ }) => *output_type,
+            Circuit::Custom(CustomCircuit { input_type: _, output_type, gates: _, connections: _, name: _ }) => *output_type,
             Circuit::Nand {} => types.intern(ty::Type::Bit),
             Circuit::Const(_) => types.intern(ty::Type::Bit),
         }
