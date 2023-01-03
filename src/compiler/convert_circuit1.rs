@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::compiler::ir::circuit2::Circuit;
+use crate::compiler::ir::circuit2::Gate;
 
 use super::error::File;
 use super::error::Report;
@@ -18,18 +18,18 @@ use circuit2::bundle::ReceiverBundle;
 mod error;
 
 struct GlobalGenState<'file> {
-    circuit_table: HashMap<&'file str, Circuit>,
-    const_0: Circuit,
-    const_1: Circuit,
+    circuit_table: HashMap<&'file str, Gate>,
+    const_0: Gate,
+    const_1: Gate,
 }
 
 impl<'file> GlobalGenState<'file> {
     fn new() -> Self {
         let mut circuit_table = HashMap::new();
-        circuit_table.insert("nand", Circuit::Nand);
+        circuit_table.insert("nand", Gate::Nand);
 
-        let const_0 = Circuit::Const(false);
-        let const_1 = Circuit::Const(true);
+        let const_0 = Gate::Const(false);
+        let const_1 = Gate::Const(true);
         Self { circuit_table, const_0, const_1 }
     }
 }
@@ -55,7 +55,7 @@ pub(crate) fn convert(file: &File, types: &mut ty::Types, ast: Vec<ir::circuit1:
             (&*types, error::Error::Duplicate(name_sp, name)).report();
             errored = true;
         } else {
-            global_state.circuit_table.insert(name, circuit2::Circuit::Custom(circuit));
+            global_state.circuit_table.insert(name, circuit2::Gate::Custom(circuit));
         }
     }
 
@@ -63,7 +63,7 @@ pub(crate) fn convert(file: &File, types: &mut ty::Types, ast: Vec<ir::circuit1:
         None?;
     }
     match global_state.circuit_table.remove("main") {
-        Some(Circuit::Custom(c)) => Some(c),
+        Some(Gate::Custom(c)) => Some(c),
         Some(_) => unreachable!("builtin circuit called main"),
         None => {
             (&*types, error::Error::NoMain(file)).report();
@@ -95,8 +95,6 @@ fn convert_circuit<'ggs, 'types, 'file>(
     let output_value = convert_expr(global_state, types, &mut circuit_state, circuit_ast.output)?;
 
     connect_bundle(types, &mut circuit_state, output_value_span, output_value, circuit2::bundle::ReceiverBundle::CurCircuitOutput);
-
-    // circuit_state.circuit.calculate_locations(); TODO
 
     Some((circuit_ast.name, circuit_state.circuit))
 }

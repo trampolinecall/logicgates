@@ -6,7 +6,7 @@ use crate::circuit;
 // TODO: clean up all imports everywhere
 
 pub(crate) fn convert(types: &mut ty::Types, circuit: &ir::circuit2::CustomCircuit) -> circuit::Circuit {
-    let mut new_circuit = circuit::Circuit::new(circuit.name.clone()); // TODO: consume
+    let mut new_circuit = circuit::Circuit::new(circuit.name.clone());
     new_circuit.set_num_inputs(types.get(circuit.input_type).size(types));
     new_circuit.set_num_outputs(types.get(circuit.output_type).size(types));
     let mut gate_index_map = HashMap::new();
@@ -25,14 +25,11 @@ pub(crate) fn convert(types: &mut ty::Types, circuit: &ir::circuit2::CustomCircu
     new_circuit
 }
 
-fn add_gate(types: &mut ty::Types, new_circuit: &mut circuit::Circuit, gate: &ir::circuit2::Circuit) -> circuit::GateIndex {
+fn add_gate(types: &mut ty::Types, new_circuit: &mut circuit::Circuit, gate: &ir::circuit2::Gate) -> circuit::GateIndex {
     match gate {
-        ir::circuit2::Circuit::Custom(subcircuit) => {
-            // TODO: make convert accept a custom circuit so this does not have to be wrapped, and also that will probably will also remove this clone
-            new_circuit.new_subcircuit_gate(convert(types, subcircuit))
-        }
-        ir::circuit2::Circuit::Nand => new_circuit.new_nand_gate(),
-        ir::circuit2::Circuit::Const(value) => new_circuit.new_const_gate(*value),
+        ir::circuit2::Gate::Custom(subcircuit) => new_circuit.new_subcircuit_gate(convert(types, subcircuit)),
+        ir::circuit2::Gate::Nand => new_circuit.new_nand_gate(),
+        ir::circuit2::Gate::Const(value) => new_circuit.new_const_gate(*value),
     }
 }
 
