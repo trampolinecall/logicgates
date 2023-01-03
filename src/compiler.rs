@@ -1,10 +1,10 @@
 mod circuitgen;
 #[macro_use]
 mod error;
+mod convert_type_exprs;
 mod ir;
 mod lexer;
 mod parser;
-mod convert_type_exprs;
 
 use crate::circuit;
 

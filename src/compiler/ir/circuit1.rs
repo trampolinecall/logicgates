@@ -1,10 +1,10 @@
 use crate::compiler::error::Span;
 
-use super::{type_expr::TypeExpr, ty};
+use super::{ty, type_expr::TypeExpr};
 
-pub(crate) type CircuitAST<'file> = Circuit<'file, ()>;
-pub(crate) type LetAST<'file> = Let<'file, ()>;
-pub(crate) type PatternAST<'file> = Pattern<'file, ()>;
+pub(crate) type UntypedCircuit<'file> = Circuit<'file, ()>;
+pub(crate) type UntypedLet<'file> = Let<'file, ()>;
+pub(crate) type UntypedPattern<'file> = Pattern<'file, ()>;
 
 pub(crate) type TypedCircuit<'file> = Circuit<'file, ty::TypeSym>;
 pub(crate) type TypedLet<'file> = Let<'file, ty::TypeSym>;
