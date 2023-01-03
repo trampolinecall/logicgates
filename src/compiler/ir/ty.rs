@@ -70,7 +70,26 @@ impl Type {
         match self {
             Type::Bit => None,
             Type::Product(fields) => fields.iter().find_map(|(field_name, field_type)| if field_name == field { Some(field_type) } else { None }).copied(),
-            Type::Named(named_index) => types.get(types.get_named(*named_index).1).field_type(types, field),
+            Type::Named(named_index) => types.get(types.get_named(*named_index).1).field_type(types, field), // TODO: unwrap expressions
+        }
+    }
+
+    pub(crate) fn field_indexes(&self, types: &Types, field: &str) -> Option<std::ops::Range<usize>> {
+        match self {
+            Type::Bit => None,
+            Type::Product(fields) => {
+                let mut cur_index = 0;
+                for (field_name, field_type) in fields {
+                    let cur_type_size = types.get(*field_type).size(types);
+                    if field_name == field {
+                        return Some(cur_index..cur_index + cur_type_size);
+                    }
+                    cur_index += cur_type_size;
+                }
+
+                None
+            }
+            Type::Named(named_index) => types.get(types.get_named(*named_index).1).field_indexes(types, field),
         }
     }
 }
