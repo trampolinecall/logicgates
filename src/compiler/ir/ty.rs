@@ -65,4 +65,12 @@ impl Type {
 
         s
     }
+
+    pub(crate) fn has_field(&self, types: &Types, name: &str) -> bool {
+        match self {
+            Type::Bit => false,
+            Type::Product(fields) => fields.iter().find(|(field_name, _)| field_name == name).is_some(),
+            Type::Named(named_index) => types.get(types.get_named(*named_index).1).has_field(types, name),
+        }
+    }
 }
