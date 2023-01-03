@@ -51,28 +51,3 @@ impl<'types> ReceiverBundle {
         }
     }
 }
-
-/*
-pub(crate) fn make_receiver_bundle(types: &ty::Types, type_: ty::TypeSym, inputs: &mut impl Iterator<Item = circuit::ReceiverIdx>) -> ReceiverBundle {
-    /*
-    match types.get(type_) {
-        ty::Type::Bit => ReceiverBundle::Single(inputs.next().expect("inputs should not run out when converting to bundle")),
-        ty::Type::Product(tys) => ReceiverBundle::Product(tys.iter().map(|(name, ty)| (name.clone(), make_receiver_bundle(types, *ty, inputs))).collect()),
-        ty::Type::Named(subst_type) => ReceiverBundle::InstanceOfNamed(type_, Box::new(make_receiver_bundle(types, types.get_named(*subst_type).1, inputs))),
-    }
-    */
-    todo!()
-}
-
-pub(crate) fn make_producer_bundle(types: &ty::Types, type_: ty::TypeSym, outputs: &mut impl Iterator<Item = circuit::ProducerIdx>) -> ProducerBundle {
-    /*
-    match types.get(type_) {
-        ty::Type::Bit => ProducerBundle::Single(outputs.next().expect("outputs should not run out when converting to bundle")),
-        ty::Type::Product(tys) => ProducerBundle::Product(tys.iter().map(|(name, ty)| (name.clone(), make_producer_bundle(types, *ty, outputs))).collect()),
-        ty::Type::Named(subst_type) => ProducerBundle::InstanceOfNamed(type_, Box::new(make_producer_bundle(types, types.get_named(*subst_type).1, outputs))),
-    }
-    */
-    todo!()
-}
-TODO
-*/

@@ -159,16 +159,6 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
         }
 
         ir::circuit1::Expr::Get(expr, (field_name_sp, field_name)) => {
-            /*
-            fn get_field(expr: &ProducerBundle, field_name: &str) -> Option<ProducerBundle> {
-                match expr {
-                    ProducerBundle::Single(_) => None,
-                    ProducerBundle::Product(items) => items.iter().find(|(name, _)| name == field_name).map(|(_, bundle)| bundle).cloned(),
-                    ProducerBundle::InstanceOfNamed(_, sub) => get_field(sub, field_name),
-                }
-            }
-            */
-
             let expr = convert_expr(global_state, types, circuit_state, *expr)?;
             let expr_type = expr.type_(types, &circuit_state.circuit);
             if types.get(expr_type).field_type(types, field_name).is_some() {
@@ -214,20 +204,6 @@ fn connect_bundle(
     }
 
     circuit_state.circuit.add_connection(producer_bundle, receiver_bundle);
-    /*
-    match (producer_bundle, receiver_bundle) {
-        (ProducerBundle::Single(producer_index), ReceiverBundle::Single(receiver_index)) => circuit.connect(*producer_index, *receiver_index),
-        (ProducerBundle::Product(producers), ReceiverBundle::Product(receivers)) => {
-            assert_eq!(producers.len(), receivers.len(), "cannot connect different amount of producers and receivers"); // sanity check
-            for ((_, p), (_, r)) in producers.iter().zip(receivers.iter()) {
-                connect_bundle(types, circuit, /* got_span, */ expected_span, p, r);
-                // not ideal that this rechecks the item types but
-            }
-        }
-
-        _ => unreachable!("connect two bundles with different types"),
-    }
-    */
 
     Some(())
 }

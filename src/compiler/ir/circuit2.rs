@@ -40,20 +40,6 @@ impl Gate {
     }
 
     /*
-    fn make_receiver_bundle(&self, types: &ty::Types, inputs: &mut impl ExactSizeIterator<Item = circuit::ReceiverIdx>) -> bundle::ReceiverBundle {
-        let input_type = self.input_type();
-        assert_eq!(types.get(input_type).size(types), inputs.len(), "receiver bundles have a different total size than the number of input nodes on the gate"); // sanity check
-        bundle::make_receiver_bundle(types, input_type, inputs)
-    }
-
-    fn make_producer_bundle(&self, types: &ty::Types, outputs: &mut impl ExactSizeIterator<Item = circuit::ProducerIdx>) -> bundle::ProducerBundle {
-        let output_type = self.output_type();
-        assert_eq!(types.get(output_type).size(types), outputs.len(), "producer bundle has a different size than the number of output nodes on the gate"); // sanity check
-        bundle::make_producer_bundle(types, output_type, outputs)
-    }
-    */
-
-    /*
     pub(crate) fn add_gate(&self, types: &ty::Types, circuit: &mut circuit::Circuit) -> (bundle::ReceiverBundle, bundle::ProducerBundle) {
         let gate_i = match self {
             Circuit::Circuit { circuit: circuit_def, input_type: _, result_type: _ } => circuit.new_subcircuit_gate(circuit_def.clone()),
