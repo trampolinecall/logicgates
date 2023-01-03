@@ -5,35 +5,31 @@ use crate::circuit;
 
 // TODO: clean up all imports everywhere
 
-pub(crate) fn convert(types: &mut ty::Types, circuit: &ir::circuit2::Circuit) -> circuit::Circuit {
-    if let ir::circuit2::Circuit::CustomCircuit(circuit) = circuit {
-        let mut new_circuit = circuit::Circuit::new(circuit.name.clone()); // TODO: consume
-        new_circuit.set_num_inputs(types.get(circuit.input_type).size(types));
-        new_circuit.set_num_outputs(types.get(circuit.output_type).size(types));
-        let mut gate_index_map = HashMap::new();
+pub(crate) fn convert(types: &mut ty::Types, circuit: &ir::circuit2::CustomCircuit) -> circuit::Circuit {
+    let mut new_circuit = circuit::Circuit::new(circuit.name.clone()); // TODO: consume
+    new_circuit.set_num_inputs(types.get(circuit.input_type).size(types));
+    new_circuit.set_num_outputs(types.get(circuit.output_type).size(types));
+    let mut gate_index_map = HashMap::new();
 
-        for (old_gate_i, gate) in circuit.iter_gates() {
-            let new_gate_i = add_gate(types, &mut new_circuit, gate);
-            gate_index_map.insert(old_gate_i, new_gate_i);
-        }
-
-        for (producer, receiver) in circuit.iter_connections() {
-            connect(types, &circuit, &mut new_circuit, &mut gate_index_map, producer, receiver);
-        }
-
-        new_circuit.calculate_locations();
-
-        new_circuit
-    } else {
-        unreachable!("builtin circuit2 circuit being converted as main circuit")
+    for (old_gate_i, gate) in circuit.iter_gates() {
+        let new_gate_i = add_gate(types, &mut new_circuit, gate);
+        gate_index_map.insert(old_gate_i, new_gate_i);
     }
+
+    for (producer, receiver) in circuit.iter_connections() {
+        connect(types, &circuit, &mut new_circuit, &mut gate_index_map, producer, receiver);
+    }
+
+    new_circuit.calculate_locations();
+
+    new_circuit
 }
 
 fn add_gate(types: &mut ty::Types, new_circuit: &mut circuit::Circuit, gate: &ir::circuit2::Circuit) -> circuit::GateIndex {
     match gate {
         ir::circuit2::Circuit::CustomCircuit(subcircuit) => {
             // TODO: make convert accept a custom circuit so this does not have to be wrapped, and also that will probably will also remove this clone
-            new_circuit.new_subcircuit_gate(convert(types, &ir::circuit2::Circuit::CustomCircuit(subcircuit.clone())))
+            new_circuit.new_subcircuit_gate(convert(types, &subcircuit))
         }
         ir::circuit2::Circuit::Nand => new_circuit.new_nand_gate(),
         ir::circuit2::Circuit::Const(value) => new_circuit.new_const_gate(*value),
