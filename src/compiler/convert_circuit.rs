@@ -24,21 +24,12 @@ struct GlobalGenState<'file> {
 }
 
 impl<'file> GlobalGenState<'file> {
-    fn new(types: &mut ty::Types) -> Self {
+    fn new() -> Self {
         let mut circuit_table = HashMap::new();
-        circuit_table.insert(
-            "nand",
-            Circuit::Nand {
-                input_type: {
-                    let b = types.intern(ty::Type::Bit);
-                    types.intern(ty::Type::Product(vec![("0".into(), b), ("1".into(), b)]))
-                },
-                result_type: types.intern(ty::Type::Bit),
-            },
-        );
+        circuit_table.insert("nand", Circuit::Nand);
 
-        let const_0 = Circuit::Const { value: false, input_type: types.intern(ty::Type::Product(vec![])), result_type: types.intern(ty::Type::Bit) };
-        let const_1 = Circuit::Const { value: true, input_type: types.intern(ty::Type::Product(vec![])), result_type: types.intern(ty::Type::Bit) };
+        let const_0 = Circuit::Const(false);
+        let const_1 = Circuit::Const(true);
         Self { circuit_table, const_0, const_1 }
     }
 }
@@ -54,7 +45,7 @@ impl CircuitGenState<'_> {
 }
 
 pub(crate) fn convert(file: &File, types: &mut ty::Types, ast: Vec<ir::circuit1::TypedCircuit>) -> Option<circuit2::Circuit> {
-    let mut global_state = GlobalGenState::new(types);
+    let mut global_state = GlobalGenState::new();
 
     let mut errored = false;
 
@@ -227,7 +218,6 @@ fn connect_bundle(
 
     circuit_state.circuit.add_connection(producer_bundle, receiver_bundle);
     /*
-    todo!();
     match (producer_bundle, receiver_bundle) {
         (ProducerBundle::Single(producer_index), ReceiverBundle::Single(receiver_index)) => circuit.connect(*producer_index, *receiver_index),
         (ProducerBundle::Product(producers), ReceiverBundle::Product(receivers)) => {

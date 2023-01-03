@@ -17,22 +17,25 @@ pub(crate) struct CustomCircuit {
 #[derive(Clone, Debug)]
 pub(crate) enum Circuit {
     CustomCircuit(CustomCircuit),
-    Nand { input_type: ty::TypeSym, result_type: ty::TypeSym },
-    Const { value: bool, input_type: ty::TypeSym, result_type: ty::TypeSym },
+    Nand,
+    Const(bool),
 }
 impl Circuit {
-    fn input_type(&self) -> ty::TypeSym {
+    fn input_type(&self, types: &mut ty::Types) -> ty::TypeSym {
         match self {
-            Circuit::CustomCircuit(CustomCircuit { input_type, result_type: _, gates: _, connections: _, name: _ })
-            | Circuit::Nand { input_type, result_type: _ }
-            | Circuit::Const { value: _, input_type, result_type: _ } => *input_type,
+            Circuit::CustomCircuit(CustomCircuit { input_type, result_type: _, gates: _, connections: _, name: _ }) => *input_type,
+            Circuit::Nand {} => {
+                let b = types.intern(ty::Type::Bit);
+                types.intern(ty::Type::Product(vec![("0".into(), b), ("1".into(), b)]))
+            }
+            Circuit::Const(_) => types.intern(ty::Type::Product(vec![])),
         }
     }
-    fn output_type(&self) -> ty::TypeSym {
+    fn output_type(&self, types: &mut ty::Types) -> ty::TypeSym {
         match self {
-            Circuit::CustomCircuit(CustomCircuit { input_type: _, result_type, gates: _, connections: _, name: _ })
-            | Circuit::Nand { input_type: _, result_type }
-            | Circuit::Const { value: _, input_type: _, result_type } => *result_type,
+            Circuit::CustomCircuit(CustomCircuit { input_type: _, result_type, gates: _, connections: _, name: _ }) => *result_type,
+            Circuit::Nand {} => types.intern(ty::Type::Bit),
+            Circuit::Const(_) => types.intern(ty::Type::Bit),
         }
     }
 
@@ -132,5 +135,4 @@ impl CustomCircuit {
     pub(crate) fn add_connection(&mut self, producer: bundle::ProducerBundle, receiver: bundle::ReceiverBundle) {
         self.connections.push((producer, receiver));
     }
-
 }
