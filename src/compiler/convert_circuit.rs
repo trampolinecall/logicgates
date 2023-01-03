@@ -13,7 +13,7 @@ use super::ir::circuit2::CustomCircuit;
 use super::ir::ty;
 use circuit2::bundle::ReceiverBundle;
 
-// TODO: calculate types first to prevent repeated calls to intern
+// TODO: replace all String with &'file str?
 
 mod error;
 
@@ -86,11 +86,6 @@ fn convert_circuit<'ggs, 'types, 'file>(
     circuit_ast: ir::circuit1::TypedCircuit<'file>,
 ) -> Option<((Span<'file>, &'file str), circuit2::CustomCircuit)> {
     let mut circuit_state = CircuitGenState::new(circuit_ast.name.1.to_string(), circuit_ast.input.type_info, circuit_ast.output_type);
-
-    let (input_type_sym, input_type) = {
-        let sym = circuit_ast.input.type_info;
-        (sym, types.get(sym))
-    };
 
     if let Err(e) = assign_pattern(types, &mut circuit_state, &circuit_ast.input, circuit2::bundle::ProducerBundle::CurCircuitInput) {
         (&*types, e).report();
@@ -187,12 +182,12 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
             */
 
             let expr = convert_expr(global_state, types, circuit_state, *expr)?;
-            let field = todo!(); // TODO get_field(&expr, field_name);
-            if let Some(r) = field {
-                Some(r)
+            let expr_type = expr.type_(types, &circuit_state.circuit);
+            if types.get(expr_type).has_field(types, field_name) {
+                // TODO: make .fields.contains() instead of has_field
+                Some(ProducerBundle::Get(Box::new(expr), field_name.into()))
             } else {
-                let ty = expr.type_(types, &circuit_state.circuit);
-                (&*types, error::Error::NoField { ty, field_name, field_name_sp }).report();
+                (&*types, error::Error::NoField { ty: expr_type, field_name, field_name_sp }).report();
                 None
             }
         }
