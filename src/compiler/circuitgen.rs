@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::circuit;
 
 use crate::compiler::ir::bundle::ProducerBundle;
-use crate::compiler::ir::circuit_def::CircuitDef;
+use crate::compiler::ir::circuit2::CircuitDef;
 
 use super::error::CompileError;
 use super::error::File;
@@ -11,7 +11,7 @@ use super::error::Report;
 use super::error::Span;
 use super::ir;
 use super::ir::bundle::ReceiverBundle;
-use super::ir::circuit_decl::TypedPattern;
+use super::ir::circuit1::TypedPattern;
 use super::ir::ty;
 
 // TODO: calculate types first to prevent repeated calls to intern
@@ -78,7 +78,7 @@ impl<'file> From<(&ty::Types, Error<'file>)> for CompileError<'file> {
     }
 }
 
-pub(crate) fn generate(file: &File, types: &mut ty::Types, ast: Vec<ir::circuit_decl::TypedCircuit>) -> Option<circuit::Circuit> {
+pub(crate) fn generate(file: &File, types: &mut ty::Types, ast: Vec<ir::circuit1::TypedCircuit>) -> Option<circuit::Circuit> {
     let mut global_state = GlobalGenState::new(types);
 
     let mut errored = false;
@@ -109,7 +109,7 @@ pub(crate) fn generate(file: &File, types: &mut ty::Types, ast: Vec<ir::circuit_
 fn convert_circuit<'ggs, 'types, 'file>(
     global_state: &'ggs GlobalGenState<'file>,
     types: &'types mut ty::Types,
-    circuit_ast: ir::circuit_decl::TypedCircuit<'file>,
+    circuit_ast: ir::circuit1::TypedCircuit<'file>,
 ) -> Option<((Span<'file>, &'file str), circuit::Circuit, ty::TypeSym, ty::TypeSym)> {
     let mut circuit_state = CircuitGenState::new(circuit_ast.name.1.to_string());
 
@@ -126,7 +126,7 @@ fn convert_circuit<'ggs, 'types, 'file>(
     }
 
     // TODO: allowing recursive lets
-    for ir::circuit_decl::Let { pat, val } in circuit_ast.lets {
+    for ir::circuit1::Let { pat, val } in circuit_ast.lets {
         let result = convert_expr(global_state, types, &mut circuit_state, val)?;
         if let Err(e) = assign_pattern(types, &mut circuit_state, &pat, result) {
             (&*types, e).report();
@@ -150,22 +150,17 @@ fn convert_circuit<'ggs, 'types, 'file>(
     Some((circuit_ast.name, circuit_state.circuit, input_type_sym, output_value.type_(types)))
 }
 
-fn assign_pattern<'types, 'cgs, 'file>(
-    types: &'types mut ty::Types,
-    circuit_state: &'cgs mut CircuitGenState<'file>,
-    pat: &TypedPattern<'file>,
-    bundle: ProducerBundle,
-) -> Result<(), Error<'file>> {
+fn assign_pattern<'types, 'cgs, 'file>(types: &'types mut ty::Types, circuit_state: &'cgs mut CircuitGenState<'file>, pat: &TypedPattern<'file>, bundle: ProducerBundle) -> Result<(), Error<'file>> {
     if bundle.type_(types) != pat.type_info {
         Err(Error::TypeMismatch { expected_span: pat.kind.span(), got_type: bundle.type_(types), expected_type: pat.type_info })?;
         // TODO
     }
 
     match (&pat.kind, bundle) {
-        (ir::circuit_decl::PatternKind::Identifier(_, iden, _), bundle) => {
+        (ir::circuit1::PatternKind::Identifier(_, iden, _), bundle) => {
             circuit_state.locals.insert(iden, bundle);
         }
-        (ir::circuit_decl::PatternKind::Product(_, subpats), ProducerBundle::Product(subbundles)) => {
+        (ir::circuit1::PatternKind::Product(_, subpats), ProducerBundle::Product(subbundles)) => {
             assert_eq!(subpats.len(), subbundles.len(), "assign product pattern to procut bundle with different length"); // sanity check
             for (subpat, (_, subbundle)) in subpats.iter().zip(subbundles) {
                 assign_pattern(types, circuit_state, subpat, subbundle)?;
@@ -178,10 +173,10 @@ fn assign_pattern<'types, 'cgs, 'file>(
     Ok(())
 }
 
-fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'types mut ty::Types, circuit_state: &mut CircuitGenState, expr: ir::circuit_decl::Expr) -> Option<ProducerBundle> {
+fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'types mut ty::Types, circuit_state: &mut CircuitGenState, expr: ir::circuit1::Expr) -> Option<ProducerBundle> {
     let span = expr.span();
     match expr {
-        ir::circuit_decl::Expr::Ref(name_sp, name) => {
+        ir::circuit1::Expr::Ref(name_sp, name) => {
             let name_resolved = if let Some(resolved) = circuit_state.locals.get(name) {
                 resolved
             } else {
@@ -192,7 +187,7 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
             Some(name_resolved.clone())
         }
 
-        ir::circuit_decl::Expr::Call(circuit_name, inline, arg) => {
+        ir::circuit1::Expr::Call(circuit_name, inline, arg) => {
             let name_resolved = if let Some(n) = global_state.circuit_table.get(circuit_name.1) {
                 n
             } else {
@@ -206,12 +201,12 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
             Some(producer)
         }
 
-        ir::circuit_decl::Expr::Const(_, value) => {
+        ir::circuit1::Expr::Const(_, value) => {
             let (_, p) = if value { &global_state.const_1 } else { &global_state.const_0 }.add_gate(types, &mut circuit_state.circuit);
             Some(p)
         }
 
-        ir::circuit_decl::Expr::Get(expr, (field_name_sp, field_name)) => {
+        ir::circuit1::Expr::Get(expr, (field_name_sp, field_name)) => {
             fn get_field(expr: &ProducerBundle, field_name: &str) -> Option<ProducerBundle> {
                 match expr {
                     ProducerBundle::Single(_) => None,
@@ -231,7 +226,7 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
             }
         }
 
-        ir::circuit_decl::Expr::Multiple { exprs, .. } => {
+        ir::circuit1::Expr::Multiple { exprs, .. } => {
             let mut results = Some(Vec::new());
 
             for (ind, expr) in exprs.into_iter().enumerate() {

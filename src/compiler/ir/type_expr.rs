@@ -1,6 +1,5 @@
 use crate::compiler::error::Span;
 
-
 #[derive(PartialEq, Debug, Clone)]
 pub(crate) enum TypeExpr<'file> {
     Bit(Span<'file>),

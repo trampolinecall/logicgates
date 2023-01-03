@@ -3,7 +3,11 @@ use std::collections::HashMap;
 use super::ir;
 use super::ir::ty;
 
-pub(crate) fn convert<'file>(types: &mut ty::Types, circuits: Vec<ir::circuit_decl::CircuitAST<'file>>, type_decls: Vec<ir::type_decl::NamedTypeDecl>) -> Option<Vec<ir::circuit_decl::TypedCircuit<'file>>> {
+pub(crate) fn convert<'file>(
+    types: &mut ty::Types,
+    circuits: Vec<ir::circuit1::UntypedCircuit<'file>>,
+    type_decls: Vec<ir::type_decl::TypeDecl>,
+) -> Option<Vec<ir::circuit1::TypedCircuit<'file>>> {
     let mut type_table = HashMap::new();
     for decl in type_decls {
         let ty = convert_type_ast(types, &type_table, &decl.ty)?;
@@ -21,7 +25,7 @@ pub(crate) fn convert<'file>(types: &mut ty::Types, circuits: Vec<ir::circuit_de
     circuits
         .into_iter()
         .map(|circuit| {
-            Some(ir::circuit_decl::Circuit {
+            Some(ir::circuit1::Circuit {
                 name: circuit.name,
                 input: type_pat(types, &type_table, circuit.input)?,
                 lets: circuit.lets.into_iter().map(|let_| type_let(types, &type_table, let_)).collect::<Option<Vec<_>>>()?, // TODO: report more than just the first error
@@ -31,25 +35,25 @@ pub(crate) fn convert<'file>(types: &mut ty::Types, circuits: Vec<ir::circuit_de
         .collect::<Option<Vec<_>>>()
 }
 
-fn type_let<'file>(types: &mut ty::Types, type_table: &HashMap<String, ty::TypeSym>, let_: ir::circuit_decl::LetAST<'file>) -> Option<ir::circuit_decl::TypedLet<'file>> {
-    Some(ir::circuit_decl::Let { pat: type_pat(types, type_table, let_.pat)?, val: let_.val })
+fn type_let<'file>(types: &mut ty::Types, type_table: &HashMap<String, ty::TypeSym>, let_: ir::circuit1::UntypedLet<'file>) -> Option<ir::circuit1::TypedLet<'file>> {
+    Some(ir::circuit1::Let { pat: type_pat(types, type_table, let_.pat)?, val: let_.val })
 }
 
-fn type_pat<'file>(types: &mut ty::Types, type_table: &HashMap<String, ty::TypeSym>, pat: ir::circuit_decl::PatternAST<'file>) -> Option<ir::circuit_decl::TypedPattern<'file>> {
+fn type_pat<'file>(types: &mut ty::Types, type_table: &HashMap<String, ty::TypeSym>, pat: ir::circuit1::UntypedPattern<'file>) -> Option<ir::circuit1::TypedPattern<'file>> {
     let (kind, type_info) = match pat.kind {
-        ir::circuit_decl::PatternKind::Identifier(name_sp, name, ty) => {
+        ir::circuit1::PatternKind::Identifier(name_sp, name, ty) => {
             let type_info = convert_type_ast(types, type_table, &ty)?;
-            (ir::circuit_decl::PatternKind::Identifier(name_sp, name, ty), type_info)
+            (ir::circuit1::PatternKind::Identifier(name_sp, name, ty), type_info)
         }
-        ir::circuit_decl::PatternKind::Product(sp, pats) => {
+        ir::circuit1::PatternKind::Product(sp, pats) => {
             let typed_pats: Vec<_> = pats.into_iter().map(|subpat| type_pat(types, type_table, subpat)).collect::<Option<Vec<_>>>()?; // TODO: report more than just the first error
 
             let ty = ty::Type::Product(typed_pats.iter().enumerate().map(|(ind, subpat)| Some((ind.to_string(), subpat.type_info))).collect::<Option<Vec<_>>>()?);
-            (ir::circuit_decl::PatternKind::Product(sp, typed_pats), types.intern(ty))
+            (ir::circuit1::PatternKind::Product(sp, typed_pats), types.intern(ty))
         }
     };
 
-    Some(ir::circuit_decl::Pattern { kind, type_info })
+    Some(ir::circuit1::Pattern { kind, type_info })
 }
 
 fn convert_type_ast(types: &mut ty::Types, type_table: &HashMap<String, ty::TypeSym>, ty: &ir::type_expr::TypeExpr) -> Option<ty::TypeSym> {
