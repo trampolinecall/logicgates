@@ -21,7 +21,7 @@ impl<'types> ProducerBundle {
     pub(crate) fn type_(&self, types: &'types mut ty::Types, circuit: &super::CustomCircuit) -> ty::TypeSym {
         match self {
             ProducerBundle::CurCircuitInput => circuit.input_type,
-            ProducerBundle::GateOutput(gate_idx) => circuit.get_gate(*gate_idx).output_type(),
+            ProducerBundle::GateOutput(gate_idx) => circuit.get_gate(*gate_idx).output_type(types),
             ProducerBundle::Get(producer, field) => {
                 let producer_type = producer.type_(types, circuit);
                 types.get(producer_type).field_type(types, field).unwrap()
@@ -37,7 +37,7 @@ impl<'types> ReceiverBundle {
     pub(crate) fn type_(&self, types: &'types mut ty::Types, circuit: &super::CustomCircuit) -> ty::TypeSym {
         match self {
             ReceiverBundle::CurCircuitOutput => circuit.result_type,
-            ReceiverBundle::GateInput(gate_idx) => circuit.get_gate(*gate_idx).input_type(),
+            ReceiverBundle::GateInput(gate_idx) => circuit.get_gate(*gate_idx).input_type(types),
             /*
             ReceiverBundle::Get(producer, field) => {
                 let producer_type = producer.type_(types, circuit);
