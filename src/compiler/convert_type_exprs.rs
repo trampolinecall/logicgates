@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use crate::utils::CollectAll;
+
 use super::ir;
 use super::ir::ty;
 
@@ -16,8 +18,6 @@ pub(crate) fn convert<'file>(types: &mut ty::Types, circuits: Vec<ir::circuit1::
         type_table.insert(decl.name.1.into(), named_type);
     }
 
-    // TODO: report more than just the first error
-
     circuits
         .into_iter()
         .map(|circuit| {
@@ -25,13 +25,13 @@ pub(crate) fn convert<'file>(types: &mut ty::Types, circuits: Vec<ir::circuit1::
             Some(ir::circuit1::Circuit {
                 name: circuit.name,
                 input: type_pat(types, &type_table, circuit.input)?,
-                lets: circuit.lets.into_iter().map(|let_| type_let(types, &type_table, let_)).collect::<Option<Vec<_>>>()?, // TODO: report more than just the first error
+                lets: circuit.lets.into_iter().map(|let_| type_let(types, &type_table, let_)).collect_all()?,
                 output: circuit.output,
                 output_type_annotation: circuit.output_type_annotation,
                 output_type,
             })
         })
-        .collect::<Option<Vec<_>>>()
+        .collect_all()
 }
 
 fn type_let<'file>(types: &mut ty::Types, type_table: &HashMap<String, ty::TypeSym>, let_: ir::circuit1::UntypedLet<'file>) -> Option<ir::circuit1::TypedLet<'file>> {
@@ -45,9 +45,9 @@ fn type_pat<'file>(types: &mut ty::Types, type_table: &HashMap<String, ty::TypeS
             (ir::circuit1::PatternKind::Identifier(name_sp, name, ty), type_info)
         }
         ir::circuit1::PatternKind::Product(sp, pats) => {
-            let typed_pats: Vec<_> = pats.into_iter().map(|subpat| type_pat(types, type_table, subpat)).collect::<Option<Vec<_>>>()?; // TODO: report more than just the first error
+            let typed_pats: Vec<_> = pats.into_iter().map(|subpat| type_pat(types, type_table, subpat)).collect_all()?;
 
-            let ty = ty::Type::Product(typed_pats.iter().enumerate().map(|(ind, subpat)| Some((ind.to_string(), subpat.type_info))).collect::<Option<Vec<_>>>()?);
+            let ty = ty::Type::Product(typed_pats.iter().enumerate().map(|(ind, subpat)| Some((ind.to_string(), subpat.type_info))).collect_all()?);
             (ir::circuit1::PatternKind::Product(sp, typed_pats), types.intern(ty))
         }
     };
@@ -59,7 +59,7 @@ fn convert_type_ast(types: &mut ty::Types, type_table: &HashMap<String, ty::Type
     match ty {
         ir::type_expr::TypeExpr::Bit(_) => Some(types.intern(ty::Type::Bit)),
         ir::type_expr::TypeExpr::Product { obrack: _, types: subtypes, cbrack: _ } => {
-            let ty = ty::Type::Product(subtypes.iter().enumerate().map(|(ind, subty_ast)| Some((ind.to_string(), convert_type_ast(types, type_table, subty_ast)?))).collect::<Option<Vec<_>>>()?); // TODO: report more than just the first error
+            let ty = ty::Type::Product(subtypes.iter().enumerate().map(|(ind, subty_ast)| Some((ind.to_string(), convert_type_ast(types, type_table, subty_ast)?))).collect_all()?);
             Some(types.intern(ty))
         }
         ir::type_expr::TypeExpr::RepProduct { obrack: _, num, cbrack: _, type_ } => {
@@ -67,8 +67,7 @@ fn convert_type_ast(types: &mut ty::Types, type_table: &HashMap<String, ty::Type
             Some(types.intern(ty::Type::Product((0..num.1).map(|ind| (ind.to_string(), ty)).collect())))
         }
         ir::type_expr::TypeExpr::NamedProduct { obrack: _, named: _, types: subtypes, cbrack: _ } => {
-            let ty = ty::Type::Product(subtypes.iter().map(|(name, ty)| Some((name.1.to_string(), convert_type_ast(types, type_table, ty)?))).collect::<Option<Vec<_>>>()?); // TODO: report more than just the first error
-                                                                                                                                                                             // TODO: report error if there are any duplicate fields
+            let ty = ty::Type::Product(subtypes.iter().map(|(name, ty)| Some((name.1.to_string(), convert_type_ast(types, type_table, ty)?))).collect_all()?); // TODO: report error if there are any duplicate fields
             Some(types.intern(ty))
         }
         ir::type_expr::TypeExpr::Named(_, name) => {

@@ -135,7 +135,7 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
                 None?
             };
 
-            Some(name_resolved.clone()) // TODO: probably put these into an arena so that clone isnt needed and they will be cloned when the circuit2::Circuit is converted into a circuit::Circuit
+            Some(name_resolved.clone())
         }
 
         ir::circuit1::Expr::Call(circuit_name, inline, arg) => {
