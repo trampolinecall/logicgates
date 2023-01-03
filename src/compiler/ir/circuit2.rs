@@ -8,34 +8,34 @@ pub(crate) struct GateIdx(usize);
 #[derive(Clone, Debug)]
 pub(crate) struct CustomCircuit {
     pub(crate) name: String,
-    gates: Vec<Circuit>,
+    gates: Vec<Gate>,
     connections: Vec<(bundle::ProducerBundle, bundle::ReceiverBundle)>,
     pub(crate) input_type: ty::TypeSym,
     pub(crate) output_type: ty::TypeSym,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) enum Circuit {
+pub(crate) enum Gate {
     // TODO: rename to gate
     Custom(CustomCircuit),
     Nand,
     Const(bool),
 }
-impl Circuit {
+impl Gate {
     fn input_type(&self, types: &mut ty::Types) -> ty::TypeSym {
         match self {
-            Circuit::Custom(CustomCircuit { input_type, output_type: _, gates: _, connections: _, name: _ }) => *input_type,
-            Circuit::Nand {} => {
+            Gate::Custom(CustomCircuit { input_type, output_type: _, gates: _, connections: _, name: _ }) => *input_type,
+            Gate::Nand {} => {
                 let b = types.intern(ty::Type::Bit);
                 types.intern(ty::Type::Product(vec![("0".into(), b), ("1".into(), b)]))
             }
-            Circuit::Const(_) => types.intern(ty::Type::Product(vec![])),
+            Gate::Const(_) => types.intern(ty::Type::Product(vec![])),
         }
     }
     fn output_type(&self, types: &mut ty::Types) -> ty::TypeSym {
         match self {
-            Circuit::Custom(CustomCircuit { input_type: _, output_type, gates: _, connections: _, name: _ }) => *output_type,
-            Circuit::Nand {} | Circuit::Const(_) => types.intern(ty::Type::Bit),
+            Gate::Custom(CustomCircuit { input_type: _, output_type, gates: _, connections: _, name: _ }) => *output_type,
+            Gate::Nand {} | Gate::Const(_) => types.intern(ty::Type::Bit),
         }
     }
 
@@ -127,12 +127,12 @@ impl CustomCircuit {
         CustomCircuit { name, input_type, output_type, gates: Vec::new(), connections: Vec::new() }
     }
 
-    pub(crate) fn add_gate(&mut self, gate: Circuit) -> GateIdx {
+    pub(crate) fn add_gate(&mut self, gate: Gate) -> GateIdx {
         self.gates.push(gate);
         GateIdx(self.gates.len() - 1)
     }
 
-    fn get_gate(&self, gate_idx: GateIdx) -> &Circuit {
+    fn get_gate(&self, gate_idx: GateIdx) -> &Gate {
         &self.gates[gate_idx.0]
     }
 
@@ -141,7 +141,7 @@ impl CustomCircuit {
         self.connections.push((producer, receiver));
     }
 
-    pub(crate) fn iter_gates(&self) -> impl Iterator<Item = (GateIdx, &Circuit)> {
+    pub(crate) fn iter_gates(&self) -> impl Iterator<Item = (GateIdx, &Gate)> {
         self.gates.iter().enumerate().map(|(i, g)| (GateIdx(i), g))
     }
 
