@@ -17,7 +17,7 @@ pub(crate) fn convert(types: &mut ty::Types, circuit: &ir::circuit2::CustomCircu
     }
 
     for (producer, receiver) in circuit.iter_connections() {
-        connect(types, &circuit, &mut new_circuit, &mut gate_index_map, producer, receiver);
+        connect(types, circuit, &mut new_circuit, &mut gate_index_map, producer, receiver);
     }
 
     new_circuit.calculate_locations();
@@ -27,9 +27,9 @@ pub(crate) fn convert(types: &mut ty::Types, circuit: &ir::circuit2::CustomCircu
 
 fn add_gate(types: &mut ty::Types, new_circuit: &mut circuit::Circuit, gate: &ir::circuit2::Circuit) -> circuit::GateIndex {
     match gate {
-        ir::circuit2::Circuit::CustomCircuit(subcircuit) => {
+        ir::circuit2::Circuit::Custom(subcircuit) => {
             // TODO: make convert accept a custom circuit so this does not have to be wrapped, and also that will probably will also remove this clone
-            new_circuit.new_subcircuit_gate(convert(types, &subcircuit))
+            new_circuit.new_subcircuit_gate(convert(types, subcircuit))
         }
         ir::circuit2::Circuit::Nand => new_circuit.new_nand_gate(),
         ir::circuit2::Circuit::Const(value) => new_circuit.new_const_gate(*value),

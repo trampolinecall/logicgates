@@ -55,7 +55,7 @@ pub(crate) fn convert(file: &File, types: &mut ty::Types, ast: Vec<ir::circuit1:
             (&*types, error::Error::Duplicate(name_sp, name)).report();
             errored = true;
         } else {
-            global_state.circuit_table.insert(name, circuit2::Circuit::CustomCircuit(circuit));
+            global_state.circuit_table.insert(name, circuit2::Circuit::Custom(circuit));
         }
     }
 
@@ -63,7 +63,7 @@ pub(crate) fn convert(file: &File, types: &mut ty::Types, ast: Vec<ir::circuit1:
         None?;
     }
     match global_state.circuit_table.remove("main") {
-        Some(Circuit::CustomCircuit(c)) => Some(c),
+        Some(Circuit::Custom(c)) => Some(c),
         Some(_) => unreachable!("builtin circuit called main"),
         None => {
             (&*types, error::Error::NoMain(file)).report();
