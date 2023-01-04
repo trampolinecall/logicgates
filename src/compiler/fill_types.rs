@@ -5,7 +5,10 @@ use crate::utils::CollectAll;
 use super::ir;
 use super::ir::ty;
 
-pub(crate) fn fill<'file>(circuits: Vec<ir::circuit1::UntypedCircuit<'file>>, type_decls: Vec<ir::type_decl::TypeDecl>) -> Option<(ty::Types, Vec<ir::circuit1::TypedCircuit<'file>>)> {
+pub(crate) fn fill<'file>(
+    circuits: HashMap<String, ir::circuit1::UntypedCircuitOrIntrinsic<'file>>,
+    type_decls: Vec<ir::type_decl::TypeDecl>,
+) -> Option<(ty::Types, HashMap<String, ir::circuit1::TypedCircuitOrIntrinsic<'file>>)> {
     let mut types = ty::Types::new();
     let mut type_table = HashMap::new();
     for decl in type_decls {
@@ -21,17 +24,25 @@ pub(crate) fn fill<'file>(circuits: Vec<ir::circuit1::UntypedCircuit<'file>>, ty
 
     let circuits = circuits
         .into_iter()
-        .map(|circuit| {
-            let output_type = convert_type_ast(&mut types, &type_table, &circuit.output_type_annotation)?;
-            Some(ir::circuit1::Circuit {
-                name: circuit.name,
-                input: type_pat(&mut types, &type_table, circuit.input)?,
-                expressions: todo!("typing expressions arena"), // circuit.expressions,
-                output_type_annotation: circuit.output_type_annotation,
-                output_type,
-                lets: circuit.lets.into_iter().map(|let_| type_let(&mut types, &type_table, let_)).collect_all()?,
-                output: todo!("transform expression arena id"), // circuit.output,
-            })
+        .map(|(name, circuit)| {
+            match circuit {
+                ir::circuit1::CircuitOrIntrinsic::Circuit(circuit) => {
+                    let output_type = convert_type_ast(&mut types, &type_table, &circuit.output_type_annotation)?;
+                    Some((
+                        name,
+                        ir::circuit1::CircuitOrIntrinsic::Circuit(ir::circuit1::Circuit {
+                            name: circuit.name,
+                            input: type_pat(&mut types, &type_table, circuit.input)?,
+                            expressions: todo!("typing expressions arena"), // circuit.expressions,
+                            output_type_annotation: circuit.output_type_annotation,
+                            output_type,
+                            lets: circuit.lets.into_iter().map(|let_| type_let(&mut types, &type_table, let_)).collect_all()?,
+                            output: todo!("transform expression arena id"), // circuit.output,
+                        }),
+                    ))
+                }
+                ir::circuit1::CircuitOrIntrinsic::Nand => Some((name, ir::circuit1::CircuitOrIntrinsic::Nand)),
+            }
         })
         .collect_all()?;
 

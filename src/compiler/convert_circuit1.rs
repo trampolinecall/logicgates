@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::compiler::ir::circuit2::Gate;
+use crate::utils::CollectAll;
 
 use super::error::File;
 use super::error::Report;
@@ -44,25 +45,24 @@ impl CircuitGenState<'_> {
     }
 }
 
-pub(crate) fn convert(file: &File, types: &mut ty::Types, ast: Vec<ir::circuit1::TypedCircuit>) -> Option<circuit2::Circuit> {
+pub(crate) fn convert(file: &File, types: &mut ty::Types, circuits: HashMap<String, ir::circuit1::TypedCircuitOrIntrinsic>) -> Option<circuit2::Circuit> {
+    // TODO: remove symbol table from global_state, replace with the actual symbol table, also prevent recursion
     let mut global_state = GlobalGenState::new();
 
-    let mut errored = false;
+    let mut circuits: HashMap<_, _> = circuits
+        .into_iter()
+        .map(|(name, circuit)| {
+            Some((
+                name,
+                match circuit {
+                    ir::circuit1::CircuitOrIntrinsic::Circuit(circuit) => circuit2::Gate::Custom(convert_circuit(&global_state, types, circuit)?),
+                    ir::circuit1::CircuitOrIntrinsic::Nand => circuit2::Gate::Nand,
+                },
+            ))
+        })
+        .collect_all()?;
 
-    for circuit in ast {
-        let ((name_sp, name), circuit) = convert_circuit(&global_state, types, circuit)?;
-        if global_state.circuit_table.contains_key(name) {
-            (&*types, error::Error::Duplicate(name_sp, name)).report();
-            errored = true;
-        } else {
-            global_state.circuit_table.insert(name, circuit2::Gate::Custom(circuit));
-        }
-    }
-
-    if errored {
-        None?;
-    }
-    match global_state.circuit_table.remove("main") {
+    match circuits.remove("main") {
         Some(Gate::Custom(c)) => Some(c),
         Some(_) => unreachable!("builtin circuit called main"),
         None => {
@@ -72,11 +72,7 @@ pub(crate) fn convert(file: &File, types: &mut ty::Types, ast: Vec<ir::circuit1:
     }
 }
 
-fn convert_circuit<'ggs, 'types, 'file>(
-    global_state: &'ggs GlobalGenState<'file>,
-    types: &'types mut ty::Types,
-    circuit1: ir::circuit1::TypedCircuit<'file>,
-) -> Option<((Span<'file>, &'file str), circuit2::Circuit)> {
+fn convert_circuit<'ggs, 'types, 'file>(global_state: &'ggs GlobalGenState<'file>, types: &'types mut ty::Types, circuit1: ir::circuit1::TypedCircuit<'file>) -> Option<circuit2::Circuit> {
     let mut circuit_state = CircuitGenState::new(circuit1.name.1.to_string(), circuit1.input.type_info, circuit1.output_type);
 
     if let Err(e) = assign_pattern(types, &mut circuit_state, &circuit1.input, circuit2::bundle::ProducerBundle::CurCircuitInput) {
@@ -96,7 +92,7 @@ fn convert_circuit<'ggs, 'types, 'file>(
 
     connect_bundle(types, &mut circuit_state, output_value_span, output_value, circuit2::bundle::ReceiverBundle::CurCircuitOutput);
 
-    Some((circuit1.name, circuit_state.circuit))
+    Some(circuit_state.circuit)
 }
 
 fn assign_pattern<'types, 'cgs, 'file>(
@@ -124,7 +120,13 @@ fn assign_pattern<'types, 'cgs, 'file>(
     Ok(())
 }
 
-fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'types mut ty::Types, circuit_state: &mut CircuitGenState, circuit1: &ir::circuit1::TypedCircuit, expr: id_arena::Id<ir::circuit1::TypedExpr>) -> Option<ProducerBundle> {
+fn convert_expr<'file, 'types>(
+    global_state: &GlobalGenState<'file>,
+    types: &'types mut ty::Types,
+    circuit_state: &mut CircuitGenState,
+    circuit1: &ir::circuit1::TypedCircuit,
+    expr: id_arena::Id<ir::circuit1::TypedExpr>,
+) -> Option<ProducerBundle> {
     let span = circuit1.expressions[expr].kind.span(&circuit1.expressions);
     match &circuit1.expressions[expr].kind {
         ir::circuit1::ExprKind::Ref(name_sp, name) => {
