@@ -91,7 +91,7 @@ fn convert_circuit<'ggs, 'types, 'file>(
         }
     }
 
-    let output_value_span = circuit1.expressions[circuit1.output].span(&circuit1);
+    let output_value_span = circuit1.expressions[circuit1.output].span(&circuit1.expressions);
     let output_value = convert_expr(global_state, types, &mut circuit_state, &circuit1, circuit1.output)?;
 
     connect_bundle(types, &mut circuit_state, output_value_span, output_value, circuit2::bundle::ReceiverBundle::CurCircuitOutput);
@@ -125,7 +125,7 @@ fn assign_pattern<'types, 'cgs, 'file>(
 }
 
 fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'types mut ty::Types, circuit_state: &mut CircuitGenState, circuit1: &ir::circuit1::TypedCircuit, expr: id_arena::Id<ir::circuit1::Expr>) -> Option<ProducerBundle> {
-    let span = circuit1.expressions[expr].span(circuit1);
+    let span = circuit1.expressions[expr].span(&circuit1.expressions);
     match &circuit1.expressions[expr] {
         ir::circuit1::Expr::Ref(name_sp, name) => {
             let name_resolved = if let Some(resolved) = circuit_state.locals.get(name) {
