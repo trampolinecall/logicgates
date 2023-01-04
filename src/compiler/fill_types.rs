@@ -2,27 +2,31 @@ use std::collections::HashMap;
 
 use crate::utils::CollectAll;
 
-use super::ir;
 use super::ir::ty;
+use super::{ir, make_name_tables};
 
-pub(crate) fn fill<'file>(
-    circuits: HashMap<String, ir::circuit1::UntypedCircuitOrIntrinsic<'file>>,
-    type_decls: Vec<ir::type_decl::TypeDecl>,
-) -> Option<(ty::Types, HashMap<String, ir::circuit1::TypedCircuitOrIntrinsic<'file>>)> {
+pub(crate) struct IR<'file> {
+    pub(crate) types: ty::Types, // TODO: rename to type_context
+    pub(crate) type_table: HashMap<String, ty::TypeSym>,
+    pub(crate) circuit_table: HashMap<String, ir::circuit1::TypedCircuitOrIntrinsic<'file>>,
+}
+pub(crate) fn fill<'file>(ir: make_name_tables::IR) -> Option<IR> {
     let mut types = ty::Types::new();
-    let mut type_table = HashMap::new();
-    for decl in type_decls {
-        let ty = convert_type_ast(&mut types, &type_table, &decl.ty)?;
+    let type_table = HashMap::new(); // TODO: remove this
 
-        let named_type = types.new_named(decl.name.1.into(), ty);
+    let type_table = ir
+        .types
+        .into_iter()
+        .map(|(name, type_decl)| {
+            let ty = convert_type_ast(&mut types, &type_table, &type_decl.ty)?;
 
-        if type_table.contains_key(decl.name.1) {
-            todo!("throw duplicate named type error")
-        }
-        type_table.insert(decl.name.1.into(), named_type);
-    }
+            let named_type = types.new_named(name.clone(), ty);
+            Some((name, named_type))
+        })
+        .collect_all()?;
 
-    let circuits = circuits
+    let circuit_table = ir
+        .circuits
         .into_iter()
         .map(|(name, circuit)| {
             match circuit {
@@ -46,7 +50,7 @@ pub(crate) fn fill<'file>(
         })
         .collect_all()?;
 
-    Some((types, circuits))
+    Some(IR { types, type_table, circuit_table })
 }
 
 fn type_let<'file>(types: &mut ty::Types, type_table: &HashMap<String, ty::TypeSym>, let_: ir::circuit1::UntypedLet<'file>) -> Option<ir::circuit1::TypedLet<'file>> {

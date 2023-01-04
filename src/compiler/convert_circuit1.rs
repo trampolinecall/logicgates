@@ -6,6 +6,7 @@ use crate::utils::CollectAll;
 use super::error::File;
 use super::error::Report;
 use super::error::Span;
+use super::fill_types;
 use super::ir;
 use super::ir::circuit1::TypedPattern;
 use super::ir::circuit2;
@@ -45,17 +46,17 @@ impl CircuitGenState<'_> {
     }
 }
 
-pub(crate) fn convert(file: &File, types: &mut ty::Types, circuits: HashMap<String, ir::circuit1::TypedCircuitOrIntrinsic>) -> Option<circuit2::Circuit> {
+pub(crate) fn convert(file: &File, mut ir: fill_types::IR) -> Option<(ty::Types, circuit2::Circuit)> {
     // TODO: remove symbol table from global_state, replace with the actual symbol table, also prevent recursion
     let mut global_state = GlobalGenState::new();
 
-    let mut circuits: HashMap<_, _> = circuits
+    let mut circuits: HashMap<_, _> = ir.circuit_table
         .into_iter()
         .map(|(name, circuit)| {
             Some((
                 name,
                 match circuit {
-                    ir::circuit1::CircuitOrIntrinsic::Circuit(circuit) => circuit2::Gate::Custom(convert_circuit(&global_state, types, circuit)?),
+                    ir::circuit1::CircuitOrIntrinsic::Circuit(circuit) => circuit2::Gate::Custom(convert_circuit(&global_state, &mut ir.types, circuit)?),
                     ir::circuit1::CircuitOrIntrinsic::Nand => circuit2::Gate::Nand,
                 },
             ))
@@ -63,10 +64,10 @@ pub(crate) fn convert(file: &File, types: &mut ty::Types, circuits: HashMap<Stri
         .collect_all()?;
 
     match circuits.remove("main") {
-        Some(Gate::Custom(c)) => Some(c),
+        Some(Gate::Custom(c)) => Some((ir.types, c)),
         Some(_) => unreachable!("builtin circuit called main"),
         None => {
-            (&*types, error::Error::NoMain(file)).report();
+            (&ir.types, error::Error::NoMain(file)).report();
             None?
         }
     }
