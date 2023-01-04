@@ -1,6 +1,8 @@
 #[macro_use]
 mod error;
 
+mod arena;
+
 mod ir;
 
 mod convert_circuit1;
