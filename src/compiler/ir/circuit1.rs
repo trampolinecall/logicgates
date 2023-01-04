@@ -10,29 +10,32 @@ pub(crate) type TypedCircuit<'file> = Circuit<'file, ty::TypeSym>;
 pub(crate) type TypedLet<'file> = Let<'file, ty::TypeSym>;
 pub(crate) type TypedPattern<'file> = Pattern<'file, ty::TypeSym>;
 
+pub(crate) type ExprArena<'file> = id_arena::Arena<Expr<'file>>;
+pub(crate) type ExprId<'file> = id_arena::Id<Expr<'file>>;
 #[derive(PartialEq, Debug)]
 pub(crate) struct Circuit<'file, TypeInfo> {
     pub(crate) name: (Span<'file>, &'file str),
     pub(crate) input: Pattern<'file, TypeInfo>,
+    pub(crate) expressions: ExprArena<'file>,
     pub(crate) output_type_annotation: TypeExpr<'file>, // TODO: probably make TypeInfo TypeExpr instead of ()
     pub(crate) output_type: TypeInfo,
     pub(crate) lets: Vec<Let<'file, TypeInfo>>,
-    pub(crate) output: Expr<'file>,
+    pub(crate) output: ExprId<'file>,
 }
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct Let<'file, TypeInfo> {
     pub(crate) pat: Pattern<'file, TypeInfo>,
-    pub(crate) val: Expr<'file>,
+    pub(crate) val: ExprId<'file>,
 }
 
 #[derive(PartialEq, Debug)]
 pub(crate) enum Expr<'file> {
     Ref(Span<'file>, &'file str),
-    Call((Span<'file>, &'file str), bool, Box<Expr<'file>>),
+    Call((Span<'file>, &'file str), bool, ExprId<'file>),
     Const(Span<'file>, bool),
-    Get(Box<Expr<'file>>, (Span<'file>, &'file str)),
-    Multiple { obrack: Span<'file>, exprs: Vec<Expr<'file>>, cbrack: Span<'file> },
+    Get(ExprId<'file>, (Span<'file>, &'file str)),
+    Multiple { obrack: Span<'file>, exprs: Vec<ExprId<'file>>, cbrack: Span<'file> },
 }
 
 #[derive(PartialEq, Debug)]
@@ -47,11 +50,11 @@ pub(crate) enum PatternKind<'file, TypeInfo> {
 }
 
 impl<'file> Expr<'file> {
-    pub(crate) fn span(&self) -> Span<'file> {
+    pub(crate) fn span<TypeInfo>(&self, circuit: &Circuit<'file, TypeInfo>) -> Span<'file> {
         match self {
             Expr::Ref(sp, _) | Expr::Const(sp, _) => *sp,
-            Expr::Call((circuit_name_sp, _), _, arg) => *circuit_name_sp + arg.span(),
-            Expr::Get(expr, (field_sp, _)) => expr.span() + *field_sp,
+            Expr::Call((circuit_name_sp, _), _, arg) => *circuit_name_sp + circuit.expressions[*arg].span(circuit),
+            Expr::Get(expr, (field_sp, _)) => circuit.expressions[*expr].span(circuit) + *field_sp,
             Expr::Multiple { obrack, cbrack, exprs: _ } => *obrack + *cbrack,
         }
     }
