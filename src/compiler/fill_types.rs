@@ -3,56 +3,53 @@ use std::collections::HashMap;
 use crate::utils::CollectAll;
 
 use super::ir::ty;
-use super::{ir, make_name_tables};
+use super::{arena, ir, make_name_tables};
 
 pub(crate) struct IR<'file> {
-    pub(crate) circuits: id_arena::Arena<ir::circuit1::TypedCircuitOrIntrinsic<'file>>,
-    pub(crate) circuit_table: HashMap<String, id_arena::Id<ir::circuit1::TypedCircuitOrIntrinsic<'file>>>,
+    pub(crate) circuits: arena::Arena<ir::circuit1::TypedCircuitOrIntrinsic<'file>>,
+    pub(crate) circuit_table: HashMap<String, arena::Id<ir::circuit1::TypedCircuitOrIntrinsic<'file>>>,
 
     pub(crate) type_context: ty::TypeContext,
     pub(crate) type_table: HashMap<String, ty::TypeSym>,
 }
 pub(crate) fn fill<'file>(ir: make_name_tables::IR) -> Option<IR> {
-    let mut types = ty::TypeContext::new();
-    let type_table = HashMap::new(); // TODO: remove this
+    /*
+    let mut type_context = ty::TypeContext::new();
 
-    let type_decls: HashMap<_, _> = ir
-        .type_decls
-        .into_iter()
-        .map(|(name, type_decl)| {
-            let ty = convert_type_ast(&mut types, &type_table, &type_decl.ty)?;
-            // let named_type = types.new_named(name.clone(), ty); TODO
-            Some((todo!(), todo!() /* name, named_type */))
-        })
-        .collect_all()?;
+    let type_decls = ir.type_decls.transform(|type_decl| {
+        let ty = convert_type_ast(&mut type_context, &ir.type_table, &type_decl.ty)?;
+        // let named_type = types.new_named(name.clone(), ty); TODO
+        Some((todo!(), todo!() /* name, named_type */))
+    })?;
 
-    let circuits: HashMap<_, _> = ir
+    // TODO: disallow recursive types / infinitely sized types
+
+    let circuits = ir
         .circuits
-        .into_iter()
-        .map(|(name, circuit)| {
+        .transform(|(/* name, */ circuit)| {
             match circuit {
                 ir::circuit1::CircuitOrIntrinsic::Circuit(circuit) => {
-                    let output_type = convert_type_ast(&mut types, &type_table, &circuit.output_type_annotation)?;
+                    let output_type = convert_type_ast(&mut type_context, &type_table, &circuit.output_type_annotation)?;
                     Some((
-                        name,
+                        // name,
                         ir::circuit1::CircuitOrIntrinsic::Circuit(ir::circuit1::Circuit {
                             name: circuit.name,
-                            input: type_pat(&mut types, &type_table, circuit.input)?,
+                            input: type_pat(&mut type_context, &type_table, circuit.input)?,
                             expressions: todo!("typing expressions arena"), // circuit.expressions,
                             output_type_annotation: circuit.output_type_annotation,
                             output_type,
-                            lets: circuit.lets.into_iter().map(|let_| type_let(&mut types, &type_table, let_)).collect_all()?,
+                            lets: circuit.lets.into_iter().map(|let_| type_let(&mut type_context, &type_table, let_)).collect_all()?,
                             output: todo!("transform expression arena id"), // circuit.output,
-                        }),
+                        })
                     ))
                 }
-                ir::circuit1::CircuitOrIntrinsic::Nand => Some((name, ir::circuit1::CircuitOrIntrinsic::Nand)),
+                ir::circuit1::CircuitOrIntrinsic::Nand => Some((/* name, */ ir::circuit1::CircuitOrIntrinsic::Nand)),
             }
-        })
-        .collect_all()?;
+        })?;
 
-    // Some(IR { type_context: types, type_table, circuits, circuit_table: ir.circuit_table })
-    todo!("filling types")
+    Some(IR { circuits, circuit_table, type_context, type_table })
+    */
+    todo!()
 }
 
 fn type_let<'file>(type_context: &mut ty::TypeContext, type_table: &HashMap<String, ty::TypeSym>, let_: ir::circuit1::UntypedLet<'file>) -> Option<ir::circuit1::TypedLet<'file>> {

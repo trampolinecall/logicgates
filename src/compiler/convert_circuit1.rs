@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::compiler::ir::circuit2::Gate;
 use crate::utils::CollectAll;
 
+use super::arena;
 use super::error::File;
 use super::error::Report;
 use super::error::Span;
@@ -50,19 +51,16 @@ pub(crate) fn convert(file: &File, mut ir: fill_types::IR) -> Option<(ty::TypeCo
     // TODO: remove symbol table from global_state, replace with the actual symbol table, also prevent recursion
     let mut global_state = GlobalGenState::new();
 
-    let mut circuits: HashMap<_, _> = ir
+    let mut circuits = ir
         .circuits
-        .into_iter()
-        .map(|(name, circuit)| {
+        .transform(|circuit| {
             Some((
-                name,
                 match circuit {
                     ir::circuit1::CircuitOrIntrinsic::Circuit(circuit) => circuit2::Gate::Custom(convert_circuit(&global_state, &mut ir.type_context, circuit)?),
                     ir::circuit1::CircuitOrIntrinsic::Nand => circuit2::Gate::Nand,
                 },
             ))
-        })
-        .collect_all()?;
+        })?;
 
     /*
     match circuits.remove("main") {
@@ -96,7 +94,7 @@ fn convert_circuit<'ggs, 'types, 'file>(
         }
     }
 
-    let output_value_span = circuit1.expressions[circuit1.output].kind.span(&circuit1.expressions);
+    let output_value_span = circuit1.expressions.get(circuit1.output).kind.span(&circuit1.expressions);
     let output_value = convert_expr(global_state, type_context, &mut circuit_state, &circuit1, circuit1.output)?;
 
     connect_bundle(type_context, &mut circuit_state, output_value_span, output_value, circuit2::bundle::ReceiverBundle::CurCircuitOutput);
@@ -134,10 +132,10 @@ fn convert_expr<'file, 'types>(
     type_context: &'types mut ty::TypeContext,
     circuit_state: &mut CircuitGenState,
     circuit1: &ir::circuit1::TypedCircuit,
-    expr: id_arena::Id<ir::circuit1::TypedExpr>,
+    expr: arena::Id<ir::circuit1::TypedExpr>,
 ) -> Option<ProducerBundle> {
-    let span = circuit1.expressions[expr].kind.span(&circuit1.expressions);
-    match &circuit1.expressions[expr].kind {
+    let span = circuit1.expressions.get(expr).kind.span(&circuit1.expressions);
+    match &circuit1.expressions.get(expr).kind {
         ir::circuit1::ExprKind::Ref(name_sp, name) => {
             let name_resolved = if let Some(resolved) = circuit_state.locals.get(name) {
                 resolved
