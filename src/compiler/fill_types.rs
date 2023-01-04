@@ -5,10 +5,11 @@ use crate::utils::CollectAll;
 use super::ir;
 use super::ir::ty;
 
-pub(crate) fn fill<'file>(types: &mut ty::Types, circuits: Vec<ir::circuit1::UntypedCircuit<'file>>, type_decls: Vec<ir::type_decl::TypeDecl>) -> Option<Vec<ir::circuit1::TypedCircuit<'file>>> {
+pub(crate) fn fill<'file>(circuits: Vec<ir::circuit1::UntypedCircuit<'file>>, type_decls: Vec<ir::type_decl::TypeDecl>) -> Option<(ty::Types, Vec<ir::circuit1::TypedCircuit<'file>>)> {
+    let mut types = ty::Types::new();
     let mut type_table = HashMap::new();
     for decl in type_decls {
-        let ty = convert_type_ast(types, &type_table, &decl.ty)?;
+        let ty = convert_type_ast(&mut types, &type_table, &decl.ty)?;
 
         let named_type = types.new_named(decl.name.1.into(), ty);
 
@@ -18,21 +19,23 @@ pub(crate) fn fill<'file>(types: &mut ty::Types, circuits: Vec<ir::circuit1::Unt
         type_table.insert(decl.name.1.into(), named_type);
     }
 
-    circuits
+    let circuits = circuits
         .into_iter()
         .map(|circuit| {
-            let output_type = convert_type_ast(types, &type_table, &circuit.output_type_annotation)?;
+            let output_type = convert_type_ast(&mut types, &type_table, &circuit.output_type_annotation)?;
             Some(ir::circuit1::Circuit {
                 name: circuit.name,
-                input: type_pat(types, &type_table, circuit.input)?,
+                input: type_pat(&mut types, &type_table, circuit.input)?,
                 expressions: todo!("typing expressions arena"), // circuit.expressions,
                 output_type_annotation: circuit.output_type_annotation,
                 output_type,
-                lets: circuit.lets.into_iter().map(|let_| type_let(types, &type_table, let_)).collect_all()?,
+                lets: circuit.lets.into_iter().map(|let_| type_let(&mut types, &type_table, let_)).collect_all()?,
                 output: todo!("transform expression arena id"), // circuit.output,
             })
         })
-        .collect_all()
+        .collect_all()?;
+
+    Some((types, circuits))
 }
 
 fn type_let<'file>(types: &mut ty::Types, type_table: &HashMap<String, ty::TypeSym>, let_: ir::circuit1::UntypedLet<'file>) -> Option<ir::circuit1::TypedLet<'file>> {
