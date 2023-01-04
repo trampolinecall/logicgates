@@ -4,7 +4,10 @@ use crate::compiler::lexer::token::TokenMatcher;
 use crate::compiler::lexer::Token;
 use std::iter::Peekable;
 
-use super::ir;
+use super::ir::circuit1;
+use super::ir::type_decl;
+use super::ir::type_expr;
+
 
 struct Parser<'file, T: Iterator<Item = Token<'file>>> {
     tokens: Peekable<T>,
@@ -89,7 +92,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 }
 
 impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
-    fn parse(&mut self) -> (Vec<ir::circuit1::UntypedCircuit<'file>>, Vec<ir::type_decl::TypeDecl<'file>>) {
+    fn parse(&mut self) -> (Vec<circuit1::UntypedCircuit<'file>>, Vec<type_decl::TypeDecl<'file>>) {
         let mut circuits = Vec::new();
         let mut type_decls = Vec::new();
 
@@ -113,7 +116,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         (circuits, type_decls)
     }
 
-    fn circuit(&mut self) -> Result<ir::circuit1::UntypedCircuit<'file>, ParseError<'file>> {
+    fn circuit(&mut self) -> Result<circuit1::UntypedCircuit<'file>, ParseError<'file>> {
         self.expect(/* TODO: "circuit name (starting with '`')", */ Token::apostrophe_matcher())?;
         let name = self.expect(/* "circuit name after '`'", */ Token::identifier_matcher())?;
         let mut expressions = id_arena::Arena::new();
@@ -126,28 +129,28 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
         let ret = self.expr(&mut expressions)?;
 
-        Ok(ir::circuit1::UntypedCircuit { name, input: arguments, lets, expressions, output: ret, output_type: (), output_type_annotation: output_type })
+        Ok(circuit1::UntypedCircuit { name, input: arguments, lets, expressions, output: ret, output_type: (), output_type_annotation: output_type })
     }
 
-    fn named_type_decl(&mut self) -> Result<ir::type_decl::TypeDecl<'file>, ParseError<'file>> {
+    fn named_type_decl(&mut self) -> Result<type_decl::TypeDecl<'file>, ParseError<'file>> {
         self.expect(Token::named_matcher())?;
         let name = self.expect(Token::identifier_matcher())?;
         let ty = self.type_()?;
 
-        Ok(ir::type_decl::TypeDecl { name, ty })
+        Ok(type_decl::TypeDecl { name, ty })
     }
 
-    fn r#let(&mut self, expressions: &mut ir::circuit1::ExprArena<'file>) -> Result<ir::circuit1::UntypedLet<'file>, ParseError<'file>> {
+    fn r#let(&mut self, expressions: &mut circuit1::UntypedExprArena<'file>) -> Result<circuit1::UntypedLet<'file>, ParseError<'file>> {
         self.expect(Token::let_matcher())?;
         let pat = self.pattern()?;
 
         self.expect(Token::equals_matcher())?;
 
         let val = self.expr(expressions)?;
-        Ok(ir::circuit1::UntypedLet { pat, val })
+        Ok(circuit1::UntypedLet { pat, val })
     }
 
-    fn pattern(&mut self) -> Result<ir::circuit1::UntypedPattern<'file>, ParseError<'file>> {
+    fn pattern(&mut self) -> Result<circuit1::UntypedPattern<'file>, ParseError<'file>> {
         match self.peek() {
             Token::Identifier(_, _) => {
                 let iden = Token::identifier_matcher().convert(self.next());
@@ -155,20 +158,20 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let type_ = self.type_()?;
 
-                Ok(ir::circuit1::UntypedPattern { kind: ir::circuit1::PatternKind::Identifier(iden.0, iden.1, type_), type_info: () })
+                Ok(circuit1::UntypedPattern { kind: circuit1::PatternKind::Identifier(iden.0, iden.1, type_), type_info: () })
             }
 
             &Token::OBrack(obrack) => {
                 self.next();
 
                 let (patterns, cbrack) = self.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::pattern)?;
-                Ok(ir::circuit1::UntypedPattern { kind: ir::circuit1::PatternKind::Product(obrack + cbrack, patterns), type_info: () })
+                Ok(circuit1::UntypedPattern { kind: circuit1::PatternKind::Product(obrack + cbrack, patterns), type_info: () })
             }
             _ => Err(self.expected_and_next("pattern")),
         }
     }
 
-    fn expr(&mut self, expressions: &mut ir::circuit1::ExprArena<'file>) -> Result<ir::circuit1::ExprId<'file>, ParseError<'file>> {
+    fn expr(&mut self, expressions: &mut circuit1::UntypedExprArena<'file>) -> Result<circuit1::UntypedExprId<'file>, ParseError<'file>> {
         let mut left = self.primary_expr(expressions)?;
 
         while Token::dot_matcher().matches(self.peek()) {
@@ -183,20 +186,20 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             }?;
             self.next();
 
-            left = expressions.alloc(ir::circuit1::Expr::Get(left, field));
+            left = expressions.alloc(circuit1::Expr { kind: circuit1::ExprKind::Get(left, field), type_info: ()});
         }
 
         Ok(left)
     }
 
-    fn primary_expr(&mut self, expressions: &mut ir::circuit1::ExprArena<'file>) -> Result<ir::circuit1::ExprId<'file>, ParseError<'file>> {
+    fn primary_expr(&mut self, expressions: &mut circuit1::UntypedExprArena<'file>) -> Result<circuit1::UntypedExprId<'file>, ParseError<'file>> {
         match self.peek() {
             Token::Number(_, _, _) => {
                 let (n_sp, _, n) = Token::number_matcher().convert(self.next());
 
                 match n {
-                    0 => Ok(expressions.alloc(ir::circuit1::Expr::Const(n_sp, false))),
-                    1 => Ok(expressions.alloc(ir::circuit1::Expr::Const(n_sp, true))),
+                    0 => Ok(expressions.alloc(circuit1::Expr { kind: circuit1::ExprKind::Const(n_sp, false), type_info: ()})),
+                    1 => Ok(expressions.alloc(circuit1::Expr { kind: circuit1::ExprKind::Const(n_sp, true), type_info: ()})),
                     _ => Err(self.expected_and_next("'0' or '1'")),
                 }
             }
@@ -208,13 +211,13 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let arg = self.expr(expressions)?;
 
-                Ok(expressions.alloc(ir::circuit1::Expr::Call(i, inline, arg)))
+                Ok(expressions.alloc(circuit1::Expr { kind: circuit1::ExprKind::Call(i, inline, arg), type_info: ()}))
             }
 
             Token::Identifier(_, _) => {
                 let i = Token::identifier_matcher().convert(self.next());
 
-                Ok(expressions.alloc(ir::circuit1::Expr::Ref(i.0, i.1)))
+                Ok(expressions.alloc(circuit1::Expr { kind: circuit1::ExprKind::Ref(i.0, i.1), type_info: ()}))
             }
 
             &Token::OBrack(obrack) => {
@@ -232,18 +235,18 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let cbrack = self.expect(Token::cbrack_matcher())?;
 
-                Ok(expressions.alloc(ir::circuit1::Expr::Multiple { obrack, cbrack, exprs: items }))
+                Ok(expressions.alloc(circuit1::Expr { kind: circuit1::ExprKind::Multiple { obrack, cbrack, exprs: items }, type_info: ()}))
             }
 
             _ => Err(self.expected_and_next("expression"))?,
         }
     }
 
-    fn type_(&mut self) -> Result<ir::type_expr::TypeExpr<'file>, ParseError<'file>> {
+    fn type_(&mut self) -> Result<type_expr::TypeExpr<'file>, ParseError<'file>> {
         match *self.peek() {
             Token::Apostrophe(sp) => {
                 let _ = self.next();
-                Ok(ir::type_expr::TypeExpr::Bit(sp))
+                Ok(type_expr::TypeExpr::Bit(sp))
             }
 
             Token::OBrack(obrack) => {
@@ -260,7 +263,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                             Ok((name, ty))
                         })?;
 
-                        Ok(ir::type_expr::TypeExpr::NamedProduct { types, obrack, cbrack, named })
+                        Ok(type_expr::TypeExpr::NamedProduct { types, obrack, cbrack, named })
                     }
 
                     Token::Number(_, _, _) => {
@@ -270,12 +273,12 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                         let ty = self.type_()?;
 
-                        Ok(ir::type_expr::TypeExpr::RepProduct { obrack, num: (len_sp, len), cbrack, type_: Box::new(ty) })
+                        Ok(type_expr::TypeExpr::RepProduct { obrack, num: (len_sp, len), cbrack, type_: Box::new(ty) })
                     }
 
                     _ => {
                         let (types, cbrack) = self.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::type_)?;
-                        Ok(ir::type_expr::TypeExpr::Product { types, obrack, cbrack })
+                        Ok(type_expr::TypeExpr::Product { types, obrack, cbrack })
                     }
                 }
             }
@@ -283,7 +286,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             Token::Identifier(_, _) => {
                 let iden = Token::identifier_matcher().convert(self.next());
 
-                Ok(ir::type_expr::TypeExpr::Named(iden.0, iden.1))
+                Ok(type_expr::TypeExpr::Named(iden.0, iden.1))
             }
 
             _ => Err(self.expected_and_next("type")),
@@ -291,7 +294,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     }
 }
 
-pub(crate) fn parse<'file>(tokens: impl Iterator<Item = Token<'file>>) -> (Vec<ir::circuit1::UntypedCircuit<'file>>, Vec<ir::type_decl::TypeDecl<'file>>) {
+pub(crate) fn parse<'file>(tokens: impl Iterator<Item = Token<'file>>) -> (Vec<circuit1::UntypedCircuit<'file>>, Vec<type_decl::TypeDecl<'file>>) {
     Parser { tokens: tokens.peekable() }.parse()
 }
 
@@ -319,7 +322,7 @@ mod test {
 
         let tokens = make_token_stream([Token::Identifier(sp, "a"), Token::Comma(sp), Token::Identifier(sp, "b"), Token::CBrack(sp)], sp);
 
-        assert_eq!(Parser { tokens }.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::expr), Ok((vec![ir::Expr::Ref(sp, "a"), ir::Expr::Ref(sp, "b")], sp)));
+        assert_eq!(Parser { tokens }.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::expr), Ok((vec![ExprKind::Ref(sp, "a"), ExprKind::Ref(sp, "b")], sp)));
     }
 
     #[test]
@@ -329,7 +332,7 @@ mod test {
 
         let tokens = make_token_stream([Token::Identifier(sp, "a"), Token::Comma(sp), Token::Identifier(sp, "b"), Token::Comma(sp), Token::CBrack(sp)], sp);
 
-        assert_eq!(Parser { tokens }.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::expr), Ok((vec![ir::Expr::Ref(sp, "a"), ir::Expr::Ref(sp, "b")], sp)));
+        assert_eq!(Parser { tokens }.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::expr), Ok((vec![ExprKind::Ref(sp, "a"), ExprKind::Ref(sp, "b")], sp)));
     }
 
     // TODO: test inline calls
@@ -369,14 +372,14 @@ mod test {
 
         assert_eq!(
             parse(tokens),
-            (vec![ir::circuit1::UntypedCircuit {
+            (vec![circuit1::UntypedCircuit {
                 name: (sp, "thingy"),
-                input: ir::circuit1::UntypedPattern { kind: ir::PatternKind::Identifier(sp, "arg", ir::type_expr::TypeExpr::Bit(sp)), type_info: () },
-                lets: vec![ir::LetAST {
-                    pat: ir::circuit1::UntypedPattern { kind: ir::PatternKind::Identifier(sp, "res", ir::type_expr::TypeExpr::Bit(sp)), type_info: () },
-                    val: ir::Expr::Call((sp, "and"), false, Box::new(ir::Expr::Multiple { obrack: sp, cbrack: sp, exprs: vec![ir::Expr::Ref(sp, "arg"), ir::Expr::Ref(sp, "arg")] }))
+                input: circuit1::UntypedPattern { kind: PatternKind::Identifier(sp, "arg", type_expr::TypeExpr::Bit(sp)), type_info: () },
+                lets: vec![LetAST {
+                    pat: circuit1::UntypedPattern { kind: PatternKind::Identifier(sp, "res", type_expr::TypeExpr::Bit(sp)), type_info: () },
+                    val: ExprKind::Call((sp, "and"), false, Box::new(ExprKind::Multiple { obrack: sp, cbrack: sp, exprs: vec![ExprKind::Ref(sp, "arg"), ExprKind::Ref(sp, "arg")] }))
                 }],
-                output: ir::Expr::Ref(sp, "res")
+                output: ExprKind::Ref(sp, "res")
             }])
         );
     }
@@ -389,7 +392,7 @@ mod test {
         let tokens = make_token_stream([Token::Use(sp), Token::Identifier(sp, "a"), Token::Semicolon(sp), Token::Apostrophe(sp), Token::Equals(sp), Token::Identifier(sp, "b")], sp);
         assert_eq!(
             Parser { tokens: tokens }.r#let(),
-            Ok(ir::LetAST { pat: ir::circuit1::UntypedPattern { kind: ir::PatternKind::Identifier(sp, "a", ir::type_expr::TypeExpr::Bit(sp)), type_info: () }, val: ir::Expr::Ref(sp, "b") })
+            Ok(LetAST { pat: circuit1::UntypedPattern { kind: PatternKind::Identifier(sp, "a", type_expr::TypeExpr::Bit(sp)), type_info: () }, val: ExprKind::Ref(sp, "b") })
         );
     }
 
@@ -399,7 +402,7 @@ mod test {
         let sp = file.eof_span();
 
         let tokens = make_token_stream([Token::Identifier(sp, "iden"), Token::Semicolon(sp), Token::Apostrophe(sp)], sp);
-        assert_eq!(Parser { tokens }.pattern(), Ok(ir::circuit1::UntypedPattern { kind: ir::PatternKind::Identifier(sp, "iden", ir::type_expr::TypeExpr::Bit(sp)), type_info: () }));
+        assert_eq!(Parser { tokens }.pattern(), Ok(circuit1::UntypedPattern { kind: PatternKind::Identifier(sp, "iden", type_expr::TypeExpr::Bit(sp)), type_info: () }));
     }
 
     #[test]
@@ -408,10 +411,10 @@ mod test {
         let sp = file.eof_span();
 
         let tokens_0 = make_token_stream([Token::Number(sp, "0", 0)], sp);
-        assert_eq!(Parser { tokens: tokens_0 }.expr(), Ok(ir::Expr::Const(sp, false)));
+        assert_eq!(Parser { tokens: tokens_0 }.expr(), Ok(ExprKind::Const(sp, false)));
 
         let tokens_1 = make_token_stream([Token::Number(sp, "1", 1)], sp);
-        assert_eq!(Parser { tokens: tokens_1 }.expr(), Ok(ir::Expr::Const(sp, true)));
+        assert_eq!(Parser { tokens: tokens_1 }.expr(), Ok(ExprKind::Const(sp, true)));
     }
 
     #[test]
@@ -420,7 +423,7 @@ mod test {
         let sp = file.eof_span();
 
         let tokens = make_token_stream([Token::Apostrophe(sp), Token::Identifier(sp, "a"), Token::Identifier(sp, "b")], sp);
-        assert_eq!(Parser { tokens: tokens }.expr(), Ok(ir::Expr::Call((sp, "a"), false, Box::new(ir::Expr::Ref(sp, "b")))));
+        assert_eq!(Parser { tokens: tokens }.expr(), Ok(ExprKind::Call((sp, "a"), false, Box::new(ExprKind::Ref(sp, "b")))));
     }
 
     #[test]
@@ -429,7 +432,7 @@ mod test {
         let sp = file.eof_span();
 
         let tokens = make_token_stream([Token::Identifier(sp, "a")], sp);
-        assert_eq!(Parser { tokens }.expr(), Ok(ir::Expr::Ref(sp, "a")));
+        assert_eq!(Parser { tokens }.expr(), Ok(ExprKind::Ref(sp, "a")));
     }
 
     #[test]
@@ -453,7 +456,7 @@ mod test {
         );
         assert_eq!(
             Parser { tokens }.expr(),
-            Ok(ir::Expr::Multiple { obrack: sp, cbrack: sp, exprs: vec![ir::Expr::Ref(sp, "a"), ir::Expr::Ref(sp, "b"), ir::Expr::Const(sp, false), ir::Expr::Const(sp, true)] })
+            Ok(ExprKind::Multiple { obrack: sp, cbrack: sp, exprs: vec![ExprKind::Ref(sp, "a"), ExprKind::Ref(sp, "b"), ExprKind::Const(sp, false), ExprKind::Const(sp, true)] })
         );
     }
 

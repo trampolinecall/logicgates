@@ -25,18 +25,18 @@ pub(crate) fn convert<'file>(types: &mut ty::Types, circuits: Vec<ir::circuit1::
             Some(ir::circuit1::Circuit {
                 name: circuit.name,
                 input: type_pat(types, &type_table, circuit.input)?,
-                expressions: circuit.expressions,
+                expressions: todo!("typing expressions arena"), // circuit.expressions,
                 output_type_annotation: circuit.output_type_annotation,
                 output_type,
                 lets: circuit.lets.into_iter().map(|let_| type_let(types, &type_table, let_)).collect_all()?,
-                output: circuit.output,
+                output: todo!("transform expression arena id"), // circuit.output,
             })
         })
         .collect_all()
 }
 
 fn type_let<'file>(types: &mut ty::Types, type_table: &HashMap<String, ty::TypeSym>, let_: ir::circuit1::UntypedLet<'file>) -> Option<ir::circuit1::TypedLet<'file>> {
-    Some(ir::circuit1::Let { pat: type_pat(types, type_table, let_.pat)?, val: let_.val })
+    Some(ir::circuit1::Let { pat: type_pat(types, type_table, let_.pat)?, val: todo!("transform expression arena id") /* let_.val */ })
 }
 
 fn type_pat<'file>(types: &mut ty::Types, type_table: &HashMap<String, ty::TypeSym>, pat: ir::circuit1::UntypedPattern<'file>) -> Option<ir::circuit1::TypedPattern<'file>> {
