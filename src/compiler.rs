@@ -5,7 +5,7 @@ mod ir;
 
 mod convert_circuit1;
 mod convert_circuit2;
-mod convert_type_exprs;
+mod fill_types;
 mod lexer;
 mod parser;
 
@@ -25,7 +25,7 @@ pub(crate) fn compile(filename: &str) -> Option<circuit::Circuit> {
 
     let (circuit1s, type_decls) = parser::parse(lexer::lex(&file));
     let mut types = ir::ty::Types::new();
-    let typed = convert_type_exprs::convert(&mut types, circuit1s, type_decls)?;
+    let typed = fill_types::fill(&mut types, circuit1s, type_decls)?;
     let circuit2 = convert_circuit1::convert(&file, &mut types, typed)?;
     Some(convert_circuit2::convert(&mut types, &circuit2))
 }

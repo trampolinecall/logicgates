@@ -5,7 +5,7 @@ use crate::utils::CollectAll;
 use super::ir;
 use super::ir::ty;
 
-pub(crate) fn convert<'file>(types: &mut ty::Types, circuits: Vec<ir::circuit1::UntypedCircuit<'file>>, type_decls: Vec<ir::type_decl::TypeDecl>) -> Option<Vec<ir::circuit1::TypedCircuit<'file>>> {
+pub(crate) fn fill<'file>(types: &mut ty::Types, circuits: Vec<ir::circuit1::UntypedCircuit<'file>>, type_decls: Vec<ir::type_decl::TypeDecl>) -> Option<Vec<ir::circuit1::TypedCircuit<'file>>> {
     let mut type_table = HashMap::new();
     for decl in type_decls {
         let ty = convert_type_ast(types, &type_table, &decl.ty)?;
