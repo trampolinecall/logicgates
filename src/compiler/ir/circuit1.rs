@@ -1,4 +1,4 @@
-use crate::compiler::error::Span;
+use crate::compiler::{error::Span, arena};
 
 use super::{ty, type_expr::TypeExpr};
 
@@ -9,19 +9,19 @@ pub(crate) type UntypedCircuit<'file> = Circuit<'file, ()>;
 pub(crate) type UntypedLet<'file> = Let<'file, ()>;
 pub(crate) type UntypedPattern<'file> = Pattern<'file, ()>;
 pub(crate) type UntypedExpr<'file> = Expr<'file, ()>;
-pub(crate) type UntypedExprArena<'file> = id_arena::Arena<UntypedExpr<'file>>;
-pub(crate) type UntypedExprId<'file> = id_arena::Id<UntypedExpr<'file>>;
+pub(crate) type UntypedExprArena<'file> = arena::Arena<UntypedExpr<'file>>;
+pub(crate) type UntypedExprId<'file> = arena::Id<UntypedExpr<'file>>;
 
 pub(crate) type TypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, ty::TypeSym>;
 pub(crate) type TypedCircuit<'file> = Circuit<'file, ty::TypeSym>;
 pub(crate) type TypedLet<'file> = Let<'file, ty::TypeSym>;
 pub(crate) type TypedPattern<'file> = Pattern<'file, ty::TypeSym>;
 pub(crate) type TypedExpr<'file> = Expr<'file, ty::TypeSym>;
-pub(crate) type TypedExprArena<'file> = id_arena::Arena<TypedExpr<'file>>;
-pub(crate) type TypedExprId<'file> = id_arena::Id<TypedExpr<'file>>;
+pub(crate) type TypedExprArena<'file> = arena::Arena<TypedExpr<'file>>;
+pub(crate) type TypedExprId<'file> = arena::Id<TypedExpr<'file>>;
 
-pub(crate) type ExprArena<'file, TypeInfo> = id_arena::Arena<Expr<'file, TypeInfo>>;
-pub(crate) type ExprId<'file, TypeInfo> = id_arena::Id<Expr<'file, TypeInfo>>;
+pub(crate) type ExprArena<'file, TypeInfo> = arena::Arena<Expr<'file, TypeInfo>>;
+pub(crate) type ExprId<'file, TypeInfo> = arena::Id<Expr<'file, TypeInfo>>;
 #[derive(PartialEq, Debug)]
 pub(crate) struct Circuit<'file, TypeInfo> {
     pub(crate) name: (Span<'file>, &'file str),
@@ -74,8 +74,8 @@ impl<'file, TypeInfo> ExprKind<'file, TypeInfo> {
     pub(crate) fn span(&self, expressions: &ExprArena<'file, TypeInfo>) -> Span<'file> {
         match self {
             ExprKind::Ref(sp, _) | ExprKind::Const(sp, _) => *sp,
-            ExprKind::Call((circuit_name_sp, _), _, arg) => *circuit_name_sp + expressions[*arg].kind.span(expressions),
-            ExprKind::Get(expr, (field_sp, _)) => expressions[*expr].kind.span(expressions) + *field_sp,
+            ExprKind::Call((circuit_name_sp, _), _, arg) => *circuit_name_sp + expressions.get(*arg).kind.span(expressions),
+            ExprKind::Get(expr, (field_sp, _)) => expressions.get(*expr).kind.span(expressions) + *field_sp,
             ExprKind::Multiple { obrack, cbrack, exprs: _ } => *obrack + *cbrack,
         }
     }
