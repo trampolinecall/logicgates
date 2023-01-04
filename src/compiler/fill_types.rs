@@ -6,25 +6,27 @@ use super::ir::ty;
 use super::{ir, make_name_tables};
 
 pub(crate) struct IR<'file> {
+    pub(crate) circuits: id_arena::Arena<ir::circuit1::TypedCircuitOrIntrinsic<'file>>,
+    pub(crate) circuit_table: HashMap<String, id_arena::Id<ir::circuit1::TypedCircuitOrIntrinsic<'file>>>,
+
     pub(crate) type_context: ty::TypeContext,
     pub(crate) type_table: HashMap<String, ty::TypeSym>,
-    pub(crate) circuit_table: HashMap<String, ir::circuit1::TypedCircuitOrIntrinsic<'file>>,
 }
 pub(crate) fn fill<'file>(ir: make_name_tables::IR) -> Option<IR> {
     let mut types = ty::TypeContext::new();
     let type_table = HashMap::new(); // TODO: remove this
 
-    let type_table = ir
-        .types
+    let type_decls: HashMap<_, _> = ir
+        .type_decls
         .into_iter()
         .map(|(name, type_decl)| {
             let ty = convert_type_ast(&mut types, &type_table, &type_decl.ty)?;
-            let named_type = types.new_named(name.clone(), ty);
-            Some((name, named_type))
+            // let named_type = types.new_named(name.clone(), ty); TODO
+            Some((todo!(), todo!() /* name, named_type */))
         })
         .collect_all()?;
 
-    let circuit_table = ir
+    let circuits: HashMap<_, _> = ir
         .circuits
         .into_iter()
         .map(|(name, circuit)| {
@@ -49,7 +51,8 @@ pub(crate) fn fill<'file>(ir: make_name_tables::IR) -> Option<IR> {
         })
         .collect_all()?;
 
-    Some(IR { type_context: types, type_table, circuit_table })
+    // Some(IR { type_context: types, type_table, circuits, circuit_table: ir.circuit_table })
+    todo!("filling types")
 }
 
 fn type_let<'file>(type_context: &mut ty::TypeContext, type_table: &HashMap<String, ty::TypeSym>, let_: ir::circuit1::UntypedLet<'file>) -> Option<ir::circuit1::TypedLet<'file>> {

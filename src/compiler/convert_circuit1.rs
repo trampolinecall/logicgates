@@ -50,7 +50,8 @@ pub(crate) fn convert(file: &File, mut ir: fill_types::IR) -> Option<(ty::TypeCo
     // TODO: remove symbol table from global_state, replace with the actual symbol table, also prevent recursion
     let mut global_state = GlobalGenState::new();
 
-    let mut circuits: HashMap<_, _> = ir.circuit_table
+    let mut circuits: HashMap<_, _> = ir
+        .circuits
         .into_iter()
         .map(|(name, circuit)| {
             Some((
@@ -63,6 +64,7 @@ pub(crate) fn convert(file: &File, mut ir: fill_types::IR) -> Option<(ty::TypeCo
         })
         .collect_all()?;
 
+    /*
     match circuits.remove("main") {
         Some(Gate::Custom(c)) => Some((ir.type_context, c)),
         Some(_) => unreachable!("builtin circuit called main"),
@@ -70,10 +72,16 @@ pub(crate) fn convert(file: &File, mut ir: fill_types::IR) -> Option<(ty::TypeCo
             (&ir.type_context, error::Error::NoMain(file)).report();
             None?
         }
-    }
+    } TODO
+    */
+    todo!()
 }
 
-fn convert_circuit<'ggs, 'types, 'file>(global_state: &'ggs GlobalGenState<'file>, type_context: &'types mut ty::TypeContext, circuit1: ir::circuit1::TypedCircuit<'file>) -> Option<circuit2::Circuit> {
+fn convert_circuit<'ggs, 'types, 'file>(
+    global_state: &'ggs GlobalGenState<'file>,
+    type_context: &'types mut ty::TypeContext,
+    circuit1: ir::circuit1::TypedCircuit<'file>,
+) -> Option<circuit2::Circuit> {
     let mut circuit_state = CircuitGenState::new(circuit1.name.1.to_string(), circuit1.input.type_info, circuit1.output_type);
 
     if let Err(e) = assign_pattern(type_context, &mut circuit_state, &circuit1.input, circuit2::bundle::ProducerBundle::CurCircuitInput) {
