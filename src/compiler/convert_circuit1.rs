@@ -53,7 +53,7 @@ pub(crate) fn convert(file: &File, mut ir: fill_types::IR) -> Option<(ty::TypeCo
 
     let mut circuits = ir
         .circuits
-        .transform(|circuit| {
+        .transform(|circuit, transform_id| {
             Some((
                 match circuit {
                     ir::circuit1::CircuitOrIntrinsic::Circuit(circuit) => circuit2::Gate::Custom(convert_circuit(&global_state, &mut ir.type_context, circuit)?),
