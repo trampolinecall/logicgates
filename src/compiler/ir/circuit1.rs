@@ -2,6 +2,7 @@ use crate::compiler::error::Span;
 
 use super::{ty, type_expr::TypeExpr};
 
+pub(crate) type UntypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, ()>;
 pub(crate) type UntypedCircuit<'file> = Circuit<'file, ()>;
 pub(crate) type UntypedLet<'file> = Let<'file, ()>;
 pub(crate) type UntypedPattern<'file> = Pattern<'file, ()>;
@@ -9,6 +10,7 @@ pub(crate) type UntypedExpr<'file> = Expr<'file, ()>;
 pub(crate) type UntypedExprArena<'file> = id_arena::Arena<UntypedExpr<'file>>;
 pub(crate) type UntypedExprId<'file> = id_arena::Id<UntypedExpr<'file>>;
 
+pub(crate) type TypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, ty::TypeSym>;
 pub(crate) type TypedCircuit<'file> = Circuit<'file, ty::TypeSym>;
 pub(crate) type TypedLet<'file> = Let<'file, ty::TypeSym>;
 pub(crate) type TypedPattern<'file> = Pattern<'file, ty::TypeSym>;
@@ -27,6 +29,12 @@ pub(crate) struct Circuit<'file, TypeInfo> {
     pub(crate) output_type: TypeInfo,
     pub(crate) lets: Vec<Let<'file, TypeInfo>>,
     pub(crate) output: ExprId<'file, TypeInfo>,
+}
+
+#[derive(PartialEq, Debug)]
+pub(crate) enum CircuitOrIntrinsic<'file, TypeInfo> {
+    Circuit(Circuit<'file, TypeInfo>),
+    Nand,
 }
 
 #[derive(PartialEq, Debug)]
