@@ -88,14 +88,17 @@ pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit
     for x in 1..=*xs.values().max().unwrap_or(&0) {
         let input_producer_y = |input: circuit::GateInputNodeIdx| match circuit.get_receiver(input.into()).producer {
             Some(producer) => match circuit.get_producer(producer).gate {
-                // TODO: find better solution than to cast on i32
-                Some(producer_gate) => ys[&producer_gate] as i32, // receiver node connected to other node
-                None => 0,                                        // receiver node connected to circuit input node
+                Some(producer_gate) => ys[&producer_gate], // receiver node connected to other node
+                None => 0.0,                               // receiver node connected to circuit input node
             },
-            None => 0, // receiver node not connected
+            None => 0.0, // receiver node not connected
         };
         let mut on_current_column: Vec<_> = circuit.gates.iter().filter(|(gate_i, _)| xs[gate_i] == x).collect();
-        on_current_column.sort_by_cached_key(|(_, gate)| gate.inputs().map(input_producer_y).sum::<i32>()); // sum can be used as average because they are only being compared to each other
+        on_current_column.sort_by(|(_, gate1), (_, gate2)| {
+            let gate1_y = gate1.inputs().map(input_producer_y).sum::<f64>(); // sum can be used as average because they are only being compared to each other
+            let gate2_y = gate2.inputs().map(input_producer_y).sum::<f64>();
+            gate1_y.partial_cmp(&gate2_y).unwrap()
+        });
 
         // set the y values
         const PADDING: f64 = 20.0;
