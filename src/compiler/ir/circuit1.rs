@@ -2,6 +2,8 @@ use crate::compiler::error::Span;
 
 use super::{ty, type_expr::TypeExpr};
 
+// TODO: separate ast from this?
+
 pub(crate) type UntypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, ()>;
 pub(crate) type UntypedCircuit<'file> = Circuit<'file, ()>;
 pub(crate) type UntypedLet<'file> = Let<'file, ()>;

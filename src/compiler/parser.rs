@@ -8,6 +8,10 @@ use super::ir::circuit1;
 use super::ir::type_decl;
 use super::ir::type_expr;
 
+pub(crate) struct AST<'file> {
+    pub(crate) circuits: Vec<circuit1::UntypedCircuit<'file>>,
+    pub(crate) type_decls: Vec<type_decl::TypeDecl<'file>>,
+}
 
 struct Parser<'file, T: Iterator<Item = Token<'file>>> {
     tokens: Peekable<T>,
@@ -92,7 +96,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 }
 
 impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
-    fn parse(&mut self) -> (Vec<circuit1::UntypedCircuit<'file>>, Vec<type_decl::TypeDecl<'file>>) {
+    fn parse(&mut self) -> AST<'file> {
         let mut circuits = Vec::new();
         let mut type_decls = Vec::new();
 
@@ -113,7 +117,10 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             }
         }
 
-        (circuits, type_decls)
+        AST {
+            circuits,
+            type_decls,
+        }
     }
 
     fn circuit(&mut self) -> Result<circuit1::UntypedCircuit<'file>, ParseError<'file>> {
@@ -294,7 +301,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     }
 }
 
-pub(crate) fn parse<'file>(tokens: impl Iterator<Item = Token<'file>>) -> (Vec<circuit1::UntypedCircuit<'file>>, Vec<type_decl::TypeDecl<'file>>) {
+pub(crate) fn parse<'file>(tokens: impl Iterator<Item = Token<'file>>) -> AST<'file> {
     Parser { tokens: tokens.peekable() }.parse()
 }
 
