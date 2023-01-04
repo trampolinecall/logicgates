@@ -116,16 +116,17 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     fn circuit(&mut self) -> Result<ir::circuit1::UntypedCircuit<'file>, ParseError<'file>> {
         self.expect(/* TODO: "circuit name (starting with '`')", */ Token::apostrophe_matcher())?;
         let name = self.expect(/* "circuit name after '`'", */ Token::identifier_matcher())?;
+        let mut expressions = id_arena::Arena::new();
         let arguments = self.pattern()?;
         let output_type = self.type_()?;
         let mut lets = Vec::new();
         while Token::let_matcher().matches(self.peek()) {
-            lets.push(self.r#let()?);
+            lets.push(self.r#let(&mut expressions)?);
         }
 
-        let ret = self.expr()?;
+        let ret = self.expr(&mut expressions)?;
 
-        Ok(ir::circuit1::UntypedCircuit { name, input: arguments, lets, output: ret, output_type: (), output_type_annotation: output_type })
+        Ok(ir::circuit1::UntypedCircuit { name, input: arguments, lets, expressions, output: ret, output_type: (), output_type_annotation: output_type })
     }
 
     fn named_type_decl(&mut self) -> Result<ir::type_decl::TypeDecl<'file>, ParseError<'file>> {
@@ -136,13 +137,13 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         Ok(ir::type_decl::TypeDecl { name, ty })
     }
 
-    fn r#let(&mut self) -> Result<ir::circuit1::UntypedLet<'file>, ParseError<'file>> {
+    fn r#let(&mut self, expressions: &mut ir::circuit1::ExprArena<'file>) -> Result<ir::circuit1::UntypedLet<'file>, ParseError<'file>> {
         self.expect(Token::let_matcher())?;
         let pat = self.pattern()?;
 
         self.expect(Token::equals_matcher())?;
 
-        let val = self.expr()?;
+        let val = self.expr(expressions)?;
         Ok(ir::circuit1::UntypedLet { pat, val })
     }
 
@@ -167,8 +168,8 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         }
     }
 
-    fn expr(&mut self) -> Result<ir::circuit1::Expr<'file>, ParseError<'file>> {
-        let mut left = self.primary_expr()?;
+    fn expr(&mut self, expressions: &mut ir::circuit1::ExprArena<'file>) -> Result<ir::circuit1::ExprId<'file>, ParseError<'file>> {
+        let mut left = self.primary_expr(expressions)?;
 
         while Token::dot_matcher().matches(self.peek()) {
             self.next();
@@ -182,20 +183,20 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             }?;
             self.next();
 
-            left = ir::circuit1::Expr::Get(Box::new(left), field);
+            left = expressions.alloc(ir::circuit1::Expr::Get(left, field));
         }
 
         Ok(left)
     }
 
-    fn primary_expr(&mut self) -> Result<ir::circuit1::Expr<'file>, ParseError<'file>> {
+    fn primary_expr(&mut self, expressions: &mut ir::circuit1::ExprArena<'file>) -> Result<ir::circuit1::ExprId<'file>, ParseError<'file>> {
         match self.peek() {
             Token::Number(_, _, _) => {
                 let (n_sp, _, n) = Token::number_matcher().convert(self.next());
 
                 match n {
-                    0 => Ok(ir::circuit1::Expr::Const(n_sp, false)),
-                    1 => Ok(ir::circuit1::Expr::Const(n_sp, true)),
+                    0 => Ok(expressions.alloc(ir::circuit1::Expr::Const(n_sp, false))),
+                    1 => Ok(expressions.alloc(ir::circuit1::Expr::Const(n_sp, true))),
                     _ => Err(self.expected_and_next("'0' or '1'")),
                 }
             }
@@ -205,15 +206,15 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let inline = self.maybe_consume(Token::inline_matcher()).is_some();
 
-                let arg = self.expr()?;
+                let arg = self.expr(expressions)?;
 
-                Ok(ir::circuit1::Expr::Call(i, inline, Box::new(arg)))
+                Ok(expressions.alloc(ir::circuit1::Expr::Call(i, inline, arg)))
             }
 
             Token::Identifier(_, _) => {
                 let i = Token::identifier_matcher().convert(self.next());
 
-                Ok(ir::circuit1::Expr::Ref(i.0, i.1))
+                Ok(expressions.alloc(ir::circuit1::Expr::Ref(i.0, i.1)))
             }
 
             &Token::OBrack(obrack) => {
@@ -222,16 +223,16 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 let mut items = Vec::new();
 
                 if !Token::cbrack_matcher().matches(self.peek()) {
-                    items.push(self.expr()?);
+                    items.push(self.expr(expressions)?);
                     while Token::comma_matcher().matches(self.peek()) {
                         self.next();
-                        items.push(self.expr()?);
+                        items.push(self.expr(expressions)?);
                     }
                 }
 
                 let cbrack = self.expect(Token::cbrack_matcher())?;
 
-                Ok(ir::circuit1::Expr::Multiple { obrack, cbrack, exprs: items })
+                Ok(expressions.alloc(ir::circuit1::Expr::Multiple { obrack, cbrack, exprs: items }))
             }
 
             _ => Err(self.expected_and_next("expression"))?,

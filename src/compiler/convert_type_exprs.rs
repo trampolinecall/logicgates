@@ -25,10 +25,11 @@ pub(crate) fn convert<'file>(types: &mut ty::Types, circuits: Vec<ir::circuit1::
             Some(ir::circuit1::Circuit {
                 name: circuit.name,
                 input: type_pat(types, &type_table, circuit.input)?,
-                lets: circuit.lets.into_iter().map(|let_| type_let(types, &type_table, let_)).collect_all()?,
-                output: circuit.output,
+                expressions: circuit.expressions,
                 output_type_annotation: circuit.output_type_annotation,
                 output_type,
+                lets: circuit.lets.into_iter().map(|let_| type_let(types, &type_table, let_)).collect_all()?,
+                output: circuit.output,
             })
         })
         .collect_all()

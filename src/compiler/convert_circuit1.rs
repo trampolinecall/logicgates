@@ -75,28 +75,28 @@ pub(crate) fn convert(file: &File, types: &mut ty::Types, ast: Vec<ir::circuit1:
 fn convert_circuit<'ggs, 'types, 'file>(
     global_state: &'ggs GlobalGenState<'file>,
     types: &'types mut ty::Types,
-    circuit_ast: ir::circuit1::TypedCircuit<'file>,
+    circuit1: ir::circuit1::TypedCircuit<'file>,
 ) -> Option<((Span<'file>, &'file str), circuit2::Circuit)> {
-    let mut circuit_state = CircuitGenState::new(circuit_ast.name.1.to_string(), circuit_ast.input.type_info, circuit_ast.output_type);
+    let mut circuit_state = CircuitGenState::new(circuit1.name.1.to_string(), circuit1.input.type_info, circuit1.output_type);
 
-    if let Err(e) = assign_pattern(types, &mut circuit_state, &circuit_ast.input, circuit2::bundle::ProducerBundle::CurCircuitInput) {
+    if let Err(e) = assign_pattern(types, &mut circuit_state, &circuit1.input, circuit2::bundle::ProducerBundle::CurCircuitInput) {
         (&*types, e).report();
     }
 
     // TODO: allowing recursive lets
-    for ir::circuit1::Let { pat, val } in circuit_ast.lets {
-        let result = convert_expr(global_state, types, &mut circuit_state, val)?;
+    for ir::circuit1::Let { pat, val } in &circuit1.lets {
+        let result = convert_expr(global_state, types, &mut circuit_state, &circuit1, *val)?;
         if let Err(e) = assign_pattern(types, &mut circuit_state, &pat, result) {
             (&*types, e).report();
         }
     }
 
-    let output_value_span = circuit_ast.output.span();
-    let output_value = convert_expr(global_state, types, &mut circuit_state, circuit_ast.output)?;
+    let output_value_span = circuit1.expressions[circuit1.output].span(&circuit1);
+    let output_value = convert_expr(global_state, types, &mut circuit_state, &circuit1, circuit1.output)?;
 
     connect_bundle(types, &mut circuit_state, output_value_span, output_value, circuit2::bundle::ReceiverBundle::CurCircuitOutput);
 
-    Some((circuit_ast.name, circuit_state.circuit))
+    Some((circuit1.name, circuit_state.circuit))
 }
 
 fn assign_pattern<'types, 'cgs, 'file>(
@@ -124,14 +124,14 @@ fn assign_pattern<'types, 'cgs, 'file>(
     Ok(())
 }
 
-fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'types mut ty::Types, circuit_state: &mut CircuitGenState, expr: ir::circuit1::Expr) -> Option<ProducerBundle> {
-    let span = expr.span();
-    match expr {
+fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'types mut ty::Types, circuit_state: &mut CircuitGenState, circuit1: &ir::circuit1::TypedCircuit, expr: id_arena::Id<ir::circuit1::Expr>) -> Option<ProducerBundle> {
+    let span = circuit1.expressions[expr].span(circuit1);
+    match &circuit1.expressions[expr] {
         ir::circuit1::Expr::Ref(name_sp, name) => {
             let name_resolved = if let Some(resolved) = circuit_state.locals.get(name) {
                 resolved
             } else {
-                (&*types, error::Error::NoSuchLocal(name_sp, name)).report();
+                (&*types, error::Error::NoSuchLocal(*name_sp, name)).report();
                 None?
             };
 
@@ -146,7 +146,7 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
                 None?
             };
 
-            let arg = convert_expr(global_state, types, circuit_state, *arg)?;
+            let arg = convert_expr(global_state, types, circuit_state, circuit1, *arg)?;
             let gate_i = circuit_state.circuit.add_gate(name_resolved.clone()); // TODO: also put this into an arena so clone isnt needed
                                                                                 // TODO: implement inlining
             connect_bundle(types, circuit_state, span, arg, circuit2::bundle::ReceiverBundle::GateInput(gate_i))?;
@@ -154,18 +154,18 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
         }
 
         ir::circuit1::Expr::Const(_, value) => {
-            let gate_i = circuit_state.circuit.add_gate(if value { &global_state.const_1 } else { &global_state.const_0 }.clone());
+            let gate_i = circuit_state.circuit.add_gate(if *value { &global_state.const_1 } else { &global_state.const_0 }.clone());
             Some(circuit2::bundle::ProducerBundle::GateOutput(gate_i))
         }
 
         ir::circuit1::Expr::Get(expr, (field_name_sp, field_name)) => {
-            let expr = convert_expr(global_state, types, circuit_state, *expr)?;
+            let expr = convert_expr(global_state, types, circuit_state, circuit1, *expr)?;
             let expr_type = expr.type_(types, &circuit_state.circuit);
             if types.get(expr_type).field_type(types, field_name).is_some() {
                 // TODO: make .fields.contains() instead of has_field
-                Some(ProducerBundle::Get(Box::new(expr), field_name.into()))
+                Some(ProducerBundle::Get(Box::new(expr), field_name.to_string()))
             } else {
-                (&*types, error::Error::NoField { ty: expr_type, field_name, field_name_sp }).report();
+                (&*types, error::Error::NoField { ty: expr_type, field_name, field_name_sp: *field_name_sp }).report();
                 None
             }
         }
@@ -174,7 +174,7 @@ fn convert_expr<'file, 'types>(global_state: &GlobalGenState<'file>, types: &'ty
             let mut results = Some(Vec::new());
 
             for (ind, expr) in exprs.into_iter().enumerate() {
-                if let Some(expr) = convert_expr(global_state, types, circuit_state, expr) {
+                if let Some(expr) = convert_expr(global_state, types, circuit_state, circuit1, *expr) {
                     if let Some(ref mut results) = results {
                         results.push((ind.to_string(), expr));
                     }
