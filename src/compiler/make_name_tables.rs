@@ -7,8 +7,11 @@ use super::{
 };
 
 pub(crate) struct IR<'file> {
-    pub(crate) circuits: HashMap<String, circuit1::UntypedCircuitOrIntrinsic<'file>>,
-    pub(crate) types: HashMap<String, type_decl::TypeDecl<'file>>,
+    pub(crate) circuits: id_arena::Arena<circuit1::UntypedCircuitOrIntrinsic<'file>>,
+    pub(crate) circuit_table: HashMap<String, id_arena::Id<circuit1::UntypedCircuitOrIntrinsic<'file>>>,
+
+    pub(crate) type_decls: id_arena::Arena<type_decl::TypeDecl<'file>>,
+    pub(crate) type_table: HashMap<String, id_arena::Id<type_decl::TypeDecl<'file>>>,
 }
 
 struct Duplicate<'file>(&'static str, Span<'file>, &'file str); // TODO: show previous declaration
@@ -21,12 +24,14 @@ impl<'file> From<Duplicate<'file>> for CompileError<'file> {
 pub(crate) fn make(ast: parser::AST) -> Option<IR> {
     let circuits = make_circuit_table(ast.circuits);
     let types = make_type_table(ast.type_decls);
-    Some(IR { circuits: circuits?, types: types? })
+    // Some(IR { circuits: circuits?.0, circuit_table: circuits?.1, type_decls: types? })
+    todo!("making tables")
 }
 
-fn make_circuit_table(circuits: Vec<circuit1::UntypedCircuit>) -> Option<HashMap<String, circuit1::UntypedCircuitOrIntrinsic>> {
+fn make_circuit_table(circuits: Vec<circuit1::UntypedCircuit>) -> Option<(id_arena::Arena<circuit1::UntypedCircuitOrIntrinsic>, HashMap<String, id_arena::Id<circuit1::UntypedCircuitOrIntrinsic>>)> {
+    let mut arena = id_arena::Arena::new();
     let mut table = HashMap::new();
-    table.insert("nand".into(), circuit1::UntypedCircuitOrIntrinsic::Nand);
+    table.insert("nand".into(), arena.alloc(circuit1::UntypedCircuitOrIntrinsic::Nand));
 
     let mut errored = false;
     for circuit in circuits {
@@ -34,13 +39,13 @@ fn make_circuit_table(circuits: Vec<circuit1::UntypedCircuit>) -> Option<HashMap
             Duplicate("circuit", circuit.name.0, circuit.name.1).report();
             errored = true;
         }
-        table.insert(circuit.name.1.into(), circuit1::UntypedCircuitOrIntrinsic::Circuit(circuit));
+        table.insert(circuit.name.1.into(), arena.alloc(circuit1::UntypedCircuitOrIntrinsic::Circuit(circuit)));
     }
 
     if errored {
         None
     } else {
-        Some(table)
+        Some((arena, table))
     }
 }
 
