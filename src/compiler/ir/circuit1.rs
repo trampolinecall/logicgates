@@ -50,11 +50,11 @@ pub(crate) enum PatternKind<'file, TypeInfo> {
 }
 
 impl<'file> Expr<'file> {
-    pub(crate) fn span<TypeInfo>(&self, circuit: &Circuit<'file, TypeInfo>) -> Span<'file> {
+    pub(crate) fn span(&self, expressions: &ExprArena<'file>) -> Span<'file> {
         match self {
             Expr::Ref(sp, _) | Expr::Const(sp, _) => *sp,
-            Expr::Call((circuit_name_sp, _), _, arg) => *circuit_name_sp + circuit.expressions[*arg].span(circuit),
-            Expr::Get(expr, (field_sp, _)) => circuit.expressions[*expr].span(circuit) + *field_sp,
+            Expr::Call((circuit_name_sp, _), _, arg) => *circuit_name_sp + expressions[*arg].span(expressions),
+            Expr::Get(expr, (field_sp, _)) => expressions[*expr].span(expressions) + *field_sp,
             Expr::Multiple { obrack, cbrack, exprs: _ } => *obrack + *cbrack,
         }
     }
