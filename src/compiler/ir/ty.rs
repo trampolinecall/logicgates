@@ -1,8 +1,8 @@
 use symtern::prelude::*;
 
-pub(crate) struct Types {
-    types: symtern::Pool<Type>, // ideally, i would use a interner crate that doesnt use ids to access types but they dont handle cyclic references nicely
-    named_types: Vec<(String, TypeSym)>, // this stores all the named types, one for each named type definition ast
+pub(crate) struct TypeContext {
+    pool: symtern::Pool<Type>, // ideally, i would use a interner crate that doesnt use ids to access types but they dont handle cyclic references nicely
+    named: Vec<(String, TypeSym)>, // this stores all the named types, one for each named type definition ast
                                 // this needs to be a vec as an arena and not an interner because every named type definition ast makes a unique type
                                 // these are used through the Type::Named constructor which is compared based off of its index into this array, meaning that named types will not be equal unless they point to the same item in this array
 }
@@ -15,37 +15,37 @@ pub(crate) enum Type {
     Named(usize),
 }
 
-impl Types {
+impl TypeContext {
     pub(crate) fn new() -> Self {
-        Self { types: symtern::Pool::new(), named_types: Vec::new() }
+        Self { pool: symtern::Pool::new(), named: Vec::new() }
     }
 
     pub(crate) fn get(&self, sym: TypeSym) -> &Type {
-        self.types.resolve(sym).expect("symtern resolution error")
+        self.pool.resolve(sym).expect("symtern resolution error")
     }
 
     pub(crate) fn intern(&mut self, ty: Type) -> TypeSym {
-        self.types.intern(&ty).expect("symtern interning error")
+        self.pool.intern(&ty).expect("symtern interning error")
     }
     pub(crate) fn new_named(&mut self, name: String, ty: TypeSym) -> TypeSym {
-        self.named_types.push((name, ty));
-        self.intern(Type::Named(self.named_types.len() - 1))
+        self.named.push((name, ty));
+        self.intern(Type::Named(self.named.len() - 1))
     }
     pub(crate) fn get_named(&self, index: usize) -> &(String, TypeSym) {
-        &self.named_types[index]
+        &self.named[index]
     }
 }
 impl Type {
-    pub(crate) fn size(&self, types: &Types) -> usize {
+    pub(crate) fn size(&self, type_context: &TypeContext) -> usize {
         match self {
             Type::Bit => 1,
-            Type::Product(fields) => fields.iter().map(|(_, tyi)| types.get(*tyi).size(types)).sum(),
-            Type::Named(named_index) => types.get(types.named_types[*named_index].1).size(types),
+            Type::Product(fields) => fields.iter().map(|(_, tyi)| type_context.get(*tyi).size(type_context)).sum(),
+            Type::Named(named_index) => type_context.get(type_context.named[*named_index].1).size(type_context),
         }
     }
 
     // TODO: there is probably a better solution to this
-    pub(crate) fn fmt(&self, types: &Types) -> String {
+    pub(crate) fn fmt(&self, type_context: &TypeContext) -> String {
         use std::fmt::Write;
         let mut s = String::new();
         match self {
@@ -53,34 +53,34 @@ impl Type {
             Type::Product(items) => {
                 write!(s, "[named ").unwrap();
                 if let Some(((first_name, first), more)) = items.split_first() {
-                    write!(s, "{}; {}", first_name, types.get(*first).fmt(types)).unwrap();
+                    write!(s, "{}; {}", first_name, type_context.get(*first).fmt(type_context)).unwrap();
                     for (more_name, more) in more {
-                        write!(s, ", {}; {}", more_name, types.get(*more).fmt(types)).unwrap();
+                        write!(s, ", {}; {}", more_name, type_context.get(*more).fmt(type_context)).unwrap();
                     }
                 }
                 write!(s, "]").unwrap();
             }
-            Type::Named(index) => write!(s, "{}", types.get_named(*index).0).unwrap(),
+            Type::Named(index) => write!(s, "{}", type_context.get_named(*index).0).unwrap(),
         };
 
         s
     }
 
-    pub(crate) fn field_type(&self, types: &Types, field: &str) -> Option<TypeSym> {
+    pub(crate) fn field_type(&self, type_context: &TypeContext, field: &str) -> Option<TypeSym> {
         match self {
             Type::Bit => None,
             Type::Product(fields) => fields.iter().find_map(|(field_name, field_type)| if field_name == field { Some(field_type) } else { None }).copied(),
-            Type::Named(named_index) => types.get(types.get_named(*named_index).1).field_type(types, field), // TODO: unwrap expressions
+            Type::Named(named_index) => type_context.get(type_context.get_named(*named_index).1).field_type(type_context, field), // TODO: unwrap expressions
         }
     }
 
-    pub(crate) fn field_indexes(&self, types: &Types, field: &str) -> Option<std::ops::Range<usize>> {
+    pub(crate) fn field_indexes(&self, type_context: &TypeContext, field: &str) -> Option<std::ops::Range<usize>> {
         match self {
             Type::Bit => None,
             Type::Product(fields) => {
                 let mut cur_index = 0;
                 for (field_name, field_type) in fields {
-                    let cur_type_size = types.get(*field_type).size(types);
+                    let cur_type_size = type_context.get(*field_type).size(type_context);
                     if field_name == field {
                         return Some(cur_index..cur_index + cur_type_size);
                     }
@@ -89,7 +89,7 @@ impl Type {
 
                 None
             }
-            Type::Named(named_index) => types.get(types.get_named(*named_index).1).field_indexes(types, field),
+            Type::Named(named_index) => type_context.get(type_context.get_named(*named_index).1).field_indexes(type_context, field),
         }
     }
 }

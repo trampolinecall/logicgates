@@ -22,20 +22,20 @@ pub(crate) enum Gate {
     Const(bool),
 }
 impl Gate {
-    fn input_type(&self, types: &mut ty::Types) -> ty::TypeSym {
+    fn input_type(&self, type_context: &mut ty::TypeContext) -> ty::TypeSym {
         match self {
             Gate::Custom(Circuit { input_type, output_type: _, gates: _, connections: _, name: _ }) => *input_type,
             Gate::Nand {} => {
-                let b = types.intern(ty::Type::Bit);
-                types.intern(ty::Type::Product(vec![("0".into(), b), ("1".into(), b)]))
+                let b = type_context.intern(ty::Type::Bit);
+                type_context.intern(ty::Type::Product(vec![("0".into(), b), ("1".into(), b)]))
             }
-            Gate::Const(_) => types.intern(ty::Type::Product(vec![])),
+            Gate::Const(_) => type_context.intern(ty::Type::Product(vec![])),
         }
     }
-    fn output_type(&self, types: &mut ty::Types) -> ty::TypeSym {
+    fn output_type(&self, type_context: &mut ty::TypeContext) -> ty::TypeSym {
         match self {
             Gate::Custom(Circuit { input_type: _, output_type, gates: _, connections: _, name: _ }) => *output_type,
-            Gate::Nand {} | Gate::Const(_) => types.intern(ty::Type::Bit),
+            Gate::Nand {} | Gate::Const(_) => type_context.intern(ty::Type::Bit),
         }
     }
 
