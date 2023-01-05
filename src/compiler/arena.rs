@@ -34,11 +34,11 @@ impl<T> Arena<T> {
         Id(id.0, std::marker::PhantomData)
     }
 
-    pub(crate) fn transform<U>(self, mut op: impl FnMut(T, fn(Id<T>) -> Id<U>) -> Option<U>) -> Option<Arena<U>> {
-        Some(Arena(self.0.into_iter().map(|thing| op(thing, Self::convert_id)).collect_all()?))
+    pub(crate) fn transform<U>(self, mut op: impl FnMut(T, fn(Id<T>) -> Id<U>) -> Option<U>) -> Option<(Arena<U>, fn(Id<T>) -> Id<U>)> {
+        Some((Arena(self.0.into_iter().map(|thing| op(thing, Self::convert_id)).collect_all()?), Self::convert_id))
     }
-    pub(crate) fn transform_infallible<U>(self, mut op: impl FnMut(T, fn(Id<T>) -> Id<U>) -> U) -> Arena<U> {
-        Arena(self.0.into_iter().map(|thing| op(thing, Self::convert_id)).collect())
+    pub(crate) fn transform_infallible<U>(self, mut op: impl FnMut(T, fn(Id<T>) -> Id<U>) -> U) -> (Arena<U>, fn(Id<T>) -> Id<U>) {
+        (Arena(self.0.into_iter().map(|thing| op(thing, Self::convert_id)).collect()), Self::convert_id)
     }
 
     pub(crate) fn new_item_with_id(&mut self, make: impl FnOnce(Id<T>) -> T) -> Id<T> {
@@ -56,6 +56,7 @@ impl<T> Arena<T> {
 }
 
 // dependant transform things {{{1
+#[macro_use]
 mod dependant_transform {
     use super::{Arena, Id};
 
@@ -89,11 +90,11 @@ mod dependant_transform {
         }
     }
     impl<'arena, New, Old, Error> DependancyGetter<'arena, New, Old, Error> {
-        fn get_dep(&self, id: Id<Old>) -> Result<&'arena New, DependencyError<Old>> {
+        pub(crate) fn get_dep(&self, id: Id<Old>) -> SingleTransformResult<&'arena New, Old, Error> {
             match self.0 .0.get(id.0).expect("arena Id should not be invalid") {
-                (_, ItemState::Ok(item)) => Ok(item),
-                (_, ItemState::Waiting) | (_, ItemState::WaitingOn(_)) => Err(DependencyError(DependencyErrorKind::WaitingOn(id))),
-                (_, ItemState::Error(_)) | (_, ItemState::ErrorInDep) => Err(DependencyError(DependencyErrorKind::ErrorInDep)),
+                (_, ItemState::Ok(item)) => SingleTransformResult::Ok(item),
+                (_, ItemState::Waiting) | (_, ItemState::WaitingOn(_)) => SingleTransformResult::Dep(DependencyError(DependencyErrorKind::WaitingOn(id))),
+                (_, ItemState::Error(_)) | (_, ItemState::ErrorInDep) => SingleTransformResult::Dep(DependencyError(DependencyErrorKind::ErrorInDep)),
             }
         }
     }
@@ -103,29 +104,40 @@ mod dependant_transform {
         WaitingOn(Id<Old>),
         ErrorInDep,
     }
-    pub(crate) enum SingleTransformError<Old, Other> {
+    pub(crate) enum SingleTransformResult<New, Old, Error> {
+        Ok(New),
         Dep(DependencyError<Old>),
-        Other(Other),
+        Err(Error),
     }
 
     pub(crate) struct LoopError;
+
+    macro_rules! try_transform_result {
+        ($e:expr) => {
+            match $e {
+                $crate::compiler::arena::SingleTransformResult::Ok(r) => r,
+                $crate::compiler::arena::SingleTransformResult::Dep(d) => return $crate::compiler::arena::SingleTransformResult::Dep(d),
+                $crate::compiler::arena::SingleTransformResult::Err(e) => return $crate::compiler::arena::SingleTransformResult::Err(e),
+            }
+        };
+    }
 }
 pub(crate) use dependant_transform::DependancyGetter;
 pub(crate) use dependant_transform::LoopError;
-pub(crate) use dependant_transform::SingleTransformError;
+pub(crate) use dependant_transform::SingleTransformResult;
 impl<Old> Arena<Old> {
     // TODO: write tests for this
     pub(crate) fn transform_dependant<New, Error>(
         self,
-        try_convert: impl Fn(&Old, DependancyGetter<New, Old, Error>, fn(Id<Old>) -> Id<New>) -> Result<New, SingleTransformError<Old, Error>>, // not mut because it needs to return the same thing every time it is run
-    ) -> Result<Arena<New>, (Vec<LoopError>, Vec<Error>)> {
+        mut try_convert: impl FnMut(&Old, DependancyGetter<New, Old, Error>, fn(Id<Old>) -> Id<New>) -> SingleTransformResult<New, Old, Error>, // not mut because it needs to return the same thing every time it is run
+    ) -> Result<(Arena<New>, fn(Id<Old>) -> Id<New>), (Vec<LoopError>, Vec<Error>)> {
         use dependant_transform::*;
         // some transformations have operations that are dependant on the results of other transformations
         // for example in name resolution, the result of a single name might be dependant on the resolution of another name
         // another example is in calculating the sizes of types, the size of a single type might be dependant on the sizes of other types (for example the size of a product type is dependant on the sizes of each of its child types)
         // this method holds the logic for allowing the operations to happen in a centralized place so that it does not need to be copied and pasted around to every part that needs it (not only because of dry but also because some of the logic, for example the loop detection logic, is annoying to implement)
 
-        let mut things = self.transform_infallible(|item, _| (item, ItemState::Waiting::<New, Old, Error>));
+        let (mut things, _) = self.transform_infallible(|item, _| (item, ItemState::Waiting::<New, Old, Error>));
 
         loop {
             if things.iter().all(|thing| thing.1.is_done()) {
@@ -145,12 +157,10 @@ impl<Old> Arena<Old> {
 
                     let thing_mut = things.0.get_mut(thing_i).expect("iterating through things by index should not be out of range");
                     thing_mut.1 = match converted {
-                        Ok(new) => ItemState::Ok(new),
-                        Err(err) => match err {
-                            SingleTransformError::Dep(DependencyError(DependencyErrorKind::WaitingOn(id))) => ItemState::WaitingOn(id),
-                            SingleTransformError::Dep(DependencyError(DependencyErrorKind::ErrorInDep)) => ItemState::ErrorInDep,
-                            SingleTransformError::Other(other_error) => ItemState::Error(other_error),
-                        },
+                        SingleTransformResult::Ok(new) => ItemState::Ok(new),
+                        SingleTransformResult::Dep(DependencyError(DependencyErrorKind::WaitingOn(id))) => ItemState::WaitingOn(id),
+                        SingleTransformResult::Dep(DependencyError(DependencyErrorKind::ErrorInDep)) => ItemState::ErrorInDep,
+                        SingleTransformResult::Err(other_error) => ItemState::Error(other_error),
                     };
                 }
             }
@@ -181,7 +191,7 @@ impl<Old> Arena<Old> {
         if !errors.is_empty() || !loops.is_empty() {
             Err((loops, errors))
         } else {
-            Ok(Arena(final_things.expect("problem in final_things but no errors and no loops")))
+            Ok((Arena(final_things.expect("problem in final_things but no errors and no loops")), Self::convert_id))
         }
     }
 }
