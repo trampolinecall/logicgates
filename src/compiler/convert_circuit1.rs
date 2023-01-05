@@ -78,7 +78,7 @@ fn convert_circuit<'ggs, 'types, 'file>(
     type_context: &'types mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     circuit1: ir::circuit1::TypedCircuit<'file>,
 ) -> Option<circuit2::Circuit> {
-    let mut circuit_state = CircuitGenState::new(circuit1.name.1.to_string(), circuit1.input.type_info, circuit1.output_type);
+    let mut circuit_state = CircuitGenState::new(circuit1.name.1.to_string(), circuit1.input.type_info, circuit1.output_type.1);
 
     if let Err(e) = assign_pattern(type_context, &mut circuit_state, &circuit1.input, circuit2::bundle::ProducerBundle::CurCircuitInput) {
         (&*type_context, e).report();
