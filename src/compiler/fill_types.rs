@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::utils::CollectAll;
 
-use super::ir::{ty, type_decl, type_expr};
+use super::ir::{circuit1, ty, type_decl, type_expr};
 use super::{arena, ir, make_name_tables};
 
 pub(crate) struct IR<'file> {
@@ -13,6 +13,7 @@ pub(crate) struct IR<'file> {
     pub(crate) type_table: HashMap<String, ty::TypeSym>,
 }
 pub(crate) fn fill<'file>(make_name_tables::IR { circuits, circuit_table, type_decls, type_table }: make_name_tables::IR) -> Option<IR> {
+    // this whole function is really messy but i dont know how to fix it
     let mut type_context = ty::TypeContext::new();
 
     let (type_decls, convert_type_decl_id) = match type_decls.transform_dependant(|type_decl, get_dep, _| {
@@ -20,7 +21,7 @@ pub(crate) fn fill<'file>(make_name_tables::IR { circuits, circuit_table, type_d
         let named_type = type_context.new_named(type_decl.name.1.to_string(), try_transform_result!(ty));
         arena::SingleTransformResult::Ok(named_type)
     }) {
-        Ok(type_decl) => type_decl,
+        Ok(res) => res,
         Err((loops, errors)) => todo!("report error from type name resolution in type filling"),
     };
 
@@ -28,48 +29,43 @@ pub(crate) fn fill<'file>(make_name_tables::IR { circuits, circuit_table, type_d
 
     // TODO: disallow recursive types / infinitely sized types
 
-    let (circuits, transform_circuit_id) = circuits.transform(|circuit, transform_id| {
+    let (circuits, transform_circuit_id) = match circuits.transform_dependant(|circuit, get_other_circuit, transform_circuit_id| {
+        use super::arena::SingleTransformResult;
         match circuit {
             ir::circuit1::CircuitOrIntrinsic::Circuit(circuit) => {
-                let output_type = convert_type_ast(&mut type_context, &type_table, &circuit.output_type_annotation)?;
-                Some(ir::circuit1::CircuitOrIntrinsic::Circuit(ir::circuit1::Circuit {
+                let output_type = convert_type_ast(&mut type_context, &type_table, &circuit.output_type_annotation);
+
+                let mut local_table = HashMap::new();
+
+                let input = type_pat(&mut type_context, &type_table, &mut local_table, &circuit.input);
+                let let_pats: Option<Vec<_>> = circuit.lets.iter().map(|let_| type_let_pat(&mut type_context, &type_table, &mut local_table, let_)).collect_all();
+
+                // let (expressions, transform_expr_id) = circuit.expressions.transform(|expr, transform_expr_id| type_expr(&mut type_context, &type_table, &local_table, expr, transform_expr_id)); TODO
+                let (expressions, transform_expr_id): (_, fn(_) -> _) = todo!();
+
+                SingleTransformResult::Ok(ir::circuit1::CircuitOrIntrinsic::Circuit(ir::circuit1::Circuit {
                     name: circuit.name,
-                    input: type_pat(&mut type_context, &type_table, circuit.input)?,
-                    expressions: todo!("typing expressions arena"), // circuit.expressions,
+                    input: if let Some(r) = input { r } else { return SingleTransformResult::Err(()) },
+                    expressions,
                     output_type_annotation: circuit.output_type_annotation,
-                    output_type,
-                    lets: circuit.lets.into_iter().map(|let_| type_let(&mut type_context, &type_table, let_)).collect_all()?,
-                    output: todo!("transform expression arena id"), // circuit.output,
+                    output_type: if let Some(r) = output_type { r } else { return SingleTransformResult::Err(()) },
+                    lets: if let Some(r) = let_pats { r } else { return SingleTransformResult::Err(()) }
+                        .into_iter()
+                        .map(|let_| ir::circuit1::Let { pat: let_.0, val: transform_expr_id(let_.1) })
+                        .collect(),
+                    output: transform_expr_id(circuit.output),
                 }))
             }
-            ir::circuit1::CircuitOrIntrinsic::Nand => Some(ir::circuit1::CircuitOrIntrinsic::Nand),
+            ir::circuit1::CircuitOrIntrinsic::Nand => SingleTransformResult::Ok(ir::circuit1::CircuitOrIntrinsic::Nand),
         }
-    })?;
+    }) {
+        Ok(r) => r,
+        Err(_) => todo!("report error from circuit typing"),
+    };
 
     let circuit_table = circuit_table.into_iter().map(|(name, old_id)| (name, transform_circuit_id(old_id))).collect();
 
     Some(IR { circuits, circuit_table, type_context, type_table })
-}
-
-fn type_let<'file>(type_context: &mut ty::TypeContext, type_table: &HashMap<String, ty::TypeSym>, let_: ir::circuit1::UntypedLet<'file>) -> Option<ir::circuit1::TypedLet<'file>> {
-    Some(ir::circuit1::Let { pat: type_pat(type_context, type_table, let_.pat)?, val: todo!("transform expression arena id") /* let_.val */ })
-}
-
-fn type_pat<'file>(type_context: &mut ty::TypeContext, type_table: &HashMap<String, ty::TypeSym>, pat: ir::circuit1::UntypedPattern<'file>) -> Option<ir::circuit1::TypedPattern<'file>> {
-    let (kind, type_info) = match pat.kind {
-        ir::circuit1::PatternKind::Identifier(name_sp, name, ty) => {
-            let type_info = convert_type_ast(type_context, type_table, &ty)?;
-            (ir::circuit1::PatternKind::Identifier(name_sp, name, ty), type_info)
-        }
-        ir::circuit1::PatternKind::Product(sp, pats) => {
-            let typed_pats: Vec<_> = pats.into_iter().map(|subpat| type_pat(type_context, type_table, subpat)).collect_all()?;
-
-            let ty = ty::Type::Product(typed_pats.iter().enumerate().map(|(ind, subpat)| Some((ind.to_string(), subpat.type_info))).collect_all()?);
-            (ir::circuit1::PatternKind::Product(sp, typed_pats), type_context.intern(ty))
-        }
-    };
-
-    Some(ir::circuit1::Pattern { kind, type_info })
 }
 
 fn convert_type_ast_dependant<'file>(
@@ -135,4 +131,56 @@ fn convert_type_ast<'file>(type_context: &mut ty::TypeContext, type_table: &Hash
             }
         }
     }
+}
+
+fn type_let_pat<'file>(
+    type_context: &mut ty::TypeContext,
+    type_table: &HashMap<String, ty::TypeSym>,
+    local_types: &mut HashMap<String, symtern::Sym<usize>>,
+    let_: &ir::circuit1::UntypedLet<'file>,
+) -> Option<(circuit1::TypedPattern<'file>, arena::Id<circuit1::UntypedExpr<'file>>)> {
+    Some((type_pat(type_context, type_table, local_types, &let_.pat)?, let_.val))
+}
+fn type_pat<'file>(
+    type_context: &mut ty::TypeContext,
+    type_table: &HashMap<String, ty::TypeSym>,
+    local_types: &mut HashMap<String, symtern::Sym<usize>>,
+    pat: &ir::circuit1::UntypedPattern<'file>,
+) -> Option<ir::circuit1::TypedPattern<'file>> {
+    let (kind, type_info) = match &pat.kind {
+        ir::circuit1::PatternKind::Identifier(name_sp, name, ty) => {
+            let type_info = convert_type_ast(type_context, type_table, &ty)?;
+            local_types.insert(name.to_string(), type_info);
+            (ir::circuit1::PatternKind::Identifier(*name_sp, name, *ty), type_info) // TODO
+        }
+        ir::circuit1::PatternKind::Product(sp, pats) => {
+            let typed_pats: Vec<_> = pats.into_iter().map(|subpat| type_pat(type_context, type_table, local_types, &subpat)).collect_all()?;
+
+            let ty = ty::Type::Product(typed_pats.iter().enumerate().map(|(ind, subpat)| Some((ind.to_string(), subpat.type_info))).collect_all()?);
+            (ir::circuit1::PatternKind::Product(*sp, typed_pats), type_context.intern(ty))
+        }
+    };
+
+    Some(ir::circuit1::Pattern { kind, type_info })
+}
+
+fn type_expr<'file>(
+    type_context: &mut ty::TypeContext,
+    type_table: &HashMap<String, symtern::Sym<usize>>,
+    local_types: &HashMap<String, symtern::Sym<usize>>,
+    expr: circuit1::UntypedExpr<'file>,
+    transform_expr_id: fn(arena::Id<circuit1::UntypedExpr<'file>>) -> arena::Id<circuit1::TypedExpr<'file>>,
+) -> Option<circuit1::Expr<'file, symtern::Sym<usize>>> {
+    let (kind, type_info) = /* match expr.kind {
+        circuit1::ExprKind::Ref(sp, name) => {
+            let local_type = if let Some(ty) = local_types.get(name) { ty } else { todo!("report error for undefined local usage") };
+            (circuit1::ExprKind::Ref(sp, name), *local_type)
+        }
+        circuit1::ExprKind::Call(name, inline, arg) => (circuit1::ExprKind::Call(name, inline, transform_expr_id(arg)), {let x = todo!(); x}),
+        circuit1::ExprKind::Const(sp, value) => (circuit1::ExprKind::Const(sp, value), type_context.intern(ty::Type::Bit)),
+        circuit1::ExprKind::Get(base, field) => (circuit1::ExprKind::Get(transform_expr_id(base), field), todo!()),
+        circuit1::ExprKind::Multiple { obrack, exprs, cbrack } => (circuit1::ExprKind::Multiple { obrack, exprs: exprs.into_iter().map(transform_expr_id).collect(), cbrack }, todo!()),
+    }*/ todo!() ;
+
+    Some(circuit1::Expr { kind, type_info })
 }
