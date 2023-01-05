@@ -151,7 +151,7 @@ fn type_pat<'file>(
         ir::circuit1::PatternKind::Identifier(name_sp, name, ty) => {
             let type_info = convert_type_ast(type_context, type_table, &ty)?;
             local_types.insert(name.to_string(), type_info);
-            (ir::circuit1::PatternKind::Identifier(*name_sp, name, *ty), type_info) // TODO
+            (ir::circuit1::PatternKind::Identifier(*name_sp, name, /* *ty */ todo!()), type_info) // TODO
         }
         ir::circuit1::PatternKind::Product(sp, pats) => {
             let typed_pats: Vec<_> = pats.into_iter().map(|subpat| type_pat(type_context, type_table, local_types, &subpat)).collect_all()?;
