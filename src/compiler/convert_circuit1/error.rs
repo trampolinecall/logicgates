@@ -1,6 +1,6 @@
 use crate::compiler::{
     error::{CompileError, File, Span},
-    ir::ty,
+    ir::{ty, named_type},
 };
 
 pub(super) enum Error<'file> {
@@ -11,8 +11,8 @@ pub(super) enum Error<'file> {
     NoMain(&'file File),
 }
 
-impl<'file> From<(&ty::TypeContext, Error<'file>)> for CompileError<'file> {
-    fn from((types, val): (&ty::TypeContext, Error<'file>)) -> Self {
+impl<'file> From<(&ty::TypeContext<named_type::FullyDefinedNamedType>, Error<'file>)> for CompileError<'file> {
+    fn from((types, val): (&ty::TypeContext<named_type::FullyDefinedNamedType>, Error<'file>)) -> Self {
         match val {
             Error::NoField { ty, field_name_sp, field_name } => CompileError::new(field_name_sp, format!("no field called '{}' on type '{}'", field_name, types.get(ty).fmt(types))),
             Error::NoSuchLocal(name_sp, name) => CompileError::new(name_sp, format!("no local called '{}'", name)),

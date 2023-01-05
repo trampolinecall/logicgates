@@ -6,12 +6,12 @@ use std::iter::Peekable;
 
 use super::arena;
 use super::ir::circuit1;
-use super::ir::type_decl;
+use super::ir::named_type;
 use super::ir::type_expr;
 
 pub(crate) struct AST<'file> {
     pub(crate) circuits: Vec<circuit1::UntypedCircuit<'file>>,
-    pub(crate) type_decls: Vec<type_decl::TypeDecl<'file>>,
+    pub(crate) type_decls: Vec<named_type::NamedTypeDecl<'file>>,
 }
 
 struct Parser<'file, T: Iterator<Item = Token<'file>>> {
@@ -137,12 +137,12 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         Ok(circuit1::UntypedCircuit { name, input: arguments, lets, expressions, output: ret, output_type: (), output_type_annotation: output_type })
     }
 
-    fn named_type_decl(&mut self) -> Result<type_decl::TypeDecl<'file>, ParseError<'file>> {
+    fn named_type_decl(&mut self) -> Result<named_type::NamedTypeDecl<'file>, ParseError<'file>> {
         self.expect(Token::named_matcher())?;
         let name = self.expect(Token::identifier_matcher())?;
         let ty = self.type_()?;
 
-        Ok(type_decl::TypeDecl { name, ty })
+        Ok(named_type::NamedTypeDecl { name, ty })
     }
 
     fn r#let(&mut self, expressions: &mut circuit1::expr::UntypedExprArena<'file>) -> Result<circuit1::UntypedLet<'file>, ParseError<'file>> {

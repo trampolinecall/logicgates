@@ -13,6 +13,7 @@ use super::ir::circuit1::TypedPattern;
 use super::ir::circuit2;
 use super::ir::circuit2::bundle::ProducerBundle;
 use super::ir::circuit2::Circuit;
+use super::ir::named_type;
 use super::ir::ty;
 use circuit2::bundle::ReceiverBundle;
 
@@ -48,7 +49,7 @@ impl CircuitGenState<'_> {
     }
 }
 
-pub(crate) fn convert(file: &File, mut ir: fill_types::IR) -> Option<(ty::TypeContext, circuit2::Circuit)> {
+pub(crate) fn convert(file: &File, mut ir: fill_types::IR) -> Option<(ty::TypeContext<named_type::FullyDefinedNamedType>, circuit2::Circuit)> {
     // TODO: remove symbol table from global_state, replace with the actual symbol table, also prevent recursion
     let mut global_state = GlobalGenState::new();
 
@@ -74,7 +75,7 @@ pub(crate) fn convert(file: &File, mut ir: fill_types::IR) -> Option<(ty::TypeCo
 
 fn convert_circuit<'ggs, 'types, 'file>(
     global_state: &'ggs GlobalGenState<'file>,
-    type_context: &'types mut ty::TypeContext,
+    type_context: &'types mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     circuit1: ir::circuit1::TypedCircuit<'file>,
 ) -> Option<circuit2::Circuit> {
     let mut circuit_state = CircuitGenState::new(circuit1.name.1.to_string(), circuit1.input.type_info, circuit1.output_type);
@@ -100,7 +101,7 @@ fn convert_circuit<'ggs, 'types, 'file>(
 }
 
 fn assign_pattern<'types, 'cgs, 'file>(
-    type_context: &'types mut ty::TypeContext,
+    type_context: &'types mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     circuit_state: &'cgs mut CircuitGenState<'file>,
     pat: &TypedPattern<'file>,
     bundle: ProducerBundle,
@@ -126,7 +127,7 @@ fn assign_pattern<'types, 'cgs, 'file>(
 
 fn convert_expr<'file, 'types>(
     global_state: &GlobalGenState<'file>,
-    type_context: &'types mut ty::TypeContext,
+    type_context: &'types mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     circuit_state: &mut CircuitGenState,
     circuit1: &ir::circuit1::TypedCircuit,
     expr: ir::circuit1::expr::ExprId,
@@ -195,7 +196,7 @@ fn convert_expr<'file, 'types>(
 }
 
 fn connect_bundle(
-    type_context: &mut ty::TypeContext,
+    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     circuit_state: &mut CircuitGenState,
     // got_span: Span,
     expected_span: Span,
