@@ -139,7 +139,7 @@ fn type_let_pat<'file>(
     type_table: &HashMap<String, ty::TypeSym>,
     local_types: &mut HashMap<String, symtern::Sym<usize>>,
     let_: &ir::circuit1::UntypedLet<'file>,
-) -> Option<(circuit1::TypedPattern<'file>, circuit1::ExprId)> {
+) -> Option<(circuit1::TypedPattern<'file>, circuit1::expr::ExprId)> {
     Some((type_pat(type_context, type_table, local_types, &let_.pat)?, let_.val))
 }
 fn type_pat<'file>(
@@ -170,19 +170,19 @@ fn type_expr<'file>(
     type_context: &mut ty::TypeContext,
     type_table: &HashMap<String, symtern::Sym<usize>>,
     local_types: &HashMap<String, symtern::Sym<usize>>,
-    expr: circuit1::UntypedExpr<'file>,
-    transform_expr_id: fn(ir::circuit1::ExprId) -> ir::circuit1::ExprId,
-) -> Option<circuit1::Expr<'file, symtern::Sym<usize>>> {
+    expr: circuit1::expr::UntypedExpr<'file>,
+    transform_expr_id: fn(ir::circuit1::expr::ExprId) -> ir::circuit1::expr::ExprId,
+) -> Option<circuit1::expr::Expr<'file, symtern::Sym<usize>>> {
     let (kind, type_info) = /* match expr.kind {
-        circuit1::ExprKind::Ref(sp, name) => {
+        circuit1::expr::ExprKind::Ref(sp, name) => {
             let local_type = if let Some(ty) = local_types.get(name) { ty } else { todo!("report error for undefined local usage") };
-            (circuit1::ExprKind::Ref(sp, name), *local_type)
+            (circuit1::expr::ExprKind::Ref(sp, name), *local_type)
         }
-        circuit1::ExprKind::Call(name, inline, arg) => (circuit1::ExprKind::Call(name, inline, transform_expr_id(arg)), {let x = todo!(); x}),
-        circuit1::ExprKind::Const(sp, value) => (circuit1::ExprKind::Const(sp, value), type_context.intern(ty::Type::Bit)),
-        circuit1::ExprKind::Get(base, field) => (circuit1::ExprKind::Get(transform_expr_id(base), field), todo!()),
-        circuit1::ExprKind::Multiple { obrack, exprs, cbrack } => (circuit1::ExprKind::Multiple { obrack, exprs: exprs.into_iter().map(transform_expr_id).collect(), cbrack }, todo!()),
+        circuit1::expr::ExprKind::Call(name, inline, arg) => (circuit1::expr::ExprKind::Call(name, inline, transform_expr_id(arg)), {let x = todo!(); x}),
+        circuit1::expr::ExprKind::Const(sp, value) => (circuit1::expr::ExprKind::Const(sp, value), type_context.intern(ty::Type::Bit)),
+        circuit1::expr::ExprKind::Get(base, field) => (circuit1::expr::ExprKind::Get(transform_expr_id(base), field), todo!()),
+        circuit1::expr::ExprKind::Multiple { obrack, exprs, cbrack } => (circuit1::expr::ExprKind::Multiple { obrack, exprs: exprs.into_iter().map(transform_expr_id).collect(), cbrack }, todo!()),
     }*/ todo!() ;
 
-    Some(circuit1::Expr { kind, type_info })
+    Some(circuit1::expr::Expr { kind, type_info })
 }

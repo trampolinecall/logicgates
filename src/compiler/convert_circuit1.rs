@@ -129,11 +129,11 @@ fn convert_expr<'file, 'types>(
     type_context: &'types mut ty::TypeContext,
     circuit_state: &mut CircuitGenState,
     circuit1: &ir::circuit1::TypedCircuit,
-    expr: ir::circuit1::ExprId,
+    expr: ir::circuit1::expr::ExprId,
 ) -> Option<ProducerBundle> {
     let span = circuit1.expressions.get(expr).kind.span(&circuit1.expressions);
     match &circuit1.expressions.get(expr).kind {
-        ir::circuit1::ExprKind::Ref(name_sp, name) => {
+        ir::circuit1::expr::ExprKind::Ref(name_sp, name) => {
             let name_resolved = if let Some(resolved) = circuit_state.locals.get(name) {
                 resolved
             } else {
@@ -144,7 +144,7 @@ fn convert_expr<'file, 'types>(
             Some(name_resolved.clone())
         }
 
-        ir::circuit1::ExprKind::Call(circuit_name, inline, arg) => {
+        ir::circuit1::expr::ExprKind::Call(circuit_name, inline, arg) => {
             let name_resolved = if let Some(n) = global_state.circuit_table.get(circuit_name.1) {
                 n
             } else {
@@ -159,12 +159,12 @@ fn convert_expr<'file, 'types>(
             Some(circuit2::bundle::ProducerBundle::GateOutput(gate_i))
         }
 
-        ir::circuit1::ExprKind::Const(_, value) => {
+        ir::circuit1::expr::ExprKind::Const(_, value) => {
             let gate_i = circuit_state.circuit.add_gate(if *value { &global_state.const_1 } else { &global_state.const_0 }.clone());
             Some(circuit2::bundle::ProducerBundle::GateOutput(gate_i))
         }
 
-        ir::circuit1::ExprKind::Get(expr, (field_name_sp, field_name)) => {
+        ir::circuit1::expr::ExprKind::Get(expr, (field_name_sp, field_name)) => {
             let expr = convert_expr(global_state, type_context, circuit_state, circuit1, *expr)?;
             let expr_type = expr.type_(type_context, &circuit_state.circuit);
             if type_context.get(expr_type).field_type(type_context, field_name).is_some() {
@@ -176,7 +176,7 @@ fn convert_expr<'file, 'types>(
             }
         }
 
-        ir::circuit1::ExprKind::Multiple { exprs, .. } => {
+        ir::circuit1::expr::ExprKind::Multiple { exprs, .. } => {
             let mut results = Some(Vec::new());
 
             for (ind, expr) in exprs.into_iter().enumerate() {
