@@ -3,8 +3,8 @@ use symtern::prelude::*;
 pub(crate) struct TypeContext {
     pool: symtern::Pool<Type>, // ideally, i would use a interner crate that doesnt use ids to access types but they dont handle cyclic references nicely
     named: Vec<(String, TypeSym)>, // this stores all the named types, one for each named type definition ast
-                                // this needs to be a vec as an arena and not an interner because every named type definition ast makes a unique type
-                                // these are used through the Type::Named constructor which is compared based off of its index into this array, meaning that named types will not be equal unless they point to the same item in this array
+                               // this needs to be a vec as an arena and not an interner because every named type definition ast makes a unique type
+                               // these are used through the Type::Named constructor which is compared based off of its index into this array, meaning that named types will not be equal unless they point to the same item in this array
 }
 
 pub(crate) type TypeSym = symtern::Sym<usize>;

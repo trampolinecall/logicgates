@@ -51,16 +51,12 @@ pub(crate) fn convert(file: &File, mut ir: fill_types::IR) -> Option<(ty::TypeCo
     // TODO: remove symbol table from global_state, replace with the actual symbol table, also prevent recursion
     let mut global_state = GlobalGenState::new();
 
-    let mut circuits = ir
-        .circuits
-        .transform(|circuit, transform_id| {
-            Some((
-                match circuit {
-                    ir::circuit1::CircuitOrIntrinsic::Circuit(circuit) => circuit2::Gate::Custom(convert_circuit(&global_state, &mut ir.type_context, circuit)?),
-                    ir::circuit1::CircuitOrIntrinsic::Nand => circuit2::Gate::Nand,
-                },
-            ))
-        })?;
+    let mut circuits = ir.circuits.transform(|circuit, transform_id| {
+        Some((match circuit {
+            ir::circuit1::CircuitOrIntrinsic::Circuit(circuit) => circuit2::Gate::Custom(convert_circuit(&global_state, &mut ir.type_context, circuit)?),
+            ir::circuit1::CircuitOrIntrinsic::Nand => circuit2::Gate::Nand,
+        },))
+    })?;
 
     /*
     match circuits.remove("main") {

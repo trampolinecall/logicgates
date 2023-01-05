@@ -21,7 +21,7 @@ pub(crate) fn fill<'file>(make_name_tables::IR { circuits, circuit_table, type_d
         arena::SingleTransformResult::Ok(named_type)
     }) {
         Ok(type_decl) => type_decl,
-        Err((loops, errors)) => todo!(),
+        Err((loops, errors)) => todo!("report error from type name resolution in type filling"),
     };
 
     let type_table = type_table.into_iter().map(|(name, type_decl_id)| (name, *type_decls.get(convert_type_decl_id(type_decl_id)))).collect();
