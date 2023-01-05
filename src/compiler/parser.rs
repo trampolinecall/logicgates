@@ -176,7 +176,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         }
     }
 
-    fn expr(&mut self, expressions: &mut circuit1::UntypedExprArena<'file>) -> Result<circuit1::UntypedExprId<'file>, ParseError<'file>> {
+    fn expr(&mut self, expressions: &mut circuit1::UntypedExprArena<'file>) -> Result<circuit1::ExprId, ParseError<'file>> {
         let mut left = self.primary_expr(expressions)?;
 
         while Token::dot_matcher().matches(self.peek()) {
@@ -197,7 +197,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         Ok(left)
     }
 
-    fn primary_expr(&mut self, expressions: &mut circuit1::UntypedExprArena<'file>) -> Result<circuit1::UntypedExprId<'file>, ParseError<'file>> {
+    fn primary_expr(&mut self, expressions: &mut circuit1::UntypedExprArena<'file>) -> Result<circuit1::ExprId, ParseError<'file>> {
         match self.peek() {
             Token::Number(_, _, _) => {
                 let (n_sp, _, n) = Token::number_matcher().convert(self.next());

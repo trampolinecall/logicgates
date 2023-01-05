@@ -7,12 +7,36 @@ use super::{
     parser,
 };
 
-pub(crate) struct IR<'file> {
-    pub(crate) circuits: arena::Arena<circuit1::UntypedCircuitOrIntrinsic<'file>>,
-    pub(crate) circuit_table: HashMap<String, arena::Id<circuit1::UntypedCircuitOrIntrinsic<'file>>>,
+#[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
+pub(crate) struct CircuitOrIntrinsicId(usize);
+impl<'file> arena::ArenaId for CircuitOrIntrinsicId {
+    fn make(i: usize) -> Self {
+        todo!()
+    }
 
-    pub(crate) type_decls: arena::Arena<type_decl::TypeDecl<'file>>,
-    pub(crate) type_table: HashMap<String, arena::Id<type_decl::TypeDecl<'file>>>,
+    fn get(&self) -> usize {
+        todo!()
+    }
+}
+impl<'file, TypeInfo> arena::IsArenaIdFor<circuit1::CircuitOrIntrinsic<'file, TypeInfo>> for CircuitOrIntrinsicId {}
+#[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
+pub(crate) struct TypeDeclId(usize);
+impl<'file> arena::ArenaId for TypeDeclId {
+    fn make(i: usize) -> Self {
+        todo!()
+    }
+
+    fn get(&self) -> usize {
+        todo!()
+    }
+}
+impl<'file> arena::IsArenaIdFor<type_decl::TypeDecl<'file>> for TypeDeclId {}
+pub(crate) struct IR<'file> {
+    pub(crate) circuits: arena::Arena<circuit1::UntypedCircuitOrIntrinsic<'file>, CircuitOrIntrinsicId>,
+    pub(crate) circuit_table: HashMap<String, CircuitOrIntrinsicId>,
+
+    pub(crate) type_decls: arena::Arena<type_decl::TypeDecl<'file>, TypeDeclId>,
+    pub(crate) type_table: HashMap<String, TypeDeclId>,
 }
 
 struct Duplicate<'file>(&'static str, Span<'file>, &'file str); // TODO: show previous declaration
@@ -30,7 +54,7 @@ pub(crate) fn make(ast: parser::AST) -> Option<IR> {
     Some(IR { circuits: circuits.0, circuit_table: circuits.1, type_decls: types.0, type_table: types.1 })
 }
 
-fn make_circuit_table(circuits: Vec<circuit1::UntypedCircuit>) -> Option<(arena::Arena<circuit1::UntypedCircuitOrIntrinsic>, HashMap<String, arena::Id<circuit1::UntypedCircuitOrIntrinsic>>)> {
+fn make_circuit_table(circuits: Vec<circuit1::UntypedCircuit>) -> Option<(arena::Arena<circuit1::UntypedCircuitOrIntrinsic, CircuitOrIntrinsicId>, HashMap<String, CircuitOrIntrinsicId>)> {
     let mut arena = arena::Arena::new();
     let mut table = HashMap::new();
     table.insert("nand".into(), arena.add(circuit1::UntypedCircuitOrIntrinsic::Nand));
@@ -51,7 +75,7 @@ fn make_circuit_table(circuits: Vec<circuit1::UntypedCircuit>) -> Option<(arena:
     }
 }
 
-fn make_type_table(type_decls: Vec<super::ir::type_decl::TypeDecl>) -> Option<(arena::Arena<type_decl::TypeDecl>, HashMap<String, arena::Id<type_decl::TypeDecl>>)> {
+fn make_type_table(type_decls: Vec<super::ir::type_decl::TypeDecl>) -> Option<(arena::Arena<type_decl::TypeDecl, TypeDeclId>, HashMap<String, TypeDeclId>)> {
     let mut type_table = HashMap::new();
     let mut type_decl_arena = arena::Arena::new();
     let mut errored = false;

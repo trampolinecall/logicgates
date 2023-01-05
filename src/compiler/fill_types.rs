@@ -5,9 +5,10 @@ use crate::utils::CollectAll;
 use super::ir::{circuit1, ty, type_decl, type_expr};
 use super::{arena, ir, make_name_tables};
 
+impl arena::IsArenaIdFor<ty::TypeSym> for make_name_tables::TypeDeclId {}
 pub(crate) struct IR<'file> {
-    pub(crate) circuits: arena::Arena<ir::circuit1::TypedCircuitOrIntrinsic<'file>>,
-    pub(crate) circuit_table: HashMap<String, arena::Id<ir::circuit1::TypedCircuitOrIntrinsic<'file>>>,
+    pub(crate) circuits: arena::Arena<ir::circuit1::TypedCircuitOrIntrinsic<'file>, make_name_tables::CircuitOrIntrinsicId>,
+    pub(crate) circuit_table: HashMap<String, make_name_tables::CircuitOrIntrinsicId>,
 
     pub(crate) type_context: ty::TypeContext,
     pub(crate) type_table: HashMap<String, ty::TypeSym>,
@@ -16,7 +17,7 @@ pub(crate) fn fill<'file>(make_name_tables::IR { circuits, circuit_table, type_d
     // this whole function is really messy but i dont know how to fix it
     let mut type_context = ty::TypeContext::new();
 
-    let (type_decls, convert_type_decl_id) = match type_decls.transform_dependant(|type_decl, get_dep, _| {
+    let type_decls = match type_decls.transform_dependant(|type_decl: &type_decl::TypeDecl, get_dep| -> arena::SingleTransformResult<symtern::Sym<usize>, make_name_tables::TypeDeclId, Vec<()>> {
         let ty = convert_type_ast_dependant(&mut type_context, &type_table, get_dep, &type_decl.ty);
         let named_type = type_context.new_named(type_decl.name.1.to_string(), try_transform_result!(ty));
         arena::SingleTransformResult::Ok(named_type)
@@ -25,11 +26,11 @@ pub(crate) fn fill<'file>(make_name_tables::IR { circuits, circuit_table, type_d
         Err((loops, errors)) => todo!("report error from type name resolution in type filling"),
     };
 
-    let type_table = type_table.into_iter().map(|(name, type_decl_id)| (name, *type_decls.get(convert_type_decl_id(type_decl_id)))).collect();
+    let type_table = type_table.into_iter().map(|(name, type_decl_id)| (name, *type_decls.get(type_decl_id))).collect();
 
     // TODO: disallow recursive types / infinitely sized types
 
-    let (circuits, transform_circuit_id) = match circuits.transform_dependant(|circuit, get_other_circuit, transform_circuit_id| {
+    let circuits = match circuits.transform_dependant(|circuit, get_other_circuit| {
         use super::arena::SingleTransformResult;
         match circuit {
             ir::circuit1::CircuitOrIntrinsic::Circuit(circuit) => {
@@ -63,17 +64,17 @@ pub(crate) fn fill<'file>(make_name_tables::IR { circuits, circuit_table, type_d
         Err(_) => todo!("report error from circuit typing"),
     };
 
-    let circuit_table = circuit_table.into_iter().map(|(name, old_id)| (name, transform_circuit_id(old_id))).collect();
+    let circuit_table = circuit_table.into_iter().map(|(name, old_id)| (name, (old_id))).collect();
 
     Some(IR { circuits, circuit_table, type_context, type_table })
 }
 
 fn convert_type_ast_dependant<'file>(
     type_context: &mut ty::TypeContext,
-    type_table: &HashMap<String, arena::Id<type_decl::TypeDecl<'file>>>,
-    get_other_type: arena::DependancyGetter<ty::TypeSym, type_decl::TypeDecl<'file>, Vec<()>>,
+    type_table: &HashMap<String, make_name_tables::TypeDeclId>,
+    get_other_type: arena::DependancyGetter<ty::TypeSym, type_decl::TypeDecl<'file>, Vec<()>, make_name_tables::TypeDeclId>,
     ty: &type_expr::TypeExpr,
-) -> arena::SingleTransformResult<ty::TypeSym, type_decl::TypeDecl<'file>, Vec<()>> {
+) -> arena::SingleTransformResult<ty::TypeSym, make_name_tables::TypeDeclId, Vec<()>> {
     use arena::SingleTransformResult;
     match ty {
         type_expr::TypeExpr::Bit(_) => SingleTransformResult::Ok(type_context.intern(ty::Type::Bit)),
@@ -138,7 +139,7 @@ fn type_let_pat<'file>(
     type_table: &HashMap<String, ty::TypeSym>,
     local_types: &mut HashMap<String, symtern::Sym<usize>>,
     let_: &ir::circuit1::UntypedLet<'file>,
-) -> Option<(circuit1::TypedPattern<'file>, arena::Id<circuit1::UntypedExpr<'file>>)> {
+) -> Option<(circuit1::TypedPattern<'file>, circuit1::ExprId)> {
     Some((type_pat(type_context, type_table, local_types, &let_.pat)?, let_.val))
 }
 fn type_pat<'file>(
@@ -151,7 +152,8 @@ fn type_pat<'file>(
         ir::circuit1::PatternKind::Identifier(name_sp, name, ty) => {
             let type_info = convert_type_ast(type_context, type_table, &ty)?;
             local_types.insert(name.to_string(), type_info);
-            (ir::circuit1::PatternKind::Identifier(*name_sp, name, /* *ty */ todo!()), type_info) // TODO
+            (ir::circuit1::PatternKind::Identifier(*name_sp, name, /* *ty */ todo!()), type_info)
+            // TODO
         }
         ir::circuit1::PatternKind::Product(sp, pats) => {
             let typed_pats: Vec<_> = pats.into_iter().map(|subpat| type_pat(type_context, type_table, local_types, &subpat)).collect_all()?;
@@ -169,7 +171,7 @@ fn type_expr<'file>(
     type_table: &HashMap<String, symtern::Sym<usize>>,
     local_types: &HashMap<String, symtern::Sym<usize>>,
     expr: circuit1::UntypedExpr<'file>,
-    transform_expr_id: fn(arena::Id<circuit1::UntypedExpr<'file>>) -> arena::Id<circuit1::TypedExpr<'file>>,
+    transform_expr_id: fn(ir::circuit1::ExprId) -> ir::circuit1::ExprId,
 ) -> Option<circuit1::Expr<'file, symtern::Sym<usize>>> {
     let (kind, type_info) = /* match expr.kind {
         circuit1::ExprKind::Ref(sp, name) => {
