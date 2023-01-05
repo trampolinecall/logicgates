@@ -69,7 +69,7 @@ mod dependant_transform {
     }
 
     impl<New, Old, Error> ItemState<New, Old, Error> {
-        pub(super) fn is_waiting(&self) -> bool {
+        pub(super) fn needs_transformation(&self) -> bool {
             matches!(self, Self::Waiting | Self::WaitingOn(..))
         }
 
@@ -141,12 +141,12 @@ impl<Old> Arena<Old> {
         let (mut things, _) = self.transform_infallible(|item, _| (item, ItemState::Waiting::<New, Old, Error>));
 
         loop {
-            if things.iter().all(|thing| thing.1.is_done()) {
+            if things.iter().all(|thing| !thing.1.needs_transformation()) {
                 // all of the things are either done or errored
                 break;
             }
 
-            if things.iter().filter(|thing| !thing.1.is_done()).all(|thing| thing.1.is_waiting_on()) {
+            if things.iter().filter(|thing| thing.1.needs_transformation()).all(|thing| thing.1.is_waiting_on()) {
                 // the things that are not done are all waiting on something else, which is a loop
                 todo!("loop") // TODO: mark all items in loop as loop, so that they are not waiting, continue
             }
