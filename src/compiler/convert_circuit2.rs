@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
-use super::ir::{self, ty};
+use super::ir::{self, ty, named_type};
 use crate::circuit;
 
 // TODO: clean up all imports everywhere
 
-pub(crate) fn convert(type_context: &mut ty::TypeContext, circuit: &ir::circuit2::Circuit) -> circuit::Circuit {
+pub(crate) fn convert(type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>, circuit: &ir::circuit2::Circuit) -> circuit::Circuit {
     let mut new_circuit = circuit::Circuit::new(circuit.name.clone());
     new_circuit.set_num_inputs(type_context.get(circuit.input_type).size(type_context));
     new_circuit.set_num_outputs(type_context.get(circuit.output_type).size(type_context));
@@ -25,7 +25,7 @@ pub(crate) fn convert(type_context: &mut ty::TypeContext, circuit: &ir::circuit2
     new_circuit
 }
 
-fn add_gate(type_context: &mut ty::TypeContext, new_circuit: &mut circuit::Circuit, gate: &ir::circuit2::Gate) -> circuit::GateIndex {
+fn add_gate(type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>, new_circuit: &mut circuit::Circuit, gate: &ir::circuit2::Gate) -> circuit::GateIndex {
     match gate {
         ir::circuit2::Gate::Custom(subcircuit) => new_circuit.new_subcircuit_gate(convert(type_context, subcircuit)),
         ir::circuit2::Gate::Nand => new_circuit.new_nand_gate(),
@@ -34,7 +34,7 @@ fn add_gate(type_context: &mut ty::TypeContext, new_circuit: &mut circuit::Circu
 }
 
 fn connect(
-    type_context: &mut ty::TypeContext,
+    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     old_circuit: &ir::circuit2::Circuit,
     new_circuit: &mut circuit::Circuit,
     gate_index_map: &mut HashMap<ir::circuit2::GateIdx, generational_arena::Index>,
@@ -50,7 +50,7 @@ fn connect(
 }
 
 fn convert_producer_bundle(
-    type_context: &mut ty::TypeContext,
+    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     old_circuit: &ir::circuit2::Circuit,
     new_circuit: &mut circuit::Circuit,
     gate_index_map: &mut HashMap<ir::circuit2::GateIdx, generational_arena::Index>,
@@ -73,7 +73,7 @@ fn convert_producer_bundle(
     }
 }
 fn convert_receiver_bundle(
-    _: &mut ty::TypeContext, // keep arguments for symmetry with convert_producer_bundle
+    _: &mut ty::TypeContext<named_type::FullyDefinedNamedType>, // keep arguments for symmetry with convert_producer_bundle
     _: &ir::circuit2::Circuit,
     new_circuit: &mut circuit::Circuit,
     gate_index_map: &mut HashMap<ir::circuit2::GateIdx, generational_arena::Index>,

@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use super::{
     arena,
     error::{CompileError, Report, Span},
-    ir::{circuit1, type_decl},
+    ir::{circuit1, named_type},
     parser,
 };
 
 #[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
 pub(crate) struct CircuitOrIntrinsicId(usize);
-impl<'file> arena::ArenaId for CircuitOrIntrinsicId {
+impl<'file> arena::ArenaId for CircuitOrIntrinsicId { // TODO: move to different module that makes more sense
     fn make(i: usize) -> Self {
         todo!()
     }
@@ -20,7 +20,7 @@ impl<'file> arena::ArenaId for CircuitOrIntrinsicId {
 }
 impl<'file, TypeInfo> arena::IsArenaIdFor<circuit1::CircuitOrIntrinsic<'file, TypeInfo>> for CircuitOrIntrinsicId {}
 #[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
-pub(crate) struct TypeDeclId(usize);
+pub(crate) struct TypeDeclId(usize); // TODO: also move to different module that makes more sense
 impl<'file> arena::ArenaId for TypeDeclId {
     fn make(i: usize) -> Self {
         todo!()
@@ -30,12 +30,12 @@ impl<'file> arena::ArenaId for TypeDeclId {
         todo!()
     }
 }
-impl<'file> arena::IsArenaIdFor<type_decl::TypeDecl<'file>> for TypeDeclId {}
+impl<'file> arena::IsArenaIdFor<named_type::NamedTypeDecl<'file>> for TypeDeclId {}
 pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<circuit1::UntypedCircuitOrIntrinsic<'file>, CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<String, CircuitOrIntrinsicId>,
 
-    pub(crate) type_decls: arena::Arena<type_decl::TypeDecl<'file>, TypeDeclId>,
+    pub(crate) type_decls: arena::Arena<named_type::NamedTypeDecl<'file>, TypeDeclId>,
     pub(crate) type_table: HashMap<String, TypeDeclId>,
 }
 
@@ -75,7 +75,7 @@ fn make_circuit_table(circuits: Vec<circuit1::UntypedCircuit>) -> Option<(arena:
     }
 }
 
-fn make_type_table(type_decls: Vec<super::ir::type_decl::TypeDecl>) -> Option<(arena::Arena<type_decl::TypeDecl, TypeDeclId>, HashMap<String, TypeDeclId>)> {
+fn make_type_table(type_decls: Vec<super::ir::named_type::NamedTypeDecl>) -> Option<(arena::Arena<named_type::NamedTypeDecl, TypeDeclId>, HashMap<String, TypeDeclId>)> {
     let mut type_table = HashMap::new();
     let mut type_decl_arena = arena::Arena::new();
     let mut errored = false;

@@ -1,4 +1,4 @@
-use super::ty;
+use super::{ty, named_type};
 
 pub(crate) mod bundle;
 
@@ -22,7 +22,7 @@ pub(crate) enum Gate {
     Const(bool),
 }
 impl Gate {
-    fn input_type(&self, type_context: &mut ty::TypeContext) -> ty::TypeSym {
+    fn input_type(&self, type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
         match self {
             Gate::Custom(Circuit { input_type, output_type: _, gates: _, connections: _, name: _ }) => *input_type,
             Gate::Nand {} => {
@@ -32,7 +32,7 @@ impl Gate {
             Gate::Const(_) => type_context.intern(ty::Type::Product(vec![])),
         }
     }
-    fn output_type(&self, type_context: &mut ty::TypeContext) -> ty::TypeSym {
+    fn output_type(&self, type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
         match self {
             Gate::Custom(Circuit { input_type: _, output_type, gates: _, connections: _, name: _ }) => *output_type,
             Gate::Nand {} | Gate::Const(_) => type_context.intern(ty::Type::Bit),

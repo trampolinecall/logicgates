@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::utils::CollectAll;
 
-use super::ir::{circuit1, ty, type_decl, type_expr};
+use super::ir::{circuit1, ty, named_type, type_expr};
 use super::{arena, ir, make_name_tables};
 
 impl arena::IsArenaIdFor<ty::TypeSym> for make_name_tables::TypeDeclId {}
@@ -10,17 +10,18 @@ pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<ir::circuit1::TypedCircuitOrIntrinsic<'file>, make_name_tables::CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<String, make_name_tables::CircuitOrIntrinsicId>,
 
-    pub(crate) type_context: ty::TypeContext,
+    pub(crate) type_context: ty::TypeContext<(String, ty::TypeSym)>,
     pub(crate) type_table: HashMap<String, ty::TypeSym>,
 }
 pub(crate) fn fill<'file>(make_name_tables::IR { circuits, circuit_table, type_decls, type_table }: make_name_tables::IR) -> Option<IR> {
     // this whole function is really messy but i dont know how to fix it
     let mut type_context = ty::TypeContext::new();
 
-    let type_decls = match type_decls.transform_dependant(|type_decl: &type_decl::TypeDecl, get_dep| -> arena::SingleTransformResult<symtern::Sym<usize>, make_name_tables::TypeDeclId, Vec<()>> {
+    let type_decls = match type_decls.transform_dependant(|type_decl: &named_type::NamedTypeDecl, get_dep| -> arena::SingleTransformResult<symtern::Sym<usize>, make_name_tables::TypeDeclId, Vec<()>> {
         let ty = convert_type_ast_dependant(&mut type_context, &type_table, get_dep, &type_decl.ty);
-        let named_type = type_context.new_named(type_decl.name.1.to_string(), try_transform_result!(ty));
-        arena::SingleTransformResult::Ok(named_type)
+        let named_type = type_context.named.add((type_decl.name.1.to_string(), try_transform_result!(ty)));
+        todo!()
+        // arena::SingleTransformResult::Ok(named_type) TODO
     }) {
         Ok(res) => res,
         Err((loops, errors)) => todo!("report error from type name resolution in type filling"),
@@ -70,9 +71,9 @@ pub(crate) fn fill<'file>(make_name_tables::IR { circuits, circuit_table, type_d
 }
 
 fn convert_type_ast_dependant<'file>(
-    type_context: &mut ty::TypeContext,
+    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     type_table: &HashMap<String, make_name_tables::TypeDeclId>,
-    get_other_type: arena::DependancyGetter<ty::TypeSym, type_decl::TypeDecl<'file>, Vec<()>, make_name_tables::TypeDeclId>,
+    get_other_type: arena::DependancyGetter<ty::TypeSym, named_type::NamedTypeDecl<'file>, Vec<()>, make_name_tables::TypeDeclId>,
     ty: &type_expr::TypeExpr,
 ) -> arena::SingleTransformResult<ty::TypeSym, make_name_tables::TypeDeclId, Vec<()>> {
     use arena::SingleTransformResult;
@@ -108,7 +109,7 @@ fn convert_type_ast_dependant<'file>(
     }
 }
 // TODO: there is probably a better way of doing this that doesn't need this code to be copied and pasted
-fn convert_type_ast<'file>(type_context: &mut ty::TypeContext, type_table: &HashMap<String, ty::TypeSym>, ty: &type_expr::TypeExpr) -> Option<ty::TypeSym> {
+fn convert_type_ast<'file>(type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>, type_table: &HashMap<String, ty::TypeSym>, ty: &type_expr::TypeExpr) -> Option<ty::TypeSym> {
     match ty {
         type_expr::TypeExpr::Bit(_) => Some(type_context.intern(ty::Type::Bit)),
         type_expr::TypeExpr::Product { obrack: _, types: subtypes, cbrack: _ } => {
@@ -135,7 +136,7 @@ fn convert_type_ast<'file>(type_context: &mut ty::TypeContext, type_table: &Hash
 }
 
 fn type_let_pat<'file>(
-    type_context: &mut ty::TypeContext,
+    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     type_table: &HashMap<String, ty::TypeSym>,
     local_types: &mut HashMap<String, symtern::Sym<usize>>,
     let_: &ir::circuit1::UntypedLet<'file>,
@@ -143,7 +144,7 @@ fn type_let_pat<'file>(
     Some((type_pat(type_context, type_table, local_types, &let_.pat)?, let_.val))
 }
 fn type_pat<'file>(
-    type_context: &mut ty::TypeContext,
+    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     type_table: &HashMap<String, ty::TypeSym>,
     local_types: &mut HashMap<String, symtern::Sym<usize>>,
     pat: &ir::circuit1::UntypedPattern<'file>,
@@ -167,7 +168,7 @@ fn type_pat<'file>(
 }
 
 fn type_expr<'file>(
-    type_context: &mut ty::TypeContext,
+    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     type_table: &HashMap<String, symtern::Sym<usize>>,
     local_types: &HashMap<String, symtern::Sym<usize>>,
     expr: circuit1::expr::UntypedExpr<'file>,
