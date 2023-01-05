@@ -129,7 +129,8 @@ impl<Old> Arena<Old> {
     // TODO: write tests for this
     pub(crate) fn transform_dependant<New, Error>(
         self,
-        mut try_convert: impl FnMut(&Old, DependancyGetter<New, Old, Error>, fn(Id<Old>) -> Id<New>) -> SingleTransformResult<New, Old, Error>, // not mut because it needs to return the same thing every time it is run
+        // TODO: make the thing not have to take a &Old
+        mut try_convert: impl FnMut(&Old, DependancyGetter<New, Old, Error>, fn(Id<Old>) -> Id<New>) -> SingleTransformResult<New, Old, Error>,
     ) -> Result<(Arena<New>, fn(Id<Old>) -> Id<New>), (Vec<LoopError>, Vec<Error>)> {
         use dependant_transform::*;
         // some transformations have operations that are dependant on the results of other transformations
