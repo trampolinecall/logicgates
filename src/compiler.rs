@@ -1,7 +1,8 @@
 #[macro_use]
 mod error;
 
-mod arena;
+#[macro_use]
+pub(crate) mod arena;
 
 mod ir;
 
