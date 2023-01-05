@@ -9,19 +9,29 @@ pub(crate) type UntypedCircuit<'file> = Circuit<'file, ()>;
 pub(crate) type UntypedLet<'file> = Let<'file, ()>;
 pub(crate) type UntypedPattern<'file> = Pattern<'file, ()>;
 pub(crate) type UntypedExpr<'file> = Expr<'file, ()>;
-pub(crate) type UntypedExprArena<'file> = arena::Arena<UntypedExpr<'file>>;
-pub(crate) type UntypedExprId<'file> = arena::Id<UntypedExpr<'file>>;
+pub(crate) type UntypedExprArena<'file> = arena::Arena<UntypedExpr<'file>, ExprId>;
 
 pub(crate) type TypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, ty::TypeSym>;
 pub(crate) type TypedCircuit<'file> = Circuit<'file, ty::TypeSym>;
 pub(crate) type TypedLet<'file> = Let<'file, ty::TypeSym>;
 pub(crate) type TypedPattern<'file> = Pattern<'file, ty::TypeSym>;
 pub(crate) type TypedExpr<'file> = Expr<'file, ty::TypeSym>;
-pub(crate) type TypedExprArena<'file> = arena::Arena<TypedExpr<'file>>;
-pub(crate) type TypedExprId<'file> = arena::Id<TypedExpr<'file>>;
+pub(crate) type TypedExprArena<'file> = arena::Arena<TypedExpr<'file>, ExprId>;
 
-pub(crate) type ExprArena<'file, TypeInfo> = arena::Arena<Expr<'file, TypeInfo>>;
-pub(crate) type ExprId<'file, TypeInfo> = arena::Id<Expr<'file, TypeInfo>>;
+pub(crate) type ExprArena<'file, TypeInfo> = arena::Arena<Expr<'file, TypeInfo>, ExprId>;
+#[derive(Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Debug)]
+pub(crate) struct ExprId(usize);
+impl<'file, TypeInfo> arena::IsArenaIdFor<Expr<'file, TypeInfo>> for ExprId {}
+impl arena::ArenaId for ExprId {
+    fn make(i: usize) -> Self {
+        todo!()
+    }
+
+    fn get(&self) -> usize {
+        todo!()
+    }
+}
+
 #[derive(PartialEq, Debug)]
 pub(crate) struct Circuit<'file, TypeInfo> {
     pub(crate) name: (Span<'file>, &'file str),
@@ -30,7 +40,7 @@ pub(crate) struct Circuit<'file, TypeInfo> {
     pub(crate) output_type_annotation: TypeExpr<'file>,
     pub(crate) output_type: TypeInfo,
     pub(crate) lets: Vec<Let<'file, TypeInfo>>,
-    pub(crate) output: ExprId<'file, TypeInfo>,
+    pub(crate) output: ExprId,
 }
 
 #[derive(PartialEq, Debug)]
@@ -42,21 +52,21 @@ pub(crate) enum CircuitOrIntrinsic<'file, TypeInfo> {
 #[derive(PartialEq, Debug)]
 pub(crate) struct Let<'file, TypeInfo> {
     pub(crate) pat: Pattern<'file, TypeInfo>,
-    pub(crate) val: ExprId<'file, TypeInfo>,
+    pub(crate) val: ExprId,
 }
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct Expr<'file, TypeInfo> {
-    pub(crate) kind: ExprKind<'file, TypeInfo>,
+    pub(crate) kind: ExprKind<'file>,
     pub(crate) type_info: TypeInfo,
 }
 #[derive(PartialEq, Debug)]
-pub(crate) enum ExprKind<'file, TypeInfo> {
+pub(crate) enum ExprKind<'file> {
     Ref(Span<'file>, &'file str),
-    Call((Span<'file>, &'file str), bool, ExprId<'file, TypeInfo>),
+    Call((Span<'file>, &'file str), bool, ExprId),
     Const(Span<'file>, bool),
-    Get(ExprId<'file, TypeInfo>, (Span<'file>, &'file str)),
-    Multiple { obrack: Span<'file>, exprs: Vec<ExprId<'file, TypeInfo>>, cbrack: Span<'file> },
+    Get(ExprId, (Span<'file>, &'file str)),
+    Multiple { obrack: Span<'file>, exprs: Vec<ExprId>, cbrack: Span<'file> },
 }
 
 #[derive(PartialEq, Debug)]
@@ -70,8 +80,8 @@ pub(crate) enum PatternKind<'file, TypeInfo> {
     Product(Span<'file>, Vec<Pattern<'file, TypeInfo>>),
 }
 
-impl<'file, TypeInfo> ExprKind<'file, TypeInfo> {
-    pub(crate) fn span(&self, expressions: &ExprArena<'file, TypeInfo>) -> Span<'file> {
+impl<'file> ExprKind<'file> {
+    pub(crate) fn span<TypeInfo>(&self, expressions: &ExprArena<'file, TypeInfo>) -> Span<'file> {
         match self {
             ExprKind::Ref(sp, _) | ExprKind::Const(sp, _) => *sp,
             ExprKind::Call((circuit_name_sp, _), _, arg) => *circuit_name_sp + expressions.get(*arg).kind.span(expressions),

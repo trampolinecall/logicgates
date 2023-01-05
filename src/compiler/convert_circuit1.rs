@@ -37,6 +37,7 @@ impl<'file> GlobalGenState<'file> {
     }
 }
 
+impl arena::IsArenaIdFor<circuit2::Gate> for super::make_name_tables::CircuitOrIntrinsicId {}
 struct CircuitGenState<'file> {
     locals: HashMap<&'file str, ProducerBundle>,
     circuit: circuit2::Circuit,
@@ -51,11 +52,11 @@ pub(crate) fn convert(file: &File, mut ir: fill_types::IR) -> Option<(ty::TypeCo
     // TODO: remove symbol table from global_state, replace with the actual symbol table, also prevent recursion
     let mut global_state = GlobalGenState::new();
 
-    let mut circuits = ir.circuits.transform(|circuit, transform_id| {
-        Some((match circuit {
+    let mut circuits = ir.circuits.transform(|circuit| {
+        Some(match circuit {
             ir::circuit1::CircuitOrIntrinsic::Circuit(circuit) => circuit2::Gate::Custom(convert_circuit(&global_state, &mut ir.type_context, circuit)?),
             ir::circuit1::CircuitOrIntrinsic::Nand => circuit2::Gate::Nand,
-        },))
+        })
     })?;
 
     /*
@@ -128,7 +129,7 @@ fn convert_expr<'file, 'types>(
     type_context: &'types mut ty::TypeContext,
     circuit_state: &mut CircuitGenState,
     circuit1: &ir::circuit1::TypedCircuit,
-    expr: arena::Id<ir::circuit1::TypedExpr>,
+    expr: ir::circuit1::ExprId,
 ) -> Option<ProducerBundle> {
     let span = circuit1.expressions.get(expr).kind.span(&circuit1.expressions);
     match &circuit1.expressions.get(expr).kind {
