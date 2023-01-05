@@ -1,4 +1,4 @@
-use crate::compiler::{error::Span, arena};
+use crate::compiler::{arena, error::Span};
 
 use super::{ty, type_expr::TypeExpr};
 

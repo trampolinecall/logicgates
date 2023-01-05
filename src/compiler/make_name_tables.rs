@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
 use super::{
+    arena,
     error::{CompileError, Report, Span},
     ir::{circuit1, type_decl},
-    parser, arena,
+    parser,
 };
 
 pub(crate) struct IR<'file> {
