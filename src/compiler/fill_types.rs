@@ -10,7 +10,7 @@ pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<ir::circuit1::TypedCircuitOrIntrinsic<'file>, make_name_tables::CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<String, make_name_tables::CircuitOrIntrinsicId>,
 
-    pub(crate) type_context: ty::TypeContext<(String, ty::TypeSym)>,
+    pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
     pub(crate) type_table: HashMap<String, ty::TypeSym>,
 }
 pub(crate) fn fill<'file>(make_name_tables::IR { circuits, circuit_table, type_decls, type_table }: make_name_tables::IR) -> Option<IR> {
@@ -35,7 +35,7 @@ pub(crate) fn fill<'file>(make_name_tables::IR { circuits, circuit_table, type_d
         use super::arena::SingleTransformResult;
         match circuit {
             ir::circuit1::CircuitOrIntrinsic::Circuit(circuit) => {
-                let output_type = convert_type_ast(&mut type_context, &type_table, &circuit.output_type_annotation);
+                let output_type = convert_type_ast(&mut type_context, &type_table, &circuit.output_type);
 
                 let mut local_table = HashMap::new();
 

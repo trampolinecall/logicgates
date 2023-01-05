@@ -134,7 +134,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
         let ret = self.expr(&mut expressions)?;
 
-        Ok(circuit1::UntypedCircuit { name, input: arguments, lets, expressions, output: ret, output_type: (), output_type_annotation: output_type })
+        Ok(circuit1::UntypedCircuit { name, input: arguments, lets, expressions, output: ret, output_type })
     }
 
     fn named_type_decl(&mut self) -> Result<named_type::NamedTypeDecl<'file>, ParseError<'file>> {

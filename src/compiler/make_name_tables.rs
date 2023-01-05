@@ -18,7 +18,7 @@ impl<'file> arena::ArenaId for CircuitOrIntrinsicId { // TODO: move to different
         todo!()
     }
 }
-impl<'file, TypeInfo> arena::IsArenaIdFor<circuit1::CircuitOrIntrinsic<'file, TypeInfo>> for CircuitOrIntrinsicId {}
+impl<'file, TypeInfo, TypeExpr> arena::IsArenaIdFor<circuit1::CircuitOrIntrinsic<'file, TypeInfo, TypeExpr>> for CircuitOrIntrinsicId {}
 #[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
 pub(crate) struct TypeDeclId(usize); // TODO: also move to different module that makes more sense
 impl<'file> arena::ArenaId for TypeDeclId {
