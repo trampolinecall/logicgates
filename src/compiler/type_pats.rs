@@ -26,6 +26,7 @@ pub(crate) fn type_(resolve_type_expr::IR { circuits, circuit_table, mut type_co
                 output: circuit.output,
             }),
             circuit1::CircuitOrIntrinsic::Nand => circuit1::CircuitOrIntrinsic::Nand,
+            circuit1::CircuitOrIntrinsic::Const(value) => circuit1::CircuitOrIntrinsic::Const(value),
         }),
         circuit_table,
         type_context,

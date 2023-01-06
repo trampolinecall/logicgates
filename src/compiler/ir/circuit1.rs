@@ -41,6 +41,7 @@ pub(crate) struct Circuit<'file, ExprTypeInfo, PatTypeInfo, TypeExpr> {
 pub(crate) enum CircuitOrIntrinsic<'file, ExprTypeInfo, PatTypeInfo, TypeExpr> {
     Circuit(Circuit<'file, ExprTypeInfo, PatTypeInfo, TypeExpr>),
     Nand,
+    Const(bool), // never in circuit table
 }
 
 #[derive(PartialEq, Debug)]
@@ -87,6 +88,7 @@ impl<'file, ExprTypeInfo, TypeExpr> CircuitOrIntrinsic<'file, ExprTypeInfo, ty::
                 let b = type_context.intern(ty::Type::Bit);
                 type_context.intern(ty::Type::Product(vec![("0".into(), b), ("1".into(), b)]))
             }
+            CircuitOrIntrinsic::Const(_) => type_context.intern(ty::Type::Bit),
         }
     }
 }
@@ -95,7 +97,8 @@ impl<'file, ExprTypeInfo, PatTypeInfo> CircuitOrIntrinsic<'file, ExprTypeInfo, P
     pub(crate) fn input_type(&self, type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
         match self {
             CircuitOrIntrinsic::Circuit(circuit) => circuit.output_type.1,
-            CircuitOrIntrinsic::Nand  => type_context.intern(ty::Type::Bit),
+            CircuitOrIntrinsic::Nand => type_context.intern(ty::Type::Bit),
+            CircuitOrIntrinsic::Const(_) => type_context.intern(ty::Type::Product(vec![])),
         }
     }
 }
