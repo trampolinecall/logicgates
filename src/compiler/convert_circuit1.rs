@@ -78,7 +78,7 @@ fn convert_circuit(
             circuit1::expr::ExprKind::Call(name, inline, arg) => ValueKind::Call(name, inline, arg),
             circuit1::expr::ExprKind::Const(sp, value) => ValueKind::Const(sp, value),
             circuit1::expr::ExprKind::Get(base, field) => ValueKind::Get(base, field),
-            circuit1::expr::ExprKind::Multiple { obrack: _, exprs, cbrack: _ } => ValueKind::Multiple { values: exprs },
+            circuit1::expr::ExprKind::Multiple(exprs) => ValueKind::Multiple { values: exprs },
         },
         span: expr.span,
         type_info: expr.type_info,

@@ -32,7 +32,7 @@ pub(crate) enum ExprKind<'file> {
     Call((Span<'file>, &'file str), bool, ExprId),
     Const(Span<'file>, bool),
     Get(ExprId, (Span<'file>, &'file str)),
-    Multiple { obrack: Span<'file>, exprs: Vec<ExprId>, cbrack: Span<'file> },
+    Multiple(Vec<ExprId>),
 }
 
 // TODO: remove all span methods
