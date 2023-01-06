@@ -58,7 +58,7 @@ enum ValueKind<'file> {
     Const(Span<'file>, bool),
     Get(ValueId, (Span<'file>, &'file str)),
     MadeUpGet(ValueId, String), // used for gets in destructuring
-    Multiple { obrack: Span<'file>, values: Vec<ValueId>, cbrack: Span<'file> },
+    Multiple { values: Vec<ValueId> },
     Input,
 }
 
@@ -78,7 +78,7 @@ fn convert_circuit(
             circuit1::expr::ExprKind::Call(name, inline, arg) => ValueKind::Call(name, inline, arg),
             circuit1::expr::ExprKind::Const(sp, value) => ValueKind::Const(sp, value),
             circuit1::expr::ExprKind::Get(base, field) => ValueKind::Get(base, field),
-            circuit1::expr::ExprKind::Multiple { obrack, exprs, cbrack } => ValueKind::Multiple { obrack, values: exprs, cbrack },
+            circuit1::expr::ExprKind::Multiple { obrack: _, exprs, cbrack: _ } => ValueKind::Multiple { values: exprs },
         },
         span: expr.span,
         type_info: expr.type_info,
@@ -120,7 +120,7 @@ fn convert_circuit(
 
     // step 3: convert all values to producer bundles
     let values = match values.annotate_dependant_with_id(
-        |value_id, value, get_other_value_as_bundle| convert_value(circuit_table, type_context, get_other_value_as_bundle, &locals, &gates, &mut circuit, value_id, value),
+        |value_id, value, get_other_value_as_bundle| convert_value(type_context, get_other_value_as_bundle, &locals, &gates, &circuit, value_id, value),
         |original_value, producer_bundle| (original_value, producer_bundle),
     ) {
         Ok(r) => r,
@@ -183,7 +183,6 @@ fn assign_pattern<'file>(
 }
 
 fn convert_value(
-    circuit_table: &HashMap<String, (ty::TypeSym, ty::TypeSym, make_name_tables::CircuitOrIntrinsicId)>,
     type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     get_other_value_as_bundle: arena::DependancyGetter<ProducerBundle, Value, (), ValueId>,
     locals: &HashMap<&str, ValueId>,
@@ -217,7 +216,7 @@ fn convert_value(
         }
 
         ValueKind::Get(expr, (_, field_name)) => do_get(*expr, field_name),
-        ValueKind::MadeUpGet(expr, field_name) => do_get(*expr, &field_name),
+        ValueKind::MadeUpGet(expr, field_name) => do_get(*expr, field_name),
 
         ValueKind::Multiple { values: subvalues, .. } => {
             let mut results = Some(Vec::new());
