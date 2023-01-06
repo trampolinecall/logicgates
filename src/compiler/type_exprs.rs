@@ -13,23 +13,36 @@ pub(crate) struct IR<'file> {
     pub(crate) type_table: HashMap<String, ty::TypeSym>,
 }
 pub(crate) fn type_<'file>(type_pats::IR { circuits, circuit_table, mut type_context, type_table }: type_pats::IR) -> Option<IR> {
-    let circuit_types: HashMap<_, _> = circuit_table.iter().map(|(name, circuit)| (name, circuits.get(*circuit))).collect();
+    let circuit_output_types = circuit_table
+        .iter()
+        .map(|(name, circuit)| {
+            let circuit = circuits.get(*circuit);
+            (name as &str, (circuit.output_type(&mut type_context)))
+        })
+        .collect();
 
     let circuits = circuits.transform(|circuit| match circuit {
         ir::circuit1::CircuitOrIntrinsic::Circuit(circuit) => {
-            let mut local_table = HashMap::new();
+            let mut local_table = todo!();
 
-            let input = todo!(); // type_pat(&mut type_context, &type_table, &mut local_table, &circuit.input);
-            let let_pats: Option<Vec<_>> = circuit.lets.iter().map(|let_| type_let_pat(&mut type_context, &type_table, &mut local_table, let_)).collect_all();
-
-            let expressions = circuit.expressions.transform(|expr| type_expr(&mut type_context, &type_table, &local_table, expr));
+            // not ideal because expressions still represent the ast and are therefore in a tree so there will never be loops
+            // but moving them out of the arena would make circuit1 have to be split into two datatypes:
+            // one with expressions in a tree and one with expressions in an arena, because converting to circuit2 needs exprs in an arena
+            let expressions = circuit.expressions.transform_dependant(|expr, get_other_expr_type| type_expr(&mut type_context, &circuit_output_types, &local_table, get_other_expr_type, expr));
 
             Some(ir::circuit1::CircuitOrIntrinsic::Circuit(ir::circuit1::Circuit {
                 name: circuit.name,
-                input: if let Some(r) = input { r } else { return None },
-                expressions: if let Some(expressions) = expressions { expressions } else { return None },
+                input: circuit.input,
+                expressions: match expressions {
+                    Ok(r) => r,
+                    Err((loop_errors, typing_errors)) => {
+                        assert!(loop_errors.is_empty(), "expressions are in a tree, which cannot have loops");
+
+                        todo!()
+                    }
+                },
                 output_type: circuit.output_type,
-                lets: if let Some(r) = let_pats { r } else { return None }.into_iter().map(|let_| ir::circuit1::Let { pat: let_.0, val: (let_.1) }).collect(),
+                lets: circuit.lets,
                 output: (circuit.output),
             }))
         }
@@ -41,97 +54,42 @@ pub(crate) fn type_<'file>(type_pats::IR { circuits, circuit_table, mut type_con
     Some(IR { circuits, circuit_table, type_context, type_table })
 }
 
-fn convert_type_ast_dependant<'file>(
-    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
-    type_table: &HashMap<String, named_type::NamedTypeId>,
-    get_other_type: arena::DependancyGetter<(String, ty::TypeSym), named_type::NamedTypeDecl<'file>, Vec<()>, named_type::NamedTypeId>,
-    ty: &type_expr::TypeExpr,
-) -> arena::SingleTransformResult<ty::TypeSym, named_type::NamedTypeId, Vec<()>> {
-    use arena::SingleTransformResult;
-    match ty {
-        type_expr::TypeExpr::Bit(_) => SingleTransformResult::Ok(type_context.intern(ty::Type::Bit)),
-        type_expr::TypeExpr::Product { obrack: _, types: subtypes, cbrack: _ } => {
-            let ty = ty::Type::Product(try_transform_result!(subtypes
-                .iter()
-                .enumerate()
-                .map(|(ind, subty_ast)| SingleTransformResult::Ok((ind.to_string(), try_transform_result!(convert_type_ast_dependant(type_context, type_table, get_other_type, subty_ast)))))
-                .collect_all()));
-            SingleTransformResult::Ok(type_context.intern(ty))
-        }
-        type_expr::TypeExpr::RepProduct { obrack: _, num, cbrack: _, type_ } => {
-            let ty = try_transform_result!(convert_type_ast_dependant(type_context, type_table, get_other_type, type_));
-            SingleTransformResult::Ok(type_context.intern(ty::Type::Product((0..num.1).map(|ind| (ind.to_string(), ty)).collect())))
-        }
-        ir::type_expr::TypeExpr::NamedProduct { obrack: _, named: _, types: subtypes, cbrack: _ } => {
-            let ty = ty::Type::Product(try_transform_result!(subtypes
-                .iter()
-                .map(|(name, ty)| { SingleTransformResult::Ok((name.1.to_string(), try_transform_result!(convert_type_ast_dependant(type_context, type_table, get_other_type, ty)))) })
-                .collect_all())); // TODO: report error if there are any duplicate fields
-            SingleTransformResult::Ok(type_context.intern(ty))
-        }
-        ir::type_expr::TypeExpr::Named(_, name) => {
-            let res = type_table.get(*name).copied();
-            if let Some(other_type_decl) = res {
-                SingleTransformResult::Ok((try_transform_result!(get_other_type.get_dep(other_type_decl))).1)
-            } else {
-                todo!("report error for undefined named type")
-            }
-        }
-    }
-}
-// TODO: there is probably a better way of doing this that doesn't need this code to be copied and pasted
-fn convert_type_ast<'file>(type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>, type_table: &HashMap<String, ty::TypeSym>, ty: &type_expr::TypeExpr) -> Option<ty::TypeSym> {
-    match ty {
-        type_expr::TypeExpr::Bit(_) => Some(type_context.intern(ty::Type::Bit)),
-        type_expr::TypeExpr::Product { obrack: _, types: subtypes, cbrack: _ } => {
-            let ty = ty::Type::Product((subtypes.iter().enumerate().map(|(ind, subty_ast)| Some((ind.to_string(), convert_type_ast(type_context, type_table, subty_ast)?))).collect_all())?);
-            Some(type_context.intern(ty))
-        }
-        type_expr::TypeExpr::RepProduct { obrack: _, num, cbrack: _, type_ } => {
-            let ty = convert_type_ast(type_context, type_table, type_)?;
-            Some(type_context.intern(ty::Type::Product((0..num.1).map(|ind| (ind.to_string(), ty)).collect())))
-        }
-        ir::type_expr::TypeExpr::NamedProduct { obrack: _, named: _, types: subtypes, cbrack: _ } => {
-            let ty = ty::Type::Product((subtypes.iter().map(|(name, ty)| Some((name.1.to_string(), (convert_type_ast(type_context, type_table, ty)?)))).collect_all())?); // TODO: report error if there are any duplicate fields
-            Some(type_context.intern(ty))
-        }
-        ir::type_expr::TypeExpr::Named(_, name) => {
-            let res = type_table.get(*name).copied();
-            if let Some(other_type_decl) = res {
-                Some(other_type_decl)
-            } else {
-                todo!("report error for undefined named type")
-            }
-        }
-    }
-}
-
-fn type_let_pat<'file>(
-    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
-    type_table: &HashMap<String, ty::TypeSym>,
-    local_types: &mut HashMap<String, symtern::Sym<usize>>,
-    let_: &ir::circuit1::PatTypedLet<'file>,
-) -> Option<(circuit1::TypedPattern<'file>, circuit1::expr::ExprId)> {
-    // Some((type_pat(type_context, type_table, local_types, &let_.pat)?, let_.val))
-    todo!()
-}
-
 fn type_expr<'file>(
     type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
-    type_table: &HashMap<String, symtern::Sym<usize>>,
-    local_types: &HashMap<String, symtern::Sym<usize>>,
-    expr: circuit1::expr::UntypedExpr<'file>,
-) -> Option<circuit1::expr::Expr<'file, symtern::Sym<usize>>> {
-    let (kind, type_info) = /* match expr.kind {
+    circuit_output_types: &HashMap<&str, ty::TypeSym>,
+    local_types: &HashMap<&str, ty::TypeSym>,
+    get_other_expr: arena::DependancyGetter<circuit1::expr::TypedExpr, circuit1::expr::UntypedExpr, Vec<()>, circuit1::expr::ExprId>,
+    expr: &circuit1::expr::UntypedExpr<'file>,
+) -> arena::SingleTransformResult<circuit1::expr::TypedExpr<'file>, circuit1::expr::ExprId, Vec<()>> {
+    let (kind, type_info) = match &expr.kind {
         circuit1::expr::ExprKind::Ref(sp, name) => {
-            let local_type = if let Some(ty) = local_types.get(name) { ty } else { todo!("report error for undefined local usage") };
-            (circuit1::expr::ExprKind::Ref(sp, name), *local_type)
+            let local_type = if let Some(ty) = local_types.get(name) { *ty } else { todo!("report error for undefined local usage") };
+            (circuit1::expr::ExprKind::Ref(*sp, name), local_type)
         }
-        circuit1::expr::ExprKind::Call(name, inline, arg) => (circuit1::expr::ExprKind::Call(name, inline, transform_expr_id(arg)), {let x = todo!(); x}),
-        circuit1::expr::ExprKind::Const(sp, value) => (circuit1::expr::ExprKind::Const(sp, value), type_context.intern(ty::Type::Bit)),
-        circuit1::expr::ExprKind::Get(base, field) => (circuit1::expr::ExprKind::Get(transform_expr_id(base), field), todo!()),
-        circuit1::expr::ExprKind::Multiple { obrack, exprs, cbrack } => (circuit1::expr::ExprKind::Multiple { obrack, exprs: exprs.into_iter().map(transform_expr_id).collect(), cbrack }, todo!()),
-    }*/ todo!() ;
+        circuit1::expr::ExprKind::Call(name, inline, arg) => {
+            let ty = if let Some(ty) = circuit_output_types.get(&name.1) { *ty } else { todo!("report error for undefined circuit usage") }; // this also does circuit name resolution
+            (circuit1::expr::ExprKind::Call(*name, *inline, *arg), ty)
+        }
+        circuit1::expr::ExprKind::Const(sp, value) => (circuit1::expr::ExprKind::Const(*sp, *value), type_context.intern(ty::Type::Bit)),
+        circuit1::expr::ExprKind::Get(base, field) => {
+            let ty = try_transform_result!(get_other_expr.get(*base)).type_info;
+            let field_ty = type_context.get(ty).field_type(type_context, field.1);
+            if let Some(field_ty) = field_ty {
+                (circuit1::expr::ExprKind::Get(*base, *field), field_ty)
+            } else {
+                return arena::SingleTransformResult::Err(todo!("report error for field doesnt exist on type"));
+            }
+        }
+        circuit1::expr::ExprKind::Multiple { obrack, exprs, cbrack } => {
+            let ty = type_context.intern(ty::Type::Product(try_transform_result!(exprs
+                .iter()
+                .enumerate()
+                .map(|(field_index, subexpr)| arena::SingleTransformResult::Ok((field_index.to_string(), try_transform_result!(get_other_expr.get(*subexpr)).type_info)))
+                .collect_all::<Vec<_>>())));
 
-    Some(circuit1::expr::Expr { kind, type_info })
+            (circuit1::expr::ExprKind::Multiple { obrack: *obrack, exprs: exprs.clone(), cbrack: *cbrack }, ty) // TODO: no clone
+        }
+    };
+
+    arena::SingleTransformResult::Ok(circuit1::expr::Expr { kind, type_info })
 }

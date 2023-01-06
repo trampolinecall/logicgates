@@ -1,4 +1,4 @@
-use super::{ty, named_type};
+use super::{named_type, ty};
 
 pub(crate) mod bundle;
 
@@ -25,7 +25,7 @@ impl Gate {
     fn input_type(&self, type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
         match self {
             Gate::Custom(Circuit { input_type, output_type: _, gates: _, connections: _, name: _ }) => *input_type,
-            Gate::Nand {} => {
+            Gate::Nand => {
                 let b = type_context.intern(ty::Type::Bit);
                 type_context.intern(ty::Type::Product(vec![("0".into(), b), ("1".into(), b)]))
             }
@@ -35,7 +35,7 @@ impl Gate {
     fn output_type(&self, type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
         match self {
             Gate::Custom(Circuit { input_type: _, output_type, gates: _, connections: _, name: _ }) => *output_type,
-            Gate::Nand {} | Gate::Const(_) => type_context.intern(ty::Type::Bit),
+            Gate::Nand | Gate::Const(_) => type_context.intern(ty::Type::Bit),
         }
     }
 
