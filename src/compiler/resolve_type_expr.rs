@@ -31,7 +31,7 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
     })?;
 
     // TODO: figure out how to make this work even though the type context is being moved because this will not compile
-    let type_context = type_context.transform_named(|named_type| Some((named_type.name.1.to_string(), resolve_type_no_span(&mut type_context, &type_table, &named_type.ty)?)))?;
+    let type_context = type_context.transform_named(|type_context, named_type| Some((named_type.name.1.to_string(), resolve_type_no_span(type_context, &type_table, &named_type.ty)?)))?;
     // TODO: disallow recursive types / infinitely sized types
 
     Some(IR { circuits, circuit_table, type_context, type_table })
@@ -67,7 +67,10 @@ fn resolve_type<'file>(
     let sp = ty.span();
     Some((sp, resolve_type_no_span(type_context, type_table, ty)?))
 }
-fn resolve_type_no_span<'file>(type_context: &mut ty::TypeContext<named_type::PartiallyDefinedNamedType>, type_table: &HashMap<String, ty::TypeSym>, ty: &type_expr::TypeExpr) -> Option<ty::TypeSym> {
+fn resolve_type_no_span<'file, NamedType>(type_context: &mut ty::TypeContext<NamedType>, type_table: &HashMap<String, ty::TypeSym>, ty: &type_expr::TypeExpr) -> Option<ty::TypeSym>
+where
+    named_type::NamedTypeId: arena::IsArenaIdFor<NamedType>,
+{
     let ty = match ty {
         type_expr::TypeExpr::Bit(_) => type_context.intern(ty::Type::Bit),
         type_expr::TypeExpr::Product { obrack: _, types: subtypes, cbrack: _ } => {
