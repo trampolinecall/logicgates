@@ -98,7 +98,7 @@ fn type_expr<'file>(
         circuit1::expr::ExprKind::Const(_, _) => type_context.intern(ty::Type::Bit),
         circuit1::expr::ExprKind::Get(base, field) => {
             let base_ty = try_annotation_result!(get_other_expr_type.get(*base));
-            let field_ty = type_context.get(*base_ty).field_type(type_context, field.1);
+            let field_ty = type_context.get(*base_ty.1).field_type(type_context, field.1);
             if let Some(field_ty) = field_ty {
                 field_ty
             } else {
@@ -109,7 +109,7 @@ fn type_expr<'file>(
             let ty = type_context.intern(ty::Type::Product(try_annotation_result!(exprs
                 .iter()
                 .enumerate()
-                .map(|(field_index, subexpr)| arena::SingleTransformResult::Ok((field_index.to_string(), *try_annotation_result!(get_other_expr_type.get(*subexpr)))))
+                .map(|(field_index, subexpr)| arena::SingleTransformResult::Ok((field_index.to_string(), *try_annotation_result!(get_other_expr_type.get(*subexpr)).1)))
                 .collect_all::<Vec<_>>())));
 
             ty
