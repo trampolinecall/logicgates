@@ -32,7 +32,7 @@ impl CircuitGenState<'_> {
 
 pub(crate) struct IR {
     pub(crate) circuits: arena::Arena<circuit2::CircuitOrIntrinsic, make_name_tables::CircuitOrIntrinsicId>,
-    pub(crate) circuit_table: HashMap<String, make_name_tables::CircuitOrIntrinsicId>,
+    pub(crate) circuit_table: HashMap<String, (ty::TypeSym, ty::TypeSym, make_name_tables::CircuitOrIntrinsicId)>,
 
     pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
     pub(crate) type_table: HashMap<String, ty::TypeSym>,
@@ -55,7 +55,7 @@ pub(crate) fn convert(file: &File, type_exprs::IR { mut circuits, circuit_table,
 
 fn convert_circuit<'ggs, 'types, 'file>(
     consts: (make_name_tables::CircuitOrIntrinsicId, make_name_tables::CircuitOrIntrinsicId),
-    circuit_table: &'ggs HashMap<String, make_name_tables::CircuitOrIntrinsicId>,
+    circuit_table: &'ggs HashMap<String, (ty::TypeSym, ty::TypeSym, make_name_tables::CircuitOrIntrinsicId)>,
     type_context: &'types mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     circuit1: circuit1::TypedCircuit<'file>,
 ) -> Option<circuit2::Circuit> {
@@ -108,7 +108,7 @@ fn assign_pattern<'types, 'cgs, 'file>(
 
 fn convert_expr<'file, 'types>(
     consts @ (const_0, const_1): (make_name_tables::CircuitOrIntrinsicId, make_name_tables::CircuitOrIntrinsicId),
-    circuit_table: &HashMap<String, make_name_tables::CircuitOrIntrinsicId>,
+    circuit_table: &HashMap<String, (ty::TypeSym, ty::TypeSym, make_name_tables::CircuitOrIntrinsicId)>,
     type_context: &'types mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     circuit_state: &mut CircuitGenState,
     circuit1: &circuit1::TypedCircuit,
@@ -128,7 +128,7 @@ fn convert_expr<'file, 'types>(
         }
 
         circuit1::expr::ExprKind::Call(circuit_name, inline, arg) => {
-            let name_resolved = if let Some(n) = circuit_table.get(circuit_name.1) {
+            let (input_type, output_type, name_resolved) = if let Some(n) = circuit_table.get(circuit_name.1) {
                 n
             } else {
                 (&*type_context, error::Error::NoSuchCircuit(circuit_name.0, circuit_name.1)).report();
@@ -139,8 +139,8 @@ fn convert_expr<'file, 'types>(
             let gate_i = circuit_state.circuit.add_gate(*name_resolved);
             // TODO: implement inlining
             // TODO: add circuit type table, but then eventually just move all typechecking into a separate phase
-            connect_bundle(type_context, circuit_state, span, arg, circuit2::bundle::ReceiverBundle::GateInput(todo!("gate input type"), gate_i))?;
-            Some(circuit2::bundle::ProducerBundle::GateOutput(todo!("gate output types"), gate_i))
+            connect_bundle(type_context, circuit_state, span, arg, circuit2::bundle::ReceiverBundle::GateInput(*input_type, gate_i))?;
+            Some(circuit2::bundle::ProducerBundle::GateOutput(*output_type, gate_i))
         }
 
         circuit1::expr::ExprKind::Const(_, value) => {
