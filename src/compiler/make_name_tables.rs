@@ -73,8 +73,9 @@ fn make_type_table(type_decls: Vec<super::ir::named_type::NamedTypeDecl>) -> Opt
             Duplicate("named type", decl.name.0, decl.name.1).report();
             errored = true;
         }
+        let name = decl.name.1.into();
         let named_index = type_context.named.add(decl);
-        type_table.insert(decl.name.1.into(), type_context.intern(ty::Type::Named(named_index)));
+        type_table.insert(name, type_context.intern(ty::Type::Named(named_index)));
     }
 
     if errored {
