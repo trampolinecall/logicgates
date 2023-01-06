@@ -23,7 +23,12 @@ pub(crate) fn type_<'file>(type_pats::IR { circuits, circuit_table, mut type_con
 
     let circuits = circuits.transform(|circuit| match circuit {
         ir::circuit1::CircuitOrIntrinsic::Circuit(circuit) => {
-            let mut local_table = todo!();
+            let mut local_table = HashMap::new();
+
+            put_pat_type(&mut local_table, &circuit.input);
+            for let_ in &circuit.lets {
+                put_pat_type(&mut local_table, &let_.pat);
+            }
 
             // not ideal because expressions still represent the ast and are therefore in a tree so there will never be loops
             // but moving them out of the arena would make circuit1 have to be split into two datatypes:
@@ -52,6 +57,19 @@ pub(crate) fn type_<'file>(type_pats::IR { circuits, circuit_table, mut type_con
     let circuit_table = circuit_table.into_iter().map(|(name, old_id)| (name, (old_id))).collect();
 
     Some(IR { circuits, circuit_table, type_context, type_table })
+}
+
+fn put_pat_type<'file>(local_table: &mut HashMap<&'file str, ty::TypeSym>, pat: &circuit1::PatTypedPattern<'file>) {
+    match &pat.kind {
+        circuit1::PatternKind::Identifier(_, name, ty) => {
+            local_table.insert(name, ty.1); // TODO: report error for duplicate locals
+        }
+        circuit1::PatternKind::Product(_, subpats) => {
+            for subpat in subpats {
+                put_pat_type(local_table, &subpat);
+            }
+        }
+    }
 }
 
 fn type_expr<'file>(
@@ -87,7 +105,8 @@ fn type_expr<'file>(
                 .map(|(field_index, subexpr)| arena::SingleTransformResult::Ok((field_index.to_string(), try_transform_result!(get_other_expr.get(*subexpr)).type_info)))
                 .collect_all::<Vec<_>>())));
 
-            (circuit1::expr::ExprKind::Multiple { obrack: *obrack, exprs: exprs.clone(), cbrack: *cbrack }, ty) // TODO: no clone
+            (circuit1::expr::ExprKind::Multiple { obrack: *obrack, exprs: exprs.clone(), cbrack: *cbrack }, ty)
+            // TODO: no clone
         }
     };
 
