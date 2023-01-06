@@ -10,7 +10,7 @@ use super::{
 };
 
 pub(crate) struct IR<'file> {
-    pub(crate) circuits: arena::Arena<circuit1::PartiallyTypedCircuitOrIntrinsic<'file>, CircuitOrIntrinsicId>,
+    pub(crate) circuits: arena::Arena<circuit1::TypeResolvedCircuitOrIntrinsic<'file>, CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<String, CircuitOrIntrinsicId>,
 
     pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
@@ -19,7 +19,7 @@ pub(crate) struct IR<'file> {
 
 pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_context, type_table }: make_name_tables::IR) -> Option<IR> {
     let circuits = circuits.transform(|circuit| match circuit {
-        circuit1::CircuitOrIntrinsic::Circuit(circuit) => Some(circuit1::CircuitOrIntrinsic::Circuit(circuit1::PartiallyTypedCircuit {
+        circuit1::CircuitOrIntrinsic::Circuit(circuit) => Some(circuit1::CircuitOrIntrinsic::Circuit(circuit1::TypeResolvedCircuit {
             name: circuit.name,
             input: resolve_in_pat(&mut type_context, &type_table, circuit.input)?,
             expressions: circuit.expressions,
@@ -41,7 +41,7 @@ fn resolve_in_pat<'file>(
     type_context: &mut ty::TypeContext<named_type::NamedTypeDecl<'file>>,
     type_table: &HashMap<String, symtern::Sym<usize>>,
     pat: circuit1::UntypedPattern<'file>,
-) -> Option<circuit1::PartiallyTypedPattern<'file>> {
+) -> Option<circuit1::TypeResolvedPattern<'file>> {
     Some(circuit1::Pattern {
         kind: match pat.kind {
             circuit1::PatternKind::Identifier(name_sp, name, type_expr) => circuit1::PatternKind::Identifier(name_sp, name, resolve_type(type_context, type_table, &type_expr)?),
@@ -55,7 +55,7 @@ fn resolve_in_let<'file>(
     type_context: &mut ty::TypeContext<named_type::NamedTypeDecl<'file>>,
     type_table: &HashMap<String, symtern::Sym<usize>>,
     lets: Vec<circuit1::UntypedLet<'file>>,
-) -> Option<Vec<circuit1::PartiallyTypedLet<'file>>> {
+) -> Option<Vec<circuit1::TypeResolvedLet<'file>>> {
     lets.into_iter().map(|let_| Some(circuit1::Let { pat: resolve_in_pat(type_context, type_table, let_.pat)?, val: let_.val })).collect_all()
 }
 
