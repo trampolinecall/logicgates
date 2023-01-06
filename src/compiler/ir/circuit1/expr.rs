@@ -24,6 +24,7 @@ impl arena::ArenaId for ExprId {
 pub(crate) struct Expr<'file, TypeInfo> {
     pub(crate) kind: ExprKind<'file>,
     pub(crate) type_info: TypeInfo,
+    pub(crate) span: Span<'file>,
 }
 #[derive(PartialEq, Debug)]
 pub(crate) enum ExprKind<'file> {
@@ -34,13 +35,4 @@ pub(crate) enum ExprKind<'file> {
     Multiple { obrack: Span<'file>, exprs: Vec<ExprId>, cbrack: Span<'file> },
 }
 
-impl<'file> ExprKind<'file> {
-    pub(crate) fn span<TypeInfo>(&self, expressions: &ExprArena<'file, TypeInfo>) -> Span<'file> { // TODO: remove, and eventually remove all span() methods
-        match self {
-            ExprKind::Ref(sp, _) | ExprKind::Const(sp, _) => *sp,
-            ExprKind::Call((circuit_name_sp, _), _, arg) => *circuit_name_sp + expressions.get(*arg).kind.span(expressions),
-            ExprKind::Get(expr, (field_sp, _)) => expressions.get(*expr).kind.span(expressions) + *field_sp,
-            ExprKind::Multiple { obrack, cbrack, exprs: _ } => *obrack + *cbrack,
-        }
-    }
-}
+// TODO: remove all span methods

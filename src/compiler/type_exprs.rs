@@ -60,7 +60,7 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
             // one with expressions in a tree and one with expressions in an arena, because converting to circuit2 needs exprs in an arena
             let expressions = circuit.expressions.annotate_dependant(
                 |expr, get_other_expr_type| type_expr(&mut type_context, &circuit_table, &local_table, get_other_expr_type, expr),
-                |circuit1::expr::Expr { kind, type_info: () }, expr_ty| circuit1::expr::Expr { kind, type_info: expr_ty },
+                |circuit1::expr::Expr { kind, type_info: (), span }, expr_ty| circuit1::expr::Expr { kind, type_info: expr_ty, span },
             );
 
             Some(ir::circuit1::CircuitOrIntrinsic::Circuit(ir::circuit1::Circuit {

@@ -72,19 +72,16 @@ fn convert_circuit(
 
     let mut circuit = Circuit::new(circuit1.name.1.to_string(), circuit1.input.type_info, circuit1.output_type.1);
 
-    let mut values = circuit1.expressions.transform_infallible(|expr| {
-        let span = todo!(); // expr.kind.span(&circuit1.expressions);
-        Value {
-            kind: match expr.kind {
-                circuit1::expr::ExprKind::Ref(sp, name) => ValueKind::Ref(sp, name),
-                circuit1::expr::ExprKind::Call(name, inline, arg) => ValueKind::Call(name, inline, arg),
-                circuit1::expr::ExprKind::Const(sp, value) => ValueKind::Const(sp, value),
-                circuit1::expr::ExprKind::Get(base, field) => ValueKind::Get(base, field),
-                circuit1::expr::ExprKind::Multiple { obrack, exprs, cbrack } => ValueKind::Multiple { obrack, values: exprs, cbrack },
-            },
-            span,
-            type_info: expr.type_info,
-        }
+    let mut values = circuit1.expressions.transform_infallible(|expr| Value {
+        kind: match expr.kind {
+            circuit1::expr::ExprKind::Ref(sp, name) => ValueKind::Ref(sp, name),
+            circuit1::expr::ExprKind::Call(name, inline, arg) => ValueKind::Call(name, inline, arg),
+            circuit1::expr::ExprKind::Const(sp, value) => ValueKind::Const(sp, value),
+            circuit1::expr::ExprKind::Get(base, field) => ValueKind::Get(base, field),
+            circuit1::expr::ExprKind::Multiple { obrack, exprs, cbrack } => ValueKind::Multiple { obrack, values: exprs, cbrack },
+        },
+        span: expr.span,
+        type_info: expr.type_info,
     });
 
     let input_value = values.add(Value { kind: ValueKind::Input, type_info: circuit1.input.type_info, span: circuit1.input.kind.span() });
