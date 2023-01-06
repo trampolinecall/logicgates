@@ -7,7 +7,7 @@ use super::arena;
 use super::error::File;
 use super::error::Report;
 use super::error::Span;
-use super::fill_types;
+use super::type_exprs;
 use super::ir;
 use super::ir::circuit1::TypedPattern;
 use super::ir::circuit2;
@@ -49,7 +49,7 @@ impl CircuitGenState<'_> {
     }
 }
 
-pub(crate) fn convert(file: &File, mut ir: fill_types::IR) -> Option<(ty::TypeContext<named_type::FullyDefinedNamedType>, circuit2::Circuit)> {
+pub(crate) fn convert(file: &File, mut ir: type_exprs::IR) -> Option<(ty::TypeContext<named_type::FullyDefinedNamedType>, circuit2::Circuit)> {
     // TODO: remove symbol table from global_state, replace with the actual symbol table, also prevent recursion
     let mut global_state = GlobalGenState::new();
 

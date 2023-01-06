@@ -22,11 +22,6 @@ pub(crate) type PatTypedCircuit<'file> = Circuit<'file, (), ty::TypeSym, (Span<'
 pub(crate) type PatTypedLet<'file> = Let<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
 pub(crate) type PatTypedPattern<'file> = Pattern<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
 
-pub(crate) type ExprTypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, ty::TypeSym, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-pub(crate) type ExprTypedCircuit<'file> = Circuit<'file, ty::TypeSym, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-pub(crate) type ExprTypedLet<'file> = Let<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-pub(crate) type ExprTypedPattern<'file> = Pattern<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-
 pub(crate) type TypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, ty::TypeSym, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
 pub(crate) type TypedCircuit<'file> = Circuit<'file, ty::TypeSym, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
 pub(crate) type TypedLet<'file> = Let<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;

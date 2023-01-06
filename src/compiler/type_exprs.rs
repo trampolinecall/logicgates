@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::utils::CollectAll;
 
 use super::ir::{circuit1, named_type, ty, type_expr};
-use super::{arena, ir, make_name_tables, resolve_type_expr};
+use super::{arena, ir, make_name_tables, resolve_type_expr, type_pats};
 
 pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<ir::circuit1::TypedCircuitOrIntrinsic<'file>, make_name_tables::CircuitOrIntrinsicId>,
@@ -12,14 +12,14 @@ pub(crate) struct IR<'file> {
     pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
     pub(crate) type_table: HashMap<String, ty::TypeSym>,
 }
-pub(crate) fn fill<'file>(resolve_type_expr::IR { circuits, circuit_table, mut type_context, type_table }: resolve_type_expr::IR) -> Option<IR> {
-    let circuit_types: HashMap<_, _> = circuit_table.iter().map(|(name, circuit)| (name, circuits.get(*circuit) )).collect();
+pub(crate) fn type_<'file>(type_pats::IR { circuits, circuit_table, mut type_context, type_table }: type_pats::IR) -> Option<IR> {
+    let circuit_types: HashMap<_, _> = circuit_table.iter().map(|(name, circuit)| (name, circuits.get(*circuit))).collect();
 
     let circuits = circuits.transform(|circuit| match circuit {
         ir::circuit1::CircuitOrIntrinsic::Circuit(circuit) => {
             let mut local_table = HashMap::new();
 
-            let input = type_pat(&mut type_context, &type_table, &mut local_table, &circuit.input);
+            let input = todo!(); // type_pat(&mut type_context, &type_table, &mut local_table, &circuit.input);
             let let_pats: Option<Vec<_>> = circuit.lets.iter().map(|let_| type_let_pat(&mut type_context, &type_table, &mut local_table, let_)).collect_all();
 
             let expressions = circuit.expressions.transform(|expr| type_expr(&mut type_context, &type_table, &local_table, expr));
@@ -110,32 +110,10 @@ fn type_let_pat<'file>(
     type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     type_table: &HashMap<String, ty::TypeSym>,
     local_types: &mut HashMap<String, symtern::Sym<usize>>,
-    let_: &ir::circuit1::TypeResolvedLet<'file>,
+    let_: &ir::circuit1::PatTypedLet<'file>,
 ) -> Option<(circuit1::TypedPattern<'file>, circuit1::expr::ExprId)> {
-    Some((type_pat(type_context, type_table, local_types, &let_.pat)?, let_.val))
-}
-fn type_pat<'file>(
-    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
-    type_table: &HashMap<String, ty::TypeSym>,
-    local_types: &mut HashMap<String, symtern::Sym<usize>>,
-    pat: &ir::circuit1::TypeResolvedPattern<'file>,
-) -> Option<ir::circuit1::TypedPattern<'file>> {
-    let (kind, type_info) = match &pat.kind {
-        ir::circuit1::PatternKind::Identifier(name_sp, name, ty) => {
-            let type_info = ty.1;
-            local_types.insert(name.to_string(), type_info);
-            (ir::circuit1::PatternKind::Identifier(*name_sp, name, /* *ty */ todo!()), type_info)
-            // TODO
-        }
-        ir::circuit1::PatternKind::Product(sp, pats) => {
-            let typed_pats: Vec<_> = pats.into_iter().map(|subpat| type_pat(type_context, type_table, local_types, &subpat)).collect_all()?;
-
-            let ty = ty::Type::Product(typed_pats.iter().enumerate().map(|(ind, subpat)| Some((ind.to_string(), subpat.type_info))).collect_all()?);
-            (ir::circuit1::PatternKind::Product(*sp, typed_pats), type_context.intern(ty))
-        }
-    };
-
-    Some(ir::circuit1::Pattern { kind, type_info })
+    // Some((type_pat(type_context, type_table, local_types, &let_.pat)?, let_.val))
+    todo!()
 }
 
 fn type_expr<'file>(
