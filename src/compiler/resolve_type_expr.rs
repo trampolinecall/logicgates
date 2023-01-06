@@ -58,6 +58,7 @@ fn resolve_in_pat<'file>(
             circuit1::PatternKind::Product(sp, subpats) => circuit1::PatternKind::Product(sp, subpats.into_iter().map(|subpat| resolve_in_pat(type_context, type_table, subpat)).collect_all()?),
         },
         type_info: (),
+        span: pat.span,
     })
 }
 

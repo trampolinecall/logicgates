@@ -47,5 +47,5 @@ fn type_pat<'file>(type_context: &mut ty::TypeContext<named_type::FullyDefinedNa
         }
     };
 
-    circuit1::Pattern { kind, type_info }
+    circuit1::Pattern { kind, type_info, span: pat.span }
 }

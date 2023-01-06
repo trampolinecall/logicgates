@@ -54,29 +54,12 @@ pub(crate) struct Let<'file, PatTypeInfo, TypeExpr> {
 pub(crate) struct Pattern<'file, PatTypeInfo, TypeExpr> {
     pub(crate) kind: PatternKind<'file, PatTypeInfo, TypeExpr>,
     pub(crate) type_info: PatTypeInfo,
+    pub(crate) span: Span<'file>,
 }
 #[derive(PartialEq, Debug)]
 pub(crate) enum PatternKind<'file, PatTypeInfo, TypeExpr> {
     Identifier(Span<'file>, &'file str, TypeExpr),
     Product(Span<'file>, Vec<Pattern<'file, PatTypeInfo, TypeExpr>>),
-}
-
-impl<'file, TypeInfo> PatternKind<'file, TypeInfo, type_expr::TypeExpr<'file>> {
-    pub(crate) fn span(&self) -> Span<'file> {
-        match self {
-            PatternKind::Identifier(sp, _, ty) => *sp + ty.span(),
-            PatternKind::Product(sp, _) => *sp,
-        }
-    }
-}
-
-impl<'file, TypeInfo> PatternKind<'file, TypeInfo, (Span<'file>, ty::TypeSym)> {
-    pub(crate) fn span(&self) -> Span<'file> {
-        match self {
-            PatternKind::Identifier(sp, _, (ty_sp, _)) => *sp + *ty_sp,
-            PatternKind::Product(sp, _) => *sp,
-        }
-    }
 }
 
 // TODO: this will probably be duplicated with the type code from circuit2 but i dont know how to fix that (although i think the solution might be a separate type checking phase so that circuit2 doesnt need to have type information)
