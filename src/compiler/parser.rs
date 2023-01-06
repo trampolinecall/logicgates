@@ -249,11 +249,6 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
     fn type_(&mut self) -> Result<type_expr::TypeExpr<'file>, ParseError<'file>> {
         match *self.peek() {
-            Token::Apostrophe(sp) => {
-                let _ = self.next();
-                Ok(type_expr::TypeExpr::Bit(sp))
-            }
-
             Token::OBrack(obrack) => {
                 let _ = self.next();
 
