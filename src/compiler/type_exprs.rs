@@ -7,17 +7,17 @@ use super::{arena, ir, make_name_tables, type_pats};
 
 pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<ir::circuit1::TypedCircuitOrIntrinsic<'file>, make_name_tables::CircuitOrIntrinsicId>,
-    pub(crate) circuit_table: HashMap<String, make_name_tables::CircuitOrIntrinsicId>,
+    pub(crate) circuit_table: HashMap<String, (ty::TypeSym, ty::TypeSym, make_name_tables::CircuitOrIntrinsicId)>,
 
     pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
     pub(crate) type_table: HashMap<String, ty::TypeSym>,
 }
 pub(crate) fn type_<'file>(type_pats::IR { circuits, circuit_table, mut type_context, type_table }: type_pats::IR) -> Option<IR> {
-    let circuit_output_types = circuit_table
-        .iter()
-        .map(|(name, circuit)| {
-            let circuit = circuits.get(*circuit);
-            (name as &str, (circuit.output_type(&mut type_context)))
+    let circuit_table = circuit_table
+        .into_iter()
+        .map(|(name, circuit_id)| {
+            let circuit = circuits.get(circuit_id);
+            (name, (circuit.input_type(&mut type_context), circuit.output_type(&mut type_context), circuit_id))
         })
         .collect();
 
@@ -34,7 +34,7 @@ pub(crate) fn type_<'file>(type_pats::IR { circuits, circuit_table, mut type_con
             // but moving them out of the arena would make circuit1 have to be split into two datatypes:
             // one with expressions in a tree and one with expressions in an arena, because converting to circuit2 needs exprs in an arena
             let expressions = circuit.expressions.annotate_dependant(
-                |expr, get_other_expr_type| type_expr(&mut type_context, &circuit_output_types, &local_table, get_other_expr_type, expr),
+                |expr, get_other_expr_type| type_expr(&mut type_context, &circuit_table, &local_table, get_other_expr_type, expr),
                 |circuit1::expr::Expr { kind, type_info: () }, expr_ty| circuit1::expr::Expr { kind, type_info: expr_ty },
             );
 
@@ -58,7 +58,7 @@ pub(crate) fn type_<'file>(type_pats::IR { circuits, circuit_table, mut type_con
         circuit1::CircuitOrIntrinsic::Const(value) => Some(ir::circuit1::CircuitOrIntrinsic::Const(value)),
     })?;
 
-    let circuit_table = circuit_table.into_iter().map(|(name, old_id)| (name, (old_id))).collect();
+    let circuit_table = circuit_table.into_iter().map(|(name, old_id)| (name, old_id)).collect();
 
     Some(IR { circuits, circuit_table, type_context, type_table })
 }
@@ -78,7 +78,7 @@ fn put_pat_type<'file>(local_table: &mut HashMap<&'file str, ty::TypeSym>, pat: 
 
 fn type_expr<'file>(
     type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
-    circuit_output_types: &HashMap<&str, ty::TypeSym>,
+    circuit_table: &HashMap<String, (ty::TypeSym, ty::TypeSym, make_name_tables::CircuitOrIntrinsicId)>,
     local_types: &HashMap<&str, ty::TypeSym>,
     get_other_expr_type: arena::DependancyGetter<ty::TypeSym, circuit1::expr::UntypedExpr, Vec<()>, circuit1::expr::ExprId>,
     expr: &circuit1::expr::UntypedExpr<'file>,
@@ -90,7 +90,7 @@ fn type_expr<'file>(
         }
         circuit1::expr::ExprKind::Call(name, _, _) => {
             // this also does circuit name resolution
-            if let Some(ty) = circuit_output_types.get(&name.1) {
+            if let Some((_, ty, _)) = circuit_table.get(name.1) {
                 *ty
             } else {
                 todo!("report error for undefined circuit usage")
