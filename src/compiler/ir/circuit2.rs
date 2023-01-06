@@ -14,6 +14,9 @@ pub(crate) struct Circuit {
     pub(crate) output_type: ty::TypeSym,
 }
 
+pub(crate) const CONST_0: Gate = Gate::Const(false);
+pub(crate) const CONST_1: Gate = Gate::Const(true);
+
 #[derive(Clone, Debug)]
 pub(crate) enum Gate {
     // TODO: rename to gate
