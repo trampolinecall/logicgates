@@ -28,6 +28,7 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
             output: circuit.output,
         })),
         circuit1::CircuitOrIntrinsic::Nand => Some(circuit1::CircuitOrIntrinsic::Nand),
+        circuit1::CircuitOrIntrinsic::Const(value) => Some(circuit1::CircuitOrIntrinsic::Const(value)),
     })?;
 
     // TODO: figure out how to make this work even though the type context is being moved because this will not compile

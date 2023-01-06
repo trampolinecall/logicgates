@@ -1,31 +1,43 @@
-use super::{named_type, ty};
+use crate::compiler::{arena, make_name_tables};
+
+use super::ty;
 
 pub(crate) mod bundle;
 
 #[derive(Clone, Debug, Copy, Eq, Hash, PartialEq)]
 pub(crate) struct GateIdx(usize);
 
-#[derive(Clone, Debug)]
+impl arena::IsArenaIdFor<make_name_tables::CircuitOrIntrinsicId> for GateIdx {}
+impl arena::ArenaId for GateIdx {
+    fn make(i: usize) -> Self {
+        GateIdx(i)
+    }
+
+    fn get(&self) -> usize {
+        self.0
+    }
+}
+
+#[derive(Debug)]
 pub(crate) struct Circuit {
     pub(crate) name: String,
-    gates: Vec<Gate>,
+    gates: arena::Arena<make_name_tables::CircuitOrIntrinsicId, GateIdx>,
     connections: Vec<(bundle::ProducerBundle, bundle::ReceiverBundle)>,
     pub(crate) input_type: ty::TypeSym,
     pub(crate) output_type: ty::TypeSym,
 }
 
-pub(crate) const CONST_0: Gate = Gate::Const(false);
-pub(crate) const CONST_1: Gate = Gate::Const(true);
-
-#[derive(Clone, Debug)]
-pub(crate) enum Gate {
+#[derive(Debug)]
+pub(crate) enum CircuitOrIntrinsic {
     // TODO: rename to gate
     Custom(Circuit),
     Nand,
     Const(bool),
 }
+
+/*
 impl Gate {
-    fn input_type(&self, type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
+    fn input_type(&self, circuits: arena::Arena<circuit1::TypedCircuitOrIntrinsic, make_name_tables::CircuitOrIntrinsicId>, type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
         match self {
             Gate::Custom(Circuit { input_type, output_type: _, gates: _, connections: _, name: _ }) => *input_type,
             Gate::Nand => {
@@ -111,18 +123,18 @@ impl Gate {
     }
     */
 }
+*/
 impl Circuit {
     pub(crate) fn new(name: String, input_type: symtern::Sym<usize>, output_type: symtern::Sym<usize>) -> Circuit {
-        Circuit { name, input_type, output_type, gates: Vec::new(), connections: Vec::new() }
+        Circuit { name, input_type, output_type, gates: arena::Arena::new(), connections: Vec::new() }
     }
 
-    pub(crate) fn add_gate(&mut self, gate: Gate) -> GateIdx {
-        self.gates.push(gate);
-        GateIdx(self.gates.len() - 1)
+    pub(crate) fn add_gate(&mut self, gate: make_name_tables::CircuitOrIntrinsicId) -> GateIdx {
+        self.gates.add(gate)
     }
 
-    fn get_gate(&self, gate_idx: GateIdx) -> &Gate {
-        &self.gates[gate_idx.0]
+    fn get_gate(&self, gate_idx: GateIdx) -> &make_name_tables::CircuitOrIntrinsicId {
+        self.gates.get(gate_idx)
     }
 
     pub(crate) fn add_connection(&mut self, producer: bundle::ProducerBundle, receiver: bundle::ReceiverBundle) {
@@ -130,7 +142,7 @@ impl Circuit {
         self.connections.push((producer, receiver));
     }
 
-    pub(crate) fn iter_gates(&self) -> impl Iterator<Item = (GateIdx, &Gate)> {
+    pub(crate) fn iter_gates(&self) -> impl Iterator<Item = (GateIdx, &make_name_tables::CircuitOrIntrinsicId)> {
         self.gates.iter().enumerate().map(|(i, g)| (GateIdx(i), g))
     }
 

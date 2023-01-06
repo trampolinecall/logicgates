@@ -55,6 +55,7 @@ pub(crate) fn type_<'file>(type_pats::IR { circuits, circuit_table, mut type_con
             }))
         }
         ir::circuit1::CircuitOrIntrinsic::Nand => Some(ir::circuit1::CircuitOrIntrinsic::Nand),
+        circuit1::CircuitOrIntrinsic::Const(value) => Some(ir::circuit1::CircuitOrIntrinsic::Const(value)),
     })?;
 
     let circuit_table = circuit_table.into_iter().map(|(name, old_id)| (name, (old_id))).collect();
