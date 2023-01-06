@@ -9,7 +9,7 @@ use super::{
 
 #[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
 pub(crate) struct CircuitOrIntrinsicId(usize);
-impl<'file> arena::ArenaId for CircuitOrIntrinsicId {
+impl arena::ArenaId for CircuitOrIntrinsicId {
     // TODO: move to different module that makes more sense
     fn make(i: usize) -> Self {
         CircuitOrIntrinsicId(i)

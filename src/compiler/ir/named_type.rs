@@ -23,7 +23,7 @@ impl arena::ArenaId for NamedTypeId {
     }
 }
 
-impl<'file> arena::IsArenaIdFor<FullyDefinedNamedType> for NamedTypeId {}
+impl arena::IsArenaIdFor<FullyDefinedNamedType> for NamedTypeId {}
 impl<'file> arena::IsArenaIdFor<PartiallyDefinedNamedType<'file>> for NamedTypeId {}
 
 // this stores all the named types, one for each named type definition ast

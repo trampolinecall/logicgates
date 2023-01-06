@@ -34,6 +34,6 @@ pub(crate) fn compile(filename: &str) -> Option<circuit::Circuit> {
     let ir = resolve_type_expr::resolve(ir)?;
     let ir = type_pats::type_(ir);
     let ir = type_exprs::type_(ir)?;
-    let ir = convert_circuit1::convert(&file, ir)?;
-    Some(convert_circuit2::convert(&file, ir)?)
+    let ir = convert_circuit1::convert(ir)?;
+    convert_circuit2::convert(&file, ir)
 }
