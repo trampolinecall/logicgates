@@ -54,11 +54,9 @@ impl<T, Id: ArenaId + IsArenaIdFor<T>> Arena<T, Id> {
     pub(crate) fn iter(&self) -> std::slice::Iter<'_, T> {
         self.0.iter()
     }
-    /* (unused)
     pub(crate) fn iter_with_ids(&self) -> impl Iterator<Item = (Id, &T)> + '_ {
         self.0.iter().enumerate().map(|(i, thing)| (Id::make(i), thing))
     }
-    */
 }
 
 // dependant annotation things {{{1
@@ -112,6 +110,7 @@ mod dependant_annotation {
         Err(Error),
     }
 
+    #[derive(Eq, PartialEq, Clone)]
     pub(crate) struct LoopError;
 
     macro_rules! try_annotation_result {
@@ -127,11 +126,11 @@ mod dependant_annotation {
 pub(crate) use dependant_annotation::DependancyGetter;
 pub(crate) use dependant_annotation::LoopError;
 pub(crate) use dependant_annotation::SingleTransformResult;
-impl<Original, Id: ArenaId + IsArenaIdFor<Original>> Arena<Original, Id> {
+impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original, Id> {
     // TODO: write tests for this
-    pub(crate) fn annotate_dependant<Annotation, New, Error>(
+    pub(crate) fn annotate_dependant_with_id<Annotation, New, Error>(
         self,
-        mut try_convert: impl FnMut(&Original, DependancyGetter<Annotation, Original, Error, Id>) -> SingleTransformResult<Annotation, Id, Error>,
+        mut try_convert: impl FnMut(Id, &Original, DependancyGetter<Annotation, Original, Error, Id>) -> SingleTransformResult<Annotation, Id, Error>,
         incorporate_annotation: impl Fn(Original, Annotation) -> New,
     ) -> Result<Arena<New, Id>, (Vec<LoopError>, Vec<Error>)>
     where
@@ -147,28 +146,50 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original>> Arena<Original, Id> {
 
         loop {
             if things.iter().all(|thing| !thing.1.needs_annotation()) {
+                // empty returns true so this will be done if it is empty
                 // all of the things are either done or errored
                 break;
             }
 
-            if things.iter().filter(|thing| thing.1.needs_annotation()).all(|thing| thing.1.is_waiting_on()) {
-                // the things that are not done are all waiting on something else, which is a loop
-                todo!("loop") // TODO: mark all items in loop as loop, so that they are not waiting, continue
-            }
+            let mut amt_changed = 0; // TODO: test counting
 
             for thing_i in 0..things.len() {
                 let thing = things.get(thing_i).expect("iterating through things by index should not be out of range");
                 if let ItemState::Waiting | ItemState::WaitingOn(_) = thing.1 {
-                    let converted = try_convert(&thing.0, DependancyGetter(&things));
+                    let converted = try_convert(Id::make(thing_i), &thing.0, DependancyGetter(&things));
 
-                    let thing_mut = things.get_mut(thing_i).expect("iterating through things by index should not be out of range");
-                    thing_mut.1 = match converted {
-                        SingleTransformResult::Ok(new) => ItemState::Ok(new),
-                        SingleTransformResult::Dep(DependencyError(DependencyErrorKind::WaitingOn(id))) => ItemState::WaitingOn(id),
-                        SingleTransformResult::Dep(DependencyError(DependencyErrorKind::ErrorInDep)) => ItemState::ErrorInDep,
-                        SingleTransformResult::Err(other_error) => ItemState::Error(other_error),
+                    let new_state = match converted {
+                        SingleTransformResult::Ok(new) => {
+                            amt_changed += 1;
+                            ItemState::Ok(new)
+                        }
+                        SingleTransformResult::Dep(DependencyError(DependencyErrorKind::WaitingOn(id))) => {
+                            if let ItemState::WaitingOn(old_waiting_on) = thing.1 {
+                                if id != old_waiting_on {
+                                    amt_changed += 1;
+                                }
+                            }
+
+                            ItemState::WaitingOn(id)
+                        }
+                        SingleTransformResult::Dep(DependencyError(DependencyErrorKind::ErrorInDep)) => {
+                            amt_changed += 1;
+                            ItemState::ErrorInDep
+                        }
+                        SingleTransformResult::Err(other_error) => {
+                            amt_changed += 1;
+                            ItemState::Error(other_error)
+                        }
                     };
+                    let thing_mut = things.get_mut(thing_i).expect("iterating through things by index should not be out of range");
+                    thing_mut.1 = new_state
                 }
+            }
+
+            if amt_changed == 0 && things.iter().filter(|thing| thing.1.needs_annotation()).count() > 0 {
+                // if nothing has changed and there are still items to process
+                todo!("loop") // TODO: mark all items in loop as loop, so that they are not waiting
+                                          // cannot continue because if none of them are changing, they are all dependant on the loop
             }
         }
 
@@ -199,5 +220,16 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original>> Arena<Original, Id> {
         } else {
             Ok(Arena(final_things.expect("problem in final_things but no errors and no loops"), std::marker::PhantomData))
         }
+    }
+
+    pub(crate) fn annotate_dependant<Annotation, New, Error>(
+        self,
+        mut try_convert: impl FnMut(&Original, DependancyGetter<Annotation, Original, Error, Id>) -> SingleTransformResult<Annotation, Id, Error>,
+        incorporate_annotation: impl Fn(Original, Annotation) -> New,
+    ) -> Result<Arena<New, Id>, (Vec<LoopError>, Vec<Error>)>
+    where
+        Id: IsArenaIdFor<New>,
+    {
+        self.annotate_dependant_with_id(|_, thing, dependency_getter| try_convert(thing, dependency_getter), incorporate_annotation)
     }
 }
