@@ -28,9 +28,8 @@ where
     }
 
     pub(crate) fn new_with_named(named: arena::Arena<NamedType, named_type::NamedTypeId>) -> Self {
-        Self { pool: symtern::Pool::new(), named}
+        Self { pool: symtern::Pool::new(), named }
     }
-
 
     pub(crate) fn get(&self, sym: TypeSym) -> &Type {
         self.pool.resolve(sym).expect("symtern resolution error")
@@ -38,6 +37,20 @@ where
 
     pub(crate) fn intern(&mut self, ty: Type) -> TypeSym {
         self.pool.intern(&ty).expect("symtern interning error")
+    }
+
+    pub(crate) fn transform_named<NewNamedType>(self, mut op: impl FnMut(NamedType) -> Option<NewNamedType>) -> Option<TypeContext<NewNamedType>>
+    where
+        named_type::NamedTypeId: arena::IsArenaIdFor<NewNamedType>,
+    {
+        Some(TypeContext { pool: self.pool, named: self.named.transform(op)? })
+    }
+
+    pub(crate) fn transform_named_infallible<NewNamedType>(self, mut op: impl FnMut(NamedType) -> NewNamedType) -> TypeContext<NewNamedType>
+    where
+        named_type::NamedTypeId: arena::IsArenaIdFor<NewNamedType>,
+    {
+        TypeContext { pool: self.pool, named: self.named.transform_infallible(op) }
     }
 }
 impl Type {
