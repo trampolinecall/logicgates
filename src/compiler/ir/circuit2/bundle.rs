@@ -34,7 +34,8 @@ impl<'types> ProducerBundle {
     }
 }
 impl<'types> ReceiverBundle {
-    pub(crate) fn type_(&self, _: &'types mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym { // keep unused parameters for symmetry with ProducerBundle::type_
+    pub(crate) fn type_(&self, _: &'types mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
+        // keep unused parameters for symmetry with ProducerBundle::type_
         match self {
             ReceiverBundle::CurCircuitOutput(ty) => *ty,
             ReceiverBundle::GateInput(ty, _) => *ty,

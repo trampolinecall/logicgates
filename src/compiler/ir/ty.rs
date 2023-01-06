@@ -98,7 +98,8 @@ impl Type {
         }
     }
 
-    pub(crate) fn field_indexes(&self, type_context: &TypeContext<named_type::FullyDefinedNamedType>, field: &str) -> Option<std::ops::Range<usize>> { // TODO: move this to converting circuit2
+    pub(crate) fn field_indexes(&self, type_context: &TypeContext<named_type::FullyDefinedNamedType>, field: &str) -> Option<std::ops::Range<usize>> {
+        // TODO: move this to converting circuit2
         match self {
             Type::Bit => None,
             Type::Product(fields) => {
