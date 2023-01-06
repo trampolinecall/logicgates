@@ -6,7 +6,7 @@ use super::{named_type, ty, type_expr};
 
 // TODO: separate ast from this?
 
-// TODO; move Circuit and CircuitOrIntrinsic into separate module
+// TODO: move Circuit and CircuitOrIntrinsic into separate module
 pub(crate) type UntypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, (), (), type_expr::TypeExpr<'file>>;
 pub(crate) type UntypedCircuit<'file> = Circuit<'file, (), (), type_expr::TypeExpr<'file>>;
 pub(crate) type UntypedLet<'file> = Let<'file, (), type_expr::TypeExpr<'file>>;
