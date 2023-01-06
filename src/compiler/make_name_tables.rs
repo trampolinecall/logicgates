@@ -3,13 +3,14 @@ use std::collections::HashMap;
 use super::{
     arena,
     error::{CompileError, Report, Span},
-    ir::{circuit1, named_type},
+    ir::{circuit1, named_type, ty},
     parser,
 };
 
 #[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
 pub(crate) struct CircuitOrIntrinsicId(usize);
-impl<'file> arena::ArenaId for CircuitOrIntrinsicId { // TODO: move to different module that makes more sense
+impl<'file> arena::ArenaId for CircuitOrIntrinsicId {
+    // TODO: move to different module that makes more sense
     fn make(i: usize) -> Self {
         todo!()
     }
@@ -19,24 +20,12 @@ impl<'file> arena::ArenaId for CircuitOrIntrinsicId { // TODO: move to different
     }
 }
 impl<'file, TypeInfo, TypeExpr> arena::IsArenaIdFor<circuit1::CircuitOrIntrinsic<'file, TypeInfo, TypeExpr>> for CircuitOrIntrinsicId {}
-#[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
-pub(crate) struct TypeDeclId(usize); // TODO: also move to different module that makes more sense
-impl<'file> arena::ArenaId for TypeDeclId {
-    fn make(i: usize) -> Self {
-        todo!()
-    }
-
-    fn get(&self) -> usize {
-        todo!()
-    }
-}
-impl<'file> arena::IsArenaIdFor<named_type::NamedTypeDecl<'file>> for TypeDeclId {}
 pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<circuit1::UntypedCircuitOrIntrinsic<'file>, CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<String, CircuitOrIntrinsicId>,
 
-    pub(crate) type_decls: arena::Arena<named_type::NamedTypeDecl<'file>, TypeDeclId>,
-    pub(crate) type_table: HashMap<String, TypeDeclId>,
+    pub(crate) type_context: ty::TypeContext<named_type::PartiallyDefinedNamedType<'file>>,
+    pub(crate) type_table: HashMap<String, ty::TypeSym>,
 }
 
 struct Duplicate<'file>(&'static str, Span<'file>, &'file str); // TODO: show previous declaration
@@ -49,9 +38,9 @@ impl<'file> From<Duplicate<'file>> for CompileError<'file> {
 pub(crate) fn make(ast: parser::AST) -> Option<IR> {
     let circuits = make_circuit_table(ast.circuits);
     let types = make_type_table(ast.type_decls);
-    let circuits = circuits?;
-    let types = types?;
-    Some(IR { circuits: circuits.0, circuit_table: circuits.1, type_decls: types.0, type_table: types.1 })
+    let (circuits, circuit_table) = circuits?;
+    let (type_context, type_table) = types?;
+    Some(IR { circuits, circuit_table, type_context, type_table })
 }
 
 fn make_circuit_table(circuits: Vec<circuit1::UntypedCircuit>) -> Option<(arena::Arena<circuit1::UntypedCircuitOrIntrinsic, CircuitOrIntrinsicId>, HashMap<String, CircuitOrIntrinsicId>)> {
@@ -75,21 +64,22 @@ fn make_circuit_table(circuits: Vec<circuit1::UntypedCircuit>) -> Option<(arena:
     }
 }
 
-fn make_type_table(type_decls: Vec<super::ir::named_type::NamedTypeDecl>) -> Option<(arena::Arena<named_type::NamedTypeDecl, TypeDeclId>, HashMap<String, TypeDeclId>)> {
+fn make_type_table(type_decls: Vec<super::ir::named_type::NamedTypeDecl>) -> Option<(ty::TypeContext<named_type::PartiallyDefinedNamedType>, HashMap<String, ty::TypeSym>)> {
     let mut type_table = HashMap::new();
-    let mut type_decl_arena = arena::Arena::new();
+    let mut type_context = ty::TypeContext::new();
     let mut errored = false;
     for decl in type_decls {
         if type_table.contains_key(decl.name.1) {
             Duplicate("named type", decl.name.0, decl.name.1).report();
             errored = true;
         }
-        type_table.insert(decl.name.1.into(), type_decl_arena.add(decl));
+        let named_index = type_context.named.add(decl);
+        type_table.insert(decl.name.1.into(), type_context.intern(ty::Type::Named(named_index)));
     }
 
     if errored {
         None
     } else {
-        Some((type_decl_arena, type_table))
+        Some((type_context, type_table))
     }
 }
