@@ -2,7 +2,7 @@ pub(crate) mod expr;
 
 use crate::compiler::error::Span;
 
-use super::{ty, type_expr};
+use super::{named_type, ty, type_expr};
 
 // TODO: separate ast from this?
 
@@ -74,6 +74,28 @@ impl<'file, TypeInfo> PatternKind<'file, TypeInfo, (Span<'file>, ty::TypeSym)> {
         match self {
             PatternKind::Identifier(sp, _, (ty_sp, _)) => *sp + *ty_sp,
             PatternKind::Product(sp, _) => *sp,
+        }
+    }
+}
+
+// TODO: this will probably be duplicated with the type code from circuit2 but i dont know how to fix that (although i think the solution might be a separate type checking phase so that circuit2 doesnt need to have type information)
+impl<'file, ExprTypeInfo, TypeExpr> CircuitOrIntrinsic<'file, ExprTypeInfo, ty::TypeSym, TypeExpr> {
+    pub(crate) fn output_type(&self, type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
+        match self {
+            CircuitOrIntrinsic::Circuit(circuit) => circuit.input.type_info,
+            CircuitOrIntrinsic::Nand => {
+                let b = type_context.intern(ty::Type::Bit);
+                type_context.intern(ty::Type::Product(vec![("0".into(), b), ("1".into(), b)]))
+            }
+        }
+    }
+}
+
+impl<'file, ExprTypeInfo, PatTypeInfo> CircuitOrIntrinsic<'file, ExprTypeInfo, PatTypeInfo, (Span<'file>, ty::TypeSym)> {
+    pub(crate) fn input_type(&self, type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
+        match self {
+            CircuitOrIntrinsic::Circuit(circuit) => circuit.output_type.1,
+            CircuitOrIntrinsic::Nand  => type_context.intern(ty::Type::Bit),
         }
     }
 }

@@ -86,7 +86,7 @@ mod dependant_transform {
         }
     }
     impl<'arena, New, Old, Error, Id: ArenaId + IsArenaIdFor<Old> + IsArenaIdFor<New>> DependancyGetter<'arena, New, Old, Error, Id> {
-        pub(crate) fn get_dep(&self, id: Id) -> SingleTransformResult<&'arena New, Id, Error> {
+        pub(crate) fn get(&self, id: Id) -> SingleTransformResult<&'arena New, Id, Error> {
             match self.0.get(id.get()).expect("arena Id should not be invalid") {
                 (_, ItemState::Ok(item)) => SingleTransformResult::Ok(item),
                 (_, ItemState::Waiting) | (_, ItemState::WaitingOn(_)) => SingleTransformResult::Dep(DependencyError(DependencyErrorKind::WaitingOn(id))),
