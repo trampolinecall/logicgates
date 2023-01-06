@@ -19,10 +19,10 @@ pub(crate) fn type_(resolve_type_expr::IR { circuits, circuit_table, mut type_co
         circuits: circuits.transform_infallible(|circuit| match circuit {
             circuit1::CircuitOrIntrinsic::Circuit(circuit) => circuit1::CircuitOrIntrinsic::Circuit(circuit1::Circuit {
                 name: circuit.name,
-                input: type_pat(&mut type_context, &circuit.input),
+                input: type_pat(&mut type_context, circuit.input),
                 expressions: circuit.expressions,
                 output_type: circuit.output_type,
-                lets: circuit.lets.into_iter().map(|pat| type_pat_in_let(&mut type_context, &pat)).collect(),
+                lets: circuit.lets.into_iter().map(|pat| type_pat_in_let(&mut type_context, pat)).collect(),
                 output: circuit.output,
             }),
             circuit1::CircuitOrIntrinsic::Nand => circuit1::CircuitOrIntrinsic::Nand,
@@ -33,27 +33,18 @@ pub(crate) fn type_(resolve_type_expr::IR { circuits, circuit_table, mut type_co
     }
 }
 
-fn type_pat_in_let<'file>(
-    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
-    let_: &circuit1::TypeResolvedLet<'file>,
-) -> circuit1::PatTypedLet<'file> {
-    circuit1::Let { pat: type_pat(type_context, &let_.pat), val: let_.val }
+fn type_pat_in_let<'file>(type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>, let_: circuit1::TypeResolvedLet<'file>) -> circuit1::PatTypedLet<'file> {
+    circuit1::Let { pat: type_pat(type_context, let_.pat), val: let_.val }
 }
 
-fn type_pat<'file>(
-    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
-    pat: &circuit1::TypeResolvedPattern<'file>,
-) -> circuit1::PatTypedPattern<'file> {
-    let (kind, type_info) = match &pat.kind {
-        circuit1::PatternKind::Identifier(name_sp, name, ty) => {
-            let type_info = ty.1;
-            (circuit1::PatternKind::Identifier(*name_sp, name, *ty), type_info)
-        }
+fn type_pat<'file>(type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>, pat: circuit1::TypeResolvedPattern<'file>) -> circuit1::PatTypedPattern<'file> {
+    let (kind, type_info) = match pat.kind {
+        circuit1::PatternKind::Identifier(name_sp, name, ty) => (circuit1::PatternKind::Identifier(name_sp, name, ty), ty.1),
         circuit1::PatternKind::Product(sp, pats) => {
-            let typed_pats: Vec<_> = pats.into_iter().map(|subpat| type_pat(type_context, &subpat)).collect();
+            let typed_pats: Vec<_> = pats.into_iter().map(|subpat| type_pat(type_context, subpat)).collect();
 
             let ty = ty::Type::Product(typed_pats.iter().enumerate().map(|(ind, subpat)| (ind.to_string(), subpat.type_info)).collect());
-            (circuit1::PatternKind::Product(*sp, typed_pats), type_context.intern(ty))
+            (circuit1::PatternKind::Product(sp, typed_pats), type_context.intern(ty))
         }
     };
 
