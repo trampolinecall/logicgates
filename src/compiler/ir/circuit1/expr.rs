@@ -21,7 +21,7 @@ impl arena::ArenaId for ExprId {
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct Expr<'file, TypeInfo> {
+pub(crate) struct Expr<'file, TypeInfo> { // TODO: make expr not in an arena
     pub(crate) kind: ExprKind<'file>,
     pub(crate) type_info: TypeInfo,
     pub(crate) span: Span<'file>,
