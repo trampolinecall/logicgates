@@ -2,10 +2,9 @@ use std::collections::HashMap;
 
 use crate::utils::CollectAll;
 
-use super::ir::{circuit1, ty, named_type, type_expr};
+use super::ir::{circuit1, named_type, ty, type_expr};
 use super::{arena, ir, make_name_tables};
 
-impl arena::IsArenaIdFor<ty::TypeSym> for make_name_tables::TypeDeclId {}
 pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<ir::circuit1::TypedCircuitOrIntrinsic<'file>, make_name_tables::CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<String, make_name_tables::CircuitOrIntrinsicId>,
@@ -17,7 +16,7 @@ pub(crate) fn fill<'file>(make_name_tables::IR { circuits, circuit_table, type_d
     // this whole function is really messy but i dont know how to fix it
     let mut type_context = ty::TypeContext::new();
 
-    let type_decls = match type_decls.transform_dependant(|type_decl: &named_type::NamedTypeDecl, get_dep| -> arena::SingleTransformResult<symtern::Sym<usize>, make_name_tables::TypeDeclId, Vec<()>> {
+    let type_decls = match type_decls.transform_dependant(|type_decl: &named_type::NamedTypeDecl, get_dep| {
         let ty = convert_type_ast_dependant(&mut type_context, &type_table, get_dep, &type_decl.ty);
         let named_type = type_context.named.add((type_decl.name.1.to_string(), try_transform_result!(ty)));
         todo!()
@@ -27,6 +26,7 @@ pub(crate) fn fill<'file>(make_name_tables::IR { circuits, circuit_table, type_d
         Err((loops, errors)) => todo!("report error from type name resolution in type filling"),
     };
 
+    /*
     let type_table = type_table.into_iter().map(|(name, type_decl_id)| (name, *type_decls.get(type_decl_id))).collect();
 
     // TODO: disallow recursive types / infinitely sized types
@@ -68,14 +68,16 @@ pub(crate) fn fill<'file>(make_name_tables::IR { circuits, circuit_table, type_d
     let circuit_table = circuit_table.into_iter().map(|(name, old_id)| (name, (old_id))).collect();
 
     Some(IR { circuits, circuit_table, type_context, type_table })
+    */
+    todo!()
 }
 
 fn convert_type_ast_dependant<'file>(
     type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
-    type_table: &HashMap<String, make_name_tables::TypeDeclId>,
-    get_other_type: arena::DependancyGetter<ty::TypeSym, named_type::NamedTypeDecl<'file>, Vec<()>, make_name_tables::TypeDeclId>,
+    type_table: &HashMap<String, named_type::NamedTypeId>,
+    get_other_type: arena::DependancyGetter<(String, ty::TypeSym), named_type::NamedTypeDecl<'file>, Vec<()>, named_type::NamedTypeId>,
     ty: &type_expr::TypeExpr,
-) -> arena::SingleTransformResult<ty::TypeSym, make_name_tables::TypeDeclId, Vec<()>> {
+) -> arena::SingleTransformResult<ty::TypeSym, named_type::NamedTypeId, Vec<()>> {
     use arena::SingleTransformResult;
     match ty {
         type_expr::TypeExpr::Bit(_) => SingleTransformResult::Ok(type_context.intern(ty::Type::Bit)),
@@ -101,7 +103,7 @@ fn convert_type_ast_dependant<'file>(
         ir::type_expr::TypeExpr::Named(_, name) => {
             let res = type_table.get(*name).copied();
             if let Some(other_type_decl) = res {
-                SingleTransformResult::Ok(*(try_transform_result!(get_other_type.get_dep(other_type_decl))))
+                SingleTransformResult::Ok((try_transform_result!(get_other_type.get_dep(other_type_decl))).1)
             } else {
                 todo!("report error for undefined named type")
             }

@@ -31,4 +31,3 @@ impl<'file> arena::IsArenaIdFor<PartiallyDefinedNamedType<'file>> for NamedTypeI
 // these are used through the Type::Named constructor which is compared based off of its index into this array, meaning that named types will not be equal unless they point to the same item in this array
 pub(crate) type PartiallyDefinedNamedType<'file> = NamedTypeDecl<'file>;
 pub(crate) type FullyDefinedNamedType = (String, ty::TypeSym);
-// TODO: put these arenas in type context?
