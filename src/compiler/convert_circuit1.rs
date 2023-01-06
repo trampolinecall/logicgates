@@ -1,8 +1,5 @@
 use std::collections::HashMap;
 
-use crate::compiler::ir::circuit2::Gate;
-use crate::utils::CollectAll;
-
 use super::arena;
 use super::error::File;
 use super::error::Report;
@@ -46,7 +43,7 @@ pub(crate) fn convert(
 
     match circuit_table.get("main") {
         Some(main_id /*  */) => match circuits.get(*main_id) {
-            Gate::Custom(c) => Some((type_context, c.clone())), // TODO: move out of arena instead of cloning
+            circuit2::Gate::Custom(c) => Some((type_context, c.clone())), // TODO: move out of arena instead of cloning
             _ => unreachable!("builtin circuit called main"),
         },
         None => {

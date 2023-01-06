@@ -55,21 +55,21 @@ impl<T, Id: ArenaId + IsArenaIdFor<T>> Arena<T, Id> {
     }
 }
 
-// dependant transform things {{{1
+// dependant annotation things {{{1
 #[macro_use]
-mod dependant_transform {
+mod dependant_annotation {
     use super::{ArenaId, IsArenaIdFor};
 
-    pub(super) enum ItemState<New, Id, Error> {
+    pub(super) enum ItemState<Annotation, Id, Error> {
         Waiting,
         WaitingOn(Id),
-        Ok(New),
+        Ok(Annotation),
         Error(Error),
         ErrorInDep,
     }
 
-    impl<New, Id, Error> ItemState<New, Id, Error> {
-        pub(super) fn needs_transformation(&self) -> bool {
+    impl<Annotation, Id, Error> ItemState<Annotation, Id, Error> {
+        pub(super) fn needs_annotation(&self) -> bool {
             matches!(self, Self::Waiting | Self::WaitingOn(..))
         }
 
@@ -78,15 +78,15 @@ mod dependant_transform {
         }
     }
 
-    pub(crate) struct DependancyGetter<'arena, New, Old, Error, Id>(pub(super) &'arena Vec<(Old, ItemState<New, Id, Error>)>);
-    impl<New, Old, Error, Id> Copy for DependancyGetter<'_, New, Old, Error, Id> {}
-    impl<New, Old, Error, Id> Clone for DependancyGetter<'_, New, Old, Error, Id> {
+    pub(crate) struct DependancyGetter<'arena, Annotation, Original, Error, Id>(pub(super) &'arena Vec<(Original, ItemState<Annotation, Id, Error>)>);
+    impl<Annotation, Original, Error, Id> Copy for DependancyGetter<'_, Annotation, Original, Error, Id> {}
+    impl<Annotation, Original, Error, Id> Clone for DependancyGetter<'_, Annotation, Original, Error, Id> {
         fn clone(&self) -> Self {
             Self(self.0)
         }
     }
-    impl<'arena, New, Old, Error, Id: ArenaId + IsArenaIdFor<Old> + IsArenaIdFor<New>> DependancyGetter<'arena, New, Old, Error, Id> {
-        pub(crate) fn get(&self, id: Id) -> SingleTransformResult<&'arena New, Id, Error> {
+    impl<'arena, Annotation, Original, Error, Id: ArenaId + IsArenaIdFor<Original>> DependancyGetter<'arena, Annotation, Original, Error, Id> {
+        pub(crate) fn get(&self, id: Id) -> SingleTransformResult<&'arena Annotation, Id, Error> {
             match self.0.get(id.get()).expect("arena Id should not be invalid") {
                 (_, ItemState::Ok(item)) => SingleTransformResult::Ok(item),
                 (_, ItemState::Waiting) | (_, ItemState::WaitingOn(_)) => SingleTransformResult::Dep(DependencyError(DependencyErrorKind::WaitingOn(id))),
@@ -100,15 +100,15 @@ mod dependant_transform {
         WaitingOn(Id),
         ErrorInDep,
     }
-    pub(crate) enum SingleTransformResult<New, Id, Error> {
-        Ok(New),
+    pub(crate) enum SingleTransformResult<Annotation, Id, Error> {
+        Ok(Annotation),
         Dep(DependencyError<Id>),
         Err(Error),
     }
 
     pub(crate) struct LoopError;
 
-    macro_rules! try_transform_result {
+    macro_rules! try_annotation_result {
         ($e:expr) => {
             match $e {
                 $crate::compiler::arena::SingleTransformResult::Ok(r) => r,
@@ -118,34 +118,34 @@ mod dependant_transform {
         };
     }
 }
-pub(crate) use dependant_transform::DependancyGetter;
-pub(crate) use dependant_transform::LoopError;
-pub(crate) use dependant_transform::SingleTransformResult;
-impl<Old, Id: ArenaId + IsArenaIdFor<Old>> Arena<Old, Id> {
+pub(crate) use dependant_annotation::DependancyGetter;
+pub(crate) use dependant_annotation::LoopError;
+pub(crate) use dependant_annotation::SingleTransformResult;
+impl<Original, Id: ArenaId + IsArenaIdFor<Original>> Arena<Original, Id> {
     // TODO: write tests for this
-    pub(crate) fn transform_dependant<New, Error>(
+    pub(crate) fn annotate_dependant<Annotation, New, Error>(
         self,
-        // TODO: make the thing not have to take a &Old
-        mut try_convert: impl FnMut(&Old, DependancyGetter<New, Old, Error, Id>) -> SingleTransformResult<New, Id, Error>,
+        mut try_convert: impl FnMut(&Original, DependancyGetter<Annotation, Original, Error, Id>) -> SingleTransformResult<Annotation, Id, Error>,
+        incorporate_annotation: impl Fn(Original, Annotation) -> New,
     ) -> Result<Arena<New, Id>, (Vec<LoopError>, Vec<Error>)>
     where
         Id: IsArenaIdFor<New>,
     {
-        use dependant_transform::*;
-        // some transformations have operations that are dependant on the results of other transformations
+        use dependant_annotation::*;
+        // some transformations / annotations have operations that are dependant on the results of other annotations
         // for example in name resolution, the result of a single name might be dependant on the resolution of another name
         // another example is in calculating the sizes of types, the size of a single type might be dependant on the sizes of other types (for example the size of a product type is dependant on the sizes of each of its child types)
-        // this method holds the logic for allowing the operations to happen in a centralized place so that it does not need to be copied and pasted around to every part that needs it (not only because of dry but also because some of the logic, for example the loop detection logic, is annoying to implement)
+        // this method holds the logic for allowing the operations to happen in a centralized place so that it does not need to be copied and pasted around to every part that needs it (not only because of dry but also because some of the logic, for example the loop detection logic, is annoying to constantly reimplement)
 
-        let mut things: Vec<_> = self.0.into_iter().map(|item| (item, ItemState::Waiting::<New, Id, Error>)).collect();
+        let mut things: Vec<_> = self.0.into_iter().map(|item| (item, ItemState::Waiting::<Annotation, Id, Error>)).collect();
 
         loop {
-            if things.iter().all(|thing| !thing.1.needs_transformation()) {
+            if things.iter().all(|thing| !thing.1.needs_annotation()) {
                 // all of the things are either done or errored
                 break;
             }
 
-            if things.iter().filter(|thing| thing.1.needs_transformation()).all(|thing| thing.1.is_waiting_on()) {
+            if things.iter().filter(|thing| thing.1.needs_annotation()).all(|thing| thing.1.is_waiting_on()) {
                 // the things that are not done are all waiting on something else, which is a loop
                 todo!("loop") // TODO: mark all items in loop as loop, so that they are not waiting, continue
             }
@@ -153,7 +153,7 @@ impl<Old, Id: ArenaId + IsArenaIdFor<Old>> Arena<Old, Id> {
             for thing_i in 0..things.len() {
                 let thing = things.get(thing_i).expect("iterating through things by index should not be out of range");
                 if let ItemState::Waiting | ItemState::WaitingOn(_) = thing.1 {
-                    let converted = try_convert(&thing.0, DependancyGetter(&things), );
+                    let converted = try_convert(&thing.0, DependancyGetter(&things));
 
                     let thing_mut = things.get_mut(thing_i).expect("iterating through things by index should not be out of range");
                     thing_mut.1 = match converted {
@@ -170,12 +170,12 @@ impl<Old, Id: ArenaId + IsArenaIdFor<Old>> Arena<Old, Id> {
         let mut errors = Vec::new();
         let loops = Vec::new(); // TODO
 
-        for thing in things.into_iter() {
-            match thing.1 {
-                ItemState::Waiting | ItemState::WaitingOn(_) => unreachable!("item waiting after main loop in dependant transform"),
-                ItemState::Ok(thing) => {
+        for (original, annotation) in things.into_iter() {
+            match annotation {
+                ItemState::Waiting | ItemState::WaitingOn(_) => unreachable!("item waiting after main loop in dependant annotation"),
+                ItemState::Ok(annotation) => {
                     if let Some(ref mut final_things) = final_things {
-                        final_things.push(thing)
+                        final_things.push(incorporate_annotation(original, annotation))
                     }
                 }
                 ItemState::Error(error) => {
