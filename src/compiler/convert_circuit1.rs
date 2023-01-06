@@ -118,8 +118,7 @@ fn convert_expr(
             let name_resolved = if let Some(resolved) = circuit_state.locals.get(name) {
                 resolved
             } else {
-                (&*type_context, error::Error::NoSuchLocal(*name_sp, name)).report();
-                None?
+                unreachable!("reference to nonexistent local after checking in previous phase")
             };
 
             Some(name_resolved.clone())
@@ -130,8 +129,7 @@ fn convert_expr(
             let (input_type, output_type, name_resolved) = if let Some(n) = circuit_table.get(circuit_name.1) {
                 n
             } else {
-                (&*type_context, error::Error::NoSuchCircuit(circuit_name.0, circuit_name.1)).report();
-                None?
+                unreachable!("call to nonexistent circuit after checking in previous phase")
             };
 
             let arg = convert_expr(consts, circuit_table, type_context, circuit_state, circuit1, *arg)?;
@@ -146,15 +144,14 @@ fn convert_expr(
             Some(circuit2::bundle::ProducerBundle::GateOutput(type_context.intern(ty::Type::Bit), gate_i))
         }
 
-        circuit1::expr::ExprKind::Get(expr, (field_name_sp, field_name)) => {
+        circuit1::expr::ExprKind::Get(expr, (_, field_name)) => {
             let expr = convert_expr(consts, circuit_table, type_context, circuit_state, circuit1, *expr)?;
             let expr_type = expr.type_(type_context);
             if type_context.get(expr_type).field_type(type_context, field_name).is_some() {
                 // TODO: make .fields.contains() instead of has_field
                 Some(ProducerBundle::Get(Box::new(expr), field_name.to_string()))
             } else {
-                (&*type_context, error::Error::NoField { ty: expr_type, field_name, field_name_sp: *field_name_sp }).report();
-                None
+                unreachable!("get invalid field after checking in previous phase")
             }
         }
 

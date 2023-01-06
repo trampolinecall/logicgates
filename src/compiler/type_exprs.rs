@@ -2,8 +2,34 @@ use std::collections::HashMap;
 
 use crate::utils::CollectAll;
 
+use super::error::{CompileError, Report, Span};
 use super::ir::{circuit1, named_type, ty};
 use super::{arena, ir, make_name_tables, type_pats};
+
+struct NoField<'file> {
+    // TODO: list names of fields that do exist
+    ty: ty::TypeSym,
+    field_name_sp: Span<'file>,
+    field_name: &'file str,
+}
+struct NoSuchLocal<'file>(Span<'file>, &'file str);
+struct NoSuchCircuit<'file>(Span<'file>, &'file str);
+
+impl<'file> From<(&ty::TypeContext<named_type::FullyDefinedNamedType>, NoField<'file>)> for CompileError<'file> {
+    fn from((types, NoField { ty, field_name_sp, field_name }): (&ty::TypeContext<named_type::FullyDefinedNamedType>, NoField<'file>)) -> Self {
+        CompileError::new(field_name_sp, format!("no field called '{}' on type '{}'", field_name, types.get(ty).fmt(types)))
+    }
+}
+impl<'file> From<NoSuchLocal<'file>> for CompileError<'file> {
+    fn from(NoSuchLocal(name_sp, name): NoSuchLocal<'file>) -> Self {
+        CompileError::new(name_sp, format!("no local called '{}'", name))
+    }
+}
+impl<'file> From<NoSuchCircuit<'file>> for CompileError<'file> {
+    fn from(NoSuchCircuit(name_sp, name): NoSuchCircuit<'file>) -> Self {
+        CompileError::new(name_sp, format!("no circuit called '{}'", name))
+    }
+}
 
 pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<ir::circuit1::TypedCircuitOrIntrinsic<'file>, make_name_tables::CircuitOrIntrinsicId>,
@@ -42,10 +68,9 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
                 input: circuit.input,
                 expressions: match expressions {
                     Ok(r) => r,
-                    Err((loop_errors, typing_errors)) => {
+                    Err((loop_errors, _)) => {
                         assert!(loop_errors.is_empty(), "expressions are in a tree, which cannot have loops");
-
-                        todo!("report typing errors in typing expressions")
+                        None?
                     }
                 },
                 output_type: circuit.output_type,
@@ -83,26 +108,33 @@ fn type_expr<'file>(
     expr: &circuit1::expr::UntypedExpr<'file>,
 ) -> arena::SingleTransformResult<ty::TypeSym, circuit1::expr::ExprId, Vec<()>> {
     let type_info = match &expr.kind {
-        circuit1::expr::ExprKind::Ref(_, name) => {
-            let local_type = if let Some(ty) = local_types.get(name) { *ty } else { todo!("report error for undefined local usage") };
-            local_type
-        }
-        circuit1::expr::ExprKind::Call(name, _, _) => {
-            // this also does circuit name resolution
-            if let Some((_, ty, _)) = circuit_table.get(name.1) {
+        circuit1::expr::ExprKind::Ref(name_sp, name) => {
+            let local_type = if let Some(ty) = local_types.get(name) {
                 *ty
             } else {
-                todo!("report error for undefined circuit usage")
+                NoSuchLocal(*name_sp, name).report();
+                return arena::SingleTransformResult::Err(vec![]);
+            };
+            local_type
+        }
+        circuit1::expr::ExprKind::Call((name_sp, name), _, _) => {
+            // this also does circuit name resolution
+            if let Some((_, ty, _)) = circuit_table.get(*name) {
+                *ty
+            } else {
+                NoSuchCircuit(*name_sp, name).report();
+                return arena::SingleTransformResult::Err(vec![]);
             }
         }
         circuit1::expr::ExprKind::Const(_, _) => type_context.intern(ty::Type::Bit),
         circuit1::expr::ExprKind::Get(base, field) => {
-            let base_ty = try_annotation_result!(get_other_expr_type.get(*base));
-            let field_ty = type_context.get(*base_ty.1).field_type(type_context, field.1);
+            let (_, base_ty) = try_annotation_result!(get_other_expr_type.get(*base));
+            let field_ty = type_context.get(*base_ty).field_type(type_context, field.1);
             if let Some(field_ty) = field_ty {
                 field_ty
             } else {
-                return arena::SingleTransformResult::Err(todo!("report error for field doesnt exist on type"));
+                (&*type_context, NoField { ty: *base_ty, field_name_sp: field.0, field_name: field.1 }).report();
+                return arena::SingleTransformResult::Err(vec![]);
             }
         }
         circuit1::expr::ExprKind::Multiple { obrack: _, exprs, cbrack: _ } => type_context.intern(ty::Type::Product(try_annotation_result!(exprs
