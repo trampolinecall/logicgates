@@ -4,7 +4,7 @@ use crate::utils::CollectAll;
 
 use super::{
     arena,
-    error::Span,
+    error::{CompileError, Report, Span},
     ir::{circuit1, named_type, ty, type_expr},
     make_name_tables::{self, CircuitOrIntrinsicId},
 };
@@ -14,6 +14,13 @@ pub(crate) struct IR<'file> {
     pub(crate) circuit_table: HashMap<String, CircuitOrIntrinsicId>,
 
     pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
+}
+
+struct UndefinedType<'file>(Span<'file>, &'file str);
+impl<'file> From<UndefinedType<'file>> for CompileError<'file> {
+    fn from(UndefinedType(sp, name): UndefinedType<'file>) -> Self {
+        CompileError::new(sp, format!("undefined type '{}'", name))
+    }
 }
 
 pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_context, mut type_table }: make_name_tables::IR) -> Option<IR> {
@@ -75,28 +82,27 @@ fn resolve_type_no_span<NamedType>(type_context: &mut ty::TypeContext<NamedType>
 where
     named_type::NamedTypeId: arena::IsArenaIdFor<NamedType>,
 {
-    let ty = match ty {
+    match ty {
         type_expr::TypeExpr::Product { obrack: _, types: subtypes, cbrack: _ } => {
             let ty = ty::Type::Product((subtypes.iter().enumerate().map(|(ind, subty_ast)| Some((ind.to_string(), resolve_type_no_span(type_context, type_table, subty_ast)?))).collect_all())?);
-            type_context.intern(ty)
+            Some(type_context.intern(ty))
         }
         type_expr::TypeExpr::RepProduct { obrack: _, num, cbrack: _, type_ } => {
             let ty = resolve_type_no_span(type_context, type_table, type_)?;
-            type_context.intern(ty::Type::Product((0..num.1).map(|ind| (ind.to_string(), ty)).collect()))
+            Some(type_context.intern(ty::Type::Product((0..num.1).map(|ind| (ind.to_string(), ty)).collect())))
         }
         type_expr::TypeExpr::NamedProduct { obrack: _, named: _, types: subtypes, cbrack: _ } => {
             let ty = ty::Type::Product((subtypes.iter().map(|(name, ty)| Some((name.1.to_string(), (resolve_type_no_span(type_context, type_table, ty)?)))).collect_all())?); // TODO: report error if there are any duplicate fields
-            type_context.intern(ty)
+            Some(type_context.intern(ty))
         }
-        type_expr::TypeExpr::Named(_, name) => {
+        type_expr::TypeExpr::Named(name_sp, name) => {
             let res = type_table.get(*name).copied();
             if let Some(other_type_decl) = res {
-                other_type_decl
+                Some(other_type_decl)
             } else {
-                todo!("report error for undefined named type")
+                UndefinedType(*name_sp, name).report();
+                None
             }
         }
-    };
-
-    Some(ty)
+    }
 }
