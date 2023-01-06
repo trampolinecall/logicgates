@@ -12,11 +12,11 @@ pub(crate) struct CircuitOrIntrinsicId(usize);
 impl<'file> arena::ArenaId for CircuitOrIntrinsicId {
     // TODO: move to different module that makes more sense
     fn make(i: usize) -> Self {
-        todo!()
+        CircuitOrIntrinsicId(i)
     }
 
     fn get(&self) -> usize {
-        todo!()
+        self.0
     }
 }
 impl<'file, PatTypeInfo, ExprTypeInfo, TypeExpr> arena::IsArenaIdFor<circuit1::CircuitOrIntrinsic<'file, PatTypeInfo, ExprTypeInfo, TypeExpr>> for CircuitOrIntrinsicId {}
