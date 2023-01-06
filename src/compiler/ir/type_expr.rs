@@ -9,7 +9,7 @@ pub(crate) enum TypeExpr<'file> {
 }
 
 impl<'file> TypeExpr<'file> {
-    pub(crate) fn span(&self) -> Span<'file> {
+    pub(crate) fn span(&self) -> Span<'file> { // TODO: make TypeExpr and TypeExprKind so this can be a field and not a method
         match self {
             TypeExpr::Named(sp, _) => *sp,
             TypeExpr::RepProduct { obrack, num: _, cbrack: _, type_ } => *obrack + type_.span(),

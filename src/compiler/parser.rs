@@ -162,15 +162,16 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 self.expect(Token::semicolon_matcher())?;
 
                 let type_ = self.type_()?;
+                let type_span = type_.span();
 
-                Ok(circuit1::UntypedPattern { kind: circuit1::PatternKind::Identifier(iden.0, iden.1, type_), type_info: () })
+                Ok(circuit1::UntypedPattern { kind: circuit1::PatternKind::Identifier(iden.0, iden.1, type_), type_info: (), span: iden.0 + type_span })
             }
 
             &Token::OBrack(obrack) => {
                 self.next();
 
                 let (patterns, cbrack) = self.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::pattern)?;
-                Ok(circuit1::UntypedPattern { kind: circuit1::PatternKind::Product(obrack + cbrack, patterns), type_info: () })
+                Ok(circuit1::UntypedPattern { kind: circuit1::PatternKind::Product(obrack + cbrack, patterns), type_info: (), span: obrack + cbrack })
             }
             _ => Err(self.expected_and_next("pattern")),
         }
@@ -241,7 +242,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let cbrack = self.expect(Token::cbrack_matcher())?;
 
-                Ok(expressions.add(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Multiple { obrack, cbrack, exprs: items }, type_info: (), span: obrack + cbrack}))
+                Ok(expressions.add(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Multiple { obrack, cbrack, exprs: items }, type_info: (), span: obrack + cbrack }))
             }
 
             _ => Err(self.expected_and_next("expression"))?,

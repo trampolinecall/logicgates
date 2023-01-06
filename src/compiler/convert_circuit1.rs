@@ -84,7 +84,7 @@ fn convert_circuit(
         type_info: expr.type_info,
     });
 
-    let input_value = values.add(Value { kind: ValueKind::Input, type_info: circuit1.input.type_info, span: circuit1.input.kind.span() });
+    let input_value = values.add(Value { kind: ValueKind::Input, type_info: circuit1.input.type_info, span: circuit1.input.span });
     let mut locals = HashMap::new();
     let mut gates = HashMap::new(); // only calls and consts are included in this map
 
@@ -160,7 +160,7 @@ fn assign_pattern<'file>(
     value: ValueId,
 ) -> Result<(), error::Error<'file>> {
     if values.get(value).type_info != pat.type_info {
-        Err(error::Error::TypeMismatch { expected_span: pat.kind.span(), got_type: values.get(value).type_info, expected_type: pat.type_info })?;
+        Err(error::Error::TypeMismatch { expected_span: pat.span, got_type: values.get(value).type_info, expected_type: pat.type_info })?;
     }
 
     match &pat.kind {
@@ -173,7 +173,7 @@ fn assign_pattern<'file>(
                 // TODO: when named product literals are implemented, this should be the actual field name and not just the enumerate index
                 let field_name = subpat_i.to_string();
                 let field_type = type_context.get(pat.type_info).field_type(type_context, &field_name).expect("field name does not exist in made up get for destructuring pattern");
-                let new_value = values.add(Value { kind: ValueKind::MadeUpGet(value, field_name), type_info: field_type, span: subpat.kind.span() });
+                let new_value = values.add(Value { kind: ValueKind::MadeUpGet(value, field_name), type_info: field_type, span: subpat.span });
                 assign_pattern(type_context, values, locals, subpat, new_value)?;
             }
         }
