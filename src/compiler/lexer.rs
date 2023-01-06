@@ -5,14 +5,12 @@ use super::error::{CompileError, File, Report, Span};
 pub(crate) use token::Token;
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum LexError<'file> {
-    BadChar(Span<'file>, char),
-}
+pub(crate) struct LexError<'file>(pub(crate) Span<'file>, pub(crate) char);
 
 impl<'file> From<LexError<'file>> for CompileError<'file> {
     fn from(le: LexError<'file>) -> Self {
         match le {
-            LexError::BadChar(sp, c) => CompileError::new(sp, format!("bad character: '{c}'")),
+            LexError(sp, c) => CompileError::new(sp, format!("bad character: '{c}'")),
         }
     }
 }
@@ -102,7 +100,7 @@ impl<'file> Lexer<'file> {
 
             ' ' | '\n' => Ok(None),
 
-            _ => Err(LexError::BadChar(self.span(start_i), start_c)),
+            _ => Err(LexError(self.span(start_i), start_c)),
         };
 
         match res {
