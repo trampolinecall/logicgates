@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use super::arena;
+use super::error::CompileError;
 use super::error::Report;
 use super::error::Span;
 use super::ir::circuit1;
@@ -16,7 +17,19 @@ use circuit2::bundle::ReceiverBundle;
 
 // TODO: replace all String with &'file str?
 
-mod error;
+struct TypeMismatch<'file>{ /* got_span: Span<'file>, TODO */ pub(super) expected_span: Span<'file>, pub(super) got_type: ty::TypeSym, pub(super) expected_type: ty::TypeSym }
+
+impl<'file> From<(&ty::TypeContext<named_type::FullyDefinedNamedType>, TypeMismatch<'file>)> for CompileError<'file> {
+    fn from((types, val): (&ty::TypeContext<named_type::FullyDefinedNamedType>, TypeMismatch<'file>)) -> Self {
+        match val {
+            TypeMismatch { expected_span, got_type, expected_type } => CompileError::new(
+                // TODO: show on the producer and receiver spans which has which type
+                expected_span,
+                format!("type mismatch: expected {}, got {}", types.get(expected_type).fmt(types), types.get(got_type).fmt(types)),
+            ),
+        }
+    }
+}
 
 impl arena::IsArenaIdFor<circuit2::CircuitOrIntrinsic> for super::make_name_tables::CircuitOrIntrinsicId {}
 
@@ -158,9 +171,9 @@ fn assign_pattern<'file>(
     locals: &mut HashMap<&'file str, ValueId>,
     pat: &TypedPattern<'file>,
     value: ValueId,
-) -> Result<(), error::Error<'file>> {
+) -> Result<(), TypeMismatch<'file>> {
     if values.get(value).type_info != pat.type_info {
-        Err(error::Error::TypeMismatch { expected_span: pat.span, got_type: values.get(value).type_info, expected_type: pat.type_info })?;
+        Err(TypeMismatch { expected_span: pat.span, got_type: values.get(value).type_info, expected_type: pat.type_info })?;
     }
 
     match &pat.kind {
@@ -254,7 +267,7 @@ fn connect_bundle(
     let producer_type = producer_bundle.type_(type_context);
     let receiver_type = receiver_bundle.type_(type_context);
     if producer_type != receiver_type {
-        (&*type_context, error::Error::TypeMismatch { got_type: producer_type, expected_type: receiver_type, /* got_span, */ expected_span }).report();
+        (&*type_context, TypeMismatch { got_type: producer_type, expected_type: receiver_type, /* got_span, */ expected_span }).report();
         None?;
     }
 
