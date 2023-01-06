@@ -8,11 +8,11 @@ mod ir;
 
 mod convert_circuit1;
 mod convert_circuit2;
-mod type_exprs;
 mod lexer;
 mod make_name_tables;
 mod parser;
 mod resolve_type_expr;
+mod type_exprs;
 mod type_pats;
 
 use crate::circuit;

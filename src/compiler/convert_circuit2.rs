@@ -104,9 +104,7 @@ fn convert_producer_bundle(
 
             b_nodes[field_indexes].to_vec()
         }
-        ir::circuit2::bundle::ProducerBundle::Product(subbundles) => {
-            subbundles.iter().flat_map(|(_, sb)| convert_producer_bundle(type_context, new_circuit, gate_index_map, sb)).collect()
-        }
+        ir::circuit2::bundle::ProducerBundle::Product(subbundles) => subbundles.iter().flat_map(|(_, sb)| convert_producer_bundle(type_context, new_circuit, gate_index_map, sb)).collect(),
     }
 }
 fn convert_receiver_bundle(
