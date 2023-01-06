@@ -14,7 +14,6 @@ pub(crate) struct IR<'file> {
     pub(crate) circuit_table: HashMap<String, CircuitOrIntrinsicId>,
 
     pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
-    pub(crate) type_table: HashMap<String, ty::TypeSym>,
 }
 
 pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_context, type_table }: make_name_tables::IR) -> Option<IR> {
@@ -35,7 +34,7 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
     let type_context = type_context.transform_named(|type_context, named_type| Some((named_type.name.1.to_string(), resolve_type_no_span(type_context, &type_table, &named_type.ty)?)))?;
     // TODO: disallow recursive types / infinitely sized types
 
-    Some(IR { circuits, circuit_table, type_context, type_table })
+    Some(IR { circuits, circuit_table, type_context })
 }
 
 fn resolve_in_pat<'file>(
@@ -68,7 +67,7 @@ fn resolve_type<'file>(
     let sp = ty.span();
     Some((sp, resolve_type_no_span(type_context, type_table, ty)?))
 }
-fn resolve_type_no_span<'file, NamedType>(type_context: &mut ty::TypeContext<NamedType>, type_table: &HashMap<String, ty::TypeSym>, ty: &type_expr::TypeExpr) -> Option<ty::TypeSym>
+fn resolve_type_no_span<NamedType>(type_context: &mut ty::TypeContext<NamedType>, type_table: &HashMap<String, ty::TypeSym>, ty: &type_expr::TypeExpr) -> Option<ty::TypeSym>
 where
     named_type::NamedTypeId: arena::IsArenaIdFor<NamedType>,
 {

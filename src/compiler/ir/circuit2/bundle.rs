@@ -18,26 +18,26 @@ pub(crate) enum ReceiverBundle {
 }
 
 impl<'types> ProducerBundle {
-    pub(crate) fn type_(&self, type_context: &'types mut ty::TypeContext<named_type::FullyDefinedNamedType>, circuit: &super::Circuit) -> ty::TypeSym {
+    pub(crate) fn type_(&self, type_context: &'types mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
         match self {
             ProducerBundle::CurCircuitInput(ty) => *ty,
-            ProducerBundle::GateOutput(ty, gate_idx) => *ty,
+            ProducerBundle::GateOutput(ty, _) => *ty,
             ProducerBundle::Get(producer, field) => {
-                let producer_type = producer.type_(type_context, circuit);
+                let producer_type = producer.type_(type_context);
                 type_context.get(producer_type).field_type(type_context, field).unwrap()
             }
             ProducerBundle::Product(tys) => {
-                let ty = ty::Type::Product(tys.iter().map(|(name, subbundle)| (name.to_string(), subbundle.type_(type_context, circuit))).collect());
+                let ty = ty::Type::Product(tys.iter().map(|(name, subbundle)| (name.to_string(), subbundle.type_(type_context))).collect());
                 type_context.intern(ty)
             }
         }
     }
 }
 impl<'types> ReceiverBundle {
-    pub(crate) fn type_(&self, type_context: &'types mut ty::TypeContext<named_type::FullyDefinedNamedType>, circuit: &super::Circuit) -> ty::TypeSym {
+    pub(crate) fn type_(&self, _: &'types mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym { // keep unused parameters for symmetry with ProducerBundle::type_
         match self {
             ReceiverBundle::CurCircuitOutput(ty) => *ty,
-            ReceiverBundle::GateInput(ty, gate_idx) => *ty,
+            ReceiverBundle::GateInput(ty, _) => *ty,
             /*
             ReceiverBundle::Get(producer, field) => {
                 let producer_type = producer.type_(types, circuit);

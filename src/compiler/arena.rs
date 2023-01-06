@@ -24,35 +24,41 @@ impl<T, Id: ArenaId + IsArenaIdFor<T>> Arena<T, Id> {
         self.0.get(id.get()).expect("arena Id should never be invalid")
     }
 
+    /* (unused)
     pub(crate) fn get_mut(&mut self, id: Id) -> &mut T {
         self.0.get_mut(id.get()).expect("arena Id should never be invalid")
     }
+    */
 
-    pub(crate) fn transform<U>(self, mut op: impl FnMut(T) -> Option<U>) -> Option<Arena<U, Id>>
+    pub(crate) fn transform<U>(self, op: impl FnMut(T) -> Option<U>) -> Option<Arena<U, Id>>
     where
         Id: IsArenaIdFor<U>,
     {
-        Some(Arena(self.0.into_iter().map(|thing| op(thing)).collect_all()?, std::marker::PhantomData))
+        Some(Arena(self.0.into_iter().map(op).collect_all()?, std::marker::PhantomData))
     }
-    pub(crate) fn transform_infallible<U>(self, mut op: impl FnMut(T) -> U) -> Arena<U, Id>
+    pub(crate) fn transform_infallible<U>(self, op: impl FnMut(T) -> U) -> Arena<U, Id>
     where
         Id: IsArenaIdFor<U>,
     {
-        Arena(self.0.into_iter().map(|thing| op(thing)).collect(), std::marker::PhantomData)
+        Arena(self.0.into_iter().map(op).collect(), std::marker::PhantomData)
     }
 
+    /* (unused)
     pub(crate) fn new_item_with_id(&mut self, make: impl FnOnce(Id) -> T) -> Id {
         let id = Id::make(self.0.len());
         self.0.push(make(id));
         id
     }
+    */
 
     pub(crate) fn iter(&self) -> std::slice::Iter<'_, T> {
         self.0.iter()
     }
+    /* (unused)
     pub(crate) fn iter_with_ids(&self) -> impl Iterator<Item = (Id, &T)> + '_ {
         self.0.iter().enumerate().map(|(i, thing)| (Id::make(i), thing))
     }
+    */
 }
 
 // dependant annotation things {{{1

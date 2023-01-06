@@ -47,6 +47,7 @@ where
         Some(TypeContext { pool: no_named_context.pool, named })
     }
 
+    /*
     pub(crate) fn transform_named_infallible<NewNamedType>(self, mut op: impl FnMut(&TypeContext<NeverNamedType>, NamedType) -> NewNamedType) -> TypeContext<NewNamedType>
     where
         named_type::NamedTypeId: arena::IsArenaIdFor<NewNamedType>,
@@ -55,6 +56,7 @@ where
         let named = self.named.transform_infallible(|named| op(&mut no_named_context, named));
         TypeContext { pool: no_named_context.pool, named }
     }
+    */
 }
 impl Type {
     pub(crate) fn size(&self, type_context: &TypeContext<named_type::FullyDefinedNamedType>) -> usize {

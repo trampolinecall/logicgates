@@ -10,9 +10,8 @@ pub(crate) struct IR<'file> {
     pub(crate) circuit_table: HashMap<String, (ty::TypeSym, ty::TypeSym, make_name_tables::CircuitOrIntrinsicId)>,
 
     pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
-    pub(crate) type_table: HashMap<String, ty::TypeSym>,
 }
-pub(crate) fn type_<'file>(type_pats::IR { circuits, circuit_table, mut type_context, type_table }: type_pats::IR) -> Option<IR> {
+pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }: type_pats::IR) -> Option<IR> {
     let circuit_table = circuit_table
         .into_iter()
         .map(|(name, circuit_id)| {
@@ -60,7 +59,7 @@ pub(crate) fn type_<'file>(type_pats::IR { circuits, circuit_table, mut type_con
 
     let circuit_table = circuit_table.into_iter().map(|(name, old_id)| (name, old_id)).collect();
 
-    Some(IR { circuits, circuit_table, type_context, type_table })
+    Some(IR { circuits, circuit_table, type_context })
 }
 
 fn put_pat_type<'file>(local_table: &mut HashMap<&'file str, ty::TypeSym>, pat: &circuit1::PatTypedPattern<'file>) {
@@ -70,7 +69,7 @@ fn put_pat_type<'file>(local_table: &mut HashMap<&'file str, ty::TypeSym>, pat: 
         }
         circuit1::PatternKind::Product(_, subpats) => {
             for subpat in subpats {
-                put_pat_type(local_table, &subpat);
+                put_pat_type(local_table, subpat);
             }
         }
     }
@@ -107,13 +106,11 @@ fn type_expr<'file>(
             }
         }
         circuit1::expr::ExprKind::Multiple { obrack: _, exprs, cbrack: _ } => {
-            let ty = type_context.intern(ty::Type::Product(try_annotation_result!(exprs
+            type_context.intern(ty::Type::Product(try_annotation_result!(exprs
                 .iter()
                 .enumerate()
                 .map(|(field_index, subexpr)| arena::SingleTransformResult::Ok((field_index.to_string(), *try_annotation_result!(get_other_expr_type.get(*subexpr)).1)))
-                .collect_all::<Vec<_>>())));
-
-            ty
+                .collect_all::<Vec<_>>())))
         }
     };
 

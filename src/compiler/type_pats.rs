@@ -11,10 +11,9 @@ pub(crate) struct IR<'file> {
     pub(crate) circuit_table: HashMap<String, make_name_tables::CircuitOrIntrinsicId>,
 
     pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
-    pub(crate) type_table: HashMap<String, ty::TypeSym>,
 }
 
-pub(crate) fn type_(resolve_type_expr::IR { circuits, circuit_table, mut type_context, type_table }: resolve_type_expr::IR) -> IR {
+pub(crate) fn type_(resolve_type_expr::IR { circuits, circuit_table, mut type_context }: resolve_type_expr::IR) -> IR {
     IR {
         circuits: circuits.transform_infallible(|circuit| match circuit {
             circuit1::CircuitOrIntrinsic::Circuit(circuit) => circuit1::CircuitOrIntrinsic::Circuit(circuit1::Circuit {
@@ -30,7 +29,6 @@ pub(crate) fn type_(resolve_type_expr::IR { circuits, circuit_table, mut type_co
         }),
         circuit_table,
         type_context,
-        type_table,
     }
 }
 
