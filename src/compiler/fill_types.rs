@@ -13,6 +13,8 @@ pub(crate) struct IR<'file> {
     pub(crate) type_table: HashMap<String, ty::TypeSym>,
 }
 pub(crate) fn fill<'file>(resolve_type_expr::IR { circuits, circuit_table, mut type_context, type_table }: resolve_type_expr::IR) -> Option<IR> {
+    let circuit_types: HashMap<_, _> = circuit_table.iter().map(|(name, circuit)| (name, circuits.get(*circuit) )).collect();
+
     let circuits = circuits.transform(|circuit| match circuit {
         ir::circuit1::CircuitOrIntrinsic::Circuit(circuit) => {
             let mut local_table = HashMap::new();
@@ -108,7 +110,7 @@ fn type_let_pat<'file>(
     type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     type_table: &HashMap<String, ty::TypeSym>,
     local_types: &mut HashMap<String, symtern::Sym<usize>>,
-    let_: &ir::circuit1::PartiallyTypedLet<'file>,
+    let_: &ir::circuit1::TypeResolvedLet<'file>,
 ) -> Option<(circuit1::TypedPattern<'file>, circuit1::expr::ExprId)> {
     Some((type_pat(type_context, type_table, local_types, &let_.pat)?, let_.val))
 }
@@ -116,7 +118,7 @@ fn type_pat<'file>(
     type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     type_table: &HashMap<String, ty::TypeSym>,
     local_types: &mut HashMap<String, symtern::Sym<usize>>,
-    pat: &ir::circuit1::PartiallyTypedPattern<'file>,
+    pat: &ir::circuit1::TypeResolvedPattern<'file>,
 ) -> Option<ir::circuit1::TypedPattern<'file>> {
     let (kind, type_info) = match &pat.kind {
         ir::circuit1::PatternKind::Identifier(name_sp, name, ty) => {

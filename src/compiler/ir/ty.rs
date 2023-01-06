@@ -30,10 +30,6 @@ where
         Self { pool: symtern::Pool::new(), named: arena::Arena::new() }
     }
 
-    pub(crate) fn new_with_named(named: arena::Arena<NamedType, named_type::NamedTypeId>) -> Self {
-        Self { pool: symtern::Pool::new(), named }
-    }
-
     pub(crate) fn get(&self, sym: TypeSym) -> &Type {
         self.pool.resolve(sym).expect("symtern resolution error")
     }
@@ -100,7 +96,7 @@ impl Type {
         }
     }
 
-    pub(crate) fn field_indexes(&self, type_context: &TypeContext<named_type::FullyDefinedNamedType>, field: &str) -> Option<std::ops::Range<usize>> {
+    pub(crate) fn field_indexes(&self, type_context: &TypeContext<named_type::FullyDefinedNamedType>, field: &str) -> Option<std::ops::Range<usize>> { // TODO: move this to converting circuit2
         match self {
             Type::Bit => None,
             Type::Product(fields) => {

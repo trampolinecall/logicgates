@@ -19,7 +19,7 @@ impl<'file> arena::ArenaId for CircuitOrIntrinsicId {
         todo!()
     }
 }
-impl<'file, TypeInfo, TypeExpr> arena::IsArenaIdFor<circuit1::CircuitOrIntrinsic<'file, TypeInfo, TypeExpr>> for CircuitOrIntrinsicId {}
+impl<'file, PatTypeInfo, ExprTypeInfo, TypeExpr> arena::IsArenaIdFor<circuit1::CircuitOrIntrinsic<'file, PatTypeInfo, ExprTypeInfo, TypeExpr>> for CircuitOrIntrinsicId {}
 pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<circuit1::UntypedCircuitOrIntrinsic<'file>, CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<String, CircuitOrIntrinsicId>,
