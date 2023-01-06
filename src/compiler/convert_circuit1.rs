@@ -63,11 +63,13 @@ fn convert_circuit(
         (&*type_context, e).report();
     }
 
+    let mut errored = false;
     // TODO: allowing recursive lets
     for circuit1::Let { pat, val } in &circuit1.lets {
         let result = convert_expr(consts, circuit_table, type_context, &mut circuit_state, &circuit1, *val)?;
         if let Err(e) = assign_pattern(type_context, &mut circuit_state, pat, result) {
             (&*type_context, e).report();
+            errored = true;
         }
     }
 
@@ -76,7 +78,11 @@ fn convert_circuit(
 
     connect_bundle(type_context, &mut circuit_state, output_value_span, output_value, circuit2::bundle::ReceiverBundle::CurCircuitOutput(circuit1.output_type.1));
 
-    Some(circuit_state.circuit)
+    if errored {
+        None
+    } else {
+        Some(circuit_state.circuit)
+    }
 }
 
 fn assign_pattern<'file>(
@@ -115,26 +121,19 @@ fn convert_expr(
     let span = circuit1.expressions.get(expr).kind.span(&circuit1.expressions);
     match &circuit1.expressions.get(expr).kind {
         circuit1::expr::ExprKind::Ref(name_sp, name) => {
-            let name_resolved = if let Some(resolved) = circuit_state.locals.get(name) {
-                resolved
-            } else {
-                unreachable!("reference to nonexistent local after checking in previous phase")
-            };
+            let name_resolved = if let Some(resolved) = circuit_state.locals.get(name) { resolved } else { unreachable!("reference to nonexistent local after checking in previous phase") };
 
             Some(name_resolved.clone())
         }
 
         circuit1::expr::ExprKind::Call(circuit_name, _, arg) => {
             // TODO: implement inlining
-            let (input_type, output_type, name_resolved) = if let Some(n) = circuit_table.get(circuit_name.1) {
-                n
-            } else {
-                unreachable!("call to nonexistent circuit after checking in previous phase")
-            };
+            let (input_type, output_type, name_resolved) =
+                if let Some(n) = circuit_table.get(circuit_name.1) { n } else { unreachable!("call to nonexistent circuit after checking in previous phase") };
 
             let arg = convert_expr(consts, circuit_table, type_context, circuit_state, circuit1, *arg)?;
             let gate_i = circuit_state.circuit.add_gate(*name_resolved);
-            // TODO: add circuit type table, but then eventually just move all typechecking into a separate phase
+            // TODO: move all typechecking into a separate phase
             connect_bundle(type_context, circuit_state, span, arg, circuit2::bundle::ReceiverBundle::GateInput(*input_type, gate_i))?;
             Some(circuit2::bundle::ProducerBundle::GateOutput(*output_type, gate_i))
         }
@@ -148,7 +147,6 @@ fn convert_expr(
             let expr = convert_expr(consts, circuit_table, type_context, circuit_state, circuit1, *expr)?;
             let expr_type = expr.type_(type_context);
             if type_context.get(expr_type).field_type(type_context, field_name).is_some() {
-                // TODO: make .fields.contains() instead of has_field
                 Some(ProducerBundle::Get(Box::new(expr), field_name.to_string()))
             } else {
                 unreachable!("get invalid field after checking in previous phase")

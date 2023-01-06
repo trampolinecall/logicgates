@@ -29,7 +29,6 @@ pub(crate) struct Circuit {
 
 #[derive(Debug)]
 pub(crate) enum CircuitOrIntrinsic {
-    // TODO: rename to gate
     Custom(Circuit),
     Nand,
     Const(bool),
