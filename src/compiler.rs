@@ -8,11 +8,12 @@ mod ir;
 
 mod convert_circuit1;
 mod convert_circuit2;
-mod fill_types;
+mod type_exprs;
 mod lexer;
 mod make_name_tables;
 mod parser;
 mod resolve_type_expr;
+mod type_pats;
 
 use crate::circuit;
 
@@ -31,7 +32,8 @@ pub(crate) fn compile(filename: &str) -> Option<circuit::Circuit> {
     let ast = parser::parse(lexer::lex(&file));
     let ir = make_name_tables::make(ast)?;
     let ir = resolve_type_expr::resolve(ir)?;
-    let ir = fill_types::fill(ir)?;
+    let ir = type_pats::type_(ir);
+    let ir = type_exprs::type_(ir)?;
     let (mut types, circuit2) = convert_circuit1::convert(&file, ir)?;
     Some(convert_circuit2::convert(&mut types, &circuit2))
 }
