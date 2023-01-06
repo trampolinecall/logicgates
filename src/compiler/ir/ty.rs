@@ -11,6 +11,9 @@ where
     pub(crate) named: arena::Arena<NamedType, named_type::NamedTypeId>,
 }
 
+pub(crate) enum NeverNamedType {} // this is kind of a not ideal way of doing this but it works
+impl arena::IsArenaIdFor<NeverNamedType> for named_type::NamedTypeId {}
+
 pub(crate) type TypeSym = symtern::Sym<usize>;
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub(crate) enum Type {
@@ -39,18 +42,22 @@ where
         self.pool.intern(&ty).expect("symtern interning error")
     }
 
-    pub(crate) fn transform_named<NewNamedType>(self, mut op: impl FnMut(NamedType) -> Option<NewNamedType>) -> Option<TypeContext<NewNamedType>>
+    pub(crate) fn transform_named<NewNamedType>(self, mut op: impl FnMut(&mut TypeContext<NeverNamedType>, NamedType) -> Option<NewNamedType>) -> Option<TypeContext<NewNamedType>>
     where
         named_type::NamedTypeId: arena::IsArenaIdFor<NewNamedType>,
     {
-        Some(TypeContext { pool: self.pool, named: self.named.transform(op)? })
+        let mut no_named_context = TypeContext { pool: self.pool, named: arena::Arena::new() };
+        let named = self.named.transform(|named| op(&mut no_named_context, named))?;
+        Some(TypeContext { pool: no_named_context.pool, named })
     }
 
-    pub(crate) fn transform_named_infallible<NewNamedType>(self, mut op: impl FnMut(NamedType) -> NewNamedType) -> TypeContext<NewNamedType>
+    pub(crate) fn transform_named_infallible<NewNamedType>(self, mut op: impl FnMut(&TypeContext<NeverNamedType>, NamedType) -> NewNamedType) -> TypeContext<NewNamedType>
     where
         named_type::NamedTypeId: arena::IsArenaIdFor<NewNamedType>,
     {
-        TypeContext { pool: self.pool, named: self.named.transform_infallible(op) }
+        let mut no_named_context = TypeContext { pool: self.pool, named: arena::Arena::new() };
+        let named = self.named.transform_infallible(|named| op(&mut no_named_context, named));
+        TypeContext { pool: no_named_context.pool, named }
     }
 }
 impl Type {
