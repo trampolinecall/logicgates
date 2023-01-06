@@ -12,11 +12,11 @@ pub(crate) struct ExprId(usize);
 impl<'file, TypeInfo> arena::IsArenaIdFor<Expr<'file, TypeInfo>> for ExprId {}
 impl arena::ArenaId for ExprId {
     fn make(i: usize) -> Self {
-        todo!()
+        ExprId(i)
     }
 
     fn get(&self) -> usize {
-        todo!()
+        self.0
     }
 }
 
@@ -44,4 +44,3 @@ impl<'file> ExprKind<'file> {
         }
     }
 }
-

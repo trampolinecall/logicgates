@@ -38,7 +38,7 @@ pub(crate) fn type_<'file>(type_pats::IR { circuits, circuit_table, mut type_con
                     Err((loop_errors, typing_errors)) => {
                         assert!(loop_errors.is_empty(), "expressions are in a tree, which cannot have loops");
 
-                        todo!()
+                        todo!("report typing errors in typing expressions")
                     }
                 },
                 output_type: circuit.output_type,
