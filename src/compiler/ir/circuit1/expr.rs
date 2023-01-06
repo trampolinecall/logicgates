@@ -7,7 +7,7 @@ pub(crate) type TypedExpr<'file> = Expr<'file, ty::TypeSym>;
 pub(crate) type TypedExprArena<'file> = arena::Arena<TypedExpr<'file>, ExprId>;
 
 pub(crate) type ExprArena<'file, TypeInfo> = arena::Arena<Expr<'file, TypeInfo>, ExprId>;
-#[derive(Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Debug, Hash)]
 pub(crate) struct ExprId(usize);
 impl<'file, TypeInfo> arena::IsArenaIdFor<Expr<'file, TypeInfo>> for ExprId {}
 impl arena::ArenaId for ExprId {
@@ -35,7 +35,7 @@ pub(crate) enum ExprKind<'file> {
 }
 
 impl<'file> ExprKind<'file> {
-    pub(crate) fn span<TypeInfo>(&self, expressions: &ExprArena<'file, TypeInfo>) -> Span<'file> {
+    pub(crate) fn span<TypeInfo>(&self, expressions: &ExprArena<'file, TypeInfo>) -> Span<'file> { // TODO: remove, and eventually remove all span() methods
         match self {
             ExprKind::Ref(sp, _) | ExprKind::Const(sp, _) => *sp,
             ExprKind::Call((circuit_name_sp, _), _, arg) => *circuit_name_sp + expressions.get(*arg).kind.span(expressions),
