@@ -73,6 +73,8 @@ fn connect(
     let producer_nodes: Vec<circuit::ProducerIdx> = convert_producer_bundle(type_context, old_circuit, new_circuit, gate_index_map, producer);
     let receiver_nodes: Vec<circuit::ReceiverIdx> = convert_receiver_bundle(type_context, old_circuit, new_circuit, gate_index_map, receiver);
 
+    assert_eq!(producer_nodes.len(), receiver_nodes.len(), "connecting producer and receiver that have different size");
+
     for (p, r) in producer_nodes.into_iter().zip(receiver_nodes) {
         new_circuit.connect(p, r);
     }
