@@ -86,9 +86,9 @@ mod dependant_annotation {
         }
     }
     impl<'arena, Annotation, Original, Error, Id: ArenaId + IsArenaIdFor<Original>> DependancyGetter<'arena, Annotation, Original, Error, Id> {
-        pub(crate) fn get(&self, id: Id) -> SingleTransformResult<&'arena Annotation, Id, Error> {
+        pub(crate) fn get(&self, id: Id) -> SingleTransformResult<(&'arena Original, &'arena Annotation), Id, Error> {
             match self.0.get(id.get()).expect("arena Id should not be invalid") {
-                (_, ItemState::Ok(item)) => SingleTransformResult::Ok(item),
+                (original, ItemState::Ok(item)) => SingleTransformResult::Ok((original, item)),
                 (_, ItemState::Waiting) | (_, ItemState::WaitingOn(_)) => SingleTransformResult::Dep(DependencyError(DependencyErrorKind::WaitingOn(id))),
                 (_, ItemState::Error(_)) | (_, ItemState::ErrorInDep) => SingleTransformResult::Dep(DependencyError(DependencyErrorKind::ErrorInDep)),
             }
