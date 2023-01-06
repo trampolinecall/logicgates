@@ -67,6 +67,7 @@ fn make_circuit_table(circuits: Vec<circuit1::UntypedCircuit>) -> Option<(arena:
 fn make_type_table(type_decls: Vec<super::ir::named_type::NamedTypeDecl>) -> Option<(ty::TypeContext<named_type::PartiallyDefinedNamedType>, HashMap<String, ty::TypeSym>)> {
     let mut type_table = HashMap::new();
     let mut type_context = ty::TypeContext::new();
+    type_context.intern(ty::Type::Bit);
     let mut errored = false;
     for decl in type_decls {
         if type_table.contains_key(decl.name.1) {

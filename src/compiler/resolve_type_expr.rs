@@ -16,7 +16,11 @@ pub(crate) struct IR<'file> {
     pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
 }
 
-pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_context, type_table }: make_name_tables::IR) -> Option<IR> {
+pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_context, mut type_table }: make_name_tables::IR) -> Option<IR> {
+    let bit_type = type_context.intern(ty::Type::Bit);
+    let old_bit_type = type_table.insert("bit".to_string(), bit_type);
+    assert!(old_bit_type.is_none(), "cannot have other bit type in an empty type table");
+
     let circuits = circuits.transform(|circuit| match circuit {
         circuit1::CircuitOrIntrinsic::Circuit(circuit) => Some(circuit1::CircuitOrIntrinsic::Circuit(circuit1::TypeResolvedCircuit {
             name: circuit.name,
@@ -72,7 +76,6 @@ where
     named_type::NamedTypeId: arena::IsArenaIdFor<NamedType>,
 {
     let ty = match ty {
-        type_expr::TypeExpr::Bit(_) => type_context.intern(ty::Type::Bit),
         type_expr::TypeExpr::Product { obrack: _, types: subtypes, cbrack: _ } => {
             let ty = ty::Type::Product((subtypes.iter().enumerate().map(|(ind, subty_ast)| Some((ind.to_string(), resolve_type_no_span(type_context, type_table, subty_ast)?))).collect_all())?);
             type_context.intern(ty)
