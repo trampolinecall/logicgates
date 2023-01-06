@@ -17,7 +17,7 @@ pub(crate) struct IR<'file> {
     pub(crate) type_table: HashMap<String, ty::TypeSym>,
 }
 
-pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, type_context, type_table }: make_name_tables::IR) -> Option<IR> {
+pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_context, type_table }: make_name_tables::IR) -> Option<IR> {
     let circuits = circuits.transform(|circuit| match circuit {
         circuit1::CircuitOrIntrinsic::Circuit(circuit) => Some(circuit1::CircuitOrIntrinsic::Circuit(circuit1::PartiallyTypedCircuit {
             name: circuit.name,
@@ -32,6 +32,7 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, type_conte
 
     // TODO: figure out how to make this work even though the type context is being moved because this will not compile
     let type_context = type_context.transform_named(|named_type| Some((named_type.name.1.to_string(), resolve_type_no_span(&mut type_context, &type_table, &named_type.ty)?)))?;
+    // TODO: disallow recursive types / infinitely sized types
 
     Some(IR { circuits, circuit_table, type_context, type_table })
 }
@@ -61,13 +62,12 @@ fn resolve_in_let<'file>(
 fn resolve_type<'file>(
     type_context: &mut ty::TypeContext<named_type::PartiallyDefinedNamedType>,
     type_table: &HashMap<String, ty::TypeSym>,
-    ty: &type_expr::TypeExpr,
+    ty: &type_expr::TypeExpr<'file>,
 ) -> Option<(Span<'file>, ty::TypeSym)> {
     let sp = ty.span();
     Some((sp, resolve_type_no_span(type_context, type_table, ty)?))
 }
 fn resolve_type_no_span<'file>(type_context: &mut ty::TypeContext<named_type::PartiallyDefinedNamedType>, type_table: &HashMap<String, ty::TypeSym>, ty: &type_expr::TypeExpr) -> Option<ty::TypeSym> {
-    let sp = ty.span();
     let ty = match ty {
         type_expr::TypeExpr::Bit(_) => type_context.intern(ty::Type::Bit),
         type_expr::TypeExpr::Product { obrack: _, types: subtypes, cbrack: _ } => {
