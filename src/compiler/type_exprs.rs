@@ -137,7 +137,7 @@ fn type_expr<'file>(
                 return arena::SingleTransformResult::Err(vec![]);
             }
         }
-        circuit1::expr::ExprKind::Multiple { obrack: _, exprs, cbrack: _ } => type_context.intern(ty::Type::Product(try_annotation_result!(exprs
+        circuit1::expr::ExprKind::Multiple(exprs) => type_context.intern(ty::Type::Product(try_annotation_result!(exprs
             .iter()
             .enumerate()
             .map(|(field_index, subexpr)| arena::SingleTransformResult::Ok((field_index.to_string(), *try_annotation_result!(get_other_expr_type.get(*subexpr)).1)))

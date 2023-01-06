@@ -242,7 +242,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let cbrack = self.expect(Token::cbrack_matcher())?;
 
-                Ok(expressions.add(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Multiple { obrack, cbrack, exprs: items }, type_info: (), span: obrack + cbrack }))
+                Ok(expressions.add(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Multiple(items), type_info: (), span: obrack + cbrack }))
             }
 
             _ => Err(self.expected_and_next("expression"))?,
