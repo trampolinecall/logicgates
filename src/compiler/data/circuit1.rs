@@ -1,5 +1,5 @@
-use crate::compiler::error::Span;
 use crate::compiler::data::ty;
+use crate::compiler::error::Span;
 use crate::utils::arena;
 
 use super::{named_type, type_expr};
