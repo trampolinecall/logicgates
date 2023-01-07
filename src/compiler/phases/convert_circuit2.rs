@@ -45,7 +45,7 @@ pub(crate) fn convert(file: &File, convert_circuit1::IR { circuits, circuit_tabl
 }
 fn convert_circuit<'circuit>(
     circuits: &'circuit arena::Arena<circuit2::CircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>,
-    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
+    type_context: &mut ty::TypeContext<named_type::FullyDefinedStruct>,
     mut expansion_stack: ExpandedStack<'circuit>,
     circuit: &'circuit circuit2::Circuit,
 ) -> Result<(ExpandedStack<'circuit>, circuit::Circuit), InfiniteRecursion<'circuit>> {
@@ -80,7 +80,7 @@ fn convert_circuit<'circuit>(
 
 fn add_gate<'circuit>(
     circuits: &'circuit arena::Arena<circuit2::CircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>,
-    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
+    type_context: &mut ty::TypeContext<named_type::FullyDefinedStruct>,
     expansion_stack: ExpandedStack<'circuit>,
     new_circuit: &mut circuit::Circuit,
     circuit_id: circuit1::CircuitOrIntrinsicId,
@@ -96,7 +96,7 @@ fn add_gate<'circuit>(
 }
 
 fn connect(
-    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
+    type_context: &mut ty::TypeContext<named_type::FullyDefinedStruct>,
     new_circuit: &mut circuit::Circuit,
     gate_index_map: &mut HashMap<circuit2::GateIdx, circuit::GateIndex>,
     producer: &circuit2::bundle::ProducerBundle,
@@ -113,7 +113,7 @@ fn connect(
 }
 
 fn convert_producer_bundle(
-    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
+    type_context: &mut ty::TypeContext<named_type::FullyDefinedStruct>,
     new_circuit: &mut circuit::Circuit,
     gate_index_map: &mut HashMap<circuit2::GateIdx, circuit::GateIndex>,
     producer: &circuit2::bundle::ProducerBundle,
@@ -133,7 +133,7 @@ fn convert_producer_bundle(
     }
 }
 fn convert_receiver_bundle(
-    _: &mut ty::TypeContext<named_type::FullyDefinedNamedType>, // keep arguments for symmetry with convert_producer_bundle
+    _: &mut ty::TypeContext<named_type::FullyDefinedStruct>, // keep arguments for symmetry with convert_producer_bundle
     new_circuit: &mut circuit::Circuit,
     gate_index_map: &mut HashMap<circuit2::GateIdx, circuit::GateIndex>,
     receiver: &circuit2::bundle::ReceiverBundle,

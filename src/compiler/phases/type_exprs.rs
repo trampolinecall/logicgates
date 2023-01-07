@@ -16,8 +16,8 @@ struct NoField<'file> {
 struct NoSuchLocal<'file>(Span<'file>, &'file str);
 struct NoSuchCircuit<'file>(Span<'file>, &'file str);
 
-impl<'file> From<(&ty::TypeContext<named_type::FullyDefinedNamedType>, NoField<'file>)> for CompileError<'file> {
-    fn from((types, NoField { ty, field_name_sp, field_name }): (&ty::TypeContext<named_type::FullyDefinedNamedType>, NoField<'file>)) -> Self {
+impl<'file> From<(&ty::TypeContext<named_type::FullyDefinedStruct>, NoField<'file>)> for CompileError<'file> {
+    fn from((types, NoField { ty, field_name_sp, field_name }): (&ty::TypeContext<named_type::FullyDefinedStruct>, NoField<'file>)) -> Self {
         CompileError::new(field_name_sp, format!("no field called '{}' on type '{}'", field_name, types.get(ty).fmt(types)))
     }
 }
@@ -36,7 +36,7 @@ pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<circuit1::TypedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<String, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
 
-    pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
+    pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedStruct>,
 }
 pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }: type_pats::IR) -> Option<IR> {
     let circuit_table = circuit_table
@@ -87,7 +87,7 @@ fn put_pat_type<'file>(local_table: &mut HashMap<&'file str, ty::TypeSym>, pat: 
 }
 
 fn type_expr<'file>(
-    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
+    type_context: &mut ty::TypeContext<named_type::FullyDefinedStruct>,
     circuit_table: &HashMap<String, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
     local_types: &HashMap<&str, ty::TypeSym>,
     expr: circuit1::UntypedExpr<'file>,

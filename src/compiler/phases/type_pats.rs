@@ -11,7 +11,7 @@ pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<circuit1::PatTypedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<String, circuit1::CircuitOrIntrinsicId>,
 
-    pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
+    pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedStruct>,
 }
 
 pub(crate) fn type_(resolve_type_expr::IR { circuits, circuit_table, mut type_context }: resolve_type_expr::IR) -> IR {
@@ -32,11 +32,11 @@ pub(crate) fn type_(resolve_type_expr::IR { circuits, circuit_table, mut type_co
     }
 }
 
-fn type_pat_in_let<'file>(type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>, let_: circuit1::TypeResolvedLet<'file>) -> circuit1::PatTypedLet<'file> {
+fn type_pat_in_let<'file>(type_context: &mut ty::TypeContext<named_type::FullyDefinedStruct>, let_: circuit1::TypeResolvedLet<'file>) -> circuit1::PatTypedLet<'file> {
     circuit1::Let { pat: type_pat(type_context, let_.pat), val: let_.val }
 }
 
-fn type_pat<'file>(type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>, pat: circuit1::TypeResolvedPattern<'file>) -> circuit1::PatTypedPattern<'file> {
+fn type_pat<'file>(type_context: &mut ty::TypeContext<named_type::FullyDefinedStruct>, pat: circuit1::TypeResolvedPattern<'file>) -> circuit1::PatTypedPattern<'file> {
     let (kind, type_info) = match pat.kind {
         circuit1::PatternKind::Identifier(name_sp, name, ty) => (circuit1::PatternKind::Identifier(name_sp, name, ty), ty.1),
         circuit1::PatternKind::Product(sp, pats) => {
