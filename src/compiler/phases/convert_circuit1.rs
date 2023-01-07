@@ -6,7 +6,7 @@ use crate::compiler::data::circuit1;
 use crate::compiler::data::circuit1::TypedPattern;
 use crate::compiler::data::circuit2;
 use crate::compiler::data::circuit2::Circuit;
-use crate::compiler::data::named_type;
+use crate::compiler::data::nominal_type;
 use crate::compiler::data::ty;
 use crate::compiler::error::CompileError;
 use crate::compiler::error::Report;
@@ -24,8 +24,8 @@ struct TypeMismatch<'file> {
 
 struct LoopInLocalsError<'file>(Vec<Value<'file>>);
 
-impl<'file> From<(&ty::TypeContext<named_type::FullyDefinedNamedType>, TypeMismatch<'file>)> for CompileError<'file> {
-    fn from((types, TypeMismatch { expected_span, got_type, expected_type }): (&ty::TypeContext<named_type::FullyDefinedNamedType>, TypeMismatch<'file>)) -> Self {
+impl<'file> From<(&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, TypeMismatch<'file>)> for CompileError<'file> {
+    fn from((types, TypeMismatch { expected_span, got_type, expected_type }): (&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, TypeMismatch<'file>)) -> Self {
         // TODO: show on the producer and receiver spans which has which type
         CompileError::new(expected_span, format!("type mismatch: expected {}, got {}", types.get(expected_type).fmt(types), types.get(got_type).fmt(types)))
     }
@@ -41,11 +41,11 @@ impl<'file> From<LoopInLocalsError<'file>> for CompileError<'file> {
     }
 }
 
-pub(crate) struct IR {
+pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<circuit2::CircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<String, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
 
-    pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
+    pub(crate) type_context: ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
 }
 
 pub(crate) fn convert(type_exprs::IR { mut circuits, circuit_table, mut type_context }: type_exprs::IR) -> Option<IR> {
@@ -96,7 +96,7 @@ enum ValueKind<'file> {
 fn convert_circuit(
     (const_0, const_1): (circuit1::CircuitOrIntrinsicId, circuit1::CircuitOrIntrinsicId),
     circuit_table: &HashMap<String, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
-    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
+    type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     circuit1: circuit1::TypedCircuit,
 ) -> Option<circuit2::Circuit> {
     // TODO: move all typechecking into a separate phase
@@ -176,7 +176,7 @@ fn convert_circuit(
 }
 
 fn assign_pattern<'file>(
-    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
+    type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     values: &mut arena::Arena<Value<'file>, ValueId>,
     locals: &mut HashMap<&'file str, ValueId>,
     pat: &TypedPattern<'file>,
@@ -222,7 +222,7 @@ fn convert_expr_to_value<'file>(values: &mut arena::Arena<Value<'file>, ValueId>
 
 enum NeverErrors {}
 fn convert_value(
-    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
+    type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     get_other_value_as_bundle: arena::DependancyGetter<circuit2::bundle::ProducerBundle, Value, NeverErrors, ValueId>,
     locals: &HashMap<&str, ValueId>,
     gates: &HashMap<ValueId, circuit2::GateIdx>,
@@ -275,7 +275,7 @@ fn convert_value(
 }
 
 fn connect_bundle(
-    type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
+    type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     circuit: &mut Circuit,
     // got_span: Span,
     expected_span: Span,

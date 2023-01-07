@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::utils::arena;
 
 use crate::compiler::{
-    data::{circuit1, named_type, ty},
+    data::{circuit1, nominal_type, ty},
     error::{CompileError, Report, Span},
     phases::parser,
 };
@@ -12,7 +12,7 @@ pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<circuit1::UntypedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<String, circuit1::CircuitOrIntrinsicId>,
 
-    pub(crate) type_context: ty::TypeContext<named_type::PartiallyDefinedNamedType<'file>>,
+    pub(crate) type_context: ty::TypeContext<nominal_type::PartiallyDefinedStruct<'file>>,
     pub(crate) type_table: HashMap<String, ty::TypeSym>,
 }
 
@@ -54,18 +54,18 @@ fn make_circuit_table(
     }
 }
 
-fn make_type_table(type_decls: Vec<crate::compiler::data::named_type::NamedTypeDecl>) -> Option<(ty::TypeContext<named_type::PartiallyDefinedNamedType>, HashMap<String, ty::TypeSym>)> {
+fn make_type_table(type_decls: Vec<crate::compiler::data::nominal_type::PartiallyDefinedStruct>) -> Option<(ty::TypeContext<nominal_type::PartiallyDefinedStruct>, HashMap<String, ty::TypeSym>)> {
     let mut type_table = HashMap::new();
     let mut type_context = ty::TypeContext::new();
     let mut errored = false;
     for decl in type_decls {
         if type_table.contains_key(decl.name.1) {
-            Duplicate("named type", decl.name.0, decl.name.1).report();
+            Duplicate("nominal type", decl.name.0, decl.name.1).report();
             errored = true;
         }
         let name = decl.name.1.into();
-        let named_index = type_context.named.add(decl);
-        type_table.insert(name, type_context.intern(ty::Type::Named(named_index)));
+        let nominal_index = type_context.structs.add(decl);
+        type_table.insert(name, type_context.intern(ty::Type::Nominal(nominal_index)));
     }
 
     if errored {
