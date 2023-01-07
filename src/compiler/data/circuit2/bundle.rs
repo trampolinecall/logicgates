@@ -1,4 +1,4 @@
-use crate::compiler::data::{named_type, ty};
+use crate::compiler::data::{nominal_type, ty};
 
 use super::GateIdx;
 
@@ -18,7 +18,7 @@ pub(crate) enum ReceiverBundle {
 }
 
 impl ProducerBundle {
-    pub(crate) fn type_(&self, type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
+    pub(crate) fn type_(&self, type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>) -> ty::TypeSym {
         match self {
             ProducerBundle::CurCircuitInput(ty) | ProducerBundle::GateOutput(ty, _) => *ty,
             ProducerBundle::Get(producer, field) => {
@@ -33,7 +33,7 @@ impl ProducerBundle {
     }
 }
 impl ReceiverBundle {
-    pub(crate) fn type_(&self, _: &mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
+    pub(crate) fn type_(&self, _: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>) -> ty::TypeSym {
         // keep unused parameters for symmetry with ProducerBundle::type_
         match self {
             ReceiverBundle::CurCircuitOutput(ty) | ReceiverBundle::GateInput(ty, _) => *ty,

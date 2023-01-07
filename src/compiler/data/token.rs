@@ -16,9 +16,7 @@ pub(crate) enum Token<'file> {
 
     Let(Span<'file>),
     Inline(Span<'file>),
-    Bundle(Span<'file>),
-    Inputs(Span<'file>),
-    Outputs(Span<'file>),
+    Struct(Span<'file>),
     Named(Span<'file>),
 
     // TODO: variadic arguments / bundles
@@ -41,12 +39,10 @@ impl<'file> Token<'file> {
             | Token::Arrow(sp)
             | Token::Let(sp)
             | Token::Inline(sp)
-            | Token::Bundle(sp)
-            | Token::Inputs(sp)
-            | Token::Outputs(sp)
             | Token::Apostrophe(sp)
             | Token::Number(sp, _, _)
             | Token::Identifier(sp, _)
+            | Token::Struct(sp)
             | Token::Named(sp) => *sp,
         }
     }
@@ -93,9 +89,7 @@ mod names {
 
     pub(super) const LET: &str = "'let'";
     pub(super) const INLINE: &str = "'inline'";
-    pub(super) const BUNDLE: &str = "'bundle'";
-    pub(super) const INPUTS: &str = "'inputs'";
-    pub(super) const OUTPUTS: &str = "'outputs'";
+    pub(super) const STRUCT: &str = "'struct'";
     pub(super) const NAMED: &str = "'named'";
 
     pub(super) const APOSTROPHE: &str = "'''";
@@ -156,10 +150,7 @@ define_matcher!(arrow_matcher, 'file, Span<'file>, names::ARROW, Token::Arrow(sp
 
 define_matcher!(let_matcher, 'file, Span<'file>, names::LET, Token::Let(sp) => sp);
 define_matcher!(inline_matcher, 'file, Span<'file>, names::INLINE, Token::Inline(sp) => sp);
-define_matcher!(bundle_matcher, 'file, Span<'file>, names::BUNDLE, Token::Bundle(sp) => sp);
-define_matcher!(inputs_matcher, 'file, Span<'file>, names::INPUTS, Token::Inputs(sp) => sp);
-define_matcher!(outputs_matcher, 'file, Span<'file>, names::OUTPUTS, Token::Outputs(sp) => sp);
-define_matcher!(named_matcher, 'file, Span<'file>, names::NAMED, Token::Named(sp) => sp);
+define_matcher!(struct_matcher, 'file, Span<'file>, names::STRUCT, Token::Struct(sp) => sp);
 
 define_matcher!(apostrophe_matcher, 'file, Span<'file>, names::APOSTROPHE, Token::Apostrophe(sp) => sp);
 
@@ -183,9 +174,7 @@ impl std::fmt::Display for Token<'_> {
 
             Token::Let(_) => write!(f, "{}", names::LET),
             Token::Inline(_) => write!(f, "{}", names::INLINE),
-            Token::Bundle(_) => write!(f, "{}", names::BUNDLE),
-            Token::Inputs(_) => write!(f, "{}", names::INPUTS),
-            Token::Outputs(_) => write!(f, "{}", names::OUTPUTS),
+            Token::Struct(_) => write!(f, "{}", names::STRUCT),
             Token::Named(_) => write!(f, "{}", names::NAMED),
 
             Token::Apostrophe(_) => write!(f, "{}", names::APOSTROPHE),

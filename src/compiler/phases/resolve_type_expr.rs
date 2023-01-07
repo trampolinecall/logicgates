@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::utils::{arena, collect_all::CollectAll};
 
 use crate::compiler::{
-    data::{circuit1, named_type, ty, type_expr},
+    data::{circuit1, nominal_type, ty, type_expr},
     error::{CompileError, Report, Span},
     phases::make_name_tables,
 };
@@ -12,7 +12,7 @@ pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<circuit1::TypeResolvedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<String, circuit1::CircuitOrIntrinsicId>,
 
-    pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
+    pub(crate) type_context: ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
 }
 
 struct UndefinedType<'file>(Span<'file>, &'file str);
@@ -31,7 +31,7 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
         circuit1::CircuitOrIntrinsic::Circuit(circuit) => Some(circuit1::CircuitOrIntrinsic::Circuit(circuit1::TypeResolvedCircuit {
             name: circuit.name,
             input: resolve_in_pat(&mut type_context, &type_table, circuit.input)?,
-            output_type: resolve_type(&mut type_context, &type_table, &circuit.output_type)?,
+            output_type: resolve_type_expr(&mut type_context, &type_table, &circuit.output_type)?,
             lets: resolve_in_let(&mut type_context, &type_table, circuit.lets)?,
             output: circuit.output,
         })),
@@ -39,20 +39,25 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
         circuit1::CircuitOrIntrinsic::Const(value) => Some(circuit1::CircuitOrIntrinsic::Const(value)),
     })?;
 
-    let type_context = type_context.transform_named(|type_context, named_type| Some((named_type.name.1.to_string(), resolve_type_no_span(type_context, &type_table, &named_type.ty)?)))?;
+    let type_context = type_context.transform_nominals(|type_context, struct_decl| {
+        Some(nominal_type::FullyDefinedStruct {
+            name: struct_decl.name,
+            fields: struct_decl.fields.into_iter().map(|(field_name, field_ty)| Some((field_name, resolve_type_expr_no_span(type_context, &type_table, &field_ty)?))).collect_all()?,
+        })
+    })?;
     // TODO: disallow recursive types / infinitely sized types
 
     Some(IR { circuits, circuit_table, type_context })
 }
 
 fn resolve_in_pat<'file>(
-    type_context: &mut ty::TypeContext<named_type::NamedTypeDecl<'file>>,
+    type_context: &mut ty::TypeContext<nominal_type::PartiallyDefinedStruct<'file>>,
     type_table: &HashMap<String, symtern::Sym<usize>>,
     pat: circuit1::UntypedPattern<'file>,
 ) -> Option<circuit1::TypeResolvedPattern<'file>> {
     Some(circuit1::Pattern {
         kind: match pat.kind {
-            circuit1::PatternKind::Identifier(name_sp, name, type_expr) => circuit1::PatternKind::Identifier(name_sp, name, resolve_type(type_context, type_table, &type_expr)?),
+            circuit1::PatternKind::Identifier(name_sp, name, type_expr) => circuit1::PatternKind::Identifier(name_sp, name, resolve_type_expr(type_context, type_table, &type_expr)?),
             circuit1::PatternKind::Product(sp, subpats) => circuit1::PatternKind::Product(sp, subpats.into_iter().map(|subpat| resolve_in_pat(type_context, type_table, subpat)).collect_all()?),
         },
         type_info: (),
@@ -61,39 +66,38 @@ fn resolve_in_pat<'file>(
 }
 
 fn resolve_in_let<'file>(
-    type_context: &mut ty::TypeContext<named_type::NamedTypeDecl<'file>>,
+    type_context: &mut ty::TypeContext<nominal_type::PartiallyDefinedStruct<'file>>,
     type_table: &HashMap<String, symtern::Sym<usize>>,
     lets: Vec<circuit1::UntypedLet<'file>>,
 ) -> Option<Vec<circuit1::TypeResolvedLet<'file>>> {
     lets.into_iter().map(|let_| Some(circuit1::Let { pat: resolve_in_pat(type_context, type_table, let_.pat)?, val: let_.val })).collect_all()
 }
 
-fn resolve_type<'file>(
-    type_context: &mut ty::TypeContext<named_type::PartiallyDefinedNamedType>,
-    type_table: &HashMap<String, ty::TypeSym>,
-    ty: &type_expr::TypeExpr<'file>,
-) -> Option<(Span<'file>, ty::TypeSym)> {
-    let sp = ty.span();
-    Some((sp, resolve_type_no_span(type_context, type_table, ty)?))
-}
-fn resolve_type_no_span<NamedType>(type_context: &mut ty::TypeContext<NamedType>, type_table: &HashMap<String, ty::TypeSym>, ty: &type_expr::TypeExpr) -> Option<ty::TypeSym>
+fn resolve_type_expr<'file, Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<String, ty::TypeSym>, ty: &type_expr::TypeExpr<'file>) -> Option<(Span<'file>, ty::TypeSym)>
 where
-    named_type::NamedTypeId: arena::IsArenaIdFor<NamedType>,
+    nominal_type::StructId: arena::IsArenaIdFor<Struct>,
+{
+    let sp = ty.span();
+    Some((sp, resolve_type_expr_no_span(type_context, type_table, ty)?))
+}
+fn resolve_type_expr_no_span<Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<String, ty::TypeSym>, ty: &type_expr::TypeExpr) -> Option<ty::TypeSym>
+where
+    nominal_type::StructId: arena::IsArenaIdFor<Struct>,
 {
     match ty {
         type_expr::TypeExpr::Product { obrack: _, types: subtypes, cbrack: _ } => {
-            let ty = ty::Type::Product((subtypes.iter().enumerate().map(|(ind, subty_ast)| Some((ind.to_string(), resolve_type_no_span(type_context, type_table, subty_ast)?))).collect_all())?);
+            let ty = ty::Type::Product((subtypes.iter().enumerate().map(|(ind, subty_ast)| Some((ind.to_string(), resolve_type_expr_no_span(type_context, type_table, subty_ast)?))).collect_all())?);
             Some(type_context.intern(ty))
         }
         type_expr::TypeExpr::RepProduct { obrack: _, num, cbrack: _, type_ } => {
-            let ty = resolve_type_no_span(type_context, type_table, type_)?;
+            let ty = resolve_type_expr_no_span(type_context, type_table, type_)?;
             Some(type_context.intern(ty::Type::Product((0..num.1).map(|ind| (ind.to_string(), ty)).collect())))
         }
         type_expr::TypeExpr::NamedProduct { obrack: _, named: _, types: subtypes, cbrack: _ } => {
-            let ty = ty::Type::Product((subtypes.iter().map(|(name, ty)| Some((name.1.to_string(), (resolve_type_no_span(type_context, type_table, ty)?)))).collect_all())?); // TODO: report error if there are any duplicate fields
+            let ty = ty::Type::Product((subtypes.iter().map(|(name, ty)| Some((name.1.to_string(), (resolve_type_expr_no_span(type_context, type_table, ty)?)))).collect_all())?); // TODO: report error if there are any duplicate fields
             Some(type_context.intern(ty))
         }
-        type_expr::TypeExpr::Named(name_sp, name) => {
+        type_expr::TypeExpr::Nominal(name_sp, name) => {
             let res = type_table.get(*name).copied();
             if let Some(other_type_decl) = res {
                 Some(other_type_decl)
