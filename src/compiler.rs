@@ -5,8 +5,7 @@ mod data;
 mod phases;
 
 use crate::circuit;
-
-use self::error::File;
+use error::File;
 
 pub(crate) fn compile(filename: &str) -> Option<circuit::Circuit> {
     // TODO: do not return result if any errors are generated

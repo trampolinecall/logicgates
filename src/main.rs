@@ -6,8 +6,6 @@ pub(crate) mod circuit;
 pub(crate) mod compiler;
 pub(crate) mod position;
 
-use piston::{self, PressEvent, RenderEvent, UpdateEvent};
-
 pub(crate) struct App {
     gl: opengl_graphics::GlGraphics,
     circuit: circuit::Circuit,
@@ -37,6 +35,7 @@ fn main() {
 
     let mut events = piston::Events::new(piston::EventSettings { ups: 20, ..Default::default() });
     while let Some(e) = events.next(&mut window) {
+        use piston::{PressEvent, RenderEvent, UpdateEvent};
         if let Some(args) = e.render_args() {
             app.render(&args);
         }
