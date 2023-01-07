@@ -17,7 +17,8 @@ pub(crate) fn compile(filename: &str) -> Option<circuit::Circuit> {
         }
     };
 
-    let ast = phases::parser::parse(phases::lexer::lex(&file));
+    let tokens = phases::lexer::lex(&file);
+    let ast = phases::parser::parse(tokens);
     let ir = phases::make_name_tables::make(ast)?;
     let ir = phases::resolve_type_expr::resolve(ir)?;
     let ir = phases::type_pats::type_(ir);
