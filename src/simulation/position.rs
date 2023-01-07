@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use crate::circuit;
+use crate::simulation::circuit;
 
 pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit::GateIndex, (u32, f64)> {
     /* old iterative position calculating algorithm based on a loss function and trying to find a minimum loss

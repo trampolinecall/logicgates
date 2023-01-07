@@ -2,17 +2,16 @@
 
 #[macro_use]
 pub(crate) mod utils;
-pub(crate) mod circuit;
+pub(crate) mod simulation;
 pub(crate) mod compiler;
-pub(crate) mod position;
 
 pub(crate) struct App {
     gl: opengl_graphics::GlGraphics,
-    circuit: circuit::Circuit,
+    circuit: simulation::circuit::Circuit,
 }
 
 impl App {
-    fn new(gl: opengl_graphics::GlGraphics, circuit: circuit::Circuit) -> App {
+    fn new(gl: opengl_graphics::GlGraphics, circuit: simulation::circuit::Circuit) -> App {
         App { gl, circuit }
     }
 
