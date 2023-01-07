@@ -102,36 +102,4 @@ impl Type {
             }
         }
     }
-
-    pub(crate) fn field_indexes(&self, type_context: &TypeContext<nominal_type::FullyDefinedStruct>, field: &str) -> Option<std::ops::Range<usize>> {
-        // TODO: move this to converting circuit2
-        match self {
-            Type::Bit => None,
-            Type::Product(fields) => {
-                let mut cur_index = 0;
-                for (field_name, field_type) in fields {
-                    let cur_type_size = type_context.get(*field_type).size(type_context);
-                    if field_name == field {
-                        return Some(cur_index..cur_index + cur_type_size);
-                    }
-                    cur_index += cur_type_size;
-                }
-
-                None
-            }
-            Type::Nominal(struct_id) => {
-                let fields = &type_context.structs.get(*struct_id).fields;
-                let mut cur_index = 0;
-                for ((_, field_name), field_type) in fields {
-                    let cur_type_size = type_context.get(*field_type).size(type_context);
-                    if *field_name == field {
-                        return Some(cur_index..cur_index + cur_type_size);
-                    }
-                    cur_index += cur_type_size;
-                }
-
-                None
-            }
-        }
-    }
 }
