@@ -58,7 +58,7 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
             // not ideal because expressions still represent the ast and are therefore in a tree so there will never be loops
             // but moving them out of the arena would make circuit1 have to be split into two datatypes:
             // one with expressions in a tree and one with expressions in an arena, because converting to circuit2 needs exprs in an arena
-            let expressions = circuit.expressions.annotate_dependant(
+            let expressions = circuit.expressions.transform_dependant(
                 |expr, get_other_expr_type| type_expr(&mut type_context, &circuit_table, &local_table, get_other_expr_type, expr),
                 |circuit1::expr::Expr { kind, type_info: (), span }, expr_ty| circuit1::expr::Expr { kind, type_info: expr_ty, span },
             );
@@ -128,7 +128,7 @@ fn type_expr<'file>(
         }
         circuit1::expr::ExprKind::Const(_, _) => type_context.intern(ty::Type::Bit),
         circuit1::expr::ExprKind::Get(base, field) => {
-            let (_, base_ty) = try_annotation_result!(get_other_expr_type.get(*base));
+            let (_, base_ty) = try_transform_result!(get_other_expr_type.get(*base));
             let field_ty = type_context.get(*base_ty).field_type(type_context, field.1);
             if let Some(field_ty) = field_ty {
                 field_ty
@@ -137,10 +137,10 @@ fn type_expr<'file>(
                 return arena::SingleTransformResult::Err(vec![]);
             }
         }
-        circuit1::expr::ExprKind::Multiple(exprs) => type_context.intern(ty::Type::Product(try_annotation_result!(exprs
+        circuit1::expr::ExprKind::Multiple(exprs) => type_context.intern(ty::Type::Product(try_transform_result!(exprs
             .iter()
             .enumerate()
-            .map(|(field_index, subexpr)| arena::SingleTransformResult::Ok((field_index.to_string(), *try_annotation_result!(get_other_expr_type.get(*subexpr)).1)))
+            .map(|(field_index, subexpr)| arena::SingleTransformResult::Ok((field_index.to_string(), *try_transform_result!(get_other_expr_type.get(*subexpr)).1)))
             .collect_all::<Vec<_>>()))),
     };
 

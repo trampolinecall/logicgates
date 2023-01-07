@@ -59,9 +59,9 @@ impl<T, Id: ArenaId + IsArenaIdFor<T>> Arena<T, Id> {
     }
 }
 
-// dependant annotation things {{{1
+// dependant transform things {{{1
 #[macro_use]
-mod dependant_annotation {
+mod dependant_transform {
     use super::{ArenaId, IsArenaIdFor};
 
     pub(super) enum ItemState<Annotation, Id, Error> {
@@ -73,7 +73,7 @@ mod dependant_annotation {
     }
 
     impl<Annotation, Id, Error> ItemState<Annotation, Id, Error> {
-        pub(super) fn needs_annotation(&self) -> bool {
+        pub(super) fn needs_transform(&self) -> bool {
             matches!(self, Self::Waiting | Self::WaitingOn(..))
         }
     }
@@ -106,7 +106,7 @@ mod dependant_annotation {
         Err(Error),
     }
 
-    macro_rules! try_annotation_result {
+    macro_rules! try_transform_result {
         ($e:expr) => {
             match $e {
                 $crate::compiler::arena::SingleTransformResult::Ok(r) => r,
@@ -116,11 +116,11 @@ mod dependant_annotation {
         };
     }
 }
-pub(crate) use dependant_annotation::DependancyGetter;
-pub(crate) use dependant_annotation::SingleTransformResult;
+pub(crate) use dependant_transform::DependancyGetter;
+pub(crate) use dependant_transform::SingleTransformResult;
 impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original, Id> {
     // TODO: write tests for this
-    pub(crate) fn annotate_dependant_with_id<Annotation, New, Error>(
+    pub(crate) fn transform_dependant_with_id<Annotation, New, Error>(
         self,
         mut try_annotate: impl FnMut(Id, &Original, DependancyGetter<Annotation, Original, Error, Id>) -> SingleTransformResult<Annotation, Id, Error>,
         incorporate_annotation: impl Fn(Original, Annotation) -> New,
@@ -128,8 +128,8 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original,
     where
         Id: IsArenaIdFor<New>,
     {
-        use dependant_annotation::*;
-        // some transformations / annotations have operations that are dependant on the results of other annotations
+        use dependant_transform::*;
+        // some transformations have operations that are dependant on the results of other transformations
         // for example in name resolution, the result of a single name might be dependant on the resolution of another name
         // another example is in calculating the sizes of types, the size of a single type might be dependant on the sizes of other types (for example the size of a product type is dependant on the sizes of each of its child types)
         // this method holds the logic for allowing the operations to happen in a centralized place so that it does not need to be copied and pasted around to every part that needs it (not only because of dry but also because some of the logic, for example the loop detection logic, is annoying to constantly reimplement)
@@ -137,7 +137,7 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original,
         let mut things: Vec<_> = self.0.into_iter().map(|item| (item, ItemState::Waiting::<Annotation, Id, Error>)).collect();
 
         let loops = loop {
-            if things.iter().all(|thing| !thing.1.needs_annotation()) {
+            if things.iter().all(|thing| !thing.1.needs_transform()) {
                 // all of the things are either done or errored
                 // calling .all on an empty iterator returns true so this will be done if it is empty
                 break Vec::new(); // completed successfully, return no loop errors
@@ -147,7 +147,7 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original,
 
             for thing_i in 0..things.len() {
                 let thing = &things[thing_i];
-                if thing.1.needs_annotation() {
+                if thing.1.needs_transform() {
                     let annotation = try_annotate(Id::make(thing_i), &thing.0, DependancyGetter(&things));
 
                     let new_annotation_state = match annotation {
@@ -174,11 +174,11 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original,
                         }
                     };
                     let thing_mut = things.get_mut(thing_i).expect("iterating through things by index should not be out of range");
-                    thing_mut.1 = new_annotation_state
+                    thing_mut.1 = new_annotation_state;
                 }
             }
 
-            if amt_changed == 0 && things.iter().filter(|thing| thing.1.needs_annotation()).count() > 0 {
+            if amt_changed == 0 && things.iter().filter(|thing| thing.1.needs_transform()).count() > 0 {
                 // if nothing has changed and there are still items to process
                 // TODO: test this
                 struct CmpByPtr<'a, T>(&'a T);
@@ -274,7 +274,7 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original,
         }
     }
 
-    pub(crate) fn annotate_dependant<Annotation, New, Error>(
+    pub(crate) fn transform_dependant<Annotation, New, Error>(
         self,
         mut try_convert: impl FnMut(&Original, DependancyGetter<Annotation, Original, Error, Id>) -> SingleTransformResult<Annotation, Id, Error>,
         incorporate_annotation: impl Fn(Original, Annotation) -> New,
@@ -282,6 +282,6 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original,
     where
         Id: IsArenaIdFor<New>,
     {
-        self.annotate_dependant_with_id(|_, thing, dependency_getter| try_convert(thing, dependency_getter), incorporate_annotation)
+        self.transform_dependant_with_id(|_, thing, dependency_getter| try_convert(thing, dependency_getter), incorporate_annotation)
     }
 }
