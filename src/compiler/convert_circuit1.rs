@@ -141,7 +141,7 @@ fn convert_circuit(
     }
 
     // step 3: convert all values to producer bundles
-    let values = match values.annotate_dependant_with_id(
+    let values = match values.transform_dependant_with_id(
         |value_id, value, get_other_value_as_bundle| convert_value(type_context, get_other_value_as_bundle, &locals, &gates, &circuit, value_id, value),
         |original_value, producer_bundle| (original_value, producer_bundle),
     ) {
@@ -214,14 +214,14 @@ fn convert_value(
     value: &Value,
 ) -> arena::SingleTransformResult<ProducerBundle, ValueId, NeverErrors> {
     let mut do_get = |expr, field_name| {
-        let expr = try_annotation_result!(get_other_value_as_bundle.get(expr)).1;
+        let expr = try_transform_result!(get_other_value_as_bundle.get(expr)).1;
         let expr_type = expr.type_(type_context);
         assert!(type_context.get(expr_type).field_type(type_context, field_name).is_some(), "get field that does not exist after already checking that all gets are valid in previous phase");
         arena::SingleTransformResult::Ok(ProducerBundle::Get(Box::new(expr.clone()), field_name.to_string()))
     };
 
     match &value.kind {
-        ValueKind::Ref(_, name) => arena::SingleTransformResult::Ok((try_annotation_result!(get_other_value_as_bundle.get(locals[name]))).1.clone()),
+        ValueKind::Ref(_, name) => arena::SingleTransformResult::Ok((try_transform_result!(get_other_value_as_bundle.get(locals[name]))).1.clone()),
 
         ValueKind::Call(_, _, _) => {
             // TODO: implement inlining
