@@ -4,7 +4,6 @@ use crate::compiler::lexer::token::TokenMatcher;
 use crate::compiler::lexer::Token;
 use std::iter::Peekable;
 
-use super::arena;
 use super::ir::circuit1;
 use super::ir::named_type;
 use super::ir::type_expr;
@@ -124,17 +123,16 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     fn circuit(&mut self) -> Result<circuit1::UntypedCircuit<'file>, ParseError<'file>> {
         self.expect(/* TODO: "circuit name (starting with '`')", */ Token::apostrophe_matcher())?;
         let name = self.expect(/* "circuit name after '`'", */ Token::identifier_matcher())?;
-        let mut expressions = arena::Arena::new();
         let arguments = self.pattern()?;
         let output_type = self.type_()?;
         let mut lets = Vec::new();
         while Token::let_matcher().matches(self.peek()) {
-            lets.push(self.r#let(&mut expressions)?);
+            lets.push(self.r#let()?);
         }
 
-        let ret = self.expr(&mut expressions)?;
+        let ret = self.expr()?;
 
-        Ok(circuit1::UntypedCircuit { name, input: arguments, lets, expressions, output: ret, output_type })
+        Ok(circuit1::UntypedCircuit { name, input: arguments, lets, output: ret, output_type })
     }
 
     fn named_type_decl(&mut self) -> Result<named_type::NamedTypeDecl<'file>, ParseError<'file>> {
@@ -145,13 +143,13 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         Ok(named_type::NamedTypeDecl { name, ty })
     }
 
-    fn r#let(&mut self, expressions: &mut circuit1::expr::UntypedExprArena<'file>) -> Result<circuit1::UntypedLet<'file>, ParseError<'file>> {
+    fn r#let(&mut self) -> Result<circuit1::UntypedLet<'file>, ParseError<'file>> {
         self.expect(Token::let_matcher())?;
         let pat = self.pattern()?;
 
         self.expect(Token::equals_matcher())?;
 
-        let val = self.expr(expressions)?;
+        let val = self.expr()?;
         Ok(circuit1::UntypedLet { pat, val })
     }
 
@@ -177,8 +175,8 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         }
     }
 
-    fn expr(&mut self, expressions: &mut circuit1::expr::UntypedExprArena<'file>) -> Result<circuit1::expr::ExprId, ParseError<'file>> {
-        let mut left = self.primary_expr(expressions)?;
+    fn expr(&mut self) -> Result<circuit1::expr::UntypedExpr<'file>, ParseError<'file>> {
+        let mut left = self.primary_expr()?;
 
         while Token::dot_matcher().matches(self.peek()) {
             self.next();
@@ -192,20 +190,21 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             }?;
             self.next();
 
-            left = expressions.add(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Get(left, field), type_info: (), span: expressions.get(left).span + field.0 });
+            let left_span = left.span;
+            left = circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Get(Box::new(left), field), type_info: (), span: left_span + field.0 };
         }
 
         Ok(left)
     }
 
-    fn primary_expr(&mut self, expressions: &mut circuit1::expr::UntypedExprArena<'file>) -> Result<circuit1::expr::ExprId, ParseError<'file>> {
+    fn primary_expr(&mut self) -> Result<circuit1::expr::UntypedExpr<'file>, ParseError<'file>> {
         match self.peek() {
             Token::Number(_, _, _) => {
                 let (n_sp, _, n) = Token::number_matcher().convert(self.next());
 
                 match n {
-                    0 => Ok(expressions.add(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Const(n_sp, false), type_info: (), span: n_sp })),
-                    1 => Ok(expressions.add(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Const(n_sp, true), type_info: (), span: n_sp })),
+                    0 => Ok(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Const(n_sp, false), type_info: (), span: n_sp }),
+                    1 => Ok(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Const(n_sp, true), type_info: (), span: n_sp }),
                     _ => Err(self.expected_and_next("'0' or '1'")),
                 }
             }
@@ -215,16 +214,16 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let inline = self.maybe_consume(Token::inline_matcher()).is_some();
 
-                let arg = self.expr(expressions)?;
+                let arg = self.expr()?;
 
-                Ok(expressions.add(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Call(i, inline, arg), type_info: (), span: i.0 }))
+                Ok(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Call(i, inline, Box::new(arg)), type_info: (), span: i.0 })
                 // TODO: combine ' span with identifier span
             }
 
             Token::Identifier(_, _) => {
                 let i = Token::identifier_matcher().convert(self.next());
 
-                Ok(expressions.add(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Ref(i.0, i.1), type_info: (), span: i.0 }))
+                Ok(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Ref(i.0, i.1), type_info: (), span: i.0 })
             }
 
             &Token::OBrack(obrack) => {
@@ -233,16 +232,16 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 let mut items = Vec::new();
 
                 if !Token::cbrack_matcher().matches(self.peek()) {
-                    items.push(self.expr(expressions)?);
+                    items.push(self.expr()?);
                     while Token::comma_matcher().matches(self.peek()) {
                         self.next();
-                        items.push(self.expr(expressions)?);
+                        items.push(self.expr()?);
                     }
                 }
 
                 let cbrack = self.expect(Token::cbrack_matcher())?;
 
-                Ok(expressions.add(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Multiple(items), type_info: (), span: obrack + cbrack }))
+                Ok(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Multiple(items), type_info: (), span: obrack + cbrack })
             }
 
             _ => Err(self.expected_and_next("expression"))?,

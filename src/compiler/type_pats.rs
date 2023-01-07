@@ -19,7 +19,6 @@ pub(crate) fn type_(resolve_type_expr::IR { circuits, circuit_table, mut type_co
             circuit1::CircuitOrIntrinsic::Circuit(circuit) => circuit1::CircuitOrIntrinsic::Circuit(circuit1::Circuit {
                 name: circuit.name,
                 input: type_pat(&mut type_context, circuit.input),
-                expressions: circuit.expressions,
                 output_type: circuit.output_type,
                 lets: circuit.lets.into_iter().map(|pat| type_pat_in_let(&mut type_context, pat)).collect(),
                 output: circuit.output,

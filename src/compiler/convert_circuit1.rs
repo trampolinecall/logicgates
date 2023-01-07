@@ -36,7 +36,10 @@ impl<'file> From<(&ty::TypeContext<named_type::FullyDefinedNamedType>, TypeMisma
 impl<'file> From<LoopInLocalsError<'file>> for CompileError<'file> {
     fn from(LoopInLocalsError(loop_): LoopInLocalsError<'file>) -> Self {
         let first = loop_.get(0).expect("loop error should not be empty");
-        CompileError::new(first.span, format!("infinite loop in evaluation of locals: {}", loop_.into_iter().map(|value| format!("value {:?} at {:?}", value.kind, value.span)).collect::<Vec<_>>().join(" -> "))) // TODO: make this a better message
+        CompileError::new(
+            first.span,
+            format!("infinite loop in evaluation of locals: {}", loop_.into_iter().map(|value| format!("value {:?} at {:?}", value.kind, value.span)).collect::<Vec<_>>().join(" -> ")),
+        ) // TODO: make this a better message
     }
 }
 
@@ -64,7 +67,17 @@ pub(crate) fn convert(type_exprs::IR { mut circuits, circuit_table, mut type_con
     Some(IR { circuits, circuit_table, type_context })
 }
 
-type ValueId = circuit1::expr::ExprId;
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct ValueId(usize);
+impl<'file> arena::ArenaId for ValueId {
+    fn make(i: usize) -> Self {
+        Self(i)
+    }
+
+    fn get(&self) -> usize {
+        self.0
+    }
+}
 impl<'file> arena::IsArenaIdFor<Value<'file>> for ValueId {}
 impl<'file> arena::IsArenaIdFor<(Value<'file>, ProducerBundle)> for ValueId {}
 #[derive(Debug)]
@@ -94,25 +107,16 @@ fn convert_circuit(
 
     let mut circuit = Circuit::new(circuit1.name.1.to_string(), circuit1.input.type_info, circuit1.output_type.1);
 
-    let mut values = circuit1.expressions.transform_infallible(|expr| Value {
-        kind: match expr.kind {
-            circuit1::expr::ExprKind::Ref(sp, name) => ValueKind::Ref(sp, name),
-            circuit1::expr::ExprKind::Call(name, inline, arg) => ValueKind::Call(name, inline, arg),
-            circuit1::expr::ExprKind::Const(sp, value) => ValueKind::Const(sp, value),
-            circuit1::expr::ExprKind::Get(base, field) => ValueKind::Get(base, field),
-            circuit1::expr::ExprKind::Multiple(exprs) => ValueKind::Multiple { values: exprs },
-        },
-        span: expr.span,
-        type_info: expr.type_info,
-    });
+    let mut values = arena::Arena::new();
 
-    let input_value = values.add(Value { kind: ValueKind::Input, type_info: circuit1.input.type_info, span: circuit1.input.span });
-    let mut locals = HashMap::new();
-    let mut gates = HashMap::new(); // only calls and consts are included in this map
+    let circuit_input_value = values.add(Value { kind: ValueKind::Input, type_info: circuit1.input.type_info, span: circuit1.input.span });
+    let lets: Vec<_> = circuit1.lets.into_iter().map(|circuit1::Let { pat, val }| circuit1::Let { pat, val: convert_expr_to_value(&mut values, val) }).collect();
+    let circuit_output_value = convert_expr_to_value(&mut values, circuit1.output);
 
     // steps for resolving locals
 
     // step 1: add all gates
+    let mut gates = HashMap::new(); // only calls and consts are included in this map
     for (value_id, value) in values.iter_with_ids() {
         match value.kind {
             ValueKind::Call((_, name), _, _) => {
@@ -126,15 +130,16 @@ fn convert_circuit(
         }
     }
 
-    let mut errored = false;
     // step 2: assign all patterns to values
-    if let Err(e) = assign_pattern(type_context, &mut values, &mut locals, &circuit1.input, input_value) {
+    let mut locals = HashMap::new();
+    let mut errored = false;
+    if let Err(e) = assign_pattern(type_context, &mut values, &mut locals, &circuit1.input, circuit_input_value) {
         (&*type_context, e).report();
         errored = true;
     }
 
-    for circuit1::Let { pat, val } in &circuit1.lets {
-        if let Err(e) = assign_pattern(type_context, &mut values, &mut locals, pat, *val) {
+    for circuit1::Let { pat, val } in lets {
+        if let Err(e) = assign_pattern(type_context, &mut values, &mut locals, &pat, val) {
             (&*type_context, e).report();
             errored = true;
         }
@@ -146,7 +151,8 @@ fn convert_circuit(
         |original_value, producer_bundle| (original_value, producer_bundle),
     ) {
         Ok(r) => r,
-        Err((loop_errors, _)) => { // never makes other errors
+        Err((loop_errors, _)) => {
+            // never makes other errors
             loop_errors.into_iter().for_each(|loop_| LoopInLocalsError(loop_).report());
             return None;
         }
@@ -162,8 +168,8 @@ fn convert_circuit(
             connect_bundle(type_context, &mut circuit, arg_span, arg, circuit2::bundle::ReceiverBundle::GateInput(input_type, gate_i))?;
         }
     }
-    let output_value_span = values.get(circuit1.output).0.span;
-    let output_value = values.get(circuit1.output);
+    let output_value_span = values.get(circuit_output_value).0.span;
+    let output_value = values.get(circuit_output_value);
     connect_bundle(type_context, &mut circuit, output_value_span, output_value.1.clone(), circuit2::bundle::ReceiverBundle::CurCircuitOutput(circuit1.output_type.1));
 
     if errored {
@@ -201,6 +207,21 @@ fn assign_pattern<'file>(
     }
 
     Ok(())
+}
+
+fn convert_expr_to_value<'file>(values: &mut arena::Arena<Value<'file>, ValueId>, expr: circuit1::expr::TypedExpr<'file>) -> ValueId {
+    let value = Value {
+        kind: match expr.kind {
+            circuit1::expr::ExprKind::Ref(sp, name) => ValueKind::Ref(sp, name),
+            circuit1::expr::ExprKind::Call(name, inline, arg) => ValueKind::Call(name, inline, convert_expr_to_value(values, *arg)),
+            circuit1::expr::ExprKind::Const(sp, value) => ValueKind::Const(sp, value),
+            circuit1::expr::ExprKind::Get(base, field) => ValueKind::Get(convert_expr_to_value(values, *base), field),
+            circuit1::expr::ExprKind::Multiple(exprs) => ValueKind::Multiple { values: exprs.into_iter().map(|e| convert_expr_to_value(values, e)).collect() },
+        },
+        span: expr.span,
+        type_info: expr.type_info,
+    };
+    values.add(value)
 }
 
 enum NeverErrors {}

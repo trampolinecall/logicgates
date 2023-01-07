@@ -32,7 +32,6 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
         circuit1::CircuitOrIntrinsic::Circuit(circuit) => Some(circuit1::CircuitOrIntrinsic::Circuit(circuit1::TypeResolvedCircuit {
             name: circuit.name,
             input: resolve_in_pat(&mut type_context, &type_table, circuit.input)?,
-            expressions: circuit.expressions,
             output_type: resolve_type(&mut type_context, &type_table, &circuit.output_type)?,
             lets: resolve_in_let(&mut type_context, &type_table, circuit.lets)?,
             output: circuit.output,
