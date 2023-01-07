@@ -9,7 +9,7 @@ use super::{
 use crate::circuit;
 
 // TODO: clean up all imports everywhere
-//
+
 struct NoMain<'file>(&'file File);
 impl<'file> From<NoMain<'file>> for CompileError<'file> {
     fn from(NoMain(file): NoMain<'file>) -> Self {
@@ -33,7 +33,7 @@ pub(crate) fn convert(file: &File, convert_circuit1::IR { circuits, circuit_tabl
 
     Some(convert_circuit(&circuits, &mut type_context, circuit))
 }
-pub(crate) fn convert_circuit(
+fn convert_circuit(
     circuits: &arena::Arena<circuit2::CircuitOrIntrinsic, make_name_tables::CircuitOrIntrinsicId>,
     type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     circuit: &circuit2::Circuit,

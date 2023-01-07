@@ -136,6 +136,7 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original,
 
         let mut things: Vec<_> = self.0.into_iter().map(|item| (item, ItemState::Waiting::<Annotation, Id, Error>)).collect();
 
+        // TODO: split this up into smaller functions?
         let loops = loop {
             if things.iter().all(|thing| !thing.1.needs_transform()) {
                 // all of the things are either done or errored
