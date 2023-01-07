@@ -6,9 +6,9 @@ use super::ty;
 use super::type_expr::TypeExpr;
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct StructDecl<'file> {
+pub(crate) struct Struct<'file, TypeExpr> {
     pub(crate) name: (Span<'file>, &'file str),
-    pub(crate) fields: Vec<((Span<'file>, &'file str), TypeExpr<'file>)>,
+    pub(crate) fields: Vec<((Span<'file>, &'file str), TypeExpr)>,
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Hash)]
@@ -24,8 +24,8 @@ impl arena::ArenaId for StructId {
     }
 }
 
-impl arena::IsArenaIdFor<FullyDefinedStruct> for StructId {}
-impl<'file> arena::IsArenaIdFor<PartiallyDefinedStruct<'file>> for StructId {}
+impl arena::IsArenaIdFor<FullyDefinedStruct<'_>> for StructId {}
+impl arena::IsArenaIdFor<PartiallyDefinedStruct<'_>> for StructId {}
 
-pub(crate) type PartiallyDefinedStruct<'file> = StructDecl<'file>;
-pub(crate) type FullyDefinedStruct = (String, ty::TypeSym);
+pub(crate) type PartiallyDefinedStruct<'file> = Struct<'file, TypeExpr<'file>>;
+pub(crate) type FullyDefinedStruct<'file> = Struct<'file, ty::TypeSym>;

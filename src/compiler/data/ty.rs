@@ -4,16 +4,16 @@ use crate::utils::arena;
 
 use super::named_type;
 
-pub(crate) struct TypeContext<NamedType>
+pub(crate) struct TypeContext<Struct>
 where
-    named_type::StructId: arena::IsArenaIdFor<NamedType>,
+    named_type::StructId: arena::IsArenaIdFor<Struct>,
 {
     pool: symtern::Pool<Type>, // ideally, i would use a interner crate that doesnt use ids to access types but they dont handle cyclic references nicely
 
     // this stores all the named types, one for each named type definition ast
     // this needs to be an arena and not an interner because every named type definition ast makes a unique type
     // these are used through the Type::Named constructor which is compared based off of its index into this array, meaning that named types will not be equal unless they point to the same item in this array
-    pub(crate) named: arena::Arena<NamedType, named_type::StructId>,
+    pub(crate) structs: arena::Arena<Struct, named_type::StructId>,
 }
 
 pub(crate) enum NeverNamedType {} // this is kind of a not ideal way of doing this but it works
@@ -24,7 +24,7 @@ pub(crate) type TypeSym = symtern::Sym<usize>;
 pub(crate) enum Type {
     Bit,
     Product(Vec<(String, TypeSym)>),
-    Named(named_type::StructId),
+    Struct(named_type::StructId),
 }
 
 impl<NamedType> TypeContext<NamedType>
@@ -32,7 +32,7 @@ where
     named_type::StructId: arena::IsArenaIdFor<NamedType>,
 {
     pub(crate) fn new() -> Self {
-        Self { pool: symtern::Pool::new(), named: arena::Arena::new() }
+        Self { pool: symtern::Pool::new(), structs: arena::Arena::new() }
     }
 
     pub(crate) fn get(&self, sym: TypeSym) -> &Type {
@@ -47,9 +47,9 @@ where
     where
         named_type::StructId: arena::IsArenaIdFor<NewNamedType>,
     {
-        let mut no_named_context = TypeContext { pool: self.pool, named: arena::Arena::new() };
-        let named = self.named.transform(|named| op(&mut no_named_context, named))?;
-        Some(TypeContext { pool: no_named_context.pool, named })
+        let mut no_struct_context = TypeContext { pool: self.pool, structs: arena::Arena::new() };
+        let structs = self.structs.transform(|struct_| op(&mut no_struct_context, struct_))?;
+        Some(TypeContext { pool: no_struct_context.pool, structs })
     }
 
     /* (unused)
@@ -68,8 +68,8 @@ impl Type {
         // TODO: make a pass for this so that it can be computed only once and also so that loops and checking for infinitely sized types is easier
         match self {
             Type::Bit => 1,
-            Type::Product(fields) => fields.iter().map(|(_, tyi)| type_context.get(*tyi).size(type_context)).sum(),
-            Type::Named(named_index) => type_context.get(type_context.named.get(*named_index).1).size(type_context),
+            Type::Product(fields) => fields.iter().map(|(_, t)| type_context.get(*t).size(type_context)).sum(),
+            Type::Struct(struct_id) => (type_context.structs.get(*struct_id)).fields.iter().map(|(_, t)| type_context.get(*t).size(type_context)).sum(),
         }
     }
 
@@ -89,7 +89,7 @@ impl Type {
                 }
                 write!(s, "]").unwrap();
             }
-            Type::Named(index) => write!(s, "{}", type_context.named.get(*index).0).unwrap(),
+            Type::Struct(index) => write!(s, "{}", type_context.structs.get(*index).name.1).unwrap(),
         };
 
         s
@@ -99,7 +99,7 @@ impl Type {
         match self {
             Type::Bit => None,
             Type::Product(fields) => fields.iter().find_map(|(field_name, field_type)| if field_name == field { Some(field_type) } else { None }).copied(),
-            Type::Named(named_index) => type_context.get(type_context.named.get(*named_index).1).field_type(type_context, field), // TODO: unwrap expressions
+            Type::Struct(struct_id) => type_context.structs.get(*struct_id).fields.iter().find_map(|((_, field_name), field_type)| if *field_name == field { Some(field_type) } else { None }).copied(),
         }
     }
 
@@ -119,7 +119,19 @@ impl Type {
 
                 None
             }
-            Type::Named(named_index) => type_context.get(type_context.named.get(*named_index).1).field_indexes(type_context, field),
+            Type::Struct(struct_id) => {
+                let fields = &type_context.structs.get(*struct_id).fields;
+                let mut cur_index = 0;
+                for ((_, field_name), field_type) in fields {
+                    let cur_type_size = type_context.get(*field_type).size(type_context);
+                    if *field_name == field {
+                        return Some(cur_index..cur_index + cur_type_size);
+                    }
+                    cur_index += cur_type_size;
+                }
+
+                None
+            }
         }
     }
 }

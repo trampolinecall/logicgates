@@ -54,7 +54,7 @@ fn make_circuit_table(
     }
 }
 
-fn make_type_table(type_decls: Vec<crate::compiler::data::named_type::StructDecl>) -> Option<(ty::TypeContext<named_type::PartiallyDefinedStruct>, HashMap<String, ty::TypeSym>)> {
+fn make_type_table(type_decls: Vec<crate::compiler::data::named_type::PartiallyDefinedStruct>) -> Option<(ty::TypeContext<named_type::PartiallyDefinedStruct>, HashMap<String, ty::TypeSym>)> {
     let mut type_table = HashMap::new();
     let mut type_context = ty::TypeContext::new();
     let mut errored = false;
@@ -64,8 +64,8 @@ fn make_type_table(type_decls: Vec<crate::compiler::data::named_type::StructDecl
             errored = true;
         }
         let name = decl.name.1.into();
-        let named_index = type_context.named.add(decl);
-        type_table.insert(name, type_context.intern(ty::Type::Named(named_index)));
+        let named_index = type_context.structs.add(decl);
+        type_table.insert(name, type_context.intern(ty::Type::Struct(named_index)));
     }
 
     if errored {

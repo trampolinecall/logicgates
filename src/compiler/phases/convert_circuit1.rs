@@ -24,8 +24,8 @@ struct TypeMismatch<'file> {
 
 struct LoopInLocalsError<'file>(Vec<Value<'file>>);
 
-impl<'file> From<(&ty::TypeContext<named_type::FullyDefinedStruct>, TypeMismatch<'file>)> for CompileError<'file> {
-    fn from((types, TypeMismatch { expected_span, got_type, expected_type }): (&ty::TypeContext<named_type::FullyDefinedStruct>, TypeMismatch<'file>)) -> Self {
+impl<'file> From<(&ty::TypeContext<named_type::FullyDefinedStruct<'file>>, TypeMismatch<'file>)> for CompileError<'file> {
+    fn from((types, TypeMismatch { expected_span, got_type, expected_type }): (&ty::TypeContext<named_type::FullyDefinedStruct<'file>>, TypeMismatch<'file>)) -> Self {
         // TODO: show on the producer and receiver spans which has which type
         CompileError::new(expected_span, format!("type mismatch: expected {}, got {}", types.get(expected_type).fmt(types), types.get(got_type).fmt(types)))
     }
@@ -41,11 +41,11 @@ impl<'file> From<LoopInLocalsError<'file>> for CompileError<'file> {
     }
 }
 
-pub(crate) struct IR {
+pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<circuit2::CircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<String, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
 
-    pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedStruct>,
+    pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedStruct<'file>>,
 }
 
 pub(crate) fn convert(type_exprs::IR { mut circuits, circuit_table, mut type_context }: type_exprs::IR) -> Option<IR> {

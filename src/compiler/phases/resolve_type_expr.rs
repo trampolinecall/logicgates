@@ -12,7 +12,7 @@ pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<circuit1::TypeResolvedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<String, circuit1::CircuitOrIntrinsicId>,
 
-    pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedStruct>,
+    pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedStruct<'file>>,
 }
 
 struct UndefinedType<'file>(Span<'file>, &'file str);
@@ -39,14 +39,19 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
         circuit1::CircuitOrIntrinsic::Const(value) => Some(circuit1::CircuitOrIntrinsic::Const(value)),
     })?;
 
-    let type_context = type_context.transform_structs(|type_context, struct_decl| Some((struct_decl.name.1.to_string(), resolve_type_expr_no_span(type_context, &type_table, &struct_decl.fields)?)))?;
+    let type_context = type_context.transform_structs(|type_context, struct_decl| {
+        Some(named_type::FullyDefinedStruct {
+            name: struct_decl.name,
+            fields: struct_decl.fields.into_iter().map(|(field_name, field_ty)| Some((field_name, resolve_type_expr_no_span(type_context, &type_table, &field_ty)?))).collect_all()?,
+        })
+    })?;
     // TODO: disallow recursive types / infinitely sized types
 
     Some(IR { circuits, circuit_table, type_context })
 }
 
 fn resolve_in_pat<'file>(
-    type_context: &mut ty::TypeContext<named_type::StructDecl<'file>>,
+    type_context: &mut ty::TypeContext<named_type::PartiallyDefinedStruct<'file>>,
     type_table: &HashMap<String, symtern::Sym<usize>>,
     pat: circuit1::UntypedPattern<'file>,
 ) -> Option<circuit1::TypeResolvedPattern<'file>> {
@@ -61,24 +66,23 @@ fn resolve_in_pat<'file>(
 }
 
 fn resolve_in_let<'file>(
-    type_context: &mut ty::TypeContext<named_type::StructDecl<'file>>,
+    type_context: &mut ty::TypeContext<named_type::PartiallyDefinedStruct<'file>>,
     type_table: &HashMap<String, symtern::Sym<usize>>,
     lets: Vec<circuit1::UntypedLet<'file>>,
 ) -> Option<Vec<circuit1::TypeResolvedLet<'file>>> {
     lets.into_iter().map(|let_| Some(circuit1::Let { pat: resolve_in_pat(type_context, type_table, let_.pat)?, val: let_.val })).collect_all()
 }
 
-fn resolve_type_expr<'file>(
-    type_context: &mut ty::TypeContext<named_type::PartiallyDefinedStruct>,
-    type_table: &HashMap<String, ty::TypeSym>,
-    ty: &type_expr::TypeExpr<'file>,
-) -> Option<(Span<'file>, ty::TypeSym)> {
+fn resolve_type_expr<'file, Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<String, ty::TypeSym>, ty: &type_expr::TypeExpr<'file>) -> Option<(Span<'file>, ty::TypeSym)>
+where
+    named_type::StructId: arena::IsArenaIdFor<Struct>,
+{
     let sp = ty.span();
     Some((sp, resolve_type_expr_no_span(type_context, type_table, ty)?))
 }
-fn resolve_type_expr_no_span<NamedType>(type_context: &mut ty::TypeContext<NamedType>, type_table: &HashMap<String, ty::TypeSym>, ty: &type_expr::TypeExpr) -> Option<ty::TypeSym>
+fn resolve_type_expr_no_span<Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<String, ty::TypeSym>, ty: &type_expr::TypeExpr) -> Option<ty::TypeSym>
 where
-    named_type::StructId: arena::IsArenaIdFor<NamedType>,
+    named_type::StructId: arena::IsArenaIdFor<Struct>,
 {
     match ty {
         type_expr::TypeExpr::Product { obrack: _, types: subtypes, cbrack: _ } => {
