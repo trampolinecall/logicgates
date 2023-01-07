@@ -1,4 +1,4 @@
-use crate::utils::CollectAll;
+use crate::utils::collect_all::CollectAll;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct Arena<T, Id: ArenaId + IsArenaIdFor<T>>(Vec<T>, std::marker::PhantomData<Id>);

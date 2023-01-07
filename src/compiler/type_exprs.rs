@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::utils::CollectAll;
+use crate::utils::collect_all::CollectAll;
 
 use super::error::{CompileError, Report, Span};
 use super::ir::{circuit1, named_type, ty};
