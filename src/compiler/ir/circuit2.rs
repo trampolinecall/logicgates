@@ -132,7 +132,7 @@ impl Circuit {
         self.gates.add(gate)
     }
 
-    fn get_gate(&self, gate_idx: GateIdx) -> &make_name_tables::CircuitOrIntrinsicId {
+    pub(crate) fn get_gate(&self, gate_idx: GateIdx) -> &make_name_tables::CircuitOrIntrinsicId {
         self.gates.get(gate_idx)
     }
 

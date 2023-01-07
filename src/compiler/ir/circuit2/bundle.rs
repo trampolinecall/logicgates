@@ -17,8 +17,8 @@ pub(crate) enum ReceiverBundle {
     // Product(Vec<(String, ReceiverBundle)>),
 }
 
-impl<'types> ProducerBundle {
-    pub(crate) fn type_(&self, type_context: &'types mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
+impl ProducerBundle {
+    pub(crate) fn type_(&self, type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
         match self {
             ProducerBundle::CurCircuitInput(ty) | ProducerBundle::GateOutput(ty, _) => *ty,
             ProducerBundle::Get(producer, field) => {
@@ -32,8 +32,8 @@ impl<'types> ProducerBundle {
         }
     }
 }
-impl<'types> ReceiverBundle {
-    pub(crate) fn type_(&self, _: &'types mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
+impl ReceiverBundle {
+    pub(crate) fn type_(&self, _: &mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
         // keep unused parameters for symmetry with ProducerBundle::type_
         match self {
             ReceiverBundle::CurCircuitOutput(ty) | ReceiverBundle::GateInput(ty, _) => *ty,
