@@ -35,7 +35,6 @@ impl<R, EIterator: Iterator<Item = E>, E> CanCollectAll for Result<R, EIterator>
     type Item = R;
 
     fn collect_all<F: std::iter::FromIterator<R>>(iter: impl Iterator<Item = Self>) -> Self::Output<F> {
-        // TODO: make a better implementation of this
         let mut results = Vec::new();
         let mut errors = Vec::new();
         for item in iter {
