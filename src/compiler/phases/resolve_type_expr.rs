@@ -58,8 +58,12 @@ fn resolve_in_pat<'file>(
 ) -> Option<circuit1::TypeResolvedPattern<'file>> {
     Some(circuit1::TypeResolvedPattern {
         kind: match pat.kind {
-            circuit1::UntypedPatternKind::Identifier(name_sp, name, type_expr) => circuit1::TypeResolvedPatternKind::Identifier(name_sp, name, resolve_type_expr(type_context, type_table, &type_expr)?),
-            circuit1::UntypedPatternKind::Product(sp, subpats) => circuit1::TypeResolvedPatternKind::Product(sp, subpats.into_iter().map(|subpat| resolve_in_pat(type_context, type_table, subpat)).collect_all()?),
+            circuit1::UntypedPatternKind::Identifier(name_sp, name, type_expr) => {
+                circuit1::TypeResolvedPatternKind::Identifier(name_sp, name, resolve_type_expr(type_context, type_table, &type_expr)?)
+            }
+            circuit1::UntypedPatternKind::Product(sp, subpats) => {
+                circuit1::TypeResolvedPatternKind::Product(sp, subpats.into_iter().map(|subpat| resolve_in_pat(type_context, type_table, subpat)).collect_all()?)
+            }
         },
         type_info: (),
         span: pat.span,
@@ -78,27 +82,27 @@ fn resolve_type_expr<'file, Struct>(type_context: &mut ty::TypeContext<Struct>, 
 where
     nominal_type::StructId: arena::IsArenaIdFor<Struct>,
 {
-    let sp = ty.span();
+    let sp = ty.span;
     Some((sp, resolve_type_expr_no_span(type_context, type_table, ty)?))
 }
 fn resolve_type_expr_no_span<Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<&str, ty::TypeSym>, ty: &type_expr::TypeExpr) -> Option<ty::TypeSym>
 where
     nominal_type::StructId: arena::IsArenaIdFor<Struct>,
 {
-    match ty {
-        type_expr::TypeExpr::Product { obrack: _, types: subtypes, cbrack: _ } => {
+    match &ty.kind {
+        type_expr::TypeExprKind::Product(subtypes) => {
             let ty = ty::Type::Product((subtypes.iter().enumerate().map(|(ind, subty_ast)| Some((ind.to_string(), resolve_type_expr_no_span(type_context, type_table, subty_ast)?))).collect_all())?);
             Some(type_context.intern(ty))
         }
-        type_expr::TypeExpr::RepProduct { obrack: _, num, cbrack: _, type_ } => {
+        type_expr::TypeExprKind::RepProduct(num, type_) => {
             let ty = resolve_type_expr_no_span(type_context, type_table, type_)?;
             Some(type_context.intern(ty::Type::Product((0..num.1).map(|ind| (ind.to_string(), ty)).collect())))
         }
-        type_expr::TypeExpr::NamedProduct { obrack: _, named: _, types: subtypes, cbrack: _ } => {
+        type_expr::TypeExprKind::NamedProduct(subtypes) => {
             let ty = ty::Type::Product((subtypes.iter().map(|(name, ty)| Some((name.1.to_string(), (resolve_type_expr_no_span(type_context, type_table, ty)?)))).collect_all())?); // TODO: report error if there are any duplicate fields
             Some(type_context.intern(ty))
         }
-        type_expr::TypeExpr::Nominal(name_sp, name) => {
+        type_expr::TypeExprKind::Nominal(name_sp, name) => {
             let res = type_table.get(*name).copied();
             if let Some(other_type_decl) = res {
                 Some(other_type_decl)

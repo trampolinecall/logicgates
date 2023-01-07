@@ -65,7 +65,6 @@ pub(crate) enum CircuitOrIntrinsic<'file, Expr, PatTypeInfo, TypeExpr> {
     Const(bool), // never in circuit table
 }
 
-// TODO: remove all span methods
 #[derive(PartialEq, Debug)]
 pub(crate) struct Let<'file, Expr, PatTypeInfo, TypeExpr> {
     pub(crate) pat: Pattern<'file, PatTypeInfo, TypeExpr>,
