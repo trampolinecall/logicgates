@@ -11,7 +11,7 @@ use crate::compiler::data::type_expr;
 #[derive(PartialEq, Debug)]
 pub(crate) struct AST<'file> {
     pub(crate) circuits: Vec<circuit1::UntypedCircuit<'file>>,
-    pub(crate) type_decls: Vec<named_type::NamedTypeDecl<'file>>,
+    pub(crate) type_decls: Vec<named_type::StructDecl<'file>>,
 }
 
 struct Parser<'file, T: Iterator<Item = Token<'file>>> {
@@ -103,7 +103,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
         while !Token::eof_matcher().matches(self.peek()) {
             match self.peek() {
-                Token::Named(_) => match self.named_type_decl() {
+                Token::Named(_) => match self.struct_decl() {
                     Ok(type_decl) => type_decls.push(type_decl),
                     Err(e) => {
                         e.report();
@@ -136,12 +136,21 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         Ok(circuit1::UntypedCircuit { name, input: arguments, lets, output: ret, output_type })
     }
 
-    fn named_type_decl(&mut self) -> Result<named_type::NamedTypeDecl<'file>, ParseError<'file>> {
-        self.expect(Token::named_matcher())?;
+    fn struct_decl(&mut self) -> Result<named_type::StructDecl<'file>, ParseError<'file>> {
+        self.expect(Token::named_matcher())?; // TODO: replace with struct keyword
         let name = self.expect(Token::identifier_matcher())?;
-        let ty = self.type_()?;
+        let obrack = self.expect(Token::obrack_matcher());
 
-        Ok(named_type::NamedTypeDecl { name, ty })
+        let fields = Vec::new();
+        while Token::identifier_matcher().matches(self.peek()) {
+            let field_name = Token::identifier_matcher().convert(self.next());
+            let field_ty = self.type_()?;
+            fields.push((field_name, field_ty))
+        }
+
+        let obrack = self.expect(Token::cbrack_matcher())?;
+
+        Ok(named_type::StructDecl { name, fields })
     }
 
     fn r#let(&mut self) -> Result<circuit1::UntypedLet<'file>, ParseError<'file>> {

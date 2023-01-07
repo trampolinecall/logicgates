@@ -6,30 +6,30 @@ use super::named_type;
 
 pub(crate) struct TypeContext<NamedType>
 where
-    named_type::NamedTypeId: arena::IsArenaIdFor<NamedType>,
+    named_type::StructId: arena::IsArenaIdFor<NamedType>,
 {
     pool: symtern::Pool<Type>, // ideally, i would use a interner crate that doesnt use ids to access types but they dont handle cyclic references nicely
 
     // this stores all the named types, one for each named type definition ast
     // this needs to be an arena and not an interner because every named type definition ast makes a unique type
     // these are used through the Type::Named constructor which is compared based off of its index into this array, meaning that named types will not be equal unless they point to the same item in this array
-    pub(crate) named: arena::Arena<NamedType, named_type::NamedTypeId>,
+    pub(crate) named: arena::Arena<NamedType, named_type::StructId>,
 }
 
 pub(crate) enum NeverNamedType {} // this is kind of a not ideal way of doing this but it works
-impl arena::IsArenaIdFor<NeverNamedType> for named_type::NamedTypeId {}
+impl arena::IsArenaIdFor<NeverNamedType> for named_type::StructId {}
 
 pub(crate) type TypeSym = symtern::Sym<usize>;
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub(crate) enum Type {
     Bit,
     Product(Vec<(String, TypeSym)>),
-    Named(named_type::NamedTypeId),
+    Named(named_type::StructId),
 }
 
 impl<NamedType> TypeContext<NamedType>
 where
-    named_type::NamedTypeId: arena::IsArenaIdFor<NamedType>,
+    named_type::StructId: arena::IsArenaIdFor<NamedType>,
 {
     pub(crate) fn new() -> Self {
         Self { pool: symtern::Pool::new(), named: arena::Arena::new() }
@@ -43,9 +43,9 @@ where
         self.pool.intern(&ty).expect("symtern interning error")
     }
 
-    pub(crate) fn transform_named<NewNamedType>(self, mut op: impl FnMut(&mut TypeContext<NeverNamedType>, NamedType) -> Option<NewNamedType>) -> Option<TypeContext<NewNamedType>>
+    pub(crate) fn transform_structs<NewNamedType>(self, mut op: impl FnMut(&mut TypeContext<NeverNamedType>, NamedType) -> Option<NewNamedType>) -> Option<TypeContext<NewNamedType>>
     where
-        named_type::NamedTypeId: arena::IsArenaIdFor<NewNamedType>,
+        named_type::StructId: arena::IsArenaIdFor<NewNamedType>,
     {
         let mut no_named_context = TypeContext { pool: self.pool, named: arena::Arena::new() };
         let named = self.named.transform(|named| op(&mut no_named_context, named))?;
@@ -64,7 +64,7 @@ where
     */
 }
 impl Type {
-    pub(crate) fn size(&self, type_context: &TypeContext<named_type::FullyDefinedNamedType>) -> usize {
+    pub(crate) fn size(&self, type_context: &TypeContext<named_type::FullyDefinedStruct>) -> usize {
         // TODO: make a pass for this so that it can be computed only once and also so that loops and checking for infinitely sized types is easier
         match self {
             Type::Bit => 1,
@@ -74,7 +74,7 @@ impl Type {
     }
 
     // TODO: there is probably a better solution to this
-    pub(crate) fn fmt(&self, type_context: &TypeContext<named_type::FullyDefinedNamedType>) -> String {
+    pub(crate) fn fmt(&self, type_context: &TypeContext<named_type::FullyDefinedStruct>) -> String {
         use std::fmt::Write;
         let mut s = String::new();
         match self {
@@ -95,7 +95,7 @@ impl Type {
         s
     }
 
-    pub(crate) fn field_type(&self, type_context: &TypeContext<named_type::FullyDefinedNamedType>, field: &str) -> Option<TypeSym> {
+    pub(crate) fn field_type(&self, type_context: &TypeContext<named_type::FullyDefinedStruct>, field: &str) -> Option<TypeSym> {
         match self {
             Type::Bit => None,
             Type::Product(fields) => fields.iter().find_map(|(field_name, field_type)| if field_name == field { Some(field_type) } else { None }).copied(),
@@ -103,7 +103,7 @@ impl Type {
         }
     }
 
-    pub(crate) fn field_indexes(&self, type_context: &TypeContext<named_type::FullyDefinedNamedType>, field: &str) -> Option<std::ops::Range<usize>> {
+    pub(crate) fn field_indexes(&self, type_context: &TypeContext<named_type::FullyDefinedStruct>, field: &str) -> Option<std::ops::Range<usize>> {
         // TODO: move this to converting circuit2
         match self {
             Type::Bit => None,

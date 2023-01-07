@@ -6,17 +6,17 @@ use super::ty;
 use super::type_expr::TypeExpr;
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct NamedTypeDecl<'file> {
+pub(crate) struct StructDecl<'file> {
     pub(crate) name: (Span<'file>, &'file str),
-    pub(crate) ty: TypeExpr<'file>,
+    pub(crate) fields: Vec<((Span<'file>, &'file str), TypeExpr<'file>)>,
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Hash)]
-pub(crate) struct NamedTypeId(usize);
-impl arena::ArenaId for NamedTypeId {
+pub(crate) struct StructId(usize);
+impl arena::ArenaId for StructId {
     // TODO: derive macro for this trait
     fn make(i: usize) -> Self {
-        NamedTypeId(i)
+        StructId(i)
     }
 
     fn get(&self) -> usize {
@@ -24,8 +24,8 @@ impl arena::ArenaId for NamedTypeId {
     }
 }
 
-impl arena::IsArenaIdFor<FullyDefinedNamedType> for NamedTypeId {}
-impl<'file> arena::IsArenaIdFor<PartiallyDefinedNamedType<'file>> for NamedTypeId {}
+impl arena::IsArenaIdFor<FullyDefinedStruct> for StructId {}
+impl<'file> arena::IsArenaIdFor<PartiallyDefinedStruct<'file>> for StructId {}
 
-pub(crate) type PartiallyDefinedNamedType<'file> = NamedTypeDecl<'file>;
-pub(crate) type FullyDefinedNamedType = (String, ty::TypeSym);
+pub(crate) type PartiallyDefinedStruct<'file> = StructDecl<'file>;
+pub(crate) type FullyDefinedStruct = (String, ty::TypeSym);
