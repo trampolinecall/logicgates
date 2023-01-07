@@ -171,7 +171,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 self.expect(Token::semicolon_matcher())?;
 
                 let type_ = self.type_()?;
-                let type_span = type_.span();
+                let type_span = type_.span;
 
                 Ok(circuit1::UntypedPattern { kind: circuit1::UntypedPatternKind::Identifier(iden.0, iden.1, type_), type_info: (), span: iden.0 + type_span })
             }
@@ -265,7 +265,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 self.next();
 
                 match self.peek() {
-                    &Token::Named(named) => {
+                    &Token::Named(_) => {
                         self.next();
 
                         let (types, cbrack) = self.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), |parser| {
@@ -275,22 +275,23 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                             Ok((name, ty))
                         })?;
 
-                        Ok(type_expr::TypeExpr::NamedProduct { types, obrack, cbrack, named })
+                        Ok(type_expr::TypeExpr { kind: type_expr::TypeExprKind::NamedProduct(types), span: obrack + cbrack })
                     }
 
                     Token::Number(_, _, _) => {
                         let (len_sp, _, len) = Token::number_matcher().convert(self.next());
 
-                        let cbrack = self.expect(Token::cbrack_matcher())?;
+                        self.expect(Token::cbrack_matcher())?;
 
                         let ty = self.type_()?;
+                        let ty_span = ty.span;
 
-                        Ok(type_expr::TypeExpr::RepProduct { obrack, num: (len_sp, len), cbrack, type_: Box::new(ty) })
+                        Ok(type_expr::TypeExpr { kind: type_expr::TypeExprKind::RepProduct((len_sp, len), Box::new(ty)), span: obrack + ty_span })
                     }
 
                     _ => {
                         let (types, cbrack) = self.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::type_)?;
-                        Ok(type_expr::TypeExpr::Product { types, obrack, cbrack })
+                        Ok(type_expr::TypeExpr { kind: type_expr::TypeExprKind::Product(types), span: obrack + cbrack })
                     }
                 }
             }
@@ -298,7 +299,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             Token::Identifier(_, _) => {
                 let iden = Token::identifier_matcher().convert(self.next());
 
-                Ok(type_expr::TypeExpr::Nominal(iden.0, iden.1))
+                Ok(type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(iden.0, iden.1), span: iden.0 })
             }
 
             _ => Err(self.expected_and_next("type")),
@@ -334,7 +335,13 @@ mod test {
 
         assert_eq!(
             Parser { tokens }.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::expr),
-            Ok((vec![circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "a"), type_info: (), span: sp }, circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "b"), type_info: (), span: sp }], sp))
+            Ok((
+                vec![
+                    circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "a"), type_info: (), span: sp },
+                    circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "b"), type_info: (), span: sp }
+                ],
+                sp
+            ))
         );
     }
 
@@ -347,7 +354,13 @@ mod test {
 
         assert_eq!(
             Parser { tokens }.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::expr),
-            Ok((vec![circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "a"), type_info: (), span: sp }, circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "b"), type_info: (), span: sp }], sp))
+            Ok((
+                vec![
+                    circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "a"), type_info: (), span: sp },
+                    circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "b"), type_info: (), span: sp }
+                ],
+                sp
+            ))
         );
     }
 
@@ -392,9 +405,17 @@ mod test {
             AST {
                 circuits: vec![circuit1::UntypedCircuit {
                     name: (sp, "thingy"),
-                    input: circuit1::UntypedPattern { kind: circuit1::UntypedPatternKind::Identifier(sp, "arg", type_expr::TypeExpr::Nominal(sp, "bit")), type_info: (), span: sp },
+                    input: circuit1::UntypedPattern {
+                        kind: circuit1::UntypedPatternKind::Identifier(sp, "arg", type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(sp, "bit"), span: sp }),
+                        type_info: (),
+                        span: sp
+                    },
                     lets: vec![circuit1::UntypedLet {
-                        pat: circuit1::UntypedPattern { kind: circuit1::UntypedPatternKind::Identifier(sp, "res", type_expr::TypeExpr::Nominal(sp, "bit")), type_info: (), span: sp },
+                        pat: circuit1::UntypedPattern {
+                            kind: circuit1::UntypedPatternKind::Identifier(sp, "res", type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(sp, "bit"), span: sp }),
+                            type_info: (),
+                            span: sp
+                        },
                         val: circuit1::UntypedExpr {
                             kind: circuit1::UntypedExprKind::Call(
                                 (sp, "and"),
@@ -413,7 +434,7 @@ mod test {
                         }
                     }],
                     output: circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "res"), type_info: (), span: sp },
-                    output_type: type_expr::TypeExpr::Nominal(sp, "bit")
+                    output_type: type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(sp, "bit"), span: sp }
                 }],
                 type_decls: vec![]
             }
@@ -429,7 +450,11 @@ mod test {
         assert_eq!(
             Parser { tokens: tokens }.r#let(),
             Ok(circuit1::UntypedLet {
-                pat: circuit1::UntypedPattern { kind: circuit1::UntypedPatternKind::Identifier(sp, "a", type_expr::TypeExpr::Nominal(sp, "bit")), type_info: (), span: sp },
+                pat: circuit1::UntypedPattern {
+                    kind: circuit1::UntypedPatternKind::Identifier(sp, "a", type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(sp, "bit"), span: sp }),
+                    type_info: (),
+                    span: sp
+                },
                 val: circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "b"), type_info: (), span: sp }
             })
         );
@@ -441,7 +466,14 @@ mod test {
         let sp = file.eof_span();
 
         let tokens = make_token_stream([Token::Identifier(sp, "iden"), Token::Semicolon(sp), Token::Identifier(sp, "bit")], sp);
-        assert_eq!(Parser { tokens }.pattern(), Ok(circuit1::UntypedPattern { kind: circuit1::UntypedPatternKind::Identifier(sp, "iden", type_expr::TypeExpr::Nominal(sp, "bit")), type_info: (), span: sp }));
+        assert_eq!(
+            Parser { tokens }.pattern(),
+            Ok(circuit1::UntypedPattern {
+                kind: circuit1::UntypedPatternKind::Identifier(sp, "iden", type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(sp, "bit"), span: sp }),
+                type_info: (),
+                span: sp
+            })
+        );
     }
 
     #[test]
