@@ -2,7 +2,6 @@
 mod error;
 
 mod data;
-
 mod phases;
 
 use crate::circuit;

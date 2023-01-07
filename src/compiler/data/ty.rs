@@ -1,8 +1,6 @@
 use symtern::prelude::*;
 
-use crate::utils::arena;
-
-use super::nominal_type;
+use crate::{compiler::data::nominal_type, utils::arena};
 
 pub(crate) struct TypeContext<Struct>
 where
@@ -99,7 +97,9 @@ impl Type {
         match self {
             Type::Bit => None,
             Type::Product(fields) => fields.iter().find_map(|(field_name, field_type)| if field_name == field { Some(field_type) } else { None }).copied(),
-            Type::Nominal(struct_id) => type_context.structs.get(*struct_id).fields.iter().find_map(|((_, field_name), field_type)| if *field_name == field { Some(field_type) } else { None }).copied(),
+            Type::Nominal(struct_id) => {
+                type_context.structs.get(*struct_id).fields.iter().find_map(|((_, field_name), field_type)| if *field_name == field { Some(field_type) } else { None }).copied()
+            }
         }
     }
 

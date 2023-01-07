@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
-use crate::utils::arena;
-
-use crate::compiler::{
-    data::{circuit1, nominal_type, ty},
-    phases::resolve_type_expr,
+use crate::{
+    compiler::{
+        data::{circuit1, nominal_type, ty},
+        phases::resolve_type_expr,
+    },
+    utils::arena,
 };
 
 pub(crate) struct IR<'file> {

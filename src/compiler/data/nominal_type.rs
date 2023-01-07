@@ -1,9 +1,10 @@
-use crate::compiler::error::Span;
-use crate::utils::arena;
-
-use super::ty;
-
-use super::type_expr::TypeExpr;
+use crate::{
+    compiler::{
+        data::{ty, type_expr::TypeExpr},
+        error::Span,
+    },
+    utils::arena,
+};
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct Struct<'file, TypeExpr> {

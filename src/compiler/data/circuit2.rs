@@ -1,6 +1,7 @@
-use crate::utils::arena;
-
-use super::{circuit1, ty};
+use crate::{
+    compiler::data::{circuit1, ty},
+    utils::arena,
+};
 
 pub(crate) mod bundle;
 
