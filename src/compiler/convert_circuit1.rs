@@ -18,7 +18,8 @@ use circuit2::bundle::ReceiverBundle;
 // TODO: replace all String with &'file str?
 
 struct TypeMismatch<'file> {
-    /* got_span: Span<'file>, TODO */ pub(super) expected_span: Span<'file>,
+    // got_span: Span<'file>, TODO
+    pub(super) expected_span: Span<'file>,
     pub(super) got_type: ty::TypeSym,
     pub(super) expected_type: ty::TypeSym,
 }
