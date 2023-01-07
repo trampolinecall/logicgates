@@ -24,10 +24,19 @@ struct TypeMismatch<'file> {
     pub(super) expected_type: ty::TypeSym,
 }
 
+struct LoopInLocalsError<'file>(Vec<Value<'file>>);
+
 impl<'file> From<(&ty::TypeContext<named_type::FullyDefinedNamedType>, TypeMismatch<'file>)> for CompileError<'file> {
     fn from((types, TypeMismatch { expected_span, got_type, expected_type }): (&ty::TypeContext<named_type::FullyDefinedNamedType>, TypeMismatch<'file>)) -> Self {
         // TODO: show on the producer and receiver spans which has which type
         CompileError::new(expected_span, format!("type mismatch: expected {}, got {}", types.get(expected_type).fmt(types), types.get(got_type).fmt(types)))
+    }
+}
+
+impl<'file> From<LoopInLocalsError<'file>> for CompileError<'file> {
+    fn from(LoopInLocalsError(loop_): LoopInLocalsError<'file>) -> Self {
+        let first = loop_.get(0).expect("loop error should not be empty");
+        CompileError::new(first.span, format!("infinite loop in evaluation of locals: {}", loop_.into_iter().map(|value| format!("value {:?} at {:?}", value.kind, value.span)).collect::<Vec<_>>().join(" -> "))) // TODO: make this a better message
     }
 }
 
@@ -137,9 +146,8 @@ fn convert_circuit(
         |original_value, producer_bundle| (original_value, producer_bundle),
     ) {
         Ok(r) => r,
-        Err((loop_errors, other_errors)) => {
-            // other errors are all ()
-            todo!("report errors: loop_errors = {}, other_errors = {other_errors:?}", loop_errors.len());
+        Err((loop_errors, _)) => { // never makes other errors
+            loop_errors.into_iter().for_each(|loop_| LoopInLocalsError(loop_).report());
             return None;
         }
     };
@@ -195,15 +203,16 @@ fn assign_pattern<'file>(
     Ok(())
 }
 
+enum NeverErrors {}
 fn convert_value(
     type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
-    get_other_value_as_bundle: arena::DependancyGetter<ProducerBundle, Value, (), ValueId>,
+    get_other_value_as_bundle: arena::DependancyGetter<ProducerBundle, Value, NeverErrors, ValueId>,
     locals: &HashMap<&str, ValueId>,
     gates: &HashMap<ValueId, circuit2::GateIdx>,
     circuit: &Circuit,
     value_id: ValueId,
     value: &Value,
-) -> arena::SingleTransformResult<ProducerBundle, ValueId, ()> {
+) -> arena::SingleTransformResult<ProducerBundle, ValueId, NeverErrors> {
     let mut do_get = |expr, field_name| {
         let expr = try_annotation_result!(get_other_value_as_bundle.get(expr)).1;
         let expr_type = expr.type_(type_context);
@@ -232,25 +241,17 @@ fn convert_value(
         ValueKind::MadeUpGet(expr, field_name) => do_get(*expr, field_name),
 
         ValueKind::Multiple { values: subvalues, .. } => {
-            let mut results = Some(Vec::new());
+            let mut results = Vec::new();
 
             for (ind, subvalue) in subvalues.iter().enumerate() {
                 match get_other_value_as_bundle.get(*subvalue) {
-                    arena::SingleTransformResult::Ok(result) => {
-                        if let Some(ref mut results) = results {
-                            results.push((ind.to_string(), result.1.clone()));
-                        }
-                    }
+                    arena::SingleTransformResult::Ok(result) => results.push((ind.to_string(), result.1.clone())),
                     arena::SingleTransformResult::Dep(d_error) => return arena::SingleTransformResult::Dep(d_error),
-                    arena::SingleTransformResult::Err(()) => results = None,
+                    arena::SingleTransformResult::Err(never) => match never {},
                 }
             }
 
-            if let Some(results) = results {
-                arena::SingleTransformResult::Ok(ProducerBundle::Product(results))
-            } else {
-                arena::SingleTransformResult::Err(())
-            }
+            arena::SingleTransformResult::Ok(ProducerBundle::Product(results))
         }
         ValueKind::Input => arena::SingleTransformResult::Ok(ProducerBundle::CurCircuitInput(circuit.input_type)),
     }

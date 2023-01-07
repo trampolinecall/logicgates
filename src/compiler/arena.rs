@@ -76,10 +76,6 @@ mod dependant_annotation {
         pub(super) fn needs_annotation(&self) -> bool {
             matches!(self, Self::Waiting | Self::WaitingOn(..))
         }
-
-        pub(super) fn is_waiting_on(&self) -> bool {
-            matches!(self, Self::WaitingOn(..))
-        }
     }
 
     pub(crate) struct DependancyGetter<'arena, Annotation, Original, Error, Id>(pub(super) &'arena Vec<(Original, ItemState<Annotation, Id, Error>)>);
@@ -110,9 +106,6 @@ mod dependant_annotation {
         Err(Error),
     }
 
-    #[derive(Eq, PartialEq, Clone)]
-    pub(crate) struct LoopError;
-
     macro_rules! try_annotation_result {
         ($e:expr) => {
             match $e {
@@ -124,15 +117,14 @@ mod dependant_annotation {
     }
 }
 pub(crate) use dependant_annotation::DependancyGetter;
-pub(crate) use dependant_annotation::LoopError;
 pub(crate) use dependant_annotation::SingleTransformResult;
 impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original, Id> {
     // TODO: write tests for this
     pub(crate) fn annotate_dependant_with_id<Annotation, New, Error>(
         self,
-        mut try_convert: impl FnMut(Id, &Original, DependancyGetter<Annotation, Original, Error, Id>) -> SingleTransformResult<Annotation, Id, Error>,
+        mut try_annotate: impl FnMut(Id, &Original, DependancyGetter<Annotation, Original, Error, Id>) -> SingleTransformResult<Annotation, Id, Error>,
         incorporate_annotation: impl Fn(Original, Annotation) -> New,
-    ) -> Result<Arena<New, Id>, (Vec<LoopError>, Vec<Error>)>
+    ) -> Result<Arena<New, Id>, (Vec<Vec<Original>>, Vec<Error>)>
     where
         Id: IsArenaIdFor<New>,
     {
@@ -144,21 +136,21 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original,
 
         let mut things: Vec<_> = self.0.into_iter().map(|item| (item, ItemState::Waiting::<Annotation, Id, Error>)).collect();
 
-        loop {
+        let loops = loop {
             if things.iter().all(|thing| !thing.1.needs_annotation()) {
-                // empty returns true so this will be done if it is empty
                 // all of the things are either done or errored
-                break;
+                // calling .all on an empty iterator returns true so this will be done if it is empty
+                break Vec::new(); // completed successfully, return no loop errors
             }
 
             let mut amt_changed = 0; // TODO: test counting
 
             for thing_i in 0..things.len() {
-                let thing = things.get(thing_i).expect("iterating through things by index should not be out of range");
-                if let ItemState::Waiting | ItemState::WaitingOn(_) = thing.1 {
-                    let converted = try_convert(Id::make(thing_i), &thing.0, DependancyGetter(&things));
+                let thing = &things[thing_i];
+                if thing.1.needs_annotation() {
+                    let annotation = try_annotate(Id::make(thing_i), &thing.0, DependancyGetter(&things));
 
-                    let new_state = match converted {
+                    let new_annotation_state = match annotation {
                         SingleTransformResult::Ok(new) => {
                             amt_changed += 1;
                             ItemState::Ok(new)
@@ -182,43 +174,103 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original,
                         }
                     };
                     let thing_mut = things.get_mut(thing_i).expect("iterating through things by index should not be out of range");
-                    thing_mut.1 = new_state
+                    thing_mut.1 = new_annotation_state
                 }
             }
 
             if amt_changed == 0 && things.iter().filter(|thing| thing.1.needs_annotation()).count() > 0 {
                 // if nothing has changed and there are still items to process
-                todo!("loop") // TODO: mark all items in loop as loop, so that they are not waiting
-                                          // cannot continue because if none of them are changing, they are all dependant on the loop
-            }
-        }
+                // TODO: test this
+                struct CmpByPtr<'a, T>(&'a T);
 
-        let mut final_things = Some(Vec::new());
-        let mut errors = Vec::new();
-        let loops = Vec::new(); // TODO
-
-        for (original, annotation) in things.into_iter() {
-            match annotation {
-                ItemState::Waiting | ItemState::WaitingOn(_) => unreachable!("item waiting after main loop in dependant annotation"),
-                ItemState::Ok(annotation) => {
-                    if let Some(ref mut final_things) = final_things {
-                        final_things.push(incorporate_annotation(original, annotation))
+                impl<T> Copy for CmpByPtr<'_, T> {}
+                impl<T> Clone for CmpByPtr<'_, T> {
+                    fn clone(&self) -> Self {
+                        Self(self.0)
                     }
                 }
-                ItemState::Error(error) => {
-                    errors.push(error);
-                    final_things = None;
+                impl<T> Eq for CmpByPtr<'_, T> {}
+                impl<T> PartialEq for CmpByPtr<'_, T> {
+                    fn eq(&self, other: &Self) -> bool {
+                        std::ptr::eq(self.0, other.0)
+                    }
                 }
-                ItemState::ErrorInDep => {
-                    final_things = None;
-                }
-            }
-        }
 
-        if !errors.is_empty() || !loops.is_empty() {
+                let mut loops = Vec::new();
+                let mut waiting_nodes = things
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, thing)| match thing.1 {
+                        ItemState::Waiting => unreachable!("the loop above will always convert any Waiting to something else (even if just WaitingOn)"),
+                        ItemState::WaitingOn(_) => Some(i),
+                        ItemState::Ok(_) | ItemState::Error(_) | ItemState::ErrorInDep => None,
+                    })
+                    .collect::<Vec<_>>();
+
+                'each_loop: while let Some(&(mut cur)) = waiting_nodes.first() {
+                    let mut cur_loop = Vec::new();
+
+                    // travel around the loop until a cycle is completed
+                    loop {
+                        cur_loop.push(cur);
+                        cur = if let ItemState::WaitingOn(dep_id) = things[cur].1 {
+                            if !waiting_nodes.contains(&dep_id.get()) {
+                                // this node leads to the same loop as before
+                                continue 'each_loop;
+                            } else {
+                                // travel to this nodes dependency
+                                dep_id.get()
+                            }
+                        } else {
+                            unreachable!("waiting_nodes only contains WaitingOn items")
+                        };
+
+                        if cur_loop.contains(&cur) {
+                            // completed the cycle around the loop
+                            break;
+                        }
+                    }
+
+                    waiting_nodes.retain(|item| !cur_loop.contains(item));
+                    // TODO: remove other nodes leading into loop
+                    loops.push(cur_loop);
+                }
+                break loops; // cannot continue because if none of them are changing, they are all dependant on the loop
+            }
+        };
+
+        let has_errors = things.iter().any(|thing| matches!(thing.1, ItemState::Error(_) | ItemState::ErrorInDep));
+        if has_errors || !loops.is_empty() {
+            let mut errors = Vec::new();
+            let mut things: Vec<_> = things
+                .into_iter()
+                .map(|thing| {
+                    if let ItemState::Error(err) = thing.1 {
+                        errors.push(err);
+                        None
+                    } else {
+                        Some(thing)
+                    }
+                })
+                .collect();
+
+            let loops = loops.into_iter().map(|loop_| loop_.into_iter().map(|loop_i| things[loop_i].take().expect("different loops should not contain the same element").0).collect()).collect();
+
             Err((loops, errors))
         } else {
-            Ok(Arena(final_things.expect("problem in final_things but no errors and no loops"), std::marker::PhantomData))
+            let final_things = things.into_iter().map(|(original, annotation)| {
+                match annotation {
+                    ItemState::Waiting | ItemState::WaitingOn(_) => unreachable!("this arm can only match if there is a loop that leaves items in the waiting state, but if that did happen then this else branch wouldn't run because there would be loop errors"),
+                    ItemState::Ok(annotation) => {
+                            incorporate_annotation(original, annotation)
+                    }
+                    ItemState::Error(_) | ItemState::ErrorInDep =>
+                        unreachable!("errors were filtered out by the has_errors condition")
+                    ,
+                }
+            }).collect();
+
+            Ok(Arena(final_things, std::marker::PhantomData))
         }
     }
 
@@ -226,7 +278,7 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original,
         self,
         mut try_convert: impl FnMut(&Original, DependancyGetter<Annotation, Original, Error, Id>) -> SingleTransformResult<Annotation, Id, Error>,
         incorporate_annotation: impl Fn(Original, Annotation) -> New,
-    ) -> Result<Arena<New, Id>, (Vec<LoopError>, Vec<Error>)>
+    ) -> Result<Arena<New, Id>, (Vec<Vec<Original>>, Vec<Error>)>
     where
         Id: IsArenaIdFor<New>,
     {
