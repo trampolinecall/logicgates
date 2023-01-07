@@ -83,7 +83,6 @@ mod names {
     pub(super) const COMMA: &str = "','";
 
     pub(super) const EQUALS: &str = "'='";
-    pub(super) const ARROW: &str = "'->'";
 
     pub(super) const LET: &str = "'let'";
     pub(super) const INLINE: &str = "'inline'";
