@@ -9,7 +9,7 @@ use crate::compiler::{
 
 pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<circuit1::PatTypedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
-    pub(crate) circuit_table: HashMap<String, circuit1::CircuitOrIntrinsicId>,
+    pub(crate) circuit_table: HashMap<&'file str, circuit1::CircuitOrIntrinsicId>,
 
     pub(crate) type_context: ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
 }

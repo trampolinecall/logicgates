@@ -13,7 +13,7 @@ pub(crate) enum ProducerBundle {
 pub(crate) enum ReceiverBundle {
     CurCircuitOutput(ty::TypeSym),
     GateInput(ty::TypeSym, GateIdx),
-    // Get(Box<ReceiverBundle>, String), TODO: is this needed?
+    // Get(Box<ReceiverBundle>, &'file str), TODO: is this needed?
     // Product(Vec<(String, ReceiverBundle)>),
 }
 

@@ -7,7 +7,7 @@ pub(crate) mod bundle;
 #[derive(Clone, Debug, Copy, Eq, Hash, PartialEq)]
 pub(crate) struct GateIdx(usize);
 
-impl arena::IsArenaIdFor<CircuitOrIntrinsic> for circuit1::CircuitOrIntrinsicId {}
+impl arena::IsArenaIdFor<CircuitOrIntrinsic<'_>> for circuit1::CircuitOrIntrinsicId {}
 
 impl arena::IsArenaIdFor<circuit1::CircuitOrIntrinsicId> for GateIdx {}
 impl arena::ArenaId for GateIdx {
@@ -21,8 +21,8 @@ impl arena::ArenaId for GateIdx {
 }
 
 #[derive(Debug)]
-pub(crate) struct Circuit {
-    pub(crate) name: String,
+pub(crate) struct Circuit<'file> {
+    pub(crate) name: &'file str,
     gates: arena::Arena<circuit1::CircuitOrIntrinsicId, GateIdx>,
     connections: Vec<(bundle::ProducerBundle, bundle::ReceiverBundle)>,
     pub(crate) input_type: ty::TypeSym,
@@ -30,8 +30,8 @@ pub(crate) struct Circuit {
 }
 
 #[derive(Debug)]
-pub(crate) enum CircuitOrIntrinsic {
-    Custom(Circuit),
+pub(crate) enum CircuitOrIntrinsic<'file> {
+    Custom(Circuit<'file>),
     Nand,
     Const(bool),
 }
@@ -125,8 +125,8 @@ impl Gate {
     */
 }
 */
-impl Circuit {
-    pub(crate) fn new(name: String, input_type: symtern::Sym<usize>, output_type: symtern::Sym<usize>) -> Circuit {
+impl<'file> Circuit<'file> {
+    pub(crate) fn new(name: &'file str, input_type: symtern::Sym<usize>, output_type: symtern::Sym<usize>) -> Circuit {
         Circuit { name, input_type, output_type, gates: arena::Arena::new(), connections: Vec::new() }
     }
 
