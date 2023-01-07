@@ -17,17 +17,16 @@ use circuit2::bundle::ReceiverBundle;
 
 // TODO: replace all String with &'file str?
 
-struct TypeMismatch<'file>{ /* got_span: Span<'file>, TODO */ pub(super) expected_span: Span<'file>, pub(super) got_type: ty::TypeSym, pub(super) expected_type: ty::TypeSym }
+struct TypeMismatch<'file> {
+    /* got_span: Span<'file>, TODO */ pub(super) expected_span: Span<'file>,
+    pub(super) got_type: ty::TypeSym,
+    pub(super) expected_type: ty::TypeSym,
+}
 
 impl<'file> From<(&ty::TypeContext<named_type::FullyDefinedNamedType>, TypeMismatch<'file>)> for CompileError<'file> {
-    fn from((types, val): (&ty::TypeContext<named_type::FullyDefinedNamedType>, TypeMismatch<'file>)) -> Self {
-        match val {
-            TypeMismatch { expected_span, got_type, expected_type } => CompileError::new(
-                // TODO: show on the producer and receiver spans which has which type
-                expected_span,
-                format!("type mismatch: expected {}, got {}", types.get(expected_type).fmt(types), types.get(got_type).fmt(types)),
-            ),
-        }
+    fn from((types, TypeMismatch { expected_span, got_type, expected_type }): (&ty::TypeContext<named_type::FullyDefinedNamedType>, TypeMismatch<'file>)) -> Self {
+        // TODO: show on the producer and receiver spans which has which type
+        CompileError::new(expected_span, format!("type mismatch: expected {}, got {}", types.get(expected_type).fmt(types), types.get(got_type).fmt(types)))
     }
 }
 
