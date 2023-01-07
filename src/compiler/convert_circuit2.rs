@@ -3,8 +3,7 @@ use std::collections::HashMap;
 use super::{
     arena, convert_circuit1,
     error::{CompileError, File, Report},
-    ir::{circuit2, named_type, ty},
-    make_name_tables,
+    ir::{circuit2, named_type, ty, circuit1},
 };
 use crate::circuit;
 
@@ -45,7 +44,7 @@ pub(crate) fn convert(file: &File, convert_circuit1::IR { circuits, circuit_tabl
     }
 }
 fn convert_circuit<'circuit>(
-    circuits: &'circuit arena::Arena<circuit2::CircuitOrIntrinsic, make_name_tables::CircuitOrIntrinsicId>,
+    circuits: &'circuit arena::Arena<circuit2::CircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>,
     type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     mut expansion_stack: ExpandedStack<'circuit>,
     circuit: &'circuit circuit2::Circuit,
@@ -80,11 +79,11 @@ fn convert_circuit<'circuit>(
 }
 
 fn add_gate<'circuit>(
-    circuits: &'circuit arena::Arena<circuit2::CircuitOrIntrinsic, make_name_tables::CircuitOrIntrinsicId>,
+    circuits: &'circuit arena::Arena<circuit2::CircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>,
     type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     expansion_stack: ExpandedStack<'circuit>,
     new_circuit: &mut circuit::Circuit,
-    circuit_id: make_name_tables::CircuitOrIntrinsicId,
+    circuit_id: circuit1::CircuitOrIntrinsicId,
 ) -> Result<(ExpandedStack<'circuit>, circuit::GateIndex), InfiniteRecursion<'circuit>> {
     match circuits.get(circuit_id) {
         circuit2::CircuitOrIntrinsic::Custom(subcircuit) => {

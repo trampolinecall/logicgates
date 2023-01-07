@@ -4,7 +4,7 @@ use crate::utils::collect_all::CollectAll;
 
 use super::error::{CompileError, Report, Span};
 use super::ir::{circuit1, named_type, ty};
-use super::{arena, ir, make_name_tables, type_pats};
+use super::{arena, ir, type_pats};
 
 struct NoField<'file> {
     // TODO: list names of fields that do exist
@@ -32,8 +32,8 @@ impl<'file> From<NoSuchCircuit<'file>> for CompileError<'file> {
 }
 
 pub(crate) struct IR<'file> {
-    pub(crate) circuits: arena::Arena<ir::circuit1::TypedCircuitOrIntrinsic<'file>, make_name_tables::CircuitOrIntrinsicId>,
-    pub(crate) circuit_table: HashMap<String, (ty::TypeSym, ty::TypeSym, make_name_tables::CircuitOrIntrinsicId)>,
+    pub(crate) circuits: arena::Arena<ir::circuit1::TypedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
+    pub(crate) circuit_table: HashMap<String, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
 
     pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
 }
@@ -87,47 +87,47 @@ fn put_pat_type<'file>(local_table: &mut HashMap<&'file str, ty::TypeSym>, pat: 
 
 fn type_expr<'file>(
     type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
-    circuit_table: &HashMap<String, (ty::TypeSym, ty::TypeSym, make_name_tables::CircuitOrIntrinsicId)>,
+    circuit_table: &HashMap<String, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
     local_types: &HashMap<&str, ty::TypeSym>,
-    expr: circuit1::expr::UntypedExpr<'file>,
-) -> Option<circuit1::expr::TypedExpr<'file>> {
+    expr: circuit1::UntypedExpr<'file>,
+) -> Option<circuit1::TypedExpr<'file>> {
     let (kind, type_info) = match expr.kind {
-        circuit1::expr::ExprKind::Ref(name_sp, name) => {
+        circuit1::ExprKind::Ref(name_sp, name) => {
             let local_type = if let Some(ty) = local_types.get(name) {
                 *ty
             } else {
                 NoSuchLocal(name_sp, name).report();
                 return None;
             };
-            (circuit1::expr::ExprKind::Ref(name_sp, name), local_type)
+            (circuit1::ExprKind::Ref(name_sp, name), local_type)
         }
-        circuit1::expr::ExprKind::Call((name_sp, name), inline, arg) => {
+        circuit1::ExprKind::Call((name_sp, name), inline, arg) => {
             // this also does circuit name resolution
             if let Some((_, ty, _)) = circuit_table.get(name) {
-                (circuit1::expr::ExprKind::Call((name_sp, name), inline, Box::new(type_expr(type_context, circuit_table, local_types, *arg)?)), *ty)
+                (circuit1::ExprKind::Call((name_sp, name), inline, Box::new(type_expr(type_context, circuit_table, local_types, *arg)?)), *ty)
             } else {
                 NoSuchCircuit(name_sp, name).report();
                 return None;
             }
         }
-        circuit1::expr::ExprKind::Const(sp, value) => (circuit1::expr::ExprKind::Const(sp, value), type_context.intern(ty::Type::Bit)),
-        circuit1::expr::ExprKind::Get(base, field) => {
+        circuit1::ExprKind::Const(sp, value) => (circuit1::ExprKind::Const(sp, value), type_context.intern(ty::Type::Bit)),
+        circuit1::ExprKind::Get(base, field) => {
             let base = type_expr(type_context, circuit_table, local_types, *base)?;
             let base_ty = base.type_info;
             let field_ty = type_context.get(base_ty).field_type(type_context, field.1);
             if let Some(field_ty) = field_ty {
-                (circuit1::expr::ExprKind::Get(Box::new(base), field), field_ty)
+                (circuit1::ExprKind::Get(Box::new(base), field), field_ty)
             } else {
                 (&*type_context, NoField { ty: base_ty, field_name_sp: field.0, field_name: field.1 }).report();
                 return None;
             }
         }
-        circuit1::expr::ExprKind::Multiple(exprs) => {
+        circuit1::ExprKind::Multiple(exprs) => {
             let exprs: Vec<_> = exprs.into_iter().map(|subexpr| type_expr(type_context, circuit_table, local_types, subexpr)).collect_all()?;
             let types = exprs.iter().enumerate().map(|(field_i, subexpr)| (field_i.to_string(), subexpr.type_info)).collect();
-            (circuit1::expr::ExprKind::Multiple(exprs), type_context.intern(ty::Type::Product(types)))
+            (circuit1::ExprKind::Multiple(exprs), type_context.intern(ty::Type::Product(types)))
         }
     };
 
-    Some(circuit1::expr::TypedExpr { type_info, kind, span: expr.span })
+    Some(circuit1::TypedExpr { type_info, kind, span: expr.span })
 }

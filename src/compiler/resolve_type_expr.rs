@@ -6,12 +6,12 @@ use super::{
     arena,
     error::{CompileError, Report, Span},
     ir::{circuit1, named_type, ty, type_expr},
-    make_name_tables::{self, CircuitOrIntrinsicId},
+    make_name_tables,
 };
 
 pub(crate) struct IR<'file> {
-    pub(crate) circuits: arena::Arena<circuit1::TypeResolvedCircuitOrIntrinsic<'file>, CircuitOrIntrinsicId>,
-    pub(crate) circuit_table: HashMap<String, CircuitOrIntrinsicId>,
+    pub(crate) circuits: arena::Arena<circuit1::TypeResolvedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
+    pub(crate) circuit_table: HashMap<String, circuit1::CircuitOrIntrinsicId>,
 
     pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
 }

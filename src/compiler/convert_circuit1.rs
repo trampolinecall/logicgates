@@ -11,7 +11,6 @@ use super::ir::circuit2::bundle::ProducerBundle;
 use super::ir::circuit2::Circuit;
 use super::ir::named_type;
 use super::ir::ty;
-use super::make_name_tables;
 use super::type_exprs;
 use circuit2::bundle::ReceiverBundle;
 
@@ -43,11 +42,9 @@ impl<'file> From<LoopInLocalsError<'file>> for CompileError<'file> {
     }
 }
 
-impl arena::IsArenaIdFor<circuit2::CircuitOrIntrinsic> for super::make_name_tables::CircuitOrIntrinsicId {}
-
 pub(crate) struct IR {
-    pub(crate) circuits: arena::Arena<circuit2::CircuitOrIntrinsic, make_name_tables::CircuitOrIntrinsicId>,
-    pub(crate) circuit_table: HashMap<String, (ty::TypeSym, ty::TypeSym, make_name_tables::CircuitOrIntrinsicId)>,
+    pub(crate) circuits: arena::Arena<circuit2::CircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>,
+    pub(crate) circuit_table: HashMap<String, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
 
     pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
 }
@@ -98,8 +95,8 @@ enum ValueKind<'file> {
 }
 
 fn convert_circuit(
-    (const_0, const_1): (make_name_tables::CircuitOrIntrinsicId, make_name_tables::CircuitOrIntrinsicId),
-    circuit_table: &HashMap<String, (ty::TypeSym, ty::TypeSym, make_name_tables::CircuitOrIntrinsicId)>,
+    (const_0, const_1): (circuit1::CircuitOrIntrinsicId, circuit1::CircuitOrIntrinsicId),
+    circuit_table: &HashMap<String, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
     type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
     circuit1: circuit1::TypedCircuit,
 ) -> Option<circuit2::Circuit> {
@@ -209,14 +206,14 @@ fn assign_pattern<'file>(
     Ok(())
 }
 
-fn convert_expr_to_value<'file>(values: &mut arena::Arena<Value<'file>, ValueId>, expr: circuit1::expr::TypedExpr<'file>) -> ValueId {
+fn convert_expr_to_value<'file>(values: &mut arena::Arena<Value<'file>, ValueId>, expr: circuit1::TypedExpr<'file>) -> ValueId {
     let value = Value {
         kind: match expr.kind {
-            circuit1::expr::ExprKind::Ref(sp, name) => ValueKind::Ref(sp, name),
-            circuit1::expr::ExprKind::Call(name, inline, arg) => ValueKind::Call(name, inline, convert_expr_to_value(values, *arg)),
-            circuit1::expr::ExprKind::Const(sp, value) => ValueKind::Const(sp, value),
-            circuit1::expr::ExprKind::Get(base, field) => ValueKind::Get(convert_expr_to_value(values, *base), field),
-            circuit1::expr::ExprKind::Multiple(exprs) => ValueKind::Multiple { values: exprs.into_iter().map(|e| convert_expr_to_value(values, e)).collect() },
+            circuit1::ExprKind::Ref(sp, name) => ValueKind::Ref(sp, name),
+            circuit1::ExprKind::Call(name, inline, arg) => ValueKind::Call(name, inline, convert_expr_to_value(values, *arg)),
+            circuit1::ExprKind::Const(sp, value) => ValueKind::Const(sp, value),
+            circuit1::ExprKind::Get(base, field) => ValueKind::Get(convert_expr_to_value(values, *base), field),
+            circuit1::ExprKind::Multiple(exprs) => ValueKind::Multiple { values: exprs.into_iter().map(|e| convert_expr_to_value(values, e)).collect() },
         },
         span: expr.span,
         type_info: expr.type_info,
