@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::utils::CollectAll;
+use crate::utils::collect_all::CollectAll;
 
 use super::{
     arena,
