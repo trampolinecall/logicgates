@@ -43,14 +43,14 @@ pub(crate) struct IR<'file> {
 }
 
 pub(crate) fn convert(type_exprs::IR { mut circuits, circuit_table, mut type_context }: type_exprs::IR) -> Option<IR> {
-    let const_0 = circuits.add(circuit1::CircuitOrIntrinsic::Const(false));
-    let const_1 = circuits.add(circuit1::CircuitOrIntrinsic::Const(true));
+    let const_0 = circuits.add(circuit1::TypedCircuitOrIntrinsic::Const(false));
+    let const_1 = circuits.add(circuit1::TypedCircuitOrIntrinsic::Const(true));
 
     let circuits = circuits.transform(|circuit| {
         Some(match circuit {
-            circuit1::CircuitOrIntrinsic::Circuit(circuit) => circuit2::CircuitOrIntrinsic::Custom(convert_circuit((const_0, const_1), &circuit_table, &mut type_context, circuit)?),
-            circuit1::CircuitOrIntrinsic::Nand => circuit2::CircuitOrIntrinsic::Nand,
-            circuit1::CircuitOrIntrinsic::Const(value) => circuit2::CircuitOrIntrinsic::Const(value),
+            circuit1::TypedCircuitOrIntrinsic::Circuit(circuit) => circuit2::CircuitOrIntrinsic::Custom(convert_circuit((const_0, const_1), &circuit_table, &mut type_context, circuit)?),
+            circuit1::TypedCircuitOrIntrinsic::Nand => circuit2::CircuitOrIntrinsic::Nand,
+            circuit1::TypedCircuitOrIntrinsic::Const(value) => circuit2::CircuitOrIntrinsic::Const(value),
         })
     })?;
 
@@ -100,7 +100,7 @@ fn convert_circuit<'file>(
     let mut values = arena::Arena::new();
 
     let circuit_input_value = values.add(Value { kind: ValueKind::Input, type_info: circuit1.input.type_info, span: circuit1.input.span });
-    let lets: Vec<_> = circuit1.lets.into_iter().map(|circuit1::Let { pat, val }| circuit1::Let { pat, val: convert_expr_to_value(&mut values, val) }).collect();
+    let lets: Vec<_> = circuit1.lets.into_iter().map(|circuit1::TypedLet { pat, val }| circuit1::Let { pat, val: convert_expr_to_value(&mut values, val) }).collect();
     let circuit_output_value = convert_expr_to_value(&mut values, circuit1.output);
 
     // steps for resolving locals
@@ -181,10 +181,10 @@ fn assign_pattern<'file>(
     }
 
     match &pat.kind {
-        circuit1::PatternKind::Identifier(_, iden, _) => {
+        circuit1::TypedPatternKind::Identifier(_, iden, _) => {
             locals.insert(iden, value);
         }
-        circuit1::PatternKind::Product(_, subpats) => {
+        circuit1::TypedPatternKind::Product(_, subpats) => {
             for (subpat_i, subpat) in subpats.iter().enumerate() {
                 // destructuring happens by setting each subpattern to a made up get
                 // TODO: when named product literals are implemented, this should be the actual field name and not just the enumerate index
@@ -202,11 +202,11 @@ fn assign_pattern<'file>(
 fn convert_expr_to_value<'file>(values: &mut arena::Arena<Value<'file>, ValueId>, expr: circuit1::TypedExpr<'file>) -> ValueId {
     let value = Value {
         kind: match expr.kind {
-            circuit1::ExprKind::Ref(sp, name) => ValueKind::Ref(sp, name),
-            circuit1::ExprKind::Call(name, inline, arg) => ValueKind::Call(name, inline, convert_expr_to_value(values, *arg)),
-            circuit1::ExprKind::Const(sp, value) => ValueKind::Const(sp, value),
-            circuit1::ExprKind::Get(base, field) => ValueKind::Get(convert_expr_to_value(values, *base), field),
-            circuit1::ExprKind::Multiple(exprs) => ValueKind::Multiple { values: exprs.into_iter().map(|e| convert_expr_to_value(values, e)).collect() },
+            circuit1::TypedExprKind::Ref(sp, name) => ValueKind::Ref(sp, name),
+            circuit1::TypedExprKind::Call(name, inline, arg) => ValueKind::Call(name, inline, convert_expr_to_value(values, *arg)),
+            circuit1::TypedExprKind::Const(sp, value) => ValueKind::Const(sp, value),
+            circuit1::TypedExprKind::Get(base, field) => ValueKind::Get(convert_expr_to_value(values, *base), field),
+            circuit1::TypedExprKind::Multiple(exprs) => ValueKind::Multiple { values: exprs.into_iter().map(|e| convert_expr_to_value(values, e)).collect() },
         },
         span: expr.span,
         type_info: expr.type_info,

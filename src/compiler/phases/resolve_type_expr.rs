@@ -29,15 +29,15 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
     assert!(old_bit_type.is_none(), "cannot have other bit type in an empty type table");
 
     let circuits = circuits.transform(|circuit| match circuit {
-        circuit1::CircuitOrIntrinsic::Circuit(circuit) => Some(circuit1::CircuitOrIntrinsic::Circuit(circuit1::TypeResolvedCircuit {
+        circuit1::UntypedCircuitOrIntrinsic::Circuit(circuit) => Some(circuit1::TypeResolvedCircuitOrIntrinsic::Circuit(circuit1::TypeResolvedCircuit {
             name: circuit.name,
             input: resolve_in_pat(&mut type_context, &type_table, circuit.input)?,
             output_type: resolve_type_expr(&mut type_context, &type_table, &circuit.output_type)?,
             lets: resolve_in_let(&mut type_context, &type_table, circuit.lets)?,
             output: circuit.output,
         })),
-        circuit1::CircuitOrIntrinsic::Nand => Some(circuit1::CircuitOrIntrinsic::Nand),
-        circuit1::CircuitOrIntrinsic::Const(value) => Some(circuit1::CircuitOrIntrinsic::Const(value)),
+        circuit1::UntypedCircuitOrIntrinsic::Nand => Some(circuit1::TypeResolvedCircuitOrIntrinsic::Nand),
+        circuit1::UntypedCircuitOrIntrinsic::Const(value) => Some(circuit1::TypeResolvedCircuitOrIntrinsic::Const(value)),
     })?;
 
     let type_context = type_context.transform_nominals(|type_context, struct_decl| {
@@ -56,10 +56,10 @@ fn resolve_in_pat<'file>(
     type_table: &HashMap<&str, symtern::Sym<usize>>,
     pat: circuit1::UntypedPattern<'file>,
 ) -> Option<circuit1::TypeResolvedPattern<'file>> {
-    Some(circuit1::Pattern {
+    Some(circuit1::TypeResolvedPattern {
         kind: match pat.kind {
-            circuit1::PatternKind::Identifier(name_sp, name, type_expr) => circuit1::PatternKind::Identifier(name_sp, name, resolve_type_expr(type_context, type_table, &type_expr)?),
-            circuit1::PatternKind::Product(sp, subpats) => circuit1::PatternKind::Product(sp, subpats.into_iter().map(|subpat| resolve_in_pat(type_context, type_table, subpat)).collect_all()?),
+            circuit1::UntypedPatternKind::Identifier(name_sp, name, type_expr) => circuit1::TypeResolvedPatternKind::Identifier(name_sp, name, resolve_type_expr(type_context, type_table, &type_expr)?),
+            circuit1::UntypedPatternKind::Product(sp, subpats) => circuit1::TypeResolvedPatternKind::Product(sp, subpats.into_iter().map(|subpat| resolve_in_pat(type_context, type_table, subpat)).collect_all()?),
         },
         type_info: (),
         span: pat.span,
@@ -71,7 +71,7 @@ fn resolve_in_let<'file>(
     type_table: &HashMap<&str, symtern::Sym<usize>>,
     lets: Vec<circuit1::UntypedLet<'file>>,
 ) -> Option<Vec<circuit1::TypeResolvedLet<'file>>> {
-    lets.into_iter().map(|let_| Some(circuit1::Let { pat: resolve_in_pat(type_context, type_table, let_.pat)?, val: let_.val })).collect_all()
+    lets.into_iter().map(|let_| Some(circuit1::TypeResolvedLet { pat: resolve_in_pat(type_context, type_table, let_.pat)?, val: let_.val })).collect_all()
 }
 
 fn resolve_type_expr<'file, Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<&str, ty::TypeSym>, ty: &type_expr::TypeExpr<'file>) -> Option<(Span<'file>, ty::TypeSym)>
