@@ -1,16 +1,9 @@
 #[macro_use]
 mod error;
 
-mod ir;
+mod data;
 
-mod convert_circuit1;
-mod convert_circuit2;
-mod lexer;
-mod make_name_tables;
-mod parser;
-mod resolve_type_expr;
-mod type_exprs;
-mod type_pats;
+mod phases;
 
 use crate::circuit;
 
@@ -26,11 +19,11 @@ pub(crate) fn compile(filename: &str) -> Option<circuit::Circuit> {
         }
     };
 
-    let ast = parser::parse(lexer::lex(&file));
-    let ir = make_name_tables::make(ast)?;
-    let ir = resolve_type_expr::resolve(ir)?;
-    let ir = type_pats::type_(ir);
-    let ir = type_exprs::type_(ir)?;
-    let ir = convert_circuit1::convert(ir)?;
-    convert_circuit2::convert(&file, ir)
+    let ast = phases::parser::parse(phases::lexer::lex(&file));
+    let ir = phases::make_name_tables::make(ast)?;
+    let ir = phases::resolve_type_expr::resolve(ir)?;
+    let ir = phases::type_pats::type_(ir);
+    let ir = phases::type_exprs::type_(ir)?;
+    let ir = phases::convert_circuit1::convert(ir)?;
+    phases::convert_circuit2::convert(&file, ir)
 }

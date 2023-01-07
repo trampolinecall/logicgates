@@ -1,8 +1,6 @@
-pub(crate) mod token;
+use crate::compiler::error::{CompileError, File, Report, Span};
 
-use super::error::{CompileError, File, Report, Span};
-
-pub(crate) use token::Token;
+pub(crate) use crate::compiler::data::token::Token;
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct LexError<'file>(pub(crate) Span<'file>, pub(crate) char);

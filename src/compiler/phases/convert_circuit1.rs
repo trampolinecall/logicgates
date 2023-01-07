@@ -2,18 +2,16 @@ use std::collections::HashMap;
 
 use crate::utils::arena;
 
-use super::error::CompileError;
-use super::error::Report;
-use super::error::Span;
-use super::ir::circuit1;
-use super::ir::circuit1::TypedPattern;
-use super::ir::circuit2;
-use super::ir::circuit2::bundle::ProducerBundle;
-use super::ir::circuit2::Circuit;
-use super::ir::named_type;
-use super::ir::ty;
-use super::type_exprs;
-use circuit2::bundle::ReceiverBundle;
+use crate::compiler::error::CompileError;
+use crate::compiler::error::Report;
+use crate::compiler::error::Span;
+use crate::compiler::data::circuit1;
+use crate::compiler::data::circuit1::TypedPattern;
+use crate::compiler::data::circuit2;
+use crate::compiler::data::circuit2::Circuit;
+use crate::compiler::data::named_type;
+use crate::compiler::data::ty;
+use crate::compiler::phases::type_exprs;
 
 // TODO: replace all String with &'file str?
 
@@ -77,7 +75,7 @@ impl arena::ArenaId for ValueId {
     }
 }
 impl<'file> arena::IsArenaIdFor<Value<'file>> for ValueId {}
-impl<'file> arena::IsArenaIdFor<(Value<'file>, ProducerBundle)> for ValueId {}
+impl<'file> arena::IsArenaIdFor<(Value<'file>, circuit2::bundle::ProducerBundle)> for ValueId {}
 #[derive(Debug)]
 struct Value<'file> {
     kind: ValueKind<'file>,
@@ -225,18 +223,18 @@ fn convert_expr_to_value<'file>(values: &mut arena::Arena<Value<'file>, ValueId>
 enum NeverErrors {}
 fn convert_value(
     type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>,
-    get_other_value_as_bundle: arena::DependancyGetter<ProducerBundle, Value, NeverErrors, ValueId>,
+    get_other_value_as_bundle: arena::DependancyGetter<circuit2::bundle::ProducerBundle, Value, NeverErrors, ValueId>,
     locals: &HashMap<&str, ValueId>,
     gates: &HashMap<ValueId, circuit2::GateIdx>,
     circuit: &Circuit,
     value_id: ValueId,
     value: &Value,
-) -> arena::SingleTransformResult<ProducerBundle, ValueId, NeverErrors> {
+) -> arena::SingleTransformResult<circuit2::bundle::ProducerBundle, ValueId, NeverErrors> {
     let mut do_get = |expr, field_name| {
         let expr = try_transform_result!(get_other_value_as_bundle.get(expr)).1;
         let expr_type = expr.type_(type_context);
         assert!(type_context.get(expr_type).field_type(type_context, field_name).is_some(), "get field that does not exist after already checking that all gets are valid in previous phase");
-        arena::SingleTransformResult::Ok(ProducerBundle::Get(Box::new(expr.clone()), field_name.to_string()))
+        arena::SingleTransformResult::Ok(circuit2::bundle::ProducerBundle::Get(Box::new(expr.clone()), field_name.to_string()))
     };
 
     match &value.kind {
@@ -270,9 +268,9 @@ fn convert_value(
                 }
             }
 
-            arena::SingleTransformResult::Ok(ProducerBundle::Product(results))
+            arena::SingleTransformResult::Ok(circuit2::bundle::ProducerBundle::Product(results))
         }
-        ValueKind::Input => arena::SingleTransformResult::Ok(ProducerBundle::CurCircuitInput(circuit.input_type)),
+        ValueKind::Input => arena::SingleTransformResult::Ok(circuit2::bundle::ProducerBundle::CurCircuitInput(circuit.input_type)),
     }
 }
 
@@ -281,8 +279,8 @@ fn connect_bundle(
     circuit: &mut Circuit,
     // got_span: Span,
     expected_span: Span,
-    producer_bundle: ProducerBundle,
-    receiver_bundle: ReceiverBundle,
+    producer_bundle: circuit2::bundle::ProducerBundle,
+    receiver_bundle: circuit2::bundle::ReceiverBundle,
 ) -> Option<()> {
     let producer_type = producer_bundle.type_(type_context);
     let receiver_type = receiver_bundle.type_(type_context);
