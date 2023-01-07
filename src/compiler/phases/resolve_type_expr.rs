@@ -10,7 +10,7 @@ use crate::compiler::{
 
 pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<circuit1::TypeResolvedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
-    pub(crate) circuit_table: HashMap<String, circuit1::CircuitOrIntrinsicId>,
+    pub(crate) circuit_table: HashMap<&'file str, circuit1::CircuitOrIntrinsicId>,
 
     pub(crate) type_context: ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
 }
@@ -24,7 +24,7 @@ impl<'file> From<UndefinedType<'file>> for CompileError<'file> {
 
 pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_context, mut type_table }: make_name_tables::IR) -> Option<IR> {
     let bit_type = type_context.intern(ty::Type::Bit);
-    let old_bit_type = type_table.insert("bit".to_string(), bit_type);
+    let old_bit_type = type_table.insert("bit", bit_type);
     assert!(old_bit_type.is_none(), "cannot have other bit type in an empty type table");
 
     let circuits = circuits.transform(|circuit| match circuit {
@@ -52,7 +52,7 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
 
 fn resolve_in_pat<'file>(
     type_context: &mut ty::TypeContext<nominal_type::PartiallyDefinedStruct<'file>>,
-    type_table: &HashMap<String, symtern::Sym<usize>>,
+    type_table: &HashMap<&str, symtern::Sym<usize>>,
     pat: circuit1::UntypedPattern<'file>,
 ) -> Option<circuit1::TypeResolvedPattern<'file>> {
     Some(circuit1::Pattern {
@@ -67,20 +67,20 @@ fn resolve_in_pat<'file>(
 
 fn resolve_in_let<'file>(
     type_context: &mut ty::TypeContext<nominal_type::PartiallyDefinedStruct<'file>>,
-    type_table: &HashMap<String, symtern::Sym<usize>>,
+    type_table: &HashMap<&str, symtern::Sym<usize>>,
     lets: Vec<circuit1::UntypedLet<'file>>,
 ) -> Option<Vec<circuit1::TypeResolvedLet<'file>>> {
     lets.into_iter().map(|let_| Some(circuit1::Let { pat: resolve_in_pat(type_context, type_table, let_.pat)?, val: let_.val })).collect_all()
 }
 
-fn resolve_type_expr<'file, Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<String, ty::TypeSym>, ty: &type_expr::TypeExpr<'file>) -> Option<(Span<'file>, ty::TypeSym)>
+fn resolve_type_expr<'file, Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<&str, ty::TypeSym>, ty: &type_expr::TypeExpr<'file>) -> Option<(Span<'file>, ty::TypeSym)>
 where
     nominal_type::StructId: arena::IsArenaIdFor<Struct>,
 {
     let sp = ty.span();
     Some((sp, resolve_type_expr_no_span(type_context, type_table, ty)?))
 }
-fn resolve_type_expr_no_span<Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<String, ty::TypeSym>, ty: &type_expr::TypeExpr) -> Option<ty::TypeSym>
+fn resolve_type_expr_no_span<Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<&str, ty::TypeSym>, ty: &type_expr::TypeExpr) -> Option<ty::TypeSym>
 where
     nominal_type::StructId: arena::IsArenaIdFor<Struct>,
 {

@@ -16,10 +16,10 @@ impl<'file> From<NoMain<'file>> for CompileError<'file> {
     }
 }
 
-type ExpandedStack<'circuit> = Vec<&'circuit circuit2::Circuit>;
-struct InfiniteRecursion<'circuit>(ExpandedStack<'circuit>, &'circuit circuit2::Circuit);
-impl<'circuit> From<InfiniteRecursion<'circuit>> for CompileError<'circuit> {
-    fn from(InfiniteRecursion(circuits, repeat): InfiniteRecursion<'circuit>) -> Self {
+type ExpandedStack<'file, 'circuit> = Vec<&'circuit circuit2::Circuit<'file>>;
+struct InfiniteRecursion<'file, 'circuit>(ExpandedStack<'file, 'circuit>, &'circuit circuit2::Circuit<'file>);
+impl<'file, 'circuit> From<InfiniteRecursion<'file, 'circuit>> for CompileError<'file> {
+    fn from(InfiniteRecursion(circuits, repeat): InfiniteRecursion<'file, 'circuit>) -> Self {
         todo!("{circuits:?} -> {repeat:?}")
         // CompileError::new(todo!("span"), "infinite recursion in gates".into())
     }
@@ -43,19 +43,19 @@ pub(crate) fn convert(file: &File, convert_circuit1::IR { circuits, circuit_tabl
         None
     }
 }
-fn convert_circuit<'circuit>(
-    circuits: &'circuit arena::Arena<circuit2::CircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>,
+fn convert_circuit<'file, 'circuit>(
+    circuits: &'circuit arena::Arena<circuit2::CircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
-    mut expansion_stack: ExpandedStack<'circuit>,
-    circuit: &'circuit circuit2::Circuit,
-) -> Result<(ExpandedStack<'circuit>, circuit::Circuit), InfiniteRecursion<'circuit>> {
-    if expansion_stack.iter().find(|c| std::ptr::eq(**c, circuit)).is_some() {
+    mut expansion_stack: ExpandedStack<'file, 'circuit>,
+    circuit: &'circuit circuit2::Circuit<'file>,
+) -> Result<(ExpandedStack<'file, 'circuit>, circuit::Circuit), InfiniteRecursion<'file, 'circuit>> {
+    if expansion_stack.iter().any(|c| std::ptr::eq(*c, circuit)) {
         return Err(InfiniteRecursion(expansion_stack, circuit));
     }
 
     expansion_stack.push(circuit);
 
-    let mut new_circuit = circuit::Circuit::new(circuit.name.clone());
+    let mut new_circuit = circuit::Circuit::new(circuit.name.into());
     new_circuit.set_num_inputs(type_context.get(circuit.input_type).size(type_context));
     new_circuit.set_num_outputs(type_context.get(circuit.output_type).size(type_context));
     let mut gate_index_map = HashMap::new();
@@ -78,13 +78,13 @@ fn convert_circuit<'circuit>(
     Ok((expansion_stack, new_circuit))
 }
 
-fn add_gate<'circuit>(
-    circuits: &'circuit arena::Arena<circuit2::CircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>,
+fn add_gate<'file, 'circuit>(
+    circuits: &'circuit arena::Arena<circuit2::CircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
-    expansion_stack: ExpandedStack<'circuit>,
+    expansion_stack: ExpandedStack<'file, 'circuit>,
     new_circuit: &mut circuit::Circuit,
     circuit_id: circuit1::CircuitOrIntrinsicId,
-) -> Result<(ExpandedStack<'circuit>, circuit::GateIndex), InfiniteRecursion<'circuit>> {
+) -> Result<(ExpandedStack<'file, 'circuit>, circuit::GateIndex), InfiniteRecursion<'file, 'circuit>> {
     match circuits.get(circuit_id) {
         circuit2::CircuitOrIntrinsic::Custom(subcircuit) => {
             let (expansion_stack, subcircuit) = convert_circuit(circuits, type_context, expansion_stack, subcircuit)?;

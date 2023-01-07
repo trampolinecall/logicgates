@@ -13,8 +13,6 @@ use crate::compiler::error::Report;
 use crate::compiler::error::Span;
 use crate::compiler::phases::type_exprs;
 
-// TODO: replace all String with &'file str?
-
 struct TypeMismatch<'file> {
     // got_span: Span<'file>, TODO
     pub(super) expected_span: Span<'file>,
@@ -42,8 +40,8 @@ impl<'file> From<LoopInLocalsError<'file>> for CompileError<'file> {
 }
 
 pub(crate) struct IR<'file> {
-    pub(crate) circuits: arena::Arena<circuit2::CircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>,
-    pub(crate) circuit_table: HashMap<String, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
+    pub(crate) circuits: arena::Arena<circuit2::CircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
+    pub(crate) circuit_table: HashMap<&'file str, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
 
     pub(crate) type_context: ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
 }
@@ -93,15 +91,15 @@ enum ValueKind<'file> {
     Input,
 }
 
-fn convert_circuit(
+fn convert_circuit<'file>(
     (const_0, const_1): (circuit1::CircuitOrIntrinsicId, circuit1::CircuitOrIntrinsicId),
-    circuit_table: &HashMap<String, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
-    type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
-    circuit1: circuit1::TypedCircuit,
-) -> Option<circuit2::Circuit> {
+    circuit_table: &HashMap<&'file str, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
+    type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
+    circuit1: circuit1::TypedCircuit<'file>,
+) -> Option<circuit2::Circuit<'file>> {
     // TODO: move all typechecking into a separate phase
 
-    let mut circuit = Circuit::new(circuit1.name.1.to_string(), circuit1.input.type_info, circuit1.output_type.1);
+    let mut circuit = Circuit::new(circuit1.name.1, circuit1.input.type_info, circuit1.output_type.1);
 
     let mut values = arena::Arena::new();
 
@@ -230,7 +228,7 @@ fn convert_value(
     value_id: ValueId,
     value: &Value,
 ) -> arena::SingleTransformResult<circuit2::bundle::ProducerBundle, ValueId, NeverErrors> {
-    let mut do_get = |expr, field_name| {
+    let mut do_get = |expr, field_name| -> arena::SingleTransformResult<circuit2::bundle::ProducerBundle, ValueId, NeverErrors> {
         let expr = try_transform_result!(get_other_value_as_bundle.get(expr)).1;
         let expr_type = expr.type_(type_context);
         assert!(type_context.get(expr_type).field_type(type_context, field_name).is_some(), "get field that does not exist after already checking that all gets are valid in previous phase");

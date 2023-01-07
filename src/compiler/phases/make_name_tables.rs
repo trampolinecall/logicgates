@@ -10,10 +10,10 @@ use crate::compiler::{
 
 pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<circuit1::UntypedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
-    pub(crate) circuit_table: HashMap<String, circuit1::CircuitOrIntrinsicId>,
+    pub(crate) circuit_table: HashMap<&'file str, circuit1::CircuitOrIntrinsicId>,
 
     pub(crate) type_context: ty::TypeContext<nominal_type::PartiallyDefinedStruct<'file>>,
-    pub(crate) type_table: HashMap<String, ty::TypeSym>,
+    pub(crate) type_table: HashMap<&'file str, ty::TypeSym>,
 }
 
 struct Duplicate<'file>(&'static str, Span<'file>, &'file str); // TODO: show previous declaration
@@ -33,10 +33,10 @@ pub(crate) fn make(ast: parser::AST) -> Option<IR> {
 
 fn make_circuit_table(
     circuits: Vec<circuit1::UntypedCircuit>,
-) -> Option<(arena::Arena<circuit1::UntypedCircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>, HashMap<String, circuit1::CircuitOrIntrinsicId>)> {
+) -> Option<(arena::Arena<circuit1::UntypedCircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>, HashMap<&str, circuit1::CircuitOrIntrinsicId>)> {
     let mut arena = arena::Arena::new();
     let mut table = HashMap::new();
-    table.insert("nand".into(), arena.add(circuit1::UntypedCircuitOrIntrinsic::Nand));
+    table.insert("nand", arena.add(circuit1::UntypedCircuitOrIntrinsic::Nand));
 
     let mut errored = false;
     for circuit in circuits {
@@ -44,7 +44,7 @@ fn make_circuit_table(
             Duplicate("circuit", circuit.name.0, circuit.name.1).report();
             errored = true;
         }
-        table.insert(circuit.name.1.into(), arena.add(circuit1::UntypedCircuitOrIntrinsic::Circuit(circuit)));
+        table.insert(circuit.name.1, arena.add(circuit1::UntypedCircuitOrIntrinsic::Circuit(circuit)));
     }
 
     if errored {
@@ -54,7 +54,7 @@ fn make_circuit_table(
     }
 }
 
-fn make_type_table(type_decls: Vec<crate::compiler::data::nominal_type::PartiallyDefinedStruct>) -> Option<(ty::TypeContext<nominal_type::PartiallyDefinedStruct>, HashMap<String, ty::TypeSym>)> {
+fn make_type_table(type_decls: Vec<crate::compiler::data::nominal_type::PartiallyDefinedStruct>) -> Option<(ty::TypeContext<nominal_type::PartiallyDefinedStruct>, HashMap<&str, ty::TypeSym>)> {
     let mut type_table = HashMap::new();
     let mut type_context = ty::TypeContext::new();
     let mut errored = false;
@@ -63,7 +63,7 @@ fn make_type_table(type_decls: Vec<crate::compiler::data::nominal_type::Partiall
             Duplicate("nominal type", decl.name.0, decl.name.1).report();
             errored = true;
         }
-        let name = decl.name.1.into();
+        let name = decl.name.1;
         let nominal_index = type_context.structs.add(decl);
         type_table.insert(name, type_context.intern(ty::Type::Nominal(nominal_index)));
     }

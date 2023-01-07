@@ -34,7 +34,7 @@ impl<'file> From<NoSuchCircuit<'file>> for CompileError<'file> {
 
 pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<circuit1::TypedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
-    pub(crate) circuit_table: HashMap<String, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
+    pub(crate) circuit_table: HashMap<&'file str, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
 
     pub(crate) type_context: ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
 }
@@ -88,7 +88,7 @@ fn put_pat_type<'file>(local_table: &mut HashMap<&'file str, ty::TypeSym>, pat: 
 
 fn type_expr<'file>(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
-    circuit_table: &HashMap<String, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
+    circuit_table: &HashMap<&str, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
     local_types: &HashMap<&str, ty::TypeSym>,
     expr: circuit1::UntypedExpr<'file>,
 ) -> Option<circuit1::TypedExpr<'file>> {
