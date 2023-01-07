@@ -49,7 +49,7 @@ impl<'file> Lexer<'file> {
         let Some((start_i, start_c)) = self.1.next() else {
             return Token::EOF({
                 self.0.eof_span()
-            })
+            });
         };
 
         let res = match start_c {
