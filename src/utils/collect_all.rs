@@ -81,4 +81,3 @@ impl<Old, New, Error> CanCollectAll for crate::compiler::arena::SingleTransformR
         }
     }
 }
-

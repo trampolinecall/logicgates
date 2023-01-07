@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use super::{
     arena, convert_circuit1,
     error::{CompileError, File, Report},
-    ir::{circuit2, named_type, ty, circuit1},
+    ir::{circuit1, circuit2, named_type, ty},
 };
 use crate::circuit;
 
