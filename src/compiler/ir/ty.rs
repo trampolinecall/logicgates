@@ -8,6 +8,10 @@ where
     named_type::NamedTypeId: arena::IsArenaIdFor<NamedType>,
 {
     pool: symtern::Pool<Type>, // ideally, i would use a interner crate that doesnt use ids to access types but they dont handle cyclic references nicely
+
+    // this stores all the named types, one for each named type definition ast
+    // this needs to be an arena and not an interner because every named type definition ast makes a unique type
+    // these are used through the Type::Named constructor which is compared based off of its index into this array, meaning that named types will not be equal unless they point to the same item in this array
     pub(crate) named: arena::Arena<NamedType, named_type::NamedTypeId>,
 }
 
@@ -47,7 +51,7 @@ where
         Some(TypeContext { pool: no_named_context.pool, named })
     }
 
-    /*
+    /* (unused)
     pub(crate) fn transform_named_infallible<NewNamedType>(self, mut op: impl FnMut(&TypeContext<NeverNamedType>, NamedType) -> NewNamedType) -> TypeContext<NewNamedType>
     where
         named_type::NamedTypeId: arena::IsArenaIdFor<NewNamedType>,

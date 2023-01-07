@@ -176,7 +176,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         }
     }
 
-    fn expr(&mut self) -> Result<circuit1::expr::UntypedExpr<'file>, ParseError<'file>> {
+    fn expr(&mut self) -> Result<circuit1::UntypedExpr<'file>, ParseError<'file>> {
         let mut left = self.primary_expr()?;
 
         while Token::dot_matcher().matches(self.peek()) {
@@ -192,20 +192,20 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             self.next();
 
             let left_span = left.span;
-            left = circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Get(Box::new(left), field), type_info: (), span: left_span + field.0 };
+            left = circuit1::Expr { kind: circuit1::ExprKind::Get(Box::new(left), field), type_info: (), span: left_span + field.0 };
         }
 
         Ok(left)
     }
 
-    fn primary_expr(&mut self) -> Result<circuit1::expr::UntypedExpr<'file>, ParseError<'file>> {
+    fn primary_expr(&mut self) -> Result<circuit1::UntypedExpr<'file>, ParseError<'file>> {
         match self.peek() {
             Token::Number(_, _, _) => {
                 let (n_sp, _, n) = Token::number_matcher().convert(self.next());
 
                 match n {
-                    0 => Ok(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Const(n_sp, false), type_info: (), span: n_sp }),
-                    1 => Ok(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Const(n_sp, true), type_info: (), span: n_sp }),
+                    0 => Ok(circuit1::Expr { kind: circuit1::ExprKind::Const(n_sp, false), type_info: (), span: n_sp }),
+                    1 => Ok(circuit1::Expr { kind: circuit1::ExprKind::Const(n_sp, true), type_info: (), span: n_sp }),
                     _ => Err(self.expected_and_next("'0' or '1'")),
                 }
             }
@@ -217,14 +217,14 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let arg = self.expr()?;
 
-                Ok(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Call(i, inline, Box::new(arg)), type_info: (), span: i.0 })
+                Ok(circuit1::Expr { kind: circuit1::ExprKind::Call(i, inline, Box::new(arg)), type_info: (), span: i.0 })
                 // TODO: combine ' span with identifier span
             }
 
             Token::Identifier(_, _) => {
                 let i = Token::identifier_matcher().convert(self.next());
 
-                Ok(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Ref(i.0, i.1), type_info: (), span: i.0 })
+                Ok(circuit1::Expr { kind: circuit1::ExprKind::Ref(i.0, i.1), type_info: (), span: i.0 })
             }
 
             &Token::OBrack(obrack) => {
@@ -242,7 +242,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
                 let cbrack = self.expect(Token::cbrack_matcher())?;
 
-                Ok(circuit1::expr::Expr { kind: circuit1::expr::ExprKind::Multiple(items), type_info: (), span: obrack + cbrack })
+                Ok(circuit1::Expr { kind: circuit1::ExprKind::Multiple(items), type_info: (), span: obrack + cbrack })
             }
 
             _ => Err(self.expected_and_next("expression"))?,

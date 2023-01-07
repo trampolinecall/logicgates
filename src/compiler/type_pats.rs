@@ -2,13 +2,12 @@ use std::collections::HashMap;
 
 use super::{
     arena,
-    ir::{circuit1, named_type, ty},
-    make_name_tables, resolve_type_expr,
+    ir::{circuit1, named_type, ty}, resolve_type_expr,
 };
 
 pub(crate) struct IR<'file> {
-    pub(crate) circuits: arena::Arena<circuit1::PatTypedCircuitOrIntrinsic<'file>, make_name_tables::CircuitOrIntrinsicId>,
-    pub(crate) circuit_table: HashMap<String, make_name_tables::CircuitOrIntrinsicId>,
+    pub(crate) circuits: arena::Arena<circuit1::PatTypedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
+    pub(crate) circuit_table: HashMap<String, circuit1::CircuitOrIntrinsicId>,
 
     pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
 }

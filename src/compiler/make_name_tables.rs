@@ -7,22 +7,9 @@ use super::{
     parser,
 };
 
-#[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
-pub(crate) struct CircuitOrIntrinsicId(usize);
-impl arena::ArenaId for CircuitOrIntrinsicId {
-    // TODO: move to different module that makes more sense
-    fn make(i: usize) -> Self {
-        CircuitOrIntrinsicId(i)
-    }
-
-    fn get(&self) -> usize {
-        self.0
-    }
-}
-impl<'file, PatTypeInfo, ExprTypeInfo, TypeExpr> arena::IsArenaIdFor<circuit1::CircuitOrIntrinsic<'file, PatTypeInfo, ExprTypeInfo, TypeExpr>> for CircuitOrIntrinsicId {}
 pub(crate) struct IR<'file> {
-    pub(crate) circuits: arena::Arena<circuit1::UntypedCircuitOrIntrinsic<'file>, CircuitOrIntrinsicId>,
-    pub(crate) circuit_table: HashMap<String, CircuitOrIntrinsicId>,
+    pub(crate) circuits: arena::Arena<circuit1::UntypedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
+    pub(crate) circuit_table: HashMap<String, circuit1::CircuitOrIntrinsicId>,
 
     pub(crate) type_context: ty::TypeContext<named_type::PartiallyDefinedNamedType<'file>>,
     pub(crate) type_table: HashMap<String, ty::TypeSym>,
@@ -43,7 +30,7 @@ pub(crate) fn make(ast: parser::AST) -> Option<IR> {
     Some(IR { circuits, circuit_table, type_context, type_table })
 }
 
-fn make_circuit_table(circuits: Vec<circuit1::UntypedCircuit>) -> Option<(arena::Arena<circuit1::UntypedCircuitOrIntrinsic, CircuitOrIntrinsicId>, HashMap<String, CircuitOrIntrinsicId>)> {
+fn make_circuit_table(circuits: Vec<circuit1::UntypedCircuit>) -> Option<(arena::Arena<circuit1::UntypedCircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>, HashMap<String, circuit1::CircuitOrIntrinsicId>)> {
     let mut arena = arena::Arena::new();
     let mut table = HashMap::new();
     table.insert("nand".into(), arena.add(circuit1::UntypedCircuitOrIntrinsic::Nand));
