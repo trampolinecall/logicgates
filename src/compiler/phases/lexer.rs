@@ -89,9 +89,7 @@ impl<'file> Lexer<'file> {
                 match slice {
                     "let" => Ok(Some(Token::Let(span))),
                     "inline" => Ok(Some(Token::Inline(span))),
-                    "bundle" => Ok(Some(Token::Bundle(span))),
-                    "inputs" => Ok(Some(Token::Inputs(span))),
-                    "outputs" => Ok(Some(Token::Outputs(span))),
+                    "struct" => Ok(Some(Token::Struct(span))),
                     "named" => Ok(Some(Token::Named(span))),
                     iden => Ok(Some(Token::Identifier(span, iden))),
                 }

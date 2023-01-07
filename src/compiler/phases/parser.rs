@@ -5,13 +5,13 @@ use crate::compiler::error::Report;
 use std::iter::Peekable;
 
 use crate::compiler::data::circuit1;
-use crate::compiler::data::named_type;
+use crate::compiler::data::nominal_type;
 use crate::compiler::data::type_expr;
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct AST<'file> {
     pub(crate) circuits: Vec<circuit1::UntypedCircuit<'file>>,
-    pub(crate) type_decls: Vec<named_type::PartiallyDefinedStruct<'file>>,
+    pub(crate) type_decls: Vec<nominal_type::PartiallyDefinedStruct<'file>>,
 }
 
 struct Parser<'file, T: Iterator<Item = Token<'file>>> {
@@ -103,7 +103,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
         while !Token::eof_matcher().matches(self.peek()) {
             match self.peek() {
-                Token::Named(_) => match self.struct_decl() {
+                Token::Struct(_) => match self.struct_decl() {
                     Ok(type_decl) => type_decls.push(type_decl),
                     Err(e) => {
                         e.report();
@@ -136,8 +136,8 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         Ok(circuit1::UntypedCircuit { name, input: arguments, lets, output: ret, output_type })
     }
 
-    fn struct_decl(&mut self) -> Result<named_type::PartiallyDefinedStruct<'file>, ParseError<'file>> {
-        self.expect(Token::named_matcher())?; // TODO: replace with struct keyword
+    fn struct_decl(&mut self) -> Result<nominal_type::PartiallyDefinedStruct<'file>, ParseError<'file>> {
+        self.expect(Token::struct_matcher())?;
         let name = self.expect(Token::identifier_matcher())?;
         self.expect(Token::obrack_matcher())?;
 
@@ -150,7 +150,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
         self.expect(Token::cbrack_matcher())?;
 
-        Ok(named_type::Struct { name, fields })
+        Ok(nominal_type::Struct { name, fields })
     }
 
     fn r#let(&mut self) -> Result<circuit1::UntypedLet<'file>, ParseError<'file>> {
@@ -297,7 +297,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
             Token::Identifier(_, _) => {
                 let iden = Token::identifier_matcher().convert(self.next());
 
-                Ok(type_expr::TypeExpr::Named(iden.0, iden.1))
+                Ok(type_expr::TypeExpr::Nominal(iden.0, iden.1))
             }
 
             _ => Err(self.expected_and_next("type")),
@@ -394,9 +394,9 @@ mod test {
             AST {
                 circuits: vec![circuit1::UntypedCircuit {
                     name: (sp, "thingy"),
-                    input: circuit1::UntypedPattern { kind: circuit1::PatternKind::Identifier(sp, "arg", type_expr::TypeExpr::Named(sp, "bit")), type_info: (), span: sp },
+                    input: circuit1::UntypedPattern { kind: circuit1::PatternKind::Identifier(sp, "arg", type_expr::TypeExpr::Nominal(sp, "bit")), type_info: (), span: sp },
                     lets: vec![circuit1::Let {
-                        pat: circuit1::UntypedPattern { kind: circuit1::PatternKind::Identifier(sp, "res", type_expr::TypeExpr::Named(sp, "bit")), type_info: (), span: sp },
+                        pat: circuit1::UntypedPattern { kind: circuit1::PatternKind::Identifier(sp, "res", type_expr::TypeExpr::Nominal(sp, "bit")), type_info: (), span: sp },
                         val: circuit1::Expr {
                             kind: circuit1::ExprKind::Call(
                                 (sp, "and"),
@@ -415,7 +415,7 @@ mod test {
                         }
                     }],
                     output: circuit1::Expr { kind: circuit1::ExprKind::Ref(sp, "res"), type_info: (), span: sp },
-                    output_type: type_expr::TypeExpr::Named(sp, "bit")
+                    output_type: type_expr::TypeExpr::Nominal(sp, "bit")
                 }],
                 type_decls: vec![]
             }
@@ -431,7 +431,7 @@ mod test {
         assert_eq!(
             Parser { tokens: tokens }.r#let(),
             Ok(circuit1::Let {
-                pat: circuit1::UntypedPattern { kind: circuit1::PatternKind::Identifier(sp, "a", type_expr::TypeExpr::Named(sp, "bit")), type_info: (), span: sp },
+                pat: circuit1::UntypedPattern { kind: circuit1::PatternKind::Identifier(sp, "a", type_expr::TypeExpr::Nominal(sp, "bit")), type_info: (), span: sp },
                 val: circuit1::Expr { kind: circuit1::ExprKind::Ref(sp, "b"), type_info: (), span: sp }
             })
         );
@@ -443,7 +443,7 @@ mod test {
         let sp = file.eof_span();
 
         let tokens = make_token_stream([Token::Identifier(sp, "iden"), Token::Semicolon(sp), Token::Identifier(sp, "bit")], sp);
-        assert_eq!(Parser { tokens }.pattern(), Ok(circuit1::UntypedPattern { kind: circuit1::PatternKind::Identifier(sp, "iden", type_expr::TypeExpr::Named(sp, "bit")), type_info: (), span: sp }));
+        assert_eq!(Parser { tokens }.pattern(), Ok(circuit1::UntypedPattern { kind: circuit1::PatternKind::Identifier(sp, "iden", type_expr::TypeExpr::Nominal(sp, "bit")), type_info: (), span: sp }));
     }
 
     #[test]

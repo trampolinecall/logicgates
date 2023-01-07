@@ -2,7 +2,7 @@ use crate::compiler::data::ty;
 use crate::compiler::error::Span;
 use crate::utils::arena;
 
-use super::{named_type, type_expr};
+use super::{nominal_type, type_expr};
 
 // TODO: separate ast from this?
 
@@ -93,7 +93,7 @@ pub(crate) enum PatternKind<'file, PatTypeInfo, TypeExpr> {
 
 // TODO: this will probably be duplicated with the type code from circuit2 but i dont know how to fix that (although i think the solution might be a separate type checking phase so that circuit2 doesnt need to have type information)
 impl<'file, ExprTypeInfo, TypeExpr> CircuitOrIntrinsic<'file, ExprTypeInfo, ty::TypeSym, TypeExpr> {
-    pub(crate) fn input_type(&self, type_context: &mut ty::TypeContext<named_type::FullyDefinedStruct<'file>>) -> ty::TypeSym {
+    pub(crate) fn input_type(&self, type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>) -> ty::TypeSym {
         match self {
             CircuitOrIntrinsic::Circuit(circuit) => circuit.input.type_info,
             CircuitOrIntrinsic::Nand => {
@@ -106,7 +106,7 @@ impl<'file, ExprTypeInfo, TypeExpr> CircuitOrIntrinsic<'file, ExprTypeInfo, ty::
 }
 
 impl<'file, ExprTypeInfo, PatTypeInfo> CircuitOrIntrinsic<'file, ExprTypeInfo, PatTypeInfo, (Span<'file>, ty::TypeSym)> {
-    pub(crate) fn output_type(&self, type_context: &mut ty::TypeContext<named_type::FullyDefinedStruct<'file>>) -> ty::TypeSym {
+    pub(crate) fn output_type(&self, type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>) -> ty::TypeSym {
         match self {
             CircuitOrIntrinsic::Circuit(circuit) => circuit.output_type.1,
             CircuitOrIntrinsic::Nand | CircuitOrIntrinsic::Const(_) => type_context.intern(ty::Type::Bit),
