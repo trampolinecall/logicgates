@@ -2,7 +2,6 @@ use generational_arena::Arena;
 use std::cell::RefCell;
 use std::collections::HashSet;
 
-#[derive(Clone)]
 pub(crate) struct Circuit {
     pub(crate) name: String,
     pub(crate) gates: Arena<Gate>,
@@ -12,14 +11,12 @@ pub(crate) struct Circuit {
 
 pub(crate) type GateIndex = generational_arena::Index;
 
-#[derive(Clone)]
 pub(crate) struct Gate {
     index: GateIndex,
     pub(crate) kind: GateKind,
     pub(crate) location: (u32, f64),
 }
 
-#[derive(Clone)]
 pub(crate) enum GateKind {
     Nand([Receiver; 2], [Producer; 1]), // TODO: figure out a better way of doing this
     Const([Receiver; 0], [Producer; 1]),
