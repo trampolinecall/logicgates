@@ -62,7 +62,11 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
                 name: circuit.name,
                 input: circuit.input,
                 output_type: circuit.output_type,
-                lets: circuit.lets.into_iter().map(|circuit1::PatTypedLet { pat, val }| Some(circuit1::TypedLet { pat, val: type_expr(&mut type_context, &circuit_table, &local_table, val)? })).collect_all()?,
+                lets: circuit
+                    .lets
+                    .into_iter()
+                    .map(|circuit1::PatTypedLet { pat, val }| Some(circuit1::TypedLet { pat, val: type_expr(&mut type_context, &circuit_table, &local_table, val)? }))
+                    .collect_all()?,
                 output: type_expr(&mut type_context, &circuit_table, &local_table, circuit.output)?,
             }))
         }
@@ -102,11 +106,13 @@ fn type_expr<'file>(
                 NoSuchLocal(name_sp, name).report();
                 return None;
             };
+            // TODO: replace with a ref to the locals id
             (circuit1::TypedExprKind::Ref(name_sp, name), local_type)
         }
         circuit1::UntypedExprKind::Call((name_sp, name), inline, arg) => {
             // this also does circuit name resolution
             if let Some((_, ty, _)) = circuit_table.get(name) {
+                // TODO: replace with a call to the circuitid
                 (circuit1::TypedExprKind::Call((name_sp, name), inline, Box::new(type_expr(type_context, circuit_table, local_types, *arg)?)), *ty)
             } else {
                 NoSuchCircuit(name_sp, name).report();

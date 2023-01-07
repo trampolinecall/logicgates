@@ -219,16 +219,16 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                     _ => Err(self.expected_and_next("'0' or '1'")),
                 }
             }
-            Token::Apostrophe(_) => {
+            &Token::Apostrophe(apos) => {
                 self.next();
                 let i = self.expect(/* "circuit name after '`'", */ Token::identifier_matcher())?;
 
                 let inline = self.maybe_consume(Token::inline_matcher()).is_some();
 
                 let arg = self.expr()?;
+                let arg_span = arg.span;
 
-                Ok(circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Call(i, inline, Box::new(arg)), type_info: (), span: i.0 })
-                // TODO: combine ' span with identifier span
+                Ok(circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Call(i, inline, Box::new(arg)), type_info: (), span: apos + arg_span })
             }
 
             Token::Identifier(_, _) => {
