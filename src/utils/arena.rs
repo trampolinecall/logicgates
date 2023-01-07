@@ -113,7 +113,6 @@ mod dependant_transform {
         type Item = New;
 
         fn collect_all<F: std::iter::FromIterator<New>>(iter: impl Iterator<Item = Self>) -> Self::Output<F> {
-            // TODO: make a better implementation of this
             let mut results = Vec::new();
             let mut errors = Vec::new();
             for item in iter {
