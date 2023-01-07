@@ -11,7 +11,7 @@ pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<circuit1::PatTypedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<String, circuit1::CircuitOrIntrinsicId>,
 
-    pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedStruct>,
+    pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedStruct<'file>>,
 }
 
 pub(crate) fn type_(resolve_type_expr::IR { circuits, circuit_table, mut type_context }: resolve_type_expr::IR) -> IR {

@@ -11,7 +11,7 @@ use crate::compiler::data::type_expr;
 #[derive(PartialEq, Debug)]
 pub(crate) struct AST<'file> {
     pub(crate) circuits: Vec<circuit1::UntypedCircuit<'file>>,
-    pub(crate) type_decls: Vec<named_type::StructDecl<'file>>,
+    pub(crate) type_decls: Vec<named_type::PartiallyDefinedStruct<'file>>,
 }
 
 struct Parser<'file, T: Iterator<Item = Token<'file>>> {
@@ -136,21 +136,21 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         Ok(circuit1::UntypedCircuit { name, input: arguments, lets, output: ret, output_type })
     }
 
-    fn struct_decl(&mut self) -> Result<named_type::StructDecl<'file>, ParseError<'file>> {
+    fn struct_decl(&mut self) -> Result<named_type::PartiallyDefinedStruct<'file>, ParseError<'file>> {
         self.expect(Token::named_matcher())?; // TODO: replace with struct keyword
         let name = self.expect(Token::identifier_matcher())?;
-        let obrack = self.expect(Token::obrack_matcher());
+        self.expect(Token::obrack_matcher())?;
 
-        let fields = Vec::new();
+        let mut fields = Vec::new();
         while Token::identifier_matcher().matches(self.peek()) {
             let field_name = Token::identifier_matcher().convert(self.next());
             let field_ty = self.type_()?;
-            fields.push((field_name, field_ty))
+            fields.push((field_name, field_ty)) // TODO: anonymous fields too
         }
 
-        let obrack = self.expect(Token::cbrack_matcher())?;
+        self.expect(Token::cbrack_matcher())?;
 
-        Ok(named_type::StructDecl { name, fields })
+        Ok(named_type::Struct { name, fields })
     }
 
     fn r#let(&mut self) -> Result<circuit1::UntypedLet<'file>, ParseError<'file>> {
@@ -219,7 +219,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
                 }
             }
             Token::Apostrophe(_) => {
-                let _ = self.next();
+                self.next();
                 let i = self.expect(/* "circuit name after '`'", */ Token::identifier_matcher())?;
 
                 let inline = self.maybe_consume(Token::inline_matcher()).is_some();
@@ -261,15 +261,15 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
     fn type_(&mut self) -> Result<type_expr::TypeExpr<'file>, ParseError<'file>> {
         match *self.peek() {
             Token::OBrack(obrack) => {
-                let _ = self.next();
+                self.next();
 
                 match self.peek() {
                     &Token::Named(named) => {
-                        let _ = self.next();
+                        self.next();
 
                         let (types, cbrack) = self.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), |parser| {
                             let name = parser.expect(Token::identifier_matcher())?;
-                            let _ = parser.expect(Token::semicolon_matcher())?;
+                            parser.expect(Token::semicolon_matcher())?;
                             let ty = parser.type_()?;
                             Ok((name, ty))
                         })?;
