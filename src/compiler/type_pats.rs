@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use super::{
     arena,
-    ir::{circuit1, named_type, ty}, resolve_type_expr,
+    ir::{circuit1, named_type, ty},
+    resolve_type_expr,
 };
 
 pub(crate) struct IR<'file> {
