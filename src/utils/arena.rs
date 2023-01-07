@@ -62,6 +62,8 @@ impl<T, Id: ArenaId + IsArenaIdFor<T>> Arena<T, Id> {
 // dependant transform things {{{1
 #[macro_use]
 mod dependant_transform {
+    use crate::utils::collect_all::CanCollectAll;
+
     use super::{ArenaId, IsArenaIdFor};
 
     pub(super) enum ItemState<Annotation, Id, Error> {
@@ -105,13 +107,37 @@ mod dependant_transform {
         Dep(DependencyError<Id>),
         Err(Error),
     }
+    impl<Old, New, Error> CanCollectAll for SingleTransformResult<New, Old, Vec<Error>> {
+        type Output<Collection> = SingleTransformResult<Collection, Old, Vec<Error>>;
+
+        type Item = New;
+
+        fn collect_all<F: std::iter::FromIterator<New>>(iter: impl Iterator<Item = Self>) -> Self::Output<F> {
+            // TODO: make a better implementation of this
+            let mut results = Vec::new();
+            let mut errors = Vec::new();
+            for item in iter {
+                match item {
+                    SingleTransformResult::Ok(o) => results.push(o),
+                    SingleTransformResult::Dep(d) => return SingleTransformResult::Dep(d),
+                    SingleTransformResult::Err(e) => errors.extend(e),
+                }
+            }
+
+            if errors.is_empty() {
+                SingleTransformResult::Ok(results.into_iter().collect())
+            } else {
+                SingleTransformResult::Err(errors)
+            }
+        }
+    }
 
     macro_rules! try_transform_result {
         ($e:expr) => {
             match $e {
-                $crate::compiler::arena::SingleTransformResult::Ok(r) => r,
-                $crate::compiler::arena::SingleTransformResult::Dep(d) => return $crate::compiler::arena::SingleTransformResult::Dep(d),
-                $crate::compiler::arena::SingleTransformResult::Err(e) => return $crate::compiler::arena::SingleTransformResult::Err(e),
+                $crate::utils::arena::SingleTransformResult::Ok(r) => r,
+                $crate::utils::arena::SingleTransformResult::Dep(d) => return $crate::utils::arena::SingleTransformResult::Dep(d),
+                $crate::utils::arena::SingleTransformResult::Err(e) => return $crate::utils::arena::SingleTransformResult::Err(e),
             }
         };
     }

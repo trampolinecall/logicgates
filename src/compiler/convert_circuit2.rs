@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
 use super::{
-    arena, convert_circuit1,
+    convert_circuit1,
     error::{CompileError, File, Report},
     ir::{circuit1, circuit2, named_type, ty},
 };
-use crate::circuit;
+use crate::{circuit, utils::arena};
 
 // TODO: clean up all imports everywhere
 

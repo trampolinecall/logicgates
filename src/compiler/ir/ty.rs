@@ -1,7 +1,8 @@
 use symtern::prelude::*;
 
+use crate::utils::arena;
+
 use super::named_type;
-use crate::compiler::arena;
 
 pub(crate) struct TypeContext<NamedType>
 where

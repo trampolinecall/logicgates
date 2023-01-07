@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
-use crate::utils::collect_all::CollectAll;
+use crate::utils::{arena, collect_all::CollectAll};
 
 use super::{
-    arena,
     error::{CompileError, Report, Span},
     ir::{circuit1, named_type, ty, type_expr},
     make_name_tables,
