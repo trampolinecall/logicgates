@@ -12,7 +12,6 @@ pub(crate) enum Token<'file> {
     Comma(Span<'file>),
 
     Equals(Span<'file>),
-    Arrow(Span<'file>),
 
     Let(Span<'file>),
     Inline(Span<'file>),
@@ -36,7 +35,6 @@ impl<'file> Token<'file> {
             | Token::Dot(sp)
             | Token::Comma(sp)
             | Token::Equals(sp)
-            | Token::Arrow(sp)
             | Token::Let(sp)
             | Token::Inline(sp)
             | Token::Apostrophe(sp)
@@ -145,7 +143,6 @@ define_matcher!(dot_matcher, 'file, Span<'file>, names::DOT, Token::Dot(sp) => s
 define_matcher!(comma_matcher, 'file, Span<'file>, names::COMMA, Token::Comma(sp) => sp);
 
 define_matcher!(equals_matcher, 'file, Span<'file>, names::EQUALS, Token::Equals(sp) => sp);
-define_matcher!(arrow_matcher, 'file, Span<'file>, names::ARROW, Token::Arrow(sp) => sp);
 
 define_matcher!(let_matcher, 'file, Span<'file>, names::LET, Token::Let(sp) => sp);
 define_matcher!(inline_matcher, 'file, Span<'file>, names::INLINE, Token::Inline(sp) => sp);
@@ -170,7 +167,6 @@ impl std::fmt::Display for Token<'_> {
             Token::Comma(_) => write!(f, "{}", names::COMMA),
 
             Token::Equals(_) => write!(f, "{}", names::EQUALS),
-            Token::Arrow(_) => write!(f, "{}", names::ARROW),
 
             Token::Let(_) => write!(f, "{}", names::LET),
             Token::Inline(_) => write!(f, "{}", names::INLINE),
