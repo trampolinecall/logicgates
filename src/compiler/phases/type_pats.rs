@@ -22,7 +22,7 @@ pub(crate) fn type_(resolve_type_expr::IR { circuits, circuit_table, mut type_co
                 name: circuit.name,
                 input: type_pat(&mut type_context, circuit.input),
                 output_type: circuit.output_type,
-                lets: circuit.lets.into_iter().map(|pat| type_pat_in_let(&mut type_context, pat)).collect(),
+                lets: circuit.lets.into_iter().map(|let_| circuit1::PatTypedLet { pat: type_pat(&mut type_context, let_.pat), val: let_.val }).collect(),
                 output: circuit.output,
             }),
             circuit1::TypeResolvedCircuitOrIntrinsic::Nand => circuit1::PatTypedCircuitOrIntrinsic::Nand,
@@ -31,10 +31,6 @@ pub(crate) fn type_(resolve_type_expr::IR { circuits, circuit_table, mut type_co
         circuit_table,
         type_context,
     }
-}
-
-fn type_pat_in_let<'file>(type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>, let_: circuit1::TypeResolvedLet<'file>) -> circuit1::PatTypedLet<'file> {
-    circuit1::PatTypedLet { pat: type_pat(type_context, let_.pat), val: let_.val }
 }
 
 fn type_pat<'file>(type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>, pat: circuit1::TypeResolvedPattern<'file>) -> circuit1::PatTypedPattern<'file> {
