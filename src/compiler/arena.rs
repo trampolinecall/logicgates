@@ -86,11 +86,11 @@ mod dependant_transform {
         }
     }
     impl<'arena, Annotation, Original, Error, Id: ArenaId + IsArenaIdFor<Original>> DependancyGetter<'arena, Annotation, Original, Error, Id> {
-        pub(crate) fn get(&self, id: Id) -> SingleTransformResult<(&'arena Original, &'arena Annotation), Id, Error> {
+        pub(crate) fn get(self, id: Id) -> SingleTransformResult<(&'arena Original, &'arena Annotation), Id, Error> {
             match self.0.get(id.get()).expect("arena Id should not be invalid") {
                 (original, ItemState::Ok(item)) => SingleTransformResult::Ok((original, item)),
-                (_, ItemState::Waiting) | (_, ItemState::WaitingOn(_)) => SingleTransformResult::Dep(DependencyError(DependencyErrorKind::WaitingOn(id))),
-                (_, ItemState::Error(_)) | (_, ItemState::ErrorInDep) => SingleTransformResult::Dep(DependencyError(DependencyErrorKind::ErrorInDep)),
+                (_, ItemState::Waiting | ItemState::WaitingOn(_)) => SingleTransformResult::Dep(DependencyError(DependencyErrorKind::WaitingOn(id))),
+                (_, ItemState::Error(_) | ItemState::ErrorInDep) => SingleTransformResult::Dep(DependencyError(DependencyErrorKind::ErrorInDep)),
             }
         }
     }
@@ -214,12 +214,12 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original,
                     loop {
                         cur_loop.push(cur);
                         cur = if let ItemState::WaitingOn(dep_id) = things[cur].1 {
-                            if !waiting_nodes.contains(&dep_id.get()) {
-                                // this node leads to the same loop as before
-                                continue 'each_loop;
-                            } else {
+                            if waiting_nodes.contains(&dep_id.get()) {
                                 // travel to this nodes dependency
                                 dep_id.get()
+                            } else {
+                                // this node leads to the same loop as before
+                                continue 'each_loop;
                             }
                         } else {
                             unreachable!("waiting_nodes only contains WaitingOn items")

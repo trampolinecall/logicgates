@@ -79,8 +79,7 @@ impl<'file, ExprTypeInfo, PatTypeInfo> CircuitOrIntrinsic<'file, ExprTypeInfo, P
     pub(crate) fn output_type(&self, type_context: &mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
         match self {
             CircuitOrIntrinsic::Circuit(circuit) => circuit.output_type.1,
-            CircuitOrIntrinsic::Nand => type_context.intern(ty::Type::Bit),
-            CircuitOrIntrinsic::Const(_) => type_context.intern(ty::Type::Bit),
+            CircuitOrIntrinsic::Nand | CircuitOrIntrinsic::Const(_) => type_context.intern(ty::Type::Bit),
         }
     }
 }

@@ -123,7 +123,7 @@ fn type_expr<'file>(
             }
         }
         circuit1::expr::ExprKind::Multiple(exprs) => {
-            let exprs: Vec<_> = exprs.into_iter().map(|subexpr| Some(type_expr(type_context, circuit_table, local_types, subexpr)?)).collect_all()?;
+            let exprs: Vec<_> = exprs.into_iter().map(|subexpr| type_expr(type_context, circuit_table, local_types, subexpr)).collect_all()?;
             let types = exprs.iter().enumerate().map(|(field_i, subexpr)| (field_i.to_string(), subexpr.type_info)).collect();
             (circuit1::expr::ExprKind::Multiple(exprs), type_context.intern(ty::Type::Product(types)))
         }
