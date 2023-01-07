@@ -127,7 +127,6 @@ macro_rules! define_matcher {
         }
 
         impl<$file> Token<$file> {
-            #[allow(dead_code)]
             #[inline]
             pub(crate) const fn $matcher_name() -> TokenMatcher<$file, $tok_data> {
                 TokenMatcher { name: $name, matches: $matcher_name::matches, convert: $matcher_name::convert }
@@ -151,6 +150,7 @@ define_matcher!(arrow_matcher, 'file, Span<'file>, names::ARROW, Token::Arrow(sp
 define_matcher!(let_matcher, 'file, Span<'file>, names::LET, Token::Let(sp) => sp);
 define_matcher!(inline_matcher, 'file, Span<'file>, names::INLINE, Token::Inline(sp) => sp);
 define_matcher!(struct_matcher, 'file, Span<'file>, names::STRUCT, Token::Struct(sp) => sp);
+define_matcher!(named_matcher, 'file, Span<'file>, names::NAMED, Token::Named(sp) => sp);
 
 define_matcher!(apostrophe_matcher, 'file, Span<'file>, names::APOSTROPHE, Token::Apostrophe(sp) => sp);
 
