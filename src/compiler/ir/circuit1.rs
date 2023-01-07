@@ -7,47 +7,46 @@ use super::{named_type, ty, type_expr};
 // TODO: separate ast from this?
 
 // TODO: move Circuit and CircuitOrIntrinsic into separate module
-pub(crate) type UntypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, (), (), type_expr::TypeExpr<'file>>;
-pub(crate) type UntypedCircuit<'file> = Circuit<'file, (), (), type_expr::TypeExpr<'file>>;
-pub(crate) type UntypedLet<'file> = Let<'file, (), type_expr::TypeExpr<'file>>;
+pub(crate) type UntypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, expr::UntypedExpr<'file>, (), type_expr::TypeExpr<'file>>;
+pub(crate) type UntypedCircuit<'file> = Circuit<'file, expr::UntypedExpr<'file>, (), type_expr::TypeExpr<'file>>;
+pub(crate) type UntypedLet<'file> = Let<'file, expr::UntypedExpr<'file>, (), type_expr::TypeExpr<'file>>;
 pub(crate) type UntypedPattern<'file> = Pattern<'file, (), type_expr::TypeExpr<'file>>;
 
-pub(crate) type TypeResolvedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, (), (), (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypeResolvedCircuit<'file> = Circuit<'file, (), (), (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypeResolvedLet<'file> = Let<'file, (), (Span<'file>, ty::TypeSym)>;
+pub(crate) type TypeResolvedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, expr::UntypedExpr<'file>, (), (Span<'file>, ty::TypeSym)>;
+pub(crate) type TypeResolvedCircuit<'file> = Circuit<'file, expr::UntypedExpr<'file>, (), (Span<'file>, ty::TypeSym)>;
+pub(crate) type TypeResolvedLet<'file> = Let<'file, expr::UntypedExpr<'file>, (), (Span<'file>, ty::TypeSym)>;
 pub(crate) type TypeResolvedPattern<'file> = Pattern<'file, (), (Span<'file>, ty::TypeSym)>;
 
-pub(crate) type PatTypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, (), ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-pub(crate) type PatTypedCircuit<'file> = Circuit<'file, (), ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-pub(crate) type PatTypedLet<'file> = Let<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
+pub(crate) type PatTypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, expr::UntypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
+pub(crate) type PatTypedCircuit<'file> = Circuit<'file, expr::UntypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
+pub(crate) type PatTypedLet<'file> = Let<'file, expr::UntypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
 pub(crate) type PatTypedPattern<'file> = Pattern<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
 
-pub(crate) type TypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, ty::TypeSym, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypedCircuit<'file> = Circuit<'file, ty::TypeSym, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypedLet<'file> = Let<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
+pub(crate) type TypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, expr::TypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
+pub(crate) type TypedCircuit<'file> = Circuit<'file, expr::TypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
+pub(crate) type TypedLet<'file> = Let<'file, expr::TypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
 pub(crate) type TypedPattern<'file> = Pattern<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct Circuit<'file, ExprTypeInfo, PatTypeInfo, TypeExpr> {
+pub(crate) struct Circuit<'file, Expr, PatTypeInfo, TypeExpr> {
     pub(crate) name: (Span<'file>, &'file str),
     pub(crate) input: Pattern<'file, PatTypeInfo, TypeExpr>,
-    pub(crate) expressions: expr::ExprArena<'file, ExprTypeInfo>,
     pub(crate) output_type: TypeExpr,
-    pub(crate) lets: Vec<Let<'file, PatTypeInfo, TypeExpr>>,
-    pub(crate) output: expr::ExprId,
+    pub(crate) lets: Vec<Let<'file, Expr, PatTypeInfo, TypeExpr>>,
+    pub(crate) output: Expr,
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) enum CircuitOrIntrinsic<'file, ExprTypeInfo, PatTypeInfo, TypeExpr> {
-    Circuit(Circuit<'file, ExprTypeInfo, PatTypeInfo, TypeExpr>),
+pub(crate) enum CircuitOrIntrinsic<'file, Expr, PatTypeInfo, TypeExpr> {
+    Circuit(Circuit<'file, Expr, PatTypeInfo, TypeExpr>),
     Nand,
     Const(bool), // never in circuit table
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct Let<'file, PatTypeInfo, TypeExpr> {
+pub(crate) struct Let<'file, Expr, PatTypeInfo, TypeExpr> {
     pub(crate) pat: Pattern<'file, PatTypeInfo, TypeExpr>,
-    pub(crate) val: expr::ExprId,
+    pub(crate) val: Expr,
 }
 
 #[derive(PartialEq, Debug)]
