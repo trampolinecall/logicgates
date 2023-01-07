@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use super::arena;
+use crate::utils::arena;
+
 use super::error::CompileError;
 use super::error::Report;
 use super::error::Span;

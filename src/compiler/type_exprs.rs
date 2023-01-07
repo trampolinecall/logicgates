@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
+use crate::utils::arena;
 use crate::utils::collect_all::CollectAll;
 
 use super::error::{CompileError, Report, Span};
 use super::ir::{circuit1, named_type, ty};
-use super::{arena, ir, type_pats};
+use super::{ir, type_pats};
 
 struct NoField<'file> {
     // TODO: list names of fields that do exist

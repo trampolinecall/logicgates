@@ -1,9 +1,6 @@
 #[macro_use]
 mod error;
 
-#[macro_use]
-pub(crate) mod arena;
-
 mod ir;
 
 mod convert_circuit1;

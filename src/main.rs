@@ -1,9 +1,10 @@
 #![allow(clippy::upper_case_acronyms)]
 
+#[macro_use]
+pub(crate) mod utils;
 pub(crate) mod circuit;
 pub(crate) mod compiler;
 pub(crate) mod position;
-pub(crate) mod utils;
 
 use piston::{self, PressEvent, RenderEvent, UpdateEvent};
 

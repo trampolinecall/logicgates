@@ -55,29 +55,3 @@ impl<R, E> CanCollectAll for Result<R, Vec<E>> {
     }
 }
 
-impl<Old, New, Error> CanCollectAll for crate::compiler::arena::SingleTransformResult<New, Old, Vec<Error>> {
-    type Output<Collection> = crate::compiler::arena::SingleTransformResult<Collection, Old, Vec<Error>>;
-
-    type Item = New;
-
-    fn collect_all<F: std::iter::FromIterator<New>>(iter: impl Iterator<Item = Self>) -> Self::Output<F> {
-        use crate::compiler::arena::SingleTransformResult;
-
-        // TODO: make a better implementation of this
-        let mut results = Vec::new();
-        let mut errors = Vec::new();
-        for item in iter {
-            match item {
-                SingleTransformResult::Ok(o) => results.push(o),
-                SingleTransformResult::Dep(d) => return SingleTransformResult::Dep(d),
-                SingleTransformResult::Err(e) => errors.extend(e),
-            }
-        }
-
-        if errors.is_empty() {
-            SingleTransformResult::Ok(results.into_iter().collect())
-        } else {
-            SingleTransformResult::Err(errors)
-        }
-    }
-}

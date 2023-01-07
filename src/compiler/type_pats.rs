@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
+use crate::utils::arena;
+
 use super::{
-    arena,
     ir::{circuit1, named_type, ty},
     resolve_type_expr,
 };
