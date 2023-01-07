@@ -2,15 +2,15 @@ use std::collections::HashMap;
 
 use crate::utils::arena;
 
-use crate::compiler::error::CompileError;
-use crate::compiler::error::Report;
-use crate::compiler::error::Span;
 use crate::compiler::data::circuit1;
 use crate::compiler::data::circuit1::TypedPattern;
 use crate::compiler::data::circuit2;
 use crate::compiler::data::circuit2::Circuit;
 use crate::compiler::data::named_type;
 use crate::compiler::data::ty;
+use crate::compiler::error::CompileError;
+use crate::compiler::error::Report;
+use crate::compiler::error::Span;
 use crate::compiler::phases::type_exprs;
 
 // TODO: replace all String with &'file str?

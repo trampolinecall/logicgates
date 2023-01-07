@@ -1,4 +1,4 @@
-use crate::compiler::{error::Span};
+use crate::compiler::error::Span;
 use crate::utils::arena;
 
 use super::ty;

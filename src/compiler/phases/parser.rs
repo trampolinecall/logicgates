@@ -1,7 +1,7 @@
+use crate::compiler::data::token::Token;
+use crate::compiler::data::token::TokenMatcher;
 use crate::compiler::error::CompileError;
 use crate::compiler::error::Report;
-use crate::compiler::data::token::TokenMatcher;
-use crate::compiler::data::token::Token;
 use std::iter::Peekable;
 
 use crate::compiler::data::circuit1;
@@ -305,11 +305,11 @@ mod test {
     use super::parse;
     use super::Parser;
     use super::AST;
+    use crate::compiler::data::circuit1;
+    use crate::compiler::data::token::Token;
+    use crate::compiler::data::type_expr;
     use crate::compiler::error::File;
     use crate::compiler::error::Span;
-    use crate::compiler::data::circuit1;
-    use crate::compiler::data::type_expr;
-    use crate::compiler::data::token::Token;
 
     use std::iter::Peekable;
 
@@ -457,7 +457,11 @@ mod test {
         let tokens = make_token_stream([Token::Apostrophe(sp), Token::Identifier(sp, "a"), Token::Identifier(sp, "b")], sp);
         assert_eq!(
             Parser { tokens: tokens }.expr(),
-            Ok(circuit1::Expr { kind: circuit1::ExprKind::Call((sp, "a"), false, Box::new(circuit1::Expr { kind: circuit1::ExprKind::Ref(sp, "b"), type_info: (), span: sp })), type_info: (), span: sp })
+            Ok(circuit1::Expr {
+                kind: circuit1::ExprKind::Call((sp, "a"), false, Box::new(circuit1::Expr { kind: circuit1::ExprKind::Ref(sp, "b"), type_info: (), span: sp })),
+                type_info: (),
+                span: sp
+            })
         );
     }
 

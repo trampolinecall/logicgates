@@ -54,4 +54,3 @@ impl<R, E> CanCollectAll for Result<R, Vec<E>> {
         }
     }
 }
-

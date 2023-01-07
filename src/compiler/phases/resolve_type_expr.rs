@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use crate::utils::{arena, collect_all::CollectAll};
 
 use crate::compiler::{
-    error::{CompileError, Report, Span},
     data::{circuit1, named_type, ty, type_expr},
+    error::{CompileError, Report, Span},
     phases::make_name_tables,
 };
 
