@@ -1,6 +1,4 @@
-// TODO: there is probably a better way of doing this
 pub(crate) trait CanCollectAll {
-    // TODO: figure out how to make this private
     type Output<Collection>;
     type Item;
     fn collect_all<F: FromIterator<Self::Item>>(iter: impl Iterator<Item = Self>) -> Self::Output<F>;
