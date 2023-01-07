@@ -4,7 +4,7 @@ mod error;
 mod data;
 mod phases;
 
-use crate::circuit;
+use crate::simulation::circuit;
 use error::File;
 
 pub(crate) fn compile(filename: &str) -> Option<circuit::Circuit> {

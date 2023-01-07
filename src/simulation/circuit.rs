@@ -261,7 +261,7 @@ impl Circuit {
     }
 
     pub(crate) fn calculate_locations(&mut self) {
-        let positions = crate::position::calculate_locations(self);
+        let positions = crate::simulation::position::calculate_locations(self);
         for (gate_i, position) in positions {
             self.get_gate_mut(gate_i).location = position;
         }

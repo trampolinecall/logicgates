@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    circuit,
+    simulation::circuit,
     compiler::{
         data::{circuit1, circuit2, nominal_type, ty},
         error::{CompileError, File, Report},
