@@ -1,7 +1,7 @@
 use crate::compiler::error::CompileError;
 use crate::compiler::error::Report;
 use crate::compiler::data::token::TokenMatcher;
-use crate::compiler::phases::lexer::Token;
+use crate::compiler::data::token::Token;
 use std::iter::Peekable;
 
 use crate::compiler::data::circuit1;
