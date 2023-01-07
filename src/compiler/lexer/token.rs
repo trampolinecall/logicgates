@@ -52,12 +52,17 @@ impl<'file> Token<'file> {
     }
 }
 
-#[derive(Copy, Clone)]
 pub(crate) struct TokenMatcher<'file, TokData> {
     name: &'static str,
     matches: for<'t> fn(&'t Token<'file>) -> bool,
     convert: for<'t> fn(Token<'file>) -> TokData,
 }
+impl<TokData> Clone for TokenMatcher<'_, TokData> {
+    fn clone(&self) -> Self {
+        Self { name: self.name, matches: self.matches, convert: self.convert }
+    }
+}
+impl<TokData> Copy for TokenMatcher<'_, TokData> {}
 
 impl<'file, TokData> TokenMatcher<'file, TokData> {
     pub(crate) fn name(&self) -> &'static str {
