@@ -61,10 +61,6 @@ impl<'file> Lexer<'file> {
             ',' => Ok(Some(Token::Comma(self.span(start_i)))),
 
             '=' => Ok(Some(Token::Equals(self.span(start_i)))),
-            '-' if matches!(self.1.peek(), Some((_, '>'))) => {
-                self.1.next();
-                Ok(Some(Token::Arrow(self.span(start_i))))
-            }
 
             '\'' => Ok(Some(Token::Apostrophe(self.span(start_i)))),
 
