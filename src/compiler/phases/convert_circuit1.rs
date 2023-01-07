@@ -1,17 +1,13 @@
 use std::collections::HashMap;
 
-use crate::utils::arena;
-
-use crate::compiler::data::circuit1;
-use crate::compiler::data::circuit1::TypedPattern;
-use crate::compiler::data::circuit2;
-use crate::compiler::data::circuit2::Circuit;
-use crate::compiler::data::nominal_type;
-use crate::compiler::data::ty;
-use crate::compiler::error::CompileError;
-use crate::compiler::error::Report;
-use crate::compiler::error::Span;
-use crate::compiler::phases::type_exprs;
+use crate::{
+    compiler::{
+        data::{circuit1, circuit2, nominal_type, ty},
+        error::{CompileError, Report, Span},
+        phases::type_exprs,
+    },
+    utils::arena,
+};
 
 struct TypeMismatch<'file> {
     // got_span: Span<'file>, TODO
@@ -99,7 +95,7 @@ fn convert_circuit<'file>(
 ) -> Option<circuit2::Circuit<'file>> {
     // TODO: move all typechecking into a separate phase
 
-    let mut circuit = Circuit::new(circuit1.name.1, circuit1.input.type_info, circuit1.output_type.1);
+    let mut circuit = circuit2::Circuit::new(circuit1.name.1, circuit1.input.type_info, circuit1.output_type.1);
 
     let mut values = arena::Arena::new();
 
@@ -177,7 +173,7 @@ fn assign_pattern<'file>(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     values: &mut arena::Arena<Value<'file>, ValueId>,
     locals: &mut HashMap<&'file str, ValueId>,
-    pat: &TypedPattern<'file>,
+    pat: &circuit1::TypedPattern<'file>,
     value: ValueId,
 ) -> Result<(), TypeMismatch<'file>> {
     if values.get(value).type_info != pat.type_info {
@@ -224,7 +220,7 @@ fn convert_value(
     get_other_value_as_bundle: arena::DependancyGetter<circuit2::bundle::ProducerBundle, Value, NeverErrors, ValueId>,
     locals: &HashMap<&str, ValueId>,
     gates: &HashMap<ValueId, circuit2::GateIdx>,
-    circuit: &Circuit,
+    circuit: &circuit2::Circuit,
     value_id: ValueId,
     value: &Value,
 ) -> arena::SingleTransformResult<circuit2::bundle::ProducerBundle, ValueId, NeverErrors> {
@@ -274,7 +270,7 @@ fn convert_value(
 
 fn connect_bundle(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
-    circuit: &mut Circuit,
+    circuit: &mut circuit2::Circuit,
     // got_span: Span,
     expected_span: Span,
     producer_bundle: circuit2::bundle::ProducerBundle,

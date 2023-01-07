@@ -1,12 +1,13 @@
-use std::collections::HashMap;
-
-use crate::utils::{arena, collect_all::CollectAll};
-
-use crate::compiler::{
-    data::{circuit1, nominal_type, ty, type_expr},
-    error::{CompileError, Report, Span},
-    phases::make_name_tables,
+use crate::{
+    compiler::{
+        data::{circuit1, nominal_type, ty, type_expr},
+        error::{CompileError, Report, Span},
+        phases::make_name_tables,
+    },
+    utils::{arena, collect_all::CollectAll},
 };
+
+use std::collections::HashMap;
 
 pub(crate) struct IR<'file> {
     pub(crate) circuits: arena::Arena<circuit1::TypeResolvedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,

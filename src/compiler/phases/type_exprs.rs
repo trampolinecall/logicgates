@@ -1,11 +1,13 @@
+use crate::{
+    compiler::{
+        data::{circuit1, nominal_type, ty},
+        error::{CompileError, Report, Span},
+        phases::type_pats,
+    },
+    utils::{arena, collect_all::CollectAll},
+};
+
 use std::collections::HashMap;
-
-use crate::utils::arena;
-use crate::utils::collect_all::CollectAll;
-
-use crate::compiler::data::{circuit1, nominal_type, ty};
-use crate::compiler::error::{CompileError, Report, Span};
-use crate::compiler::phases::type_pats;
 
 struct NoField<'file> {
     // TODO: list names of fields that do exist

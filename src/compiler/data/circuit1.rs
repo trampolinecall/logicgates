@@ -1,8 +1,10 @@
-use crate::compiler::data::ty;
-use crate::compiler::error::Span;
-use crate::utils::arena;
-
-use super::{nominal_type, type_expr};
+use crate::{
+    compiler::{
+        data::{nominal_type, ty, type_expr},
+        error::Span,
+    },
+    utils::arena,
+};
 
 // TODO: separate ast from this?
 

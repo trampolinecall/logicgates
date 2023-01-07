@@ -1,12 +1,13 @@
-use crate::compiler::data::token::Token;
-use crate::compiler::data::token::TokenMatcher;
-use crate::compiler::error::CompileError;
-use crate::compiler::error::Report;
-use std::iter::Peekable;
+use crate::compiler::{
+    data::{
+        circuit1, nominal_type,
+        token::{Token, TokenMatcher},
+        type_expr,
+    },
+    error::{CompileError, Report},
+};
 
-use crate::compiler::data::circuit1;
-use crate::compiler::data::nominal_type;
-use crate::compiler::data::type_expr;
+use std::iter::Peekable;
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct AST<'file> {
@@ -311,14 +312,11 @@ pub(crate) fn parse<'file>(tokens: impl Iterator<Item = Token<'file>>) -> AST<'f
 
 #[cfg(test)]
 mod test {
-    use super::parse;
-    use super::Parser;
-    use super::AST;
-    use crate::compiler::data::circuit1;
-    use crate::compiler::data::token::Token;
-    use crate::compiler::data::type_expr;
-    use crate::compiler::error::File;
-    use crate::compiler::error::Span;
+    use crate::compiler::{
+        data::{circuit1, token::Token, type_expr},
+        error::{File, Span},
+        phases::parser::{parse, Parser, AST},
+    };
 
     use std::iter::Peekable;
 

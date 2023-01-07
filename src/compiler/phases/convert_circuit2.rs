@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 
-use crate::compiler::{
-    data::{circuit1, circuit2, nominal_type, ty},
-    error::{CompileError, File, Report},
-    phases::convert_circuit1,
+use crate::{
+    circuit,
+    compiler::{
+        data::{circuit1, circuit2, nominal_type, ty},
+        error::{CompileError, File, Report},
+        phases::convert_circuit1,
+    },
+    utils::arena,
 };
-use crate::{circuit, utils::arena};
-
-// TODO: clean up all imports everywhere
 
 struct NoMain<'file>(&'file File);
 impl<'file> From<NoMain<'file>> for CompileError<'file> {

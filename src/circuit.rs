@@ -1,7 +1,6 @@
+use generational_arena::Arena;
 use std::cell::RefCell;
 use std::collections::HashSet;
-
-use generational_arena::Arena;
 
 #[derive(Clone)]
 pub(crate) struct Circuit {
