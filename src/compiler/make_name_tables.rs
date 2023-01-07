@@ -30,7 +30,9 @@ pub(crate) fn make(ast: parser::AST) -> Option<IR> {
     Some(IR { circuits, circuit_table, type_context, type_table })
 }
 
-fn make_circuit_table(circuits: Vec<circuit1::UntypedCircuit>) -> Option<(arena::Arena<circuit1::UntypedCircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>, HashMap<String, circuit1::CircuitOrIntrinsicId>)> {
+fn make_circuit_table(
+    circuits: Vec<circuit1::UntypedCircuit>,
+) -> Option<(arena::Arena<circuit1::UntypedCircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>, HashMap<String, circuit1::CircuitOrIntrinsicId>)> {
     let mut arena = arena::Arena::new();
     let mut table = HashMap::new();
     table.insert("nand".into(), arena.add(circuit1::UntypedCircuitOrIntrinsic::Nand));

@@ -92,4 +92,3 @@ impl<'file> std::ops::Add<Span<'file>> for Span<'file> {
         Span(self.0, std::cmp::min(self.1, rhs.1), std::cmp::max(self.2, rhs.2))
     }
 }
-
