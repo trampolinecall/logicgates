@@ -50,7 +50,7 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
         .collect();
 
     let circuits = circuits.transform(|circuit| match circuit {
-        circuit1::CircuitOrIntrinsic::Circuit(circuit) => {
+        circuit1::PatTypedCircuitOrIntrinsic::Circuit(circuit) => {
             let mut local_table = HashMap::new();
 
             put_pat_type(&mut local_table, &circuit.input);
@@ -58,16 +58,16 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
                 put_pat_type(&mut local_table, &let_.pat);
             }
 
-            Some(circuit1::CircuitOrIntrinsic::Circuit(circuit1::Circuit {
+            Some(circuit1::TypedCircuitOrIntrinsic::Circuit(circuit1::TypedCircuit {
                 name: circuit.name,
                 input: circuit.input,
                 output_type: circuit.output_type,
-                lets: circuit.lets.into_iter().map(|circuit1::Let { pat, val }| Some(circuit1::Let { pat, val: type_expr(&mut type_context, &circuit_table, &local_table, val)? })).collect_all()?,
+                lets: circuit.lets.into_iter().map(|circuit1::PatTypedLet { pat, val }| Some(circuit1::TypedLet { pat, val: type_expr(&mut type_context, &circuit_table, &local_table, val)? })).collect_all()?,
                 output: type_expr(&mut type_context, &circuit_table, &local_table, circuit.output)?,
             }))
         }
-        circuit1::CircuitOrIntrinsic::Nand => Some(circuit1::CircuitOrIntrinsic::Nand),
-        circuit1::CircuitOrIntrinsic::Const(value) => Some(circuit1::CircuitOrIntrinsic::Const(value)),
+        circuit1::PatTypedCircuitOrIntrinsic::Nand => Some(circuit1::TypedCircuitOrIntrinsic::Nand),
+        circuit1::PatTypedCircuitOrIntrinsic::Const(value) => Some(circuit1::TypedCircuitOrIntrinsic::Const(value)),
     })?;
 
     let circuit_table = circuit_table.into_iter().map(|(name, old_id)| (name, old_id)).collect();
@@ -77,10 +77,10 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
 
 fn put_pat_type<'file>(local_table: &mut HashMap<&'file str, ty::TypeSym>, pat: &circuit1::PatTypedPattern<'file>) {
     match &pat.kind {
-        circuit1::PatternKind::Identifier(_, name, ty) => {
+        circuit1::PatTypedPatternKind::Identifier(_, name, ty) => {
             local_table.insert(name, ty.1); // TODO: report error for duplicate locals
         }
-        circuit1::PatternKind::Product(_, subpats) => {
+        circuit1::PatTypedPatternKind::Product(_, subpats) => {
             for subpat in subpats {
                 put_pat_type(local_table, subpat);
             }
@@ -95,40 +95,40 @@ fn type_expr<'file>(
     expr: circuit1::UntypedExpr<'file>,
 ) -> Option<circuit1::TypedExpr<'file>> {
     let (kind, type_info) = match expr.kind {
-        circuit1::ExprKind::Ref(name_sp, name) => {
+        circuit1::UntypedExprKind::Ref(name_sp, name) => {
             let local_type = if let Some(ty) = local_types.get(name) {
                 *ty
             } else {
                 NoSuchLocal(name_sp, name).report();
                 return None;
             };
-            (circuit1::ExprKind::Ref(name_sp, name), local_type)
+            (circuit1::TypedExprKind::Ref(name_sp, name), local_type)
         }
-        circuit1::ExprKind::Call((name_sp, name), inline, arg) => {
+        circuit1::UntypedExprKind::Call((name_sp, name), inline, arg) => {
             // this also does circuit name resolution
             if let Some((_, ty, _)) = circuit_table.get(name) {
-                (circuit1::ExprKind::Call((name_sp, name), inline, Box::new(type_expr(type_context, circuit_table, local_types, *arg)?)), *ty)
+                (circuit1::TypedExprKind::Call((name_sp, name), inline, Box::new(type_expr(type_context, circuit_table, local_types, *arg)?)), *ty)
             } else {
                 NoSuchCircuit(name_sp, name).report();
                 return None;
             }
         }
-        circuit1::ExprKind::Const(sp, value) => (circuit1::ExprKind::Const(sp, value), type_context.intern(ty::Type::Bit)),
-        circuit1::ExprKind::Get(base, field) => {
+        circuit1::UntypedExprKind::Const(sp, value) => (circuit1::TypedExprKind::Const(sp, value), type_context.intern(ty::Type::Bit)),
+        circuit1::UntypedExprKind::Get(base, field) => {
             let base = type_expr(type_context, circuit_table, local_types, *base)?;
             let base_ty = base.type_info;
             let field_ty = type_context.get(base_ty).field_type(type_context, field.1);
             if let Some(field_ty) = field_ty {
-                (circuit1::ExprKind::Get(Box::new(base), field), field_ty)
+                (circuit1::TypedExprKind::Get(Box::new(base), field), field_ty)
             } else {
                 (&*type_context, NoField { ty: base_ty, field_name_sp: field.0, field_name: field.1 }).report();
                 return None;
             }
         }
-        circuit1::ExprKind::Multiple(exprs) => {
+        circuit1::UntypedExprKind::Multiple(exprs) => {
             let exprs: Vec<_> = exprs.into_iter().map(|subexpr| type_expr(type_context, circuit_table, local_types, subexpr)).collect_all()?;
             let types = exprs.iter().enumerate().map(|(field_i, subexpr)| (field_i.to_string(), subexpr.type_info)).collect();
-            (circuit1::ExprKind::Multiple(exprs), type_context.intern(ty::Type::Product(types)))
+            (circuit1::TypedExprKind::Multiple(exprs), type_context.intern(ty::Type::Product(types)))
         }
     };
 
