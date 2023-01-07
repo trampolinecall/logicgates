@@ -69,7 +69,7 @@ pub(crate) fn convert(type_exprs::IR { mut circuits, circuit_table, mut type_con
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct ValueId(usize);
-impl<'file> arena::ArenaId for ValueId {
+impl arena::ArenaId for ValueId {
     fn make(i: usize) -> Self {
         Self(i)
     }

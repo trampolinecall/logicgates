@@ -20,8 +20,7 @@ pub(crate) enum ReceiverBundle {
 impl<'types> ProducerBundle {
     pub(crate) fn type_(&self, type_context: &'types mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
         match self {
-            ProducerBundle::CurCircuitInput(ty) => *ty,
-            ProducerBundle::GateOutput(ty, _) => *ty,
+            ProducerBundle::CurCircuitInput(ty) | ProducerBundle::GateOutput(ty, _) => *ty,
             ProducerBundle::Get(producer, field) => {
                 let producer_type = producer.type_(type_context);
                 type_context.get(producer_type).field_type(type_context, field).unwrap()
@@ -37,8 +36,7 @@ impl<'types> ReceiverBundle {
     pub(crate) fn type_(&self, _: &'types mut ty::TypeContext<named_type::FullyDefinedNamedType>) -> ty::TypeSym {
         // keep unused parameters for symmetry with ProducerBundle::type_
         match self {
-            ReceiverBundle::CurCircuitOutput(ty) => *ty,
-            ReceiverBundle::GateInput(ty, _) => *ty,
+            ReceiverBundle::CurCircuitOutput(ty) | ReceiverBundle::GateInput(ty, _) => *ty,
             /*
             ReceiverBundle::Get(producer, field) => {
                 let producer_type = producer.type_(types, circuit);

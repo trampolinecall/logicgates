@@ -18,15 +18,15 @@ impl<'file> From<NoMain<'file>> for CompileError<'file> {
 }
 
 pub(crate) fn convert(file: &File, convert_circuit1::IR { circuits, circuit_table, mut type_context }: convert_circuit1::IR) -> Option<circuit::Circuit> {
-    let circuit = match circuit_table.get("main") {
-        Some((_, _, main_id)) => match circuits.get(*main_id) {
-            circuit2::CircuitOrIntrinsic::Custom(c) => c,
-            _ => unreachable!("builtin circuit called main"),
-        },
-        None => {
-            NoMain(file).report();
-            None?
+    let circuit = if let Some((_, _, main_id)) = circuit_table.get("main") {
+        if let circuit2::CircuitOrIntrinsic::Custom(c) = circuits.get(*main_id) {
+            c
+        } else {
+            unreachable!("builtin circuit called main")
         }
+    } else {
+        NoMain(file).report();
+        None?
     };
 
     // TODO: disallow recursion
