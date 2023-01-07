@@ -31,7 +31,7 @@ impl<T> CanCollectAll for Option<T> {
     }
 }
 
-impl<R, E> CanCollectAll for Result<R, Vec<E>> {
+impl<R, EIterator: Iterator<Item = E>, E> CanCollectAll for Result<R, EIterator> {
     type Output<Collection> = Result<Collection, Vec<E>>;
 
     type Item = R;
