@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use crate::utils::{arena, collect_all::CollectAll};
 
-use super::{
+use crate::compiler::{
     error::{CompileError, Report, Span},
-    ir::{circuit1, named_type, ty, type_expr},
-    make_name_tables,
+    data::{circuit1, named_type, ty, type_expr},
+    phases::make_name_tables,
 };
 
 pub(crate) struct IR<'file> {

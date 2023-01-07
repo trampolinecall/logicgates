@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use super::{
-    convert_circuit1,
+use crate::compiler::{
+    data::{circuit1, circuit2, named_type, ty},
     error::{CompileError, File, Report},
-    ir::{circuit1, circuit2, named_type, ty},
+    phases::convert_circuit1,
 };
 use crate::{circuit, utils::arena};
 

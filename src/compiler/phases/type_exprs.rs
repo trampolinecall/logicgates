@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use crate::utils::arena;
 use crate::utils::collect_all::CollectAll;
 
-use super::error::{CompileError, Report, Span};
-use super::ir::{circuit1, named_type, ty};
-use super::{ir, type_pats};
+use crate::compiler::data::{circuit1, named_type, ty};
+use crate::compiler::error::{CompileError, Report, Span};
+use crate::compiler::phases::type_pats;
 
 struct NoField<'file> {
     // TODO: list names of fields that do exist
@@ -33,7 +33,7 @@ impl<'file> From<NoSuchCircuit<'file>> for CompileError<'file> {
 }
 
 pub(crate) struct IR<'file> {
-    pub(crate) circuits: arena::Arena<ir::circuit1::TypedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
+    pub(crate) circuits: arena::Arena<circuit1::TypedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<String, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
 
     pub(crate) type_context: ty::TypeContext<named_type::FullyDefinedNamedType>,
@@ -48,7 +48,7 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
         .collect();
 
     let circuits = circuits.transform(|circuit| match circuit {
-        ir::circuit1::CircuitOrIntrinsic::Circuit(circuit) => {
+        circuit1::CircuitOrIntrinsic::Circuit(circuit) => {
             let mut local_table = HashMap::new();
 
             put_pat_type(&mut local_table, &circuit.input);
@@ -56,7 +56,7 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
                 put_pat_type(&mut local_table, &let_.pat);
             }
 
-            Some(ir::circuit1::CircuitOrIntrinsic::Circuit(ir::circuit1::Circuit {
+            Some(circuit1::CircuitOrIntrinsic::Circuit(circuit1::Circuit {
                 name: circuit.name,
                 input: circuit.input,
                 output_type: circuit.output_type,
@@ -64,8 +64,8 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
                 output: type_expr(&mut type_context, &circuit_table, &local_table, circuit.output)?,
             }))
         }
-        ir::circuit1::CircuitOrIntrinsic::Nand => Some(ir::circuit1::CircuitOrIntrinsic::Nand),
-        circuit1::CircuitOrIntrinsic::Const(value) => Some(ir::circuit1::CircuitOrIntrinsic::Const(value)),
+        circuit1::CircuitOrIntrinsic::Nand => Some(circuit1::CircuitOrIntrinsic::Nand),
+        circuit1::CircuitOrIntrinsic::Const(value) => Some(circuit1::CircuitOrIntrinsic::Const(value)),
     })?;
 
     let circuit_table = circuit_table.into_iter().map(|(name, old_id)| (name, old_id)).collect();

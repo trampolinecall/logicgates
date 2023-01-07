@@ -1,4 +1,4 @@
-use crate::compiler::ir::{named_type, ty};
+use crate::compiler::data::{named_type, ty};
 
 use super::GateIdx;
 

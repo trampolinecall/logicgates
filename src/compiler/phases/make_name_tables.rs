@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use crate::utils::arena;
 
-use super::{
+use crate::compiler::{
+    data::{circuit1, named_type, ty},
     error::{CompileError, Report, Span},
-    ir::{circuit1, named_type, ty},
-    parser,
+    phases::parser,
 };
 
 pub(crate) struct IR<'file> {
@@ -54,7 +54,7 @@ fn make_circuit_table(
     }
 }
 
-fn make_type_table(type_decls: Vec<super::ir::named_type::NamedTypeDecl>) -> Option<(ty::TypeContext<named_type::PartiallyDefinedNamedType>, HashMap<String, ty::TypeSym>)> {
+fn make_type_table(type_decls: Vec<crate::compiler::data::named_type::NamedTypeDecl>) -> Option<(ty::TypeContext<named_type::PartiallyDefinedNamedType>, HashMap<String, ty::TypeSym>)> {
     let mut type_table = HashMap::new();
     let mut type_context = ty::TypeContext::new();
     let mut errored = false;

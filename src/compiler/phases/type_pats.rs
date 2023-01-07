@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use crate::utils::arena;
 
-use super::{
-    ir::{circuit1, named_type, ty},
-    resolve_type_expr,
+use crate::compiler::{
+    data::{circuit1, named_type, ty},
+    phases::resolve_type_expr,
 };
 
 pub(crate) struct IR<'file> {
