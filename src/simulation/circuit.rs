@@ -21,7 +21,7 @@ pub(crate) struct Gate {
 pub(crate) enum GateKind {
     Nand([connections::Node; 2], [connections::Node; 1]), // TODO: figure out a better way of doing this
     Const([connections::Node; 0], [connections::Node; 1]),
-    Subcircuit(CircuitIndex), // the circuit already contains the input and output nodes
+    Custom(CircuitIndex), // the circuit already contains the input and output nodes
 }
 
 /* TODO: decide what to do with this
@@ -87,7 +87,7 @@ impl Gate {
         Gate { index, kind: GateKind::Const([], [connections::Node::new_value(Some(index), value)]), location: (0, 0.0), _dont_construct: () }
     }
     pub(crate) fn new_subcircuit_gate(index: GateIndex, subcircuit: CircuitIndex) -> Gate {
-        Gate { index, kind: GateKind::Subcircuit(subcircuit), location: (0, 0.0), _dont_construct: () }
+        Gate { index, kind: GateKind::Custom(subcircuit), location: (0, 0.0), _dont_construct: () }
     }
 
     pub(crate) fn name(&self) -> String {
@@ -97,7 +97,7 @@ impl Gate {
             GateKind::Const(_, [_]) => todo!(),
             // GateKind::Const(_, [connections::Node { value: true, .. }]) => "true".to_string(),
             // GateKind::Const(_, [connections::Node { value: false, .. }]) => "false".to_string(),
-            GateKind::Subcircuit(subcircuit) =>
+            GateKind::Custom(subcircuit) =>
             /* subcircuit.borrow().name.clone() */
             {
                 todo!()

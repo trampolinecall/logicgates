@@ -243,14 +243,14 @@ pub(crate) fn gate_inputs<'a: 'c, 'b: 'c, 'c>(circuits: &'a Arena<Circuit>, gate
     match &gate.kind {
         GateKind::Nand(i, _) => i,
         GateKind::Const(i, _) => i,
-        GateKind::Subcircuit(circuit_idx) => &circuits[*circuit_idx].inputs,
+        GateKind::Custom(circuit_idx) => &circuits[*circuit_idx].inputs,
     }
 }
 pub(crate) fn gate_outputs<'a: 'c, 'b: 'c, 'c>(circuits: &'a Arena<Circuit>, gates: &'b Arena<Gate>, gate: GateIndex) -> &'c [Node] {
     let gate = &gates[gate];
     match &gate.kind {
         GateKind::Nand(_, o) | GateKind::Const(_, o) => o,
-        GateKind::Subcircuit(circuit_idx) => &circuits[*circuit_idx].outputs,
+        GateKind::Custom(circuit_idx) => &circuits[*circuit_idx].outputs,
     }
 }
 
@@ -259,14 +259,14 @@ pub(crate) fn gate_inputs_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut Arena<Circui
     match &mut gate.kind {
         GateKind::Nand(i, _) => i,
         GateKind::Const(i, _) => i,
-        GateKind::Subcircuit(circuit_idx) => &mut circuits[*circuit_idx].inputs,
+        GateKind::Custom(circuit_idx) => &mut circuits[*circuit_idx].inputs,
     }
 }
 pub(crate) fn gate_outputs_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut Arena<Circuit>, gates: &'b mut Arena<Gate>, gate: GateIndex) -> &'c mut [Node] {
     let gate = &mut gates[gate];
     match &mut gate.kind {
         GateKind::Nand(_, o) | GateKind::Const(_, o) => o,
-        GateKind::Subcircuit(circuit_idx) => &mut circuits[*circuit_idx].outputs,
+        GateKind::Custom(circuit_idx) => &mut circuits[*circuit_idx].outputs,
     }
 }
 
@@ -278,7 +278,7 @@ pub(crate) fn compute(circuits: &Arena<Circuit>, gates: &Arena<Gate>, gate: &Gat
     match gate {
         GateKind::Nand([a, b], _) => vec![!(get_node_value(a) && get_node_value(b))],
         GateKind::Const(_, [o]) => vec![get_node_value(o)],
-        GateKind::Subcircuit(subcircuit) => {
+        GateKind::Custom(subcircuit) => {
             /*
             // TODO: make passthrough nodes so this does not need to happen
             let mut subcircuit = &mut circuits[*subcircuit];
