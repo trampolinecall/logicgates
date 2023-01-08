@@ -87,10 +87,10 @@ impl Gate {
     pub(crate) fn new_const_gate(index: GateIndex, value: bool) -> Gate {
         Gate { index, kind: GateKind::Const([], [connections::Node::new_value(Some(index), value)]), location: (0, 0.0), _dont_construct: () }
     }
-    pub(crate) fn new_subcircuit_gate(index: GateIndex, subcircuit: CircuitIndex) -> Gate {
-        let num_inputs = todo!(); // subcircuit.inputs.len();
-        let output_values: Vec<_> = todo!(); // subcircuit.output_values().collect();
-        // TODO: make the subcircuit nodes be connected to these outer nodes, and make the output outer nodes be connected to the output nodes of the subcircuit
+    pub(crate) fn new_subcircuit_gate(index: GateIndex, subcircuit: &Circuit) -> Gate {
+        let num_inputs = subcircuit.inputs.len();
+        let output_nodes = connections::circuit_output_indexes(subcircuit);
+        // TODO: make the subcircuit nodes be connected to these outer nodes
         Gate {
             index,
             kind: GateKind::Custom(
@@ -100,8 +100,8 @@ impl Gate {
                 // gate is displayed normally, and the nodes inside represent the ones shown on the
                 // edges of the screen when the simulation is zoomed into that subcircuit (TODO: implement zooming into subcircuits)
                 (0..num_inputs).map(|_| connections::Node::new_disconnected(Some(index))).collect(),
-                output_values.into_iter().map(|value| connections::Node::new_value(Some(index), value)).collect(),
-                subcircuit,
+                output_nodes.into_iter().map(|value| connections::Node::new_passthrough(Some(index), value.into())).collect(),
+                subcircuit.index,
             ),
             location: (0, 0.0),
             _dont_construct: (),
