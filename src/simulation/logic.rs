@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use super::{Circuit, CircuitIndex, CircuitMap, GateIndex, GateMap};
+use crate::simulation::{Circuit, CircuitIndex, CircuitMap, GateIndex, GateMap};
 
 // TODO: reorganize this module
 

@@ -5,11 +5,10 @@ mod data;
 mod phases;
 
 use crate::simulation;
-use error::File;
 
 pub(crate) fn compile(filename: &str) -> Option<simulation::Simulation> {
     // TODO: do not return result if any errors are generated
-    let file = match File::load(filename) {
+    let file = match error::File::load(filename) {
         Ok(file) => file,
         Err(e) => {
             eprintln!("error: {e}");

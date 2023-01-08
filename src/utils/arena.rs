@@ -62,9 +62,10 @@ impl<T, Id: ArenaId + IsArenaIdFor<T>> Arena<T, Id> {
 // dependant transform things {{{1
 #[macro_use]
 mod dependant_transform {
-    use crate::utils::collect_all::CanCollectAll;
-
-    use super::{ArenaId, IsArenaIdFor};
+    use crate::utils::{
+        arena::{ArenaId, IsArenaIdFor},
+        collect_all::CanCollectAll,
+    };
 
     pub(super) enum ItemState<Annotation, Id, Error> {
         Waiting,
@@ -143,6 +144,7 @@ mod dependant_transform {
 }
 pub(crate) use dependant_transform::DependancyGetter;
 pub(crate) use dependant_transform::SingleTransformResult;
+
 impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original, Id> {
     // TODO: write tests for this
     pub(crate) fn transform_dependant_with_id<Annotation, New, Error>(
