@@ -6,7 +6,7 @@ use crate::{
         error::{CompileError, File, Report},
         phases::convert_circuit1,
     },
-    simulation::{self, logic, location},
+    simulation::{self, location, logic},
     utils::arena,
 };
 
@@ -64,8 +64,8 @@ fn convert_circuit<'file, 'circuit>(
 
     expansion_stack.push(circuit);
 
-    let new_circuit_idx =
-        circuits.insert_with_key(|idx| simulation::Circuit::new(idx, circuit.name.into(), type_context.get(circuit.input_type).size(type_context), type_context.get(circuit.output_type).size(type_context)));
+    let new_circuit_idx = circuits
+        .insert_with_key(|idx| simulation::Circuit::new(idx, circuit.name.into(), type_context.get(circuit.input_type).size(type_context), type_context.get(circuit.output_type).size(type_context)));
     let mut gate_index_map = HashMap::new();
 
     for (old_gate_i, gate) in circuit.iter_gates() {
@@ -98,7 +98,9 @@ fn add_gate<'file, 'circuit>(
             let (expansion_stack, subcircuit_idx) = convert_circuit(circuits, gates, circuit2s, type_context, expansion_stack, subcircuit)?;
             (expansion_stack, gates.insert_with_key(|index| simulation::Gate { index, calculation: logic::Calculation::new_subcircuit(subcircuit_idx), location: location::Location::new() }))
         }
-        circuit2::CircuitOrIntrinsic::Nand => (expansion_stack, gates.insert_with_key(|index| simulation::Gate { index, calculation: logic::Calculation::new_nand(index), location: location::Location::new() })),
+        circuit2::CircuitOrIntrinsic::Nand => {
+            (expansion_stack, gates.insert_with_key(|index| simulation::Gate { index, calculation: logic::Calculation::new_nand(index), location: location::Location::new() }))
+        }
         circuit2::CircuitOrIntrinsic::Const(value) => {
             (expansion_stack, gates.insert_with_key(|index| simulation::Gate { index, calculation: logic::Calculation::new_const(index, *value), location: location::Location::new() }))
         }
