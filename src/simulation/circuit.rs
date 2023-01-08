@@ -21,7 +21,7 @@ pub(crate) struct Gate {
 pub(crate) enum GateKind {
     Nand([connections::Node; 2], [connections::Node; 1]), // TODO: figure out a better way of doing this
     Const([connections::Node; 0], [connections::Node; 1]),
-    Custom(CircuitIndex), // the circuit already contains the input and output nodes
+    Custom(Vec<connections::Node>, Vec<connections::Node>, CircuitIndex),
 }
 
 /* TODO: decide what to do with this
@@ -87,7 +87,25 @@ impl Gate {
         Gate { index, kind: GateKind::Const([], [connections::Node::new_value(Some(index), value)]), location: (0, 0.0), _dont_construct: () }
     }
     pub(crate) fn new_subcircuit_gate(index: GateIndex, subcircuit: CircuitIndex) -> Gate {
-        Gate { index, kind: GateKind::Custom(subcircuit), location: (0, 0.0), _dont_construct: () }
+        let num_inputs = todo!(); // subcircuit.inputs.len();
+        let output_values: Vec<_> = todo!(); // subcircuit.output_values().collect();
+        Gate {
+            index,
+            kind: GateKind::Custom(
+                (0..num_inputs).map(|_| connections::Node::new_disconnected(Some(index))).collect(),
+                output_values.into_iter().map(|value| connections::Node::new_value(Some(index), value)).collect(),
+                subcircuit,
+            ),
+            location: (0, 0.0),
+            _dont_construct: (),
+        }
+    }
+
+    pub(crate) fn num_inputs(&self) -> usize {
+        self.inputs().len()
+    }
+    pub(crate) fn num_outputs(&self) -> usize {
+        self.outputs().len()
     }
 
     pub(crate) fn name(&self) -> String {
@@ -97,11 +115,38 @@ impl Gate {
             GateKind::Const(_, [_]) => todo!(),
             // GateKind::Const(_, [connections::Node { value: true, .. }]) => "true".to_string(),
             // GateKind::Const(_, [connections::Node { value: false, .. }]) => "false".to_string(),
-            GateKind::Custom(subcircuit) =>
+            GateKind::Custom(_, _, subcircuit) =>
             /* subcircuit.borrow().name.clone() */
             {
                 todo!()
             }
+        }
+    }
+
+    pub(crate) fn inputs(&self) -> &[connections::Node] {
+        match &self.kind {
+            GateKind::Nand(i, _) => i,
+            GateKind::Const(i, _) => i,
+            GateKind::Custom(i, _, _) => i,
+        }
+    }
+    pub(crate) fn outputs(&self) -> &[connections::Node] {
+        match &self.kind {
+            GateKind::Nand(_, o) | GateKind::Const(_, o) => o,
+            GateKind::Custom(_, o, _) => o,
+        }
+    }
+    pub(crate) fn inputs_mut(&mut self) -> &mut [connections::Node] {
+        match &mut self.kind {
+            GateKind::Nand(i, _) => i,
+            GateKind::Const(i, _) => i,
+            GateKind::Custom(i, _, _) => i,
+        }
+    }
+    pub(crate) fn outputs_mut(&mut self) -> &mut [connections::Node] {
+        match &mut self.kind {
+            GateKind::Nand(_, o) | GateKind::Const(_, o) => o,
+            GateKind::Custom(_, o, _) => o,
         }
     }
 }
