@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use super::{Circuit, CircuitIndex, GateIndex, CircuitMap, GateMap};
+use super::{Circuit, CircuitIndex, CircuitMap, GateIndex, GateMap};
 
 // TODO: reorganize this module
 
@@ -49,14 +49,14 @@ impl Calculation {
         Calculation { kind: CalculationKind::Custom(subcircuit) }
     }
 
-    pub(crate) fn name(&self) -> String {
+    pub(crate) fn name<'a>(&self, circuits: &'a CircuitMap) -> &'a str {
         // TODO: hopefully somehow turn this into &str
         match self.kind {
-            CalculationKind::Nand(_, _) => "nand".to_string(),
-            CalculationKind::Const(_, [_]) => todo!(),
-            // GateKind::Const(_, [connections::Node { value: true, .. }]) => "true".to_string(),
-            // GateKind::Const(_, [connections::Node { value: false, .. }]) => "false".to_string(),
-            CalculationKind::Custom(subcircuit) => todo!(), /* subcircuit.borrow().name.clone() */
+            CalculationKind::Nand(_, _) => "nand",
+            CalculationKind::Const(_, [Node { value: Value::Manual(false), .. }]) => "false",
+            CalculationKind::Const(_, [Node { value: Value::Manual(true), .. }]) => "true",
+            CalculationKind::Const(_, [Node { value: Value::Passthrough(_), .. }]) => unreachable!("const node with passthrough value"),
+            CalculationKind::Custom(subcircuit) => &circuits[subcircuit].name,
         }
     }
 }
