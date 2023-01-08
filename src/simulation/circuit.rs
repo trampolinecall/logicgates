@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use super::connections;
 
 pub(crate) type CircuitIndex = generational_arena::Index;
@@ -71,15 +69,6 @@ impl Circuit {
     pub(crate) fn set_num_outputs(&mut self, num: usize) {
         self.outputs.resize(num, connections::Receiver::new(None));
     }
-
-    /*
-    pub(crate) fn calculate_locations(&mut self) {
-        let positions = crate::simulation::position::calculate_locations(self);
-        for (gate_i, position) in positions {
-            self.get_gate_mut(gate_i).location = position;
-        }
-    }
-    */
 }
 
 impl Gate {
@@ -123,7 +112,11 @@ impl Gate {
             GateKind::Nand(_, _) => "nand".to_string(),
             GateKind::Const(_, [connections::Producer { value: true, .. }]) => "true".to_string(),
             GateKind::Const(_, [connections::Producer { value: false, .. }]) => "false".to_string(),
-            GateKind::Subcircuit(_, _, subcircuit) => /* subcircuit.borrow().name.clone() */ todo!() ,
+            GateKind::Subcircuit(_, _, subcircuit) =>
+            /* subcircuit.borrow().name.clone() */
+            {
+                todo!()
+            }
         }
     }
 

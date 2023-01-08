@@ -39,6 +39,8 @@ pub(crate) fn convert(file: &File, convert_circuit1::IR { circuits: circuit2s, c
                 }
             };
 
+            simulation::position::calculate_locations(&mut circuits, &mut gates);
+
             Some(simulation::Simulation { circuits, gates, main_circuit })
         } else {
             unreachable!("builtin circuit called main")
@@ -75,8 +77,6 @@ fn convert_circuit<'file, 'circuit>(
     for (producer, receiver) in circuit.iter_connections() {
         connect(circuits, gates, type_context, new_circuit_idx, &mut gate_index_map, producer, receiver);
     }
-
-    todo!(); // new_circuit.calculate_locations(); TODO
 
     assert!(std::ptr::eq(*expansion_stack.last().unwrap(), circuit), "expansion stack should be in the same state as at the start of the function");
     expansion_stack.pop();

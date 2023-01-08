@@ -8,7 +8,12 @@ use super::connections;
 
 // TODO: move this into location component
 
-pub(crate) fn calculate_locations(circuits: &Arena<circuit::Circuit>, gates: &Arena<circuit::Gate>) -> HashMap<circuit::GateIndex, (u32, f64)> {
+pub(crate) fn calculate_locations(circuits: &mut Arena<circuit::Circuit>, gates: &mut Arena<circuit::Gate>) {
+    let locations = calculate_locations_(circuits, gates);
+    apply_locations(circuits, gates, locations);
+}
+
+fn calculate_locations_(circuits: &Arena<circuit::Circuit>, gates: &Arena<circuit::Gate>) -> HashMap<circuit::GateIndex, (u32, f64)> {
     /* old iterative position calculating algorithm based on a loss function and trying to find a minimum loss
     // gate position scoring; lower is better
     let score = |current_idx: usize, current_loc @ [x, y]: [f64; 2], gate: &circuit::Gate| -> f64 {
@@ -94,7 +99,7 @@ pub(crate) fn calculate_locations(circuits: &Arena<circuit::Circuit>, gates: &Ar
     // within each column sort them by the average of their input ys
     let mut ys: BTreeMap<circuit::GateIndex, f64> = gates.iter().map(|(index, _)| (index, 0.0)).collect();
     for x in 1..=*xs.values().max().unwrap_or(&0) {
-        let input_producer_y = |input: connections::GateInputNodeIdx| match connections::get_receiver(circuits, gates, input.into()).producer(){
+        let input_producer_y = |input: connections::GateInputNodeIdx| match connections::get_receiver(circuits, gates, input.into()).producer() {
             Some(producer) => match connections::get_producer(circuits, gates, producer).gate {
                 Some(producer_gate) => ys[&producer_gate], // receiver node connected to other node
                 None => 0.0,                               // receiver node connected to circuit input node
@@ -126,4 +131,10 @@ pub(crate) fn calculate_locations(circuits: &Arena<circuit::Circuit>, gates: &Ar
             (x_gate_index, (gate_x, gate_y))
         })
         .collect()
+}
+
+fn apply_locations(circuits: &mut Arena<circuit::Circuit>, gates: &mut Arena<circuit::Gate>, locations: HashMap<circuit::GateIndex, (u32, f64)>) {
+    for (gate_i, location) in locations {
+        gates[gate_i].location = location;
+    }
 }
