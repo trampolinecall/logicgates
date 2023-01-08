@@ -156,49 +156,47 @@ pub(crate) fn get_node_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut Arena<Circuit>,
 
 pub(crate) fn update(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>) {
     // TODO: make this update stack of nodes instead of of gates
-    let mut stack: Vec<_> = gates.iter().map(|(i, _)| i).collect();
+    let mut update_stack: Vec<_> = gates.iter().map(|(i, _)| i).collect();
     let mut changed = HashSet::new();
-    while let Some(gate) = stack.pop() {
+    while let Some(gate) = update_stack.pop() {
         if changed.contains(&gate) {
             continue;
         }
 
-        let gate_changed = update_gate(circuits, gates, &mut stack, gate);
+        let (old_value, new_value, output_node_idx) = match &gates[gate].kind {
+            GateKind::Nand([_, _], [_]) => {
+                let a_i = GateInputNodeIdx(gate, 0, ()).into();
+                let b_i = GateInputNodeIdx(gate, 1, ()).into();
+
+                let o_i = GateOutputNodeIdx(gate, 0, ()).into();
+
+                (get_node_value(circuits, gates, o_i), !(get_node_value(circuits, gates, a_i) && get_node_value(circuits, gates, b_i)), o_i)
+            }
+            GateKind::Const(_, [_]) => {
+                let o_i = GateOutputNodeIdx(gate, 0, ()).into();
+
+                (get_node_value(circuits, gates, o_i), get_node_value(circuits, gates, o_i), o_i)
+            }
+            GateKind::Custom(_) => continue, // custom gates do not have to compute values because their nodes are connected to their inputs or are passthrough nodes and should automatically have the right values
+        };
+        let gate_changed = old_value != new_value;
+
+        set_node_value(circuits, gates, output_node_idx, Value::Manual(new_value));
+
         if gate_changed {
             changed.insert(gate);
-        }
-    }
-}
 
-fn update_gate(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>, update_stack: &mut Vec<GateIndex>, gate_index: GateIndex) -> bool {
-    let gate = &gates[gate_index];
-    let Some(outputs) = compute(circuits, gates, &gate.kind) else { return false };
-    assert_eq!(outputs.len(), gate_num_outputs(circuits, gates, gate_index));
-
-    let mut changed = false;
-
-    // TODO: merge this with update and compute and clean up
-    for (new_value, output_node) in outputs.into_iter().zip(gate_output_indexes(circuits, gates, gate_index).collect::<Vec<_>>().into_iter()) {
-        // TODO: dont "clone" the iterator
-        let as_producer_index = output_node.into();
-        let old_value = get_node_value(circuits, gates, as_producer_index);
-        if old_value != new_value {
-            changed = true;
-        }
-        set_node_value(circuits, gates, as_producer_index, Value::Manual(new_value));
-
-        for dependant in &get_node(circuits, gates, as_producer_index).dependants {
-            // if there is no dependant gate to update, this node is part of a circuit and even if
-            // that circuit is a subcircuit, updates to this node will (when this is properly
-            // implemented) propagate to this node's dependants, which will update the
-            // those other gates that should be updated
-            if let Some(dependant_gate) = get_node(circuits, gates, *dependant).gate {
-                update_stack.push(dependant_gate);
+            for dependant in &get_node(circuits, gates, output_node_idx).dependants {
+                // if there is no dependant gate to update, this node is part of a circuit and even if
+                // that circuit is a subcircuit, updates to this node will (when this is properly
+                // implemented) propagate to this node's dependants, which will update the
+                // those other gates that should be updated
+                if let Some(dependant_gate) = get_node(circuits, gates, *dependant).gate {
+                    update_stack.push(dependant_gate);
+                }
             }
         }
     }
-
-    changed
 }
 
 pub(crate) fn gate_get_input<'a: 'c, 'b: 'c, 'c>(circuits: &'a Arena<Circuit>, gates: &'b Arena<Gate>, index: GateInputNodeIdx) -> &'c Node {
@@ -274,17 +272,5 @@ pub(crate) fn gate_outputs_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut Arena<Circu
     match &mut gate.kind {
         GateKind::Nand(_, o) | GateKind::Const(_, o) => o,
         GateKind::Custom(circuit_idx) => &mut circuits[*circuit_idx].outputs,
-    }
-}
-
-fn compute(circuits: &Arena<Circuit>, gates: &Arena<Gate>, gate: &GateKind) -> Option<Vec<bool>> {
-    // TODO: merge this function with update
-
-    let get_node_value = |node| get_node_value_not_idx(circuits, gates, node);
-    // TODO: figure out a way for this to set its outputs
-    match gate {
-        GateKind::Nand([a, b], _) => Some(vec![!(get_node_value(a) && get_node_value(b))]),
-        GateKind::Const(_, [o]) => Some(vec![get_node_value(o)]),
-        GateKind::Custom(_) => None, // custom gates do not have to compute values because their nodes are connected to their inputs or are passthrough nodes and should automatically have the right values
     }
 }
