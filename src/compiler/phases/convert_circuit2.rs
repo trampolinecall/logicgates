@@ -69,7 +69,7 @@ fn convert_circuit<'file, 'circuit>(
     let mut gate_index_map = HashMap::new();
 
     for (old_gate_i, gate) in circuit.iter_gates() {
-        let (expansion_stack_2, new_gate_i) = add_gate(circuits, gates, circuit2s, type_context, expansion_stack, *gate)?;
+        let (expansion_stack_2, new_gate_i) = add_gate(circuits, gates, circuit2s, type_context, expansion_stack, *gate, new_circuit_idx)?;
         expansion_stack = expansion_stack_2;
         gate_index_map.insert(old_gate_i, new_gate_i);
     }
@@ -91,15 +91,19 @@ fn add_gate<'file, 'circuit>(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     expansion_stack: ExpandedStack<'file, 'circuit>,
     circuit_id: circuit1::CircuitOrIntrinsicId,
+    new_circuit_idx: circuit::CircuitIndex,
 ) -> Result<(ExpandedStack<'file, 'circuit>, circuit::GateIndex), InfiniteRecursion<'file, 'circuit>> {
-    match circuit2s.get(circuit_id) {
+    let (expansion_stack, gate_idx) = match circuit2s.get(circuit_id) {
         circuit2::CircuitOrIntrinsic::Custom(subcircuit) => {
             let (expansion_stack, subcircuit) = convert_circuit(circuits, gates, circuit2s, type_context, expansion_stack, subcircuit)?;
-            Ok((expansion_stack, gates.insert_with(|index| circuit::Gate::new_subcircuit_gate(index, &circuits[subcircuit]))))
+            (expansion_stack, gates.insert_with(|index| circuit::Gate::new_subcircuit_gate(index, &circuits[subcircuit])))
         }
-        circuit2::CircuitOrIntrinsic::Nand => Ok((expansion_stack, gates.insert_with(|index| circuit::Gate::new_nand_gate(index)))),
-        circuit2::CircuitOrIntrinsic::Const(value) => Ok((expansion_stack, gates.insert_with(|index| circuit::Gate::new_const_gate(index, *value)))),
-    }
+        circuit2::CircuitOrIntrinsic::Nand => (expansion_stack, gates.insert_with(circuit::Gate::new_nand_gate)),
+        circuit2::CircuitOrIntrinsic::Const(value) => (expansion_stack, gates.insert_with(|index| circuit::Gate::new_const_gate(index, *value))),
+    };
+
+    circuits[new_circuit_idx].gates.push(gate_idx);
+    Ok((expansion_stack, gate_idx))
 }
 
 fn connect(

@@ -249,6 +249,6 @@ fn compute(circuits: &Arena<Circuit>, gates: &Arena<Gate>, gate: &GateKind) -> O
     match gate {
         GateKind::Nand([a, b], _) => Some(vec![!(get_node_value(a) && get_node_value(b))]),
         GateKind::Const(_, [o]) => Some(vec![get_node_value(o)]),
-        GateKind::Custom(inputs, _, subcircuit) => None, // custom gates do not have to compute values because their nodes are passthrough nodes and should automatically be connected to the correct things
+        GateKind::Custom(_, _, _) => None, // custom gates do not have to compute values because their nodes are passthrough nodes and should automatically be connected to the correct things
     }
 }
