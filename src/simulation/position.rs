@@ -82,8 +82,6 @@ fn calculate_locations_(circuits: &Arena<circuit::Circuit>, gates: &Arena<circui
 
     // gates in subcircuits just get processed based on the other gates they are connected to, meaning that their positions are independent of the positions of the gates in the supercircuits
 
-    todo!()
-    /*
     // group them into columns with each one going one column right of its rightmost dependency
     let mut xs: BTreeMap<circuit::GateIndex, u32> = gates.iter().map(|(g_i, _)| (g_i, 0)).collect();
     // TODO: this has to run repeatedly in case the gates are not in topologically sorted order
@@ -133,7 +131,6 @@ fn calculate_locations_(circuits: &Arena<circuit::Circuit>, gates: &Arena<circui
             (x_gate_index, (gate_x, gate_y))
         })
         .collect()
-    */
 }
 
 fn apply_locations(circuits: &mut Arena<circuit::Circuit>, gates: &mut Arena<circuit::Gate>, locations: HashMap<circuit::GateIndex, (u32, f64)>) {
