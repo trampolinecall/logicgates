@@ -10,7 +10,7 @@ use super::connections;
 
 pub(crate) fn calculate_locations(circuits: &mut Arena<circuit::Circuit>, gates: &mut Arena<circuit::Gate>) {
     let locations = calculate_locations_(circuits, gates);
-    apply_locations(circuits, gates, locations);
+    apply_locations(gates, locations);
 }
 
 fn calculate_locations_(circuits: &Arena<circuit::Circuit>, gates: &Arena<circuit::Gate>) -> HashMap<circuit::GateIndex, (u32, f64)> {
@@ -85,7 +85,7 @@ fn calculate_locations_(circuits: &Arena<circuit::Circuit>, gates: &Arena<circui
     // group them into columns with each one going one column right of its rightmost dependency
     let mut xs: BTreeMap<circuit::GateIndex, u32> = gates.iter().map(|(g_i, _)| (g_i, 0)).collect();
     // TODO: this has to run repeatedly in case the gates are not in topologically sorted order
-    for (gate_i, gate) in gates.iter() {
+    for (gate_i, _) in gates.iter() {
         let input_producer_x = |input: connections::GateInputNodeIdx| match connections::get_node(circuits, gates, input.into()).producer() {
             Some(producer) => match connections::get_node(circuits, gates, producer).gate {
                 Some(producer_gate) => xs[&producer_gate], // receiver node connected to other gate output node
@@ -107,7 +107,7 @@ fn calculate_locations_(circuits: &Arena<circuit::Circuit>, gates: &Arena<circui
             None => 0.0, // receiver node not connected
         };
         let mut on_current_column: Vec<_> = gates.iter().filter(|(gate_i, _)| xs[gate_i] == x).collect();
-        on_current_column.sort_by(|(gate1_i, gate1), (gate2_i, gate2)| {
+        on_current_column.sort_by(|(gate1_i, _), (gate2_i, _)| {
             let gate1_y = connections::gate_input_indexes(circuits, gates, *gate1_i).map(input_producer_y).sum::<f64>(); // sum can be used as average because they are only being compared to each other
             let gate2_y = connections::gate_input_indexes(circuits, gates, *gate2_i).map(input_producer_y).sum::<f64>();
             gate1_y.partial_cmp(&gate2_y).unwrap()
@@ -115,9 +115,9 @@ fn calculate_locations_(circuits: &Arena<circuit::Circuit>, gates: &Arena<circui
 
         // set the y values
         const PADDING: f64 = 20.0;
-        let all_height: f64 = on_current_column.iter().map(|(g_i, g)| draw::gate_display_size(circuits, gates, *g_i)[1]).sum::<f64>() + PADDING * (on_current_column.len() - 1) as f64;
+        let all_height: f64 = on_current_column.iter().map(|(g_i, _)| draw::gate_display_size(circuits, gates, *g_i)[1]).sum::<f64>() + PADDING * (on_current_column.len() - 1) as f64;
         let mut start_y = -all_height / 2.0;
-        for (gate_i, gate) in &on_current_column {
+        for (gate_i, _) in &on_current_column {
             ys.insert(*gate_i, start_y);
             start_y += draw::gate_display_size(circuits, gates, *gate_i)[1];
             start_y += PADDING;
@@ -133,7 +133,7 @@ fn calculate_locations_(circuits: &Arena<circuit::Circuit>, gates: &Arena<circui
         .collect()
 }
 
-fn apply_locations(circuits: &mut Arena<circuit::Circuit>, gates: &mut Arena<circuit::Gate>, locations: HashMap<circuit::GateIndex, (u32, f64)>) {
+fn apply_locations(gates: &mut Arena<circuit::Gate>, locations: HashMap<circuit::GateIndex, (u32, f64)>) {
     for (gate_i, location) in locations {
         gates[gate_i].location = location;
     }

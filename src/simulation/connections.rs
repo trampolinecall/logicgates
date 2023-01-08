@@ -87,12 +87,6 @@ pub(crate) fn circuit_input_indexes(circuit: &Circuit) -> impl Iterator<Item = C
 pub(crate) fn circuit_output_indexes(circuit: &Circuit) -> impl Iterator<Item = CircuitOutputNodeIdx> + '_ {
     (0..circuit.outputs.len()).map(|i| CircuitOutputNodeIdx(circuit.index, i, ()))
 }
-/*
-pub(crate) fn circuit_output_values<'c>(circuits: &'c Arena<Circuit>, gates: &'c Arena<Gate>, circuit: CircuitIndex) -> impl Iterator<Item = bool> + 'c {
-    // TODO: take this logic to check the producer of a receiver node out from everywhere it is used and put it into a method
-    circuits[circuit].outputs.iter().map(|output| if let Some(producer) = output.producer() { get_node(circuits, gates, producer).value } else { false })
-}
-*/
 
 // TODO: test connection, replacing old connection, also rename to set_node_value_passthrough or something like that
 pub(crate) fn connect(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>, producer_idx: NodeIdx, receiver_idx: NodeIdx) {
@@ -102,6 +96,7 @@ pub(crate) fn connect(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>, pr
 pub(crate) fn disconnect(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>, node: NodeIdx) {
     set_node_value(circuits, gates, node, Value::Disconnected)
 }
+
 pub(crate) fn get_node_value(circuits: &Arena<Circuit>, gates: &Arena<Gate>, node: NodeIdx) -> bool {
     let node = get_node(circuits, gates, node);
     get_node_value_not_idx(circuits, gates, node)
@@ -114,6 +109,7 @@ fn get_node_value_not_idx(circuits: &Arena<Circuit>, gates: &Arena<Gate>, node: 
         Value::Disconnected => false,
     }
 }
+
 // TODO: test every possibility
 fn set_node_value(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>, index: NodeIdx, new_value: Value) {
     // remove any existing connection:
@@ -239,7 +235,7 @@ pub(crate) fn gate_input_indexes(circuits: &Arena<Circuit>, gates: &Arena<Gate>,
     // a bit strange because GateIndex is Copy so it really shouldnt have to be moved (?)
 }
 
-pub(crate) fn gate_output_indexes<'a, 'b, 'c>(circuits: &'a Arena<Circuit>, gates: &'b Arena<Gate>, gate: GateIndex) -> impl ExactSizeIterator<Item = GateOutputNodeIdx> {
+pub(crate) fn gate_output_indexes(circuits: &Arena<Circuit>, gates: &Arena<Gate>, gate: GateIndex) -> impl ExactSizeIterator<Item = GateOutputNodeIdx> {
     (0..gate_num_outputs(circuits, gates, gate)).map(move |i| GateOutputNodeIdx(gate, i, ()))
 }
 pub(crate) fn gate_num_inputs(circuits: &Arena<Circuit>, gates: &Arena<Gate>, gate: GateIndex) -> usize {
