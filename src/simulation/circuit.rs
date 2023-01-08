@@ -48,7 +48,7 @@ impl Circuit {
             index,
             name,
             gates: Vec::new(),
-            inputs: std::iter::repeat_with(|| connections::Node::new_value(None, false)).take(num_inputs).collect(),
+            inputs: std::iter::repeat_with(|| connections::Node::new_disconnected(None)).take(num_inputs).collect(),
             outputs: std::iter::repeat_with(|| connections::Node::new_disconnected(None)).take(num_outputs).collect(),
         }
     }
@@ -66,8 +66,9 @@ impl Circuit {
         todo!()
     }
 
+    // TODO: update subcircuit amount of gates if this is in a subcircuit
     pub(crate) fn set_num_inputs(&mut self, num: usize) {
-        self.inputs.resize(num, connections::Node::new_value(None, false));
+        self.inputs.resize(num, connections::Node::new_disconnected(None));
     }
     pub(crate) fn set_num_outputs(&mut self, num: usize) {
         self.outputs.resize(num, connections::Node::new_disconnected(None));
