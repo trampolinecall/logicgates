@@ -1,5 +1,7 @@
+use generational_arena::Arena;
+
 use crate::simulation::{
-    circuit::{Circuit, Gate},
+    circuit::{Circuit, CircuitIndex, Gate},
     connections::{self, GateInputNodeIdx, GateOutputNodeIdx, ProducerIdx, ReceiverIdx},
 };
 
@@ -13,9 +15,10 @@ const GATE_COLOR: [f32; 4] = [0.584, 0.647, 0.65, 1.0];
 const ON_COLOR: [f32; 4] = [0.18, 0.8, 0.521, 1.0];
 const OFF_COLOR: [f32; 4] = [0.498, 0.549, 0.552, 1.0];
 
-pub(crate) fn render(circuit: &Circuit, graphics: &mut opengl_graphics::GlGraphics, args: &piston::RenderArgs) {
+pub(crate) fn render(circuits: &Arena<Circuit>, gates: &Arena<Gate>, circuit: CircuitIndex, graphics: &mut opengl_graphics::GlGraphics, args: &piston::RenderArgs) {
     use graphics::*;
 
+    let circuit = &circuits[circuit];
     graphics.draw(args.viewport(), |c, gl| {
         clear(BG, gl);
 
@@ -26,18 +29,19 @@ pub(crate) fn render(circuit: &Circuit, graphics: &mut opengl_graphics::GlGraphi
         }
         for (output_i, output) in connections::circuit_output_indexes(circuit).enumerate() {
             let output_pos = circuit_output_pos(circuit, args, output_i);
-            let color = receiver_color(circuit, output.into());
+            let color = receiver_color(circuits, gates, output.into());
             ellipse(color, ellipse::circle(output_pos[0], output_pos[1], CIRCLE_RAD), c.transform, gl);
 
             // draw lines connecting outputs with their values
-            if let Some(producer) = connections::get_receiver(circuit, output.into()).producer(){
-                let connection_start_pos = producer_pos(circuit, args, producer);
+            if let Some(producer) = connections::get_receiver(circuits, gates, output.into()).producer() {
+                let connection_start_pos = producer_pos(circuit, gates, args, producer);
                 line_from_to(color, CONNECTION_RAD, connection_start_pos, output_pos, c.transform, gl);
             }
         }
 
         // draw each gate
-        for (_, gate) in circuit.gates.iter() {
+        for gate in circuit.gates.iter() {
+            let gate = &gates[*gate];
             let [gate_x, gate_y, gate_width, gate_height] = gate_box(args, gate);
 
             rectangle(GATE_COLOR, [gate_x, gate_y, gate_width, gate_height], c.transform, gl);
@@ -46,19 +50,19 @@ pub(crate) fn render(circuit: &Circuit, graphics: &mut opengl_graphics::GlGraphi
 
             // draw gate input dots and connections to their values
             for input_receiver in connections::gate_inputs(gate) {
-                let color = receiver_color(circuit, input_receiver.into());
-                let input_pos @ [x, y] = gate_input_pos(circuit, args, input_receiver);
+                let color = receiver_color(circuits, gates, input_receiver.into());
+                let input_pos @ [x, y] = gate_input_pos(gates, args, input_receiver);
                 ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
 
-                if let Some(producer) = connections::get_receiver(circuit, input_receiver.into()).producer(){
-                    let connection_start_pos = producer_pos(circuit, args, producer);
+                if let Some(producer) = connections::get_receiver(circuits, gates, input_receiver.into()).producer() {
+                    let connection_start_pos = producer_pos(circuit, gates, args, producer);
                     line_from_to(color, CONNECTION_RAD, connection_start_pos, input_pos, c.transform, gl);
                 }
             }
             // draw gate output dots
             for output in connections::gate_outputs(gate) {
-                let color = producer_color(circuit, output.into());
-                let [x, y] = gate_output_pos(circuit, args, output);
+                let color = producer_color(circuits, gates, output.into());
+                let [x, y] = gate_output_pos(gates, args, output);
                 ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
             }
         }
@@ -92,21 +96,21 @@ fn circuit_output_pos(circuit: &Circuit, args: &piston::RenderArgs, index: usize
     [args.window_size[0], centered_arg_y(args.window_size[1] / 2.0, circuit.outputs.len(), index)]
 }
 
-fn gate_input_pos(circuit: &Circuit, args: &piston::RenderArgs, input_idx: GateInputNodeIdx) -> [f64; 2] {
-    let gate = &circuit.gates[input_idx.0];
+fn gate_input_pos(gates: &Arena<Gate>, args: &piston::RenderArgs, input_idx: GateInputNodeIdx) -> [f64; 2] {
+    let gate = &gates[input_idx.0];
     let [gate_x, gate_y, _, gate_height] = gate_box(args, gate);
     [gate_x, centered_arg_y(gate_y + gate_height / 2.0, gate.num_inputs(), input_idx.1)]
 }
-fn gate_output_pos(circuit: &Circuit, args: &piston::RenderArgs, output_idx: GateOutputNodeIdx) -> [f64; 2] {
-    let gate = &circuit.gates[output_idx.0];
+fn gate_output_pos(gates: &Arena<Gate>, args: &piston::RenderArgs, output_idx: GateOutputNodeIdx) -> [f64; 2] {
+    let gate = &gates[output_idx.0];
     let [gate_x, gate_y, gate_width, gate_height] = gate_box(args, gate);
     [gate_x + gate_width, centered_arg_y(gate_y + gate_height / 2.0, gate.num_outputs(), output_idx.1)]
 }
 
-fn producer_pos(circuit: &Circuit, args: &piston::RenderArgs, node: ProducerIdx) -> [f64; 2] {
+fn producer_pos(circuit: &Circuit, gates: &Arena<Gate>, args: &piston::RenderArgs, node: ProducerIdx) -> [f64; 2] {
     match node {
-        ProducerIdx::CI(ci) => circuit_input_pos(circuit, args, ci.0),
-        ProducerIdx::GO(go) => gate_output_pos(circuit, args, go),
+        ProducerIdx::CI(ci) => circuit_input_pos(circuit, args, ci.1),
+        ProducerIdx::GO(go) => gate_output_pos(gates, args, go),
     }
 }
 /* (unused)
@@ -124,9 +128,9 @@ fn bool_color(value: bool) -> [f32; 4] {
         OFF_COLOR
     }
 }
-fn producer_color(circuit: &Circuit, producer: ProducerIdx) -> [f32; 4] {
-    bool_color(connections::get_producer(circuit, producer).value)
+fn producer_color(circuits: &Arena<Circuit>, gates: &Arena<Gate>, producer: ProducerIdx) -> [f32; 4] {
+    bool_color(connections::get_producer(circuits, gates, producer).value)
 }
-fn receiver_color(circuit: &Circuit, receiver: ReceiverIdx) -> [f32; 4] {
-    bool_color(if let Some(producer) = connections::get_receiver(circuit, receiver).producer(){ connections::get_producer(circuit, producer).value } else { false })
+fn receiver_color(circuits: &Arena<Circuit>, gates: &Arena<Gate>, receiver: ReceiverIdx) -> [f32; 4] {
+    bool_color(if let Some(producer) = connections::get_receiver(circuits, gates, receiver).producer() { connections::get_producer(circuits, gates, producer).value } else { false })
 }
