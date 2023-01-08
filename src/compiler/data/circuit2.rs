@@ -39,36 +39,7 @@ pub(crate) enum CircuitOrIntrinsic<'file> {
 
 /*
 impl Gate {
-    fn input_type(&self, circuits: arena::Arena<circuit1::TypedCircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>, type_context: &mut ty::TypeContext<nominal_type::FullyDefinedNamedType>) -> ty::TypeSym {
-        match self {
-            Gate::Custom(Circuit { input_type, output_type: _, gates: _, connections: _, name: _ }) => *input_type,
-            Gate::Nand => {
-                let b = type_context.intern(ty::Type::Bit);
-                type_context.intern(ty::Type::Product(vec![("0".into(), b), ("1".into(), b)]))
-            }
-            Gate::Const(_) => type_context.intern(ty::Type::Product(vec![])),
-        }
-    }
-    fn output_type(&self, type_context: &mut ty::TypeContext<nominal_type::FullyDefinedNamedType>) -> ty::TypeSym {
-        match self {
-            Gate::Custom(Circuit { input_type: _, output_type, gates: _, connections: _, name: _ }) => *output_type,
-            Gate::Nand | Gate::Const(_) => type_context.intern(ty::Type::Bit),
-        }
-    }
-
-    /*
-    pub(crate) fn add_gate(&self, types: &ty::Types, circuit: &mut circuit::Circuit) -> (bundle::ReceiverBundle, bundle::ProducerBundle) {
-        let gate_i = match self {
-            Circuit::Circuit { circuit: circuit_def, input_type: _, result_type: _ } => circuit.new_subcircuit_gate(circuit_def.clone()),
-            Circuit::Nand { input_type: _, result_type: _ } => circuit.new_nand_gate(),
-            Circuit::Const { value, input_type: _, result_type: _ } => circuit.new_const_gate(*value),
-        };
-
-        let input_bundle = self.make_receiver_bundle(types, &mut circuit.get_gate(gate_i).inputs().map(Into::into));
-        let output_bundle = self.make_producer_bundle(types, &mut circuit.get_gate(gate_i).outputs().map(Into::into));
-
-        (input_bundle, output_bundle)
-    }
+    // this is kept for when i implement inlining gates
     pub(crate) fn inline_gate(&self, types: &ty::Types, circuit: &mut circuit::Circuit) -> (bundle::ReceiverBundle, bundle::ProducerBundle) {
         if let Circuit::Circuit { circuit: subcircuit, input_type: _, result_type: _ } = self {
             use crate::circuit::GateIndex;
@@ -123,7 +94,6 @@ impl Gate {
             self.add_gate(types, circuit)
         }
     }
-    */
 }
 */
 impl<'file> Circuit<'file> {
