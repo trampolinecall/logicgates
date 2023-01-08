@@ -1,15 +1,13 @@
 use generational_arena::Arena;
 use std::cell::RefCell;
 
-use crate::simulation::connections::{GateInputNodeIdx, GateOutputNodeIdx};
-
-use super::connections::{self, Producer, ProducerIdx, Receiver, ReceiverIdx};
+use super::connections;
 
 pub(crate) struct Circuit {
     pub(crate) name: String,
     pub(crate) gates: Arena<Gate>,
-    pub(crate) inputs: Vec<Producer>,
-    pub(crate) outputs: Vec<Receiver>,
+    pub(crate) inputs: Vec<connections::Producer>,
+    pub(crate) outputs: Vec<connections::Receiver>,
 }
 
 pub(crate) type GateIndex = generational_arena::Index;
@@ -21,9 +19,9 @@ pub(crate) struct Gate {
 }
 
 pub(crate) enum GateKind {
-    Nand([Receiver; 2], [Producer; 1]), // TODO: figure out a better way of doing this
-    Const([Receiver; 0], [Producer; 1]),
-    Subcircuit(Vec<Receiver>, Vec<Producer>, RefCell<Circuit>),
+    Nand([connections::Receiver; 2], [connections::Producer; 1]), // TODO: figure out a better way of doing this
+    Const([connections::Receiver; 0], [connections::Producer; 1]),
+    Subcircuit(Vec<connections::Receiver>, Vec<connections::Producer>, RefCell<Circuit>),
 }
 
 /* TODO: decide what to do with this
@@ -46,8 +44,8 @@ impl Circuit {
         Self {
             name,
             gates: Arena::new(),
-            inputs: std::iter::repeat_with(|| Producer::new(None, false)).take(num_inputs).collect(),
-            outputs: std::iter::repeat_with(|| Receiver::new(None)).take(num_outputs).collect(),
+            inputs: std::iter::repeat_with(|| connections::Producer::new(None, false)).take(num_inputs).collect(),
+            outputs: std::iter::repeat_with(|| connections::Receiver::new(None)).take(num_outputs).collect(),
         }
     }
 
@@ -66,10 +64,14 @@ impl Circuit {
     // TODO: tests
     // default value for the outputs is whatever value results from having all false inputs
     pub(crate) fn new_nand_gate(&mut self) -> GateIndex {
-        self.gates.insert_with(|index| Gate { index, kind: GateKind::Nand([Receiver::new(Some(index)), Receiver::new(Some(index))], [Producer::new(Some(index), true)]), location: (0, 0.0) })
+        self.gates.insert_with(|index| Gate {
+            index,
+            kind: GateKind::Nand([connections::Receiver::new(Some(index)), connections::Receiver::new(Some(index))], [connections::Producer::new(Some(index), true)]),
+            location: (0, 0.0),
+        })
     }
     pub(crate) fn new_const_gate(&mut self, value: bool) -> GateIndex {
-        self.gates.insert_with(|index| Gate { index, kind: GateKind::Const([], [Producer::new(Some(index), value)]), location: (0, 0.0) })
+        self.gates.insert_with(|index| Gate { index, kind: GateKind::Const([], [connections::Producer::new(Some(index), value)]), location: (0, 0.0) })
     }
     pub(crate) fn new_subcircuit_gate(&mut self, subcircuit: Circuit) -> GateIndex {
         let num_inputs = subcircuit.inputs.len();
@@ -77,8 +79,8 @@ impl Circuit {
         self.gates.insert_with(|index| Gate {
             index,
             kind: GateKind::Subcircuit(
-                (0..num_inputs).map(|_| Receiver::new(Some(index))).collect(),
-                output_values.into_iter().map(|value| Producer::new(Some(index), value)).collect(),
+                (0..num_inputs).map(|_| connections::Receiver::new(Some(index))).collect(),
+                output_values.into_iter().map(|value| connections::Producer::new(Some(index), value)).collect(),
                 RefCell::new(subcircuit),
             ),
             location: (0, 0.0),
@@ -90,10 +92,10 @@ impl Circuit {
     }
 
     pub(crate) fn set_num_inputs(&mut self, num: usize) {
-        self.inputs.resize(num, Producer::new(None, false));
+        self.inputs.resize(num, connections::Producer::new(None, false));
     }
     pub(crate) fn set_num_outputs(&mut self, num: usize) {
-        self.outputs.resize(num, Receiver::new(None));
+        self.outputs.resize(num, connections::Receiver::new(None));
     }
 
     pub(crate) fn get_gate(&self, index: GateIndex) -> &Gate {
@@ -123,33 +125,33 @@ impl Gate {
         // TODO: hopefully somehow turn this into &str
         match &self.kind {
             GateKind::Nand(_, _) => "nand".to_string(),
-            GateKind::Const(_, [Producer { value: true, .. }]) => "true".to_string(),
-            GateKind::Const(_, [Producer { value: false, .. }]) => "false".to_string(),
+            GateKind::Const(_, [connections::Producer { value: true, .. }]) => "true".to_string(),
+            GateKind::Const(_, [connections::Producer { value: false, .. }]) => "false".to_string(),
             GateKind::Subcircuit(_, _, subcircuit) => subcircuit.borrow().name.clone(),
         }
     }
 
-    pub(crate) fn _inputs(&self) -> &[Receiver] {
+    pub(crate) fn _inputs(&self) -> &[connections::Receiver] {
         match &self.kind {
             GateKind::Nand(i, _) => i,
             GateKind::Const(i, _) => i,
             GateKind::Subcircuit(i, _, _) => i,
         }
     }
-    pub(crate) fn _outputs(&self) -> &[Producer] {
+    pub(crate) fn _outputs(&self) -> &[connections::Producer] {
         match &self.kind {
             GateKind::Nand(_, o) | GateKind::Const(_, o) => o,
             GateKind::Subcircuit(_, o, _) => o,
         }
     }
-    pub(crate) fn _inputs_mut(&mut self) -> &mut [Receiver] {
+    pub(crate) fn _inputs_mut(&mut self) -> &mut [connections::Receiver] {
         match &mut self.kind {
             GateKind::Nand(i, _) => i,
             GateKind::Const(i, _) => i,
             GateKind::Subcircuit(i, _, _) => i,
         }
     }
-    pub(crate) fn _outputs_mut(&mut self) -> &mut [Producer] {
+    pub(crate) fn _outputs_mut(&mut self) -> &mut [connections::Producer] {
         match &mut self.kind {
             GateKind::Nand(_, o) | GateKind::Const(_, o) => o,
             GateKind::Subcircuit(_, o, _) => o,
