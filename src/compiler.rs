@@ -4,10 +4,10 @@ mod error;
 mod data;
 mod phases;
 
-use crate::simulation::circuit;
+use crate::simulation;
 use error::File;
 
-pub(crate) fn compile(filename: &str) -> Option<circuit::Circuit> {
+pub(crate) fn compile(filename: &str) -> Option<simulation::Simulation> {
     // TODO: do not return result if any errors are generated
     let file = match File::load(filename) {
         Ok(file) => file,
