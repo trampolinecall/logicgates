@@ -153,38 +153,27 @@ pub(crate) fn circuit_output_indexes(circuit: &Circuit) -> impl Iterator<Item = 
 }
 pub(crate) fn gate_input_indexes(circuits: &CircuitMap, gates: &GateMap, gate: GateIndex) -> impl ExactSizeIterator<Item = GateInputNodeIdx> {
     (0..gate_num_inputs(circuits, gates, gate)).map(move |i| GateInputNodeIdx(gate, i, ()))
-    // a bit strange because GateIndex is Copy so it really shouldnt have to be moved (?)
 }
 pub(crate) fn gate_output_indexes(circuits: &CircuitMap, gates: &GateMap, gate: GateIndex) -> impl ExactSizeIterator<Item = GateOutputNodeIdx> {
     (0..gate_num_outputs(circuits, gates, gate)).map(move |i| GateOutputNodeIdx(gate, i, ()))
 }
 // getting nodes {{{1
 pub(crate) fn gate_get_input<'a: 'c, 'b: 'c, 'c>(circuits: &'a CircuitMap, gates: &'b GateMap, index: GateInputNodeIdx) -> &'c Node {
-    // let name = gates[index.0].name();
     let inputs = gate_inputs(circuits, gates, index.0);
-    // inputs.get(index.1).unwrap_or_else(|| panic!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", index.1, name, inputs.len()))
     inputs.get(index.1).unwrap()
 }
 pub(crate) fn gate_get_input_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, gates: &'b mut GateMap, index: GateInputNodeIdx) -> &'c mut Node {
-    // let name = gates[index.0].name();
     let inputs = gate_inputs_mut(circuits, gates, index.0);
-    // let len = inputs.len();
-    // inputs.get_mut(index.1).unwrap_or_else(|| panic!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", index.1, name, len))
     inputs.get_mut(index.1).unwrap()
     // TODO: there is probably a better way of doing this that doesnt need this code to be copy pasted
     // TODO: there is also probably a better way of doing this that doesnt need
 }
 pub(crate) fn gate_get_output<'a: 'c, 'b: 'c, 'c>(circuits: &'a CircuitMap, gates: &'b GateMap, index: GateOutputNodeIdx) -> &'c Node {
-    // let name = gates[index.0].name();
     let outputs = gate_outputs(circuits, gates, index.0);
-    // outputs.get(index.1).unwrap_or_else(|| panic!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, name, outputs.len()))
     outputs.get(index.1).unwrap()
 }
 pub(crate) fn gate_get_output_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, gates: &'b mut GateMap, index: GateOutputNodeIdx) -> &'c mut Node {
-    // let name = gates[index.0].name();
     let outputs = gate_outputs_mut(circuits, gates, index.0);
-    // let len = outputs.len();
-    // outputs.get_mut(index.1).unwrap_or_else(|| panic!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, name, len))
     outputs.get_mut(index.1).unwrap()
 }
 
@@ -205,7 +194,7 @@ pub(crate) fn get_node_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, gat
     }
 }
 // node values {{{1
-// TODO: test connection, replacing old connection, also rename to set_node_value_passthrough or something like that
+// TODO: test connection, replacing old connection
 pub(crate) fn connect(circuits: &mut CircuitMap, gates: &mut GateMap, producer_idx: NodeIdx, receiver_idx: NodeIdx) {
     set_node_value(circuits, gates, receiver_idx, Value::Passthrough(producer_idx))
 }
@@ -225,8 +214,7 @@ pub(crate) fn get_node_value(circuits: &CircuitMap, gates: &GateMap, node: NodeI
 // TODO: test every possibility
 fn set_node_value(circuits: &mut CircuitMap, gates: &mut GateMap, index: NodeIdx, new_value: Value) {
     // remove any existing connection:
-    let node = get_node_mut(circuits, gates, index);
-    if let Value::Passthrough(other_idx) = node.value {
+    if let Value::Passthrough(other_idx) = get_node(circuits, gates, index).value {
         let other = get_node_mut(circuits, gates, other_idx);
         other.dependants.remove(&index);
     }
@@ -280,14 +268,15 @@ pub(crate) fn update(circuits: &mut CircuitMap, gates: &mut GateMap) {
         if gate_changed {
             changed.insert(gate);
 
-            for dependant in &get_node(circuits, gates, output_node_idx).dependants {
-                // if there is no dependant gate to update, this node is part of a circuit and even if
-                // that circuit is a subcircuit, updates to this node will (when this is properly
-                // implemented) propagate to this node's dependants, which will update the
-                // those other gates that should be updated
-                if let Some(dependant_gate) = get_node(circuits, gates, *dependant).gate {
+            // recursively propogate to this nodes dependencies, and then the dependencies' dependencies, ...
+            let mut dependant_stack = vec![output_node_idx];
+            while let Some(dependant) = dependant_stack.pop() {
+                let dependant = get_node(circuits, gates, dependant);
+                if let Some(dependant_gate) = dependant.gate {
                     update_stack.push(dependant_gate);
                 }
+
+                dependant_stack.extend(&dependant.dependants);
             }
         }
     }
