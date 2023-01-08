@@ -6,7 +6,7 @@ use crate::{
         error::{CompileError, File, Report},
         phases::convert_circuit1,
     },
-    simulation::{self, circuit, connections},
+    simulation::{self, circuit, logic},
     utils::arena,
 };
 
@@ -96,10 +96,12 @@ fn add_gate<'file, 'circuit>(
     let (expansion_stack, gate_idx) = match circuit2s.get(circuit_id) {
         circuit2::CircuitOrIntrinsic::Custom(subcircuit) => {
             let (expansion_stack, subcircuit_idx) = convert_circuit(circuits, gates, circuit2s, type_context, expansion_stack, subcircuit)?;
-            (expansion_stack, gates.insert_with(|index| circuit::Gate::new_subcircuit_gate(index, subcircuit_idx)))
+            (expansion_stack, gates.insert_with(|index| circuit::Gate { index, calculation: logic::Calculation::new_subcircuit(subcircuit_idx), location: (0, 0.0) }))
         }
-        circuit2::CircuitOrIntrinsic::Nand => (expansion_stack, gates.insert_with(circuit::Gate::new_nand_gate)),
-        circuit2::CircuitOrIntrinsic::Const(value) => (expansion_stack, gates.insert_with(|index| circuit::Gate::new_const_gate(index, *value))),
+        circuit2::CircuitOrIntrinsic::Nand => (expansion_stack, gates.insert_with(|index| circuit::Gate { index, calculation: logic::Calculation::new_nand(index), location: (0, 0.0) })),
+        circuit2::CircuitOrIntrinsic::Const(value) => {
+            (expansion_stack, gates.insert_with(|index| circuit::Gate { index, calculation: logic::Calculation::new_const(index, *value), location: (0, 0.0) }))
+        }
     };
 
     circuits[new_circuit_idx].gates.push(gate_idx);
@@ -115,13 +117,13 @@ fn connect(
     producer: &circuit2::bundle::ProducerBundle,
     receiver: &circuit2::bundle::ReceiverBundle,
 ) {
-    let producer_nodes: Vec<connections::NodeIdx> = convert_producer_bundle(circuits, gates, type_context, new_circuit, gate_index_map, producer);
-    let receiver_nodes: Vec<connections::NodeIdx> = convert_receiver_bundle(circuits, gates, type_context, new_circuit, gate_index_map, receiver);
+    let producer_nodes: Vec<logic::NodeIdx> = convert_producer_bundle(circuits, gates, type_context, new_circuit, gate_index_map, producer);
+    let receiver_nodes: Vec<logic::NodeIdx> = convert_receiver_bundle(circuits, gates, type_context, new_circuit, gate_index_map, receiver);
 
     assert_eq!(producer_nodes.len(), receiver_nodes.len(), "connecting producer and receiver that have different size");
 
     for (p, r) in producer_nodes.into_iter().zip(receiver_nodes) {
-        connections::connect(circuits, gates, p, r);
+        logic::connect(circuits, gates, p, r);
     }
 }
 
@@ -132,11 +134,11 @@ fn convert_producer_bundle(
     new_circuit: circuit::CircuitIndex,
     gate_index_map: &mut HashMap<circuit2::GateIdx, circuit::GateIndex>,
     producer: &circuit2::bundle::ProducerBundle,
-) -> Vec<connections::NodeIdx> {
+) -> Vec<logic::NodeIdx> {
     match producer {
         // TODO: figure out a better solution than to collect
-        circuit2::bundle::ProducerBundle::CurCircuitInput(_) => connections::circuit_input_indexes(&circuits[new_circuit]).map(Into::into).collect(),
-        circuit2::bundle::ProducerBundle::GateOutput(_, old_gate_index) => connections::gate_output_indexes(circuits, gates, gate_index_map[old_gate_index]).map(Into::into).collect(),
+        circuit2::bundle::ProducerBundle::CurCircuitInput(_) => logic::circuit_input_indexes(&circuits[new_circuit]).map(Into::into).collect(),
+        circuit2::bundle::ProducerBundle::GateOutput(_, old_gate_index) => logic::gate_output_indexes(circuits, gates, gate_index_map[old_gate_index]).map(Into::into).collect(),
         circuit2::bundle::ProducerBundle::Get(b, field) => {
             fn field_indexes(ty: &ty::Type, type_context: &ty::TypeContext<nominal_type::FullyDefinedStruct>, field: &str) -> Option<std::ops::Range<usize>> {
                 match ty {
@@ -187,10 +189,10 @@ fn convert_receiver_bundle(
     new_circuit: circuit::CircuitIndex,
     gate_index_map: &mut HashMap<circuit2::GateIdx, circuit::GateIndex>,
     receiver: &circuit2::bundle::ReceiverBundle,
-) -> Vec<connections::NodeIdx> {
+) -> Vec<logic::NodeIdx> {
     match receiver {
         // TODO: figure out a better solution than to collect
-        circuit2::bundle::ReceiverBundle::CurCircuitOutput(_) => connections::circuit_output_indexes(&circuits[new_circuit]).map(Into::into).collect(),
-        circuit2::bundle::ReceiverBundle::GateInput(_, old_gate_index) => connections::gate_input_indexes(circuits, gates, gate_index_map[old_gate_index]).map(Into::into).collect(),
+        circuit2::bundle::ReceiverBundle::CurCircuitOutput(_) => logic::circuit_output_indexes(&circuits[new_circuit]).map(Into::into).collect(),
+        circuit2::bundle::ReceiverBundle::GateInput(_, old_gate_index) => logic::gate_input_indexes(circuits, gates, gate_index_map[old_gate_index]).map(Into::into).collect(),
     }
 }

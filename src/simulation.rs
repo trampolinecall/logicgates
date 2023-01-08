@@ -2,7 +2,7 @@ use generational_arena::Arena;
 
 pub(crate) mod circuit;
 pub(crate) mod position;
-pub(crate) mod connections;
+pub(crate) mod logic;
 pub(crate) mod draw;
 
 // TODO: clean up everything in here, for example some places use indexes and some use direct references, things like that, ...

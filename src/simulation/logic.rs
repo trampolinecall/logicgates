@@ -3,9 +3,19 @@ use std::collections::HashSet;
 
 use generational_arena::Arena;
 
-use super::circuit::{Circuit, CircuitIndex, Gate, GateIndex, GateKind};
+use super::circuit::{Circuit, CircuitIndex, Gate, GateIndex};
 
 // TODO: reorganize this module
+
+pub(crate) struct Calculation {
+    kind: CalculationKind,
+}
+#[allow(clippy::large_enum_variant)] // TODO: reconsider whether this is correct
+enum CalculationKind {
+    Nand([Node; 2], [Node; 1]),
+    Const([Node; 0], [Node; 1]),
+    Custom(CircuitIndex), // the circuit already contains the input and output nodes
+}
 
 #[derive(Clone)]
 pub(crate) struct Node {
@@ -29,6 +39,30 @@ pub(crate) struct GateOutputNodeIdx(pub(crate) GateIndex, pub(crate) usize, ());
 pub(crate) struct CircuitInputNodeIdx(pub(crate) CircuitIndex, pub(crate) usize, ());
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 pub(crate) struct CircuitOutputNodeIdx(pub(crate) CircuitIndex, pub(crate) usize, ());
+
+impl Calculation {
+    // default value for the outputs is whatever value results from having all false inputs
+    pub(crate) fn new_nand(index: GateIndex) -> Calculation {
+        Calculation { kind: CalculationKind::Nand([Node::new(Some(index), false), Node::new(Some(index), false)], [Node::new(Some(index), true)]) }
+    }
+    pub(crate) fn new_const(index: GateIndex, value: bool) -> Calculation {
+        Calculation { kind: CalculationKind::Const([], [Node::new(Some(index), value)]) }
+    }
+    pub(crate) fn new_subcircuit(subcircuit: CircuitIndex) -> Calculation {
+        Calculation { kind: CalculationKind::Custom(subcircuit) }
+    }
+
+    pub(crate) fn name(&self) -> String {
+        // TODO: hopefully somehow turn this into &str
+        match self.kind {
+            CalculationKind::Nand(_, _) => "nand".to_string(),
+            CalculationKind::Const(_, [_]) => todo!(),
+            // GateKind::Const(_, [connections::Node { value: true, .. }]) => "true".to_string(),
+            // GateKind::Const(_, [connections::Node { value: false, .. }]) => "false".to_string(),
+            CalculationKind::Custom(subcircuit) => todo!(), /* subcircuit.borrow().name.clone() */
+        }
+    }
+}
 
 impl Node {
     pub(crate) fn new(gate: Option<GateIndex>, value: bool) -> Self {
@@ -149,8 +183,8 @@ pub(crate) fn update(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>) {
             continue;
         }
 
-        let (old_value, new_value, output_node_idx) = match &gates[gate].kind {
-            GateKind::Nand([_, _], [_]) => {
+        let (old_value, new_value, output_node_idx) = match &gates[gate].calculation.kind {
+            CalculationKind::Nand([_, _], [_]) => {
                 let a_i = GateInputNodeIdx(gate, 0, ()).into();
                 let b_i = GateInputNodeIdx(gate, 1, ()).into();
 
@@ -158,12 +192,12 @@ pub(crate) fn update(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>) {
 
                 (get_node_value(circuits, gates, o_i), !(get_node_value(circuits, gates, a_i) && get_node_value(circuits, gates, b_i)), o_i)
             }
-            GateKind::Const(_, [_]) => {
+            CalculationKind::Const(_, [_]) => {
                 let o_i = GateOutputNodeIdx(gate, 0, ()).into();
 
                 (get_node_value(circuits, gates, o_i), get_node_value(circuits, gates, o_i), o_i)
             }
-            GateKind::Custom(_) => continue, // custom gates do not have to compute values because their nodes are connected to their inputs or are passthrough nodes and should automatically have the right values
+            CalculationKind::Custom(_) => continue, // custom gates do not have to compute values because their nodes are connected to their inputs or are passthrough nodes and should automatically have the right values
         };
         let gate_changed = old_value != new_value;
 
@@ -231,32 +265,32 @@ pub(crate) fn gate_num_outputs(circuits: &Arena<Circuit>, gates: &Arena<Gate>, g
 
 pub(crate) fn gate_inputs<'a: 'c, 'b: 'c, 'c>(circuits: &'a Arena<Circuit>, gates: &'b Arena<Gate>, gate: GateIndex) -> &'c [Node] {
     let gate = &gates[gate];
-    match &gate.kind {
-        GateKind::Nand(i, _) => i,
-        GateKind::Const(i, _) => i,
-        GateKind::Custom(circuit_idx) => &circuits[*circuit_idx].inputs,
+    match &gate.calculation.kind {
+        CalculationKind::Nand(i, _) => i,
+        CalculationKind::Const(i, _) => i,
+        CalculationKind::Custom(circuit_idx) => &circuits[*circuit_idx].inputs,
     }
 }
 pub(crate) fn gate_outputs<'a: 'c, 'b: 'c, 'c>(circuits: &'a Arena<Circuit>, gates: &'b Arena<Gate>, gate: GateIndex) -> &'c [Node] {
     let gate = &gates[gate];
-    match &gate.kind {
-        GateKind::Nand(_, o) | GateKind::Const(_, o) => o,
-        GateKind::Custom(circuit_idx) => &circuits[*circuit_idx].outputs,
+    match &gate.calculation.kind {
+        CalculationKind::Nand(_, o) | CalculationKind::Const(_, o) => o,
+        CalculationKind::Custom(circuit_idx) => &circuits[*circuit_idx].outputs,
     }
 }
 
 pub(crate) fn gate_inputs_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut Arena<Circuit>, gates: &'b mut Arena<Gate>, gate: GateIndex) -> &'c mut [Node] {
     let gate = &mut gates[gate];
-    match &mut gate.kind {
-        GateKind::Nand(i, _) => i,
-        GateKind::Const(i, _) => i,
-        GateKind::Custom(circuit_idx) => &mut circuits[*circuit_idx].inputs,
+    match &mut gate.calculation.kind {
+        CalculationKind::Nand(i, _) => i,
+        CalculationKind::Const(i, _) => i,
+        CalculationKind::Custom(circuit_idx) => &mut circuits[*circuit_idx].inputs,
     }
 }
 pub(crate) fn gate_outputs_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut Arena<Circuit>, gates: &'b mut Arena<Gate>, gate: GateIndex) -> &'c mut [Node] {
     let gate = &mut gates[gate];
-    match &mut gate.kind {
-        GateKind::Nand(_, o) | GateKind::Const(_, o) => o,
-        GateKind::Custom(circuit_idx) => &mut circuits[*circuit_idx].outputs,
+    match &mut gate.calculation.kind {
+        CalculationKind::Nand(_, o) | CalculationKind::Const(_, o) => o,
+        CalculationKind::Custom(circuit_idx) => &mut circuits[*circuit_idx].outputs,
     }
 }

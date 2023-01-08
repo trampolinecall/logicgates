@@ -20,7 +20,7 @@ impl App {
     }
 
     fn update(&mut self, _: piston::UpdateArgs) {
-        simulation::connections::update(&mut self.simulation.circuits, &mut self.simulation.gates)
+        simulation::logic::update(&mut self.simulation.circuits, &mut self.simulation.gates)
     }
 }
 
@@ -81,7 +81,7 @@ fn main() {
                 _ => None,
             } {
                 if index < app.simulation.circuits[app.simulation.main_circuit].num_inputs() {
-                    simulation::connections::toggle_input(&mut app.simulation.circuits, &mut app.simulation.gates, app.simulation.main_circuit, index);
+                    simulation::logic::toggle_input(&mut app.simulation.circuits, &mut app.simulation.gates, app.simulation.main_circuit, index);
                 }
             }
         }

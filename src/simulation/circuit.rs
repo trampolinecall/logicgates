@@ -1,4 +1,4 @@
-use super::connections;
+use super::logic;
 
 pub(crate) type CircuitIndex = generational_arena::Index;
 pub(crate) type GateIndex = generational_arena::Index;
@@ -7,37 +7,15 @@ pub(crate) struct Circuit {
     pub(crate) index: CircuitIndex,
     pub(crate) name: String,
     pub(crate) gates: Vec<GateIndex>,
-    pub(crate) inputs: Vec<connections::Node>,
-    pub(crate) outputs: Vec<connections::Node>,
+    pub(crate) inputs: Vec<logic::Node>,
+    pub(crate) outputs: Vec<logic::Node>,
 }
 
 pub(crate) struct Gate {
     pub(crate) index: GateIndex,
-    pub(crate) kind: GateKind,
+    pub(crate) calculation: logic::Calculation,
     pub(crate) location: (u32, f64),
-    _dont_construct: (),
 }
-
-#[allow(clippy::large_enum_variant)] // TODO: reconsider whether this is correct
-pub(crate) enum GateKind {
-    Nand([connections::Node; 2], [connections::Node; 1]), // TODO: figure out a better way of doing this
-    Const([connections::Node; 0], [connections::Node; 1]),
-    Custom(CircuitIndex), // the circuit already contains the input and output nodes
-}
-
-/* TODO: decide what to do with this
-impl CustomGate {
-    pub(crate) fn table(&self) -> HashMap<Vec<bool>, Vec<bool>> {
-        utils::enumerate_inputs(self.num_inputs)
-            .into_iter()
-            .map(|input| {
-                let res = self.eval(&input);
-                (input, res)
-            })
-            .collect()
-    }
-}
-*/
 
 impl Circuit {
     pub(crate) fn new(index: CircuitIndex, name: String, num_inputs: usize, num_outputs: usize) -> Self {
@@ -47,8 +25,8 @@ impl Circuit {
             index,
             name,
             gates: Vec::new(),
-            inputs: std::iter::repeat_with(|| connections::Node::new(None, false)).take(num_inputs).collect(),
-            outputs: std::iter::repeat_with(|| connections::Node::new(None, false)).take(num_outputs).collect(),
+            inputs: std::iter::repeat_with(|| logic::Node::new(None, false)).take(num_inputs).collect(),
+            outputs: std::iter::repeat_with(|| logic::Node::new(None, false)).take(num_outputs).collect(),
         }
     }
 
@@ -67,37 +45,4 @@ impl Circuit {
         self.outputs.resize(num, connections::Node::new_disconnected(None));
     }
     */
-}
-
-impl Gate {
-    // default value for the outputs is whatever value results from having all false inputs
-    pub(crate) fn new_nand_gate(index: GateIndex) -> Gate {
-        Gate {
-            index,
-            kind: GateKind::Nand([connections::Node::new(Some(index), false), connections::Node::new(Some(index), false)], [connections::Node::new(Some(index), true)]),
-            location: (0, 0.0),
-            _dont_construct: (),
-        }
-    }
-    pub(crate) fn new_const_gate(index: GateIndex, value: bool) -> Gate {
-        Gate { index, kind: GateKind::Const([], [connections::Node::new(Some(index), value)]), location: (0, 0.0), _dont_construct: () }
-    }
-    pub(crate) fn new_subcircuit_gate(index: GateIndex, subcircuit: CircuitIndex) -> Gate {
-        Gate { index, kind: GateKind::Custom(subcircuit), location: (0, 0.0), _dont_construct: () }
-    }
-
-    pub(crate) fn name(&self) -> String {
-        // TODO: hopefully somehow turn this into &str
-        match &self.kind {
-            GateKind::Nand(_, _) => "nand".to_string(),
-            GateKind::Const(_, [_]) => todo!(),
-            // GateKind::Const(_, [connections::Node { value: true, .. }]) => "true".to_string(),
-            // GateKind::Const(_, [connections::Node { value: false, .. }]) => "false".to_string(),
-            GateKind::Custom(subcircuit) =>
-            /* subcircuit.borrow().name.clone() */
-            {
-                todo!()
-            }
-        }
-    }
 }
