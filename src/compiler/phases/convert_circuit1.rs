@@ -20,18 +20,30 @@ struct LoopInLocalsError<'file>(Vec<Value<'file>>);
 
 impl<'file> From<(&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, TypeMismatch<'file>)> for CompileError<'file> {
     fn from((types, TypeMismatch { expected_span, got_type, expected_type }): (&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, TypeMismatch<'file>)) -> Self {
-        // TODO: show on the producer and receiver spans which has which type
-        CompileError::new(expected_span, format!("type mismatch: expected {}, got {}", types.get(expected_type).fmt(types), types.get(got_type).fmt(types)))
+        let expected_type = types.get(expected_type).fmt(types);
+        let got_type = types.get(got_type).fmt(types);
+        CompileError::new_with_note(expected_span, format!("type mismatch: expected {}, got {}", expected_type, got_type), format!("this has type {}", expected_type))
+            // .note(got_span, format!("this has type {}", got_type)) TODO
     }
 }
 
 impl<'file> From<LoopInLocalsError<'file>> for CompileError<'file> {
     fn from(LoopInLocalsError(loop_): LoopInLocalsError<'file>) -> Self {
-        let first = loop_.get(0).expect("loop error should not be empty");
-        CompileError::new(
+        let (first, more) = loop_.split_first().expect("loop cannot be empty");
+
+        let mut error = CompileError::new_with_note(
             first.span,
-            format!("infinite loop in evaluation of locals: {}", loop_.into_iter().map(|value| format!("value {:?} at {:?}", value.kind, value.span)).collect::<Vec<_>>().join(" -> ")),
-        ) // TODO: make this a better message
+            "infinite loop in evaluation of locals".into(),
+            "evaluating this expression...".into()
+        );
+
+        for e in more {
+            error = error.note(e.span, "requires evaluating this one, which...".into());
+        }
+
+        error = error.note(first.span, "leads to the first expression".into());
+
+        error
     }
 }
 

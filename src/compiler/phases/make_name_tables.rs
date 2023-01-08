@@ -17,10 +17,11 @@ pub(crate) struct IR<'file> {
     pub(crate) type_table: HashMap<&'file str, ty::TypeSym>,
 }
 
-struct Duplicate<'file>(&'static str, Span<'file>, &'file str); // TODO: show previous declaration
+struct Duplicate<'file>(&'static str, Span<'file>, &'file str, Span<'file>);
 impl<'file> From<Duplicate<'file>> for CompileError<'file> {
-    fn from(Duplicate(thing, name_sp, name): Duplicate<'file>) -> Self {
+    fn from(Duplicate(thing, name_sp, name, prev_sp): Duplicate<'file>) -> Self {
         CompileError::new(name_sp, format!("{} '{}' defined more than once", thing, name))
+            .note(prev_sp, "previous definition here".into())
     }
 }
 
@@ -41,8 +42,8 @@ fn make_circuit_table(
 
     let mut errored = false;
     for circuit in circuits {
-        if table.contains_key(circuit.name.1) {
-            Duplicate("circuit", circuit.name.0, circuit.name.1).report();
+        if let Some(old_circuit) = table.get(circuit.name.1) {
+            Duplicate("circuit", circuit.name.0, circuit.name.1, arena.get(old_circuit).name.0).report();
             errored = true;
         }
         table.insert(circuit.name.1, arena.add(circuit1::UntypedCircuitOrIntrinsic::Circuit(circuit)));
@@ -60,8 +61,8 @@ fn make_type_table(type_decls: Vec<crate::compiler::data::nominal_type::Partiall
     let mut type_context = ty::TypeContext::new();
     let mut errored = false;
     for decl in type_decls {
-        if type_table.contains_key(decl.name.1) {
-            Duplicate("nominal type", decl.name.0, decl.name.1).report();
+        if let Some(old_type) = type_table.get(decl.name.1) {
+            Duplicate("nominal type", decl.name.0, decl.name.1, decl.name.0 /* TODO: this should be the previous span */).report();
             errored = true;
         }
         let name = decl.name.1;
