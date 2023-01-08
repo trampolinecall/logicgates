@@ -16,7 +16,7 @@ pub(crate) struct Circuit {
 pub(crate) struct Gate {
     pub(crate) index: GateIndex,
     pub(crate) calculation: components::calculator::CalculationComponent,
-    pub(crate) draw_component: components::draw::DrawComponent,
+    pub(crate) draw: components::draw::DrawComponent,
 }
 
 pub(crate) struct Simulation {

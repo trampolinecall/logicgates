@@ -3,11 +3,25 @@ use std::collections::HashSet;
 use generational_arena::Arena;
 
 use crate::simulation::{Gate, GateIndex};
+// TODO: move this to be a child of the calculation component module
 
 pub(crate) enum Node<'node> {
     Producer(&'node Producer),
     Receiver(&'node Receiver), // TODO: computation node?
 }
+
+impl<'node> From<&'node Receiver> for Node<'node> {
+    fn from(v: &'node Receiver) -> Self {
+        Self::Receiver(v)
+    }
+}
+
+impl<'node> From<&'node Producer> for Node<'node> {
+    fn from(v: &'node Producer) -> Self {
+        Self::Producer(v)
+    }
+}
+
 pub(crate) struct Producer {
     pub(crate) value: bool,
     dependants: HashSet<NodeIdx>,
@@ -19,12 +33,17 @@ pub(crate) struct Receiver {
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub(crate) struct NodeIdx {
-    gate: GateIndex,
-    outputs: bool,
-    index: usize,
+    pub(crate) gate: GateIndex,
+    pub(crate) outputs: bool,
+    pub(crate) index: usize,
+    _dont_construct: (),
 }
 
 impl NodeIdx {
+    pub(crate) fn new(gate: GateIndex, outputs: bool, index: usize) -> Self {
+        Self { gate, outputs, index, _dont_construct: () }
+    }
+
     pub(crate) fn gate_index(&self) -> GateIndex {
         self.gate
     }
@@ -89,31 +108,6 @@ pub(crate) fn connect(gates: &Arena<Gate>, producer_idx: ProducerIdx, receiver_i
 
     get_receiver_mut(receiver_idx).producer = Some(producer_idx);
     get_producer_mut(producer_idx).dependants.insert(receiver_idx);
-}
-
-pub(crate) fn get_receiver(gates: &Arena<Gate>, index: ReceiverIdx) -> &Receiver {
-    match index {
-        ReceiverIdx::CO(co) => &self.outputs[co.0],
-        ReceiverIdx::GI(gi) => self.get_gate(gi.0).get_input(gi),
-    }
-}
-pub(crate) fn get_receiver_mut(gates: &mut Arena<Gate>, index: ReceiverIdx) -> &mut Receiver {
-    match index {
-        ReceiverIdx::CO(co) => &mut self.outputs[co.0],
-        ReceiverIdx::GI(gi) => self.get_gate_mut(gi.0).get_input_mut(gi),
-    }
-}
-pub(crate) fn get_producer(gates: &Arena<Gate>, index: ProducerIdx) -> &Producer {
-    match index {
-        ProducerIdx::CI(ci) => &self.inputs[ci.0],
-        ProducerIdx::GO(go) => self.get_gate(go.0).get_output(go),
-    }
-}
-pub(crate) fn get_producer_mut(gates: &mut Arena<Gate>, index: ProducerIdx) -> &mut Producer {
-    match index {
-        ProducerIdx::CI(ci) => &mut self.inputs[ci.0],
-        ProducerIdx::GO(go) => self.get_gate_mut(go.0).get_output_mut(go),
-    }
 }
 */
 

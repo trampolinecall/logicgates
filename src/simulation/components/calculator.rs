@@ -26,22 +26,12 @@ impl CalculationComponent {
         Self { index, calculation: Calculation::Custom(Box::new(subcircuit)) }
     }
 
-    /*
-    pub(crate) fn inputs(&self) -> &connection::Nodes {
-        match &self.calculation {
-            Calculation::Nand { inputs, outputs } => inputs,
-            Calculation::Const { value, inputs, outputs } => inputs,
-            Calculation::Custom(subc) => &subc.inputs,
-        }
+    pub(crate) fn inputs(&self) -> impl ExactSizeIterator<Item = connection::NodeIdx> + '_ {
+        (0..self.num_inputs()).map(|i| connection::NodeIdx::new(self.index, false, i))
     }
-    pub(crate) fn outputs(&self) -> &connection::Nodes {
-        match &self.calculation {
-            Calculation::Nand { inputs, outputs } => outputs,
-            Calculation::Const { value, inputs, outputs } => outputs,
-            Calculation::Custom(subc) => &subc.outputs,
-        }
+    pub(crate) fn outputs(&self) -> impl ExactSizeIterator<Item = connection::NodeIdx> + '_ {
+        (0..self.num_outputs()).map(|i| connection::NodeIdx::new(self.index, true, i))
     }
-    */
 
     pub(crate) fn name(&self) -> &str {
         match &self.calculation {
@@ -58,6 +48,22 @@ impl CalculationComponent {
             Some(v)
         } else {
             None
+        }
+    }
+
+    pub(crate) fn num_outputs(&self) -> usize {
+        match &self.calculation {
+            Calculation::Nand { outputs, .. } => outputs.len(),
+            Calculation::Const { outputs, .. } => outputs.len(),
+            Calculation::Custom(subc) => subc.outputs.len(),
+        }
+    }
+
+    pub(crate) fn num_inputs(&self) -> usize {
+        match &self.calculation {
+            Calculation::Nand { inputs, .. } => inputs.len(),
+            Calculation::Const { inputs, .. } => inputs.len(),
+            Calculation::Custom(subc) => subc.inputs.len(),
         }
     }
 }

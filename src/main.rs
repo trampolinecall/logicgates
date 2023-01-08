@@ -37,7 +37,7 @@ fn main() {
         let nand = gates.insert_with(|index| simulation::Gate {
             index,
             calculation: simulation::components::calculator::CalculationComponent::new_nand(index),
-            draw_component: simulation::components::draw::DrawComponent { position: (0, 0.0) },
+            draw: simulation::components::draw::DrawComponent { position: (0, 0.0) },
         });
 
         let circuit = gates.insert_with(|index| simulation::Gate {
@@ -51,7 +51,7 @@ fn main() {
                     outputs: (vec![(simulation::components::connection::Receiver::new())]),
                 },
             ),
-            draw_component: simulation::components::draw::DrawComponent { position: (0, 0.0) },
+            draw: simulation::components::draw::DrawComponent { position: (0, 0.0) },
         });
 
         simulation::Simulation { gates, main_circuit: circuit }
