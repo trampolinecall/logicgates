@@ -6,8 +6,7 @@ use super::circuit::{Circuit, Gate, GateIndex, GateKind};
 #[derive(Clone)]
 pub(crate) struct Receiver {
     pub(crate) gate: Option<GateIndex>,
-    pub(crate) producer: Option<ProducerIdx>,
-    _dont_construct: (),
+    producer: Option<ProducerIdx>,
 }
 
 #[derive(Clone)]
@@ -29,6 +28,10 @@ pub(crate) struct CircuitOutputNodeIdx(pub(crate) usize, ());
 impl Receiver {
     pub(crate) fn new(gate: Option<GateIndex>) -> Self {
         Self { gate, producer: None, _dont_construct: () }
+    }
+
+    pub(crate) fn producer(&self) -> Option<ProducerIdx> {
+        self.producer
     }
 }
 impl Producer {
