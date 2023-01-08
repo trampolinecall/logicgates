@@ -1,20 +1,15 @@
 use std::collections::{BTreeMap, HashMap};
 
-use generational_arena::Arena;
-
-use crate::simulation::draw;
-use crate::simulation;
-
-use super::logic;
+use crate::simulation::{self, draw, logic, CircuitMap, GateMap};
 
 // TODO: move this into location component
 
-pub(crate) fn calculate_locations(circuits: &mut Arena<simulation::Circuit>, gates: &mut Arena<simulation::Gate>) {
+pub(crate) fn calculate_locations(circuits: &mut CircuitMap, gates: &mut GateMap) {
     let locations = calculate_locations_(circuits, gates);
     apply_locations(gates, locations);
 }
 
-fn calculate_locations_(circuits: &Arena<simulation::Circuit>, gates: &Arena<simulation::Gate>) -> HashMap<simulation::GateIndex, (u32, f64)> {
+fn calculate_locations_(circuits: &CircuitMap, gates: &GateMap) -> HashMap<simulation::GateIndex, (u32, f64)> {
     /* old iterative position calculating algorithm based on a loss function and trying to find a minimum loss
     // gate position scoring; lower is better
     let score = |current_idx: usize, current_loc @ [x, y]: [f64; 2], gate: &simulation::Gate| -> f64 {
@@ -135,7 +130,7 @@ fn calculate_locations_(circuits: &Arena<simulation::Circuit>, gates: &Arena<sim
         .collect()
 }
 
-fn apply_locations(gates: &mut Arena<simulation::Gate>, locations: HashMap<simulation::GateIndex, (u32, f64)>) {
+fn apply_locations(gates: &mut GateMap, locations: HashMap<simulation::GateIndex, (u32, f64)>) {
     for (gate_i, location) in locations {
         gates[gate_i].location = location;
     }

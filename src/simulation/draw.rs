@@ -1,13 +1,11 @@
-use generational_arena::Arena;
-
 use crate::simulation::{
     logic::{self, GateInputNodeIdx, GateOutputNodeIdx, NodeIdx},
-    {Circuit, CircuitIndex, Gate},
+    CircuitIndex,
 };
 
 use super::{
     logic::{CircuitInputNodeIdx, CircuitOutputNodeIdx},
-    GateIndex,
+    CircuitMap, GateIndex, GateMap,
 };
 
 const CIRCLE_RAD: f64 = 5.0;
@@ -20,7 +18,7 @@ const GATE_COLOR: [f32; 4] = [0.584, 0.647, 0.65, 1.0];
 const ON_COLOR: [f32; 4] = [0.18, 0.8, 0.521, 1.0];
 const OFF_COLOR: [f32; 4] = [0.498, 0.549, 0.552, 1.0];
 
-pub(crate) fn render(circuits: &Arena<Circuit>, gates: &Arena<Gate>, circuit: CircuitIndex, graphics: &mut opengl_graphics::GlGraphics, args: &piston::RenderArgs) {
+pub(crate) fn render(circuits: &CircuitMap, gates: &GateMap, circuit: CircuitIndex, graphics: &mut opengl_graphics::GlGraphics, args: &piston::RenderArgs) {
     use graphics::*;
 
     let circuit = &circuits[circuit];
@@ -73,7 +71,7 @@ pub(crate) fn render(circuits: &Arena<Circuit>, gates: &Arena<Gate>, circuit: Ci
     });
 }
 
-pub(crate) fn gate_display_size(circuits: &Arena<Circuit>, gates: &Arena<Gate>, gate: GateIndex) -> [f64; 2] {
+pub(crate) fn gate_display_size(circuits: &CircuitMap, gates: &GateMap, gate: GateIndex) -> [f64; 2] {
     const EXTRA_VERTICAL_HEIGHT: f64 = 40.0;
     const GATE_WIDTH: f64 = 50.0;
 
@@ -87,35 +85,35 @@ fn centered_arg_y(center_y: f64, num_args: usize, i: usize) -> f64 {
     args_start_y + (i as f64) * VERTICAL_VALUE_SPACING
 }
 
-fn gate_box(circuits: &Arena<Circuit>, gates: &Arena<Gate>, args: &piston::RenderArgs, gate_index: GateIndex) -> [f64; 4] {
+fn gate_box(circuits: &CircuitMap, gates: &GateMap, args: &piston::RenderArgs, gate_index: GateIndex) -> [f64; 4] {
     let gate = &gates[gate_index];
     let (gate_x, gate_y) = gate.location;
     let [gate_width, gate_height] = gate_display_size(circuits, gates, gate_index);
     [gate_x as f64 * HORIZONTAL_GATE_SPACING, gate_y + args.window_size[1] / 2.0, gate_width, gate_height]
 }
 
-fn circuit_input_pos(circuits: &Arena<Circuit>, args: &piston::RenderArgs, index: CircuitInputNodeIdx) -> [f64; 2] {
+fn circuit_input_pos(circuits: &CircuitMap, args: &piston::RenderArgs, index: CircuitInputNodeIdx) -> [f64; 2] {
     let circuit = &circuits[index.0];
     [0.0, centered_arg_y(args.window_size[1] / 2.0, circuit.inputs.len(), index.1)]
 }
-fn circuit_output_pos(circuits: &Arena<Circuit>, args: &piston::RenderArgs, index: CircuitOutputNodeIdx) -> [f64; 2] {
+fn circuit_output_pos(circuits: &CircuitMap, args: &piston::RenderArgs, index: CircuitOutputNodeIdx) -> [f64; 2] {
     let circuit = &circuits[index.0];
     [args.window_size[0], centered_arg_y(args.window_size[1] / 2.0, circuit.outputs.len(), index.1)]
 }
 
 // TODO: merge these into node_pos()?
-fn gate_input_pos(circuits: &Arena<Circuit>, gates: &Arena<Gate>, args: &piston::RenderArgs, input_idx: GateInputNodeIdx) -> [f64; 2] {
+fn gate_input_pos(circuits: &CircuitMap, gates: &GateMap, args: &piston::RenderArgs, input_idx: GateInputNodeIdx) -> [f64; 2] {
     let gate_index = input_idx.0;
     let [gate_x, gate_y, _, gate_height] = gate_box(circuits, gates, args, gate_index);
     [gate_x, centered_arg_y(gate_y + gate_height / 2.0, logic::gate_num_inputs(circuits, gates, gate_index), input_idx.1)]
 }
-fn gate_output_pos(circuits: &Arena<Circuit>, gates: &Arena<Gate>, args: &piston::RenderArgs, output_idx: GateOutputNodeIdx) -> [f64; 2] {
+fn gate_output_pos(circuits: &CircuitMap, gates: &GateMap, args: &piston::RenderArgs, output_idx: GateOutputNodeIdx) -> [f64; 2] {
     let gate_index = output_idx.0;
     let [gate_x, gate_y, gate_width, gate_height] = gate_box(circuits, gates, args, gate_index);
     [gate_x + gate_width, centered_arg_y(gate_y + gate_height / 2.0, logic::gate_num_outputs(circuits, gates, gate_index), output_idx.1)]
 }
 
-fn node_pos(circuits: &Arena<Circuit>, gates: &Arena<Gate>, args: &piston::RenderArgs, node: NodeIdx) -> [f64; 2] {
+fn node_pos(circuits: &CircuitMap, gates: &GateMap, args: &piston::RenderArgs, node: NodeIdx) -> [f64; 2] {
     match node {
         NodeIdx::CI(ci) => circuit_input_pos(circuits, args, ci),
         NodeIdx::CO(co) => circuit_output_pos(circuits, args, co),
@@ -138,6 +136,6 @@ fn bool_color(value: bool) -> [f32; 4] {
         OFF_COLOR
     }
 }
-fn node_color(circuits: &Arena<Circuit>, gates: &Arena<Gate>, node: NodeIdx) -> [f32; 4] {
+fn node_color(circuits: &CircuitMap, gates: &GateMap, node: NodeIdx) -> [f32; 4] {
     bool_color(logic::get_node_value(circuits, gates, node))
 }

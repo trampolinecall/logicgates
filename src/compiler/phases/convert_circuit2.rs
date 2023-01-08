@@ -29,8 +29,8 @@ impl<'file, 'circuit> From<InfiniteRecursion<'file, 'circuit>> for CompileError<
 pub(crate) fn convert(file: &File, convert_circuit1::IR { circuits: circuit2s, circuit_table, mut type_context }: convert_circuit1::IR) -> Option<simulation::Simulation> {
     if let Some((_, _, main_id)) = circuit_table.get("main") {
         if let circuit2::CircuitOrIntrinsic::Custom(circuit) = circuit2s.get(*main_id) {
-            let mut gates = generational_arena::Arena::new();
-            let mut circuits = generational_arena::Arena::new();
+            let mut gates = simulation::GateMap::with_key();
+            let mut circuits = simulation::CircuitMap::with_key();
             let main_circuit = match convert_circuit(&mut circuits, &mut gates, &circuit2s, &mut type_context, Vec::new(), circuit) {
                 Ok((_, r)) => r,
                 Err(e) => {
@@ -51,8 +51,8 @@ pub(crate) fn convert(file: &File, convert_circuit1::IR { circuits: circuit2s, c
     }
 }
 fn convert_circuit<'file, 'circuit>(
-    circuits: &mut generational_arena::Arena<simulation::Circuit>,
-    gates: &mut generational_arena::Arena<simulation::Gate>,
+    circuits: &mut simulation::CircuitMap,
+    gates: &mut simulation::GateMap,
     circuit2s: &'circuit arena::Arena<circuit2::CircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     mut expansion_stack: ExpandedStack<'file, 'circuit>,
@@ -65,7 +65,7 @@ fn convert_circuit<'file, 'circuit>(
     expansion_stack.push(circuit);
 
     let new_circuit_idx =
-        circuits.insert_with(|idx| simulation::Circuit::new(idx, circuit.name.into(), type_context.get(circuit.input_type).size(type_context), type_context.get(circuit.output_type).size(type_context)));
+        circuits.insert_with_key(|idx| simulation::Circuit::new(idx, circuit.name.into(), type_context.get(circuit.input_type).size(type_context), type_context.get(circuit.output_type).size(type_context)));
     let mut gate_index_map = HashMap::new();
 
     for (old_gate_i, gate) in circuit.iter_gates() {
@@ -85,8 +85,8 @@ fn convert_circuit<'file, 'circuit>(
 }
 
 fn add_gate<'file, 'circuit>(
-    circuits: &mut generational_arena::Arena<simulation::Circuit>,
-    gates: &mut generational_arena::Arena<simulation::Gate>,
+    circuits: &mut simulation::CircuitMap,
+    gates: &mut simulation::GateMap,
     circuit2s: &'circuit arena::Arena<circuit2::CircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     expansion_stack: ExpandedStack<'file, 'circuit>,
@@ -96,11 +96,11 @@ fn add_gate<'file, 'circuit>(
     let (expansion_stack, gate_idx) = match circuit2s.get(circuit_id) {
         circuit2::CircuitOrIntrinsic::Custom(subcircuit) => {
             let (expansion_stack, subcircuit_idx) = convert_circuit(circuits, gates, circuit2s, type_context, expansion_stack, subcircuit)?;
-            (expansion_stack, gates.insert_with(|index| simulation::Gate { index, calculation: logic::Calculation::new_subcircuit(subcircuit_idx), location: (0, 0.0) }))
+            (expansion_stack, gates.insert_with_key(|index| simulation::Gate { index, calculation: logic::Calculation::new_subcircuit(subcircuit_idx), location: (0, 0.0) }))
         }
-        circuit2::CircuitOrIntrinsic::Nand => (expansion_stack, gates.insert_with(|index| simulation::Gate { index, calculation: logic::Calculation::new_nand(index), location: (0, 0.0) })),
+        circuit2::CircuitOrIntrinsic::Nand => (expansion_stack, gates.insert_with_key(|index| simulation::Gate { index, calculation: logic::Calculation::new_nand(index), location: (0, 0.0) })),
         circuit2::CircuitOrIntrinsic::Const(value) => {
-            (expansion_stack, gates.insert_with(|index| simulation::Gate { index, calculation: logic::Calculation::new_const(index, *value), location: (0, 0.0) }))
+            (expansion_stack, gates.insert_with_key(|index| simulation::Gate { index, calculation: logic::Calculation::new_const(index, *value), location: (0, 0.0) }))
         }
     };
 
@@ -109,8 +109,8 @@ fn add_gate<'file, 'circuit>(
 }
 
 fn connect(
-    circuits: &mut generational_arena::Arena<simulation::Circuit>,
-    gates: &mut generational_arena::Arena<simulation::Gate>,
+    circuits: &mut simulation::CircuitMap,
+    gates: &mut simulation::GateMap,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     new_circuit: simulation::CircuitIndex,
     gate_index_map: &mut HashMap<circuit2::GateIdx, simulation::GateIndex>,
@@ -128,8 +128,8 @@ fn connect(
 }
 
 fn convert_producer_bundle(
-    circuits: &mut generational_arena::Arena<simulation::Circuit>,
-    gates: &mut generational_arena::Arena<simulation::Gate>,
+    circuits: &mut simulation::CircuitMap,
+    gates: &mut simulation::GateMap,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     new_circuit: simulation::CircuitIndex,
     gate_index_map: &mut HashMap<circuit2::GateIdx, simulation::GateIndex>,
@@ -183,8 +183,8 @@ fn convert_producer_bundle(
     }
 }
 fn convert_receiver_bundle(
-    circuits: &mut generational_arena::Arena<simulation::Circuit>, // keep arguments for symmetry with convert_producer_bundle
-    gates: &mut generational_arena::Arena<simulation::Gate>,
+    circuits: &mut simulation::CircuitMap, // keep arguments for symmetry with convert_producer_bundle
+    gates: &mut simulation::GateMap,
     _: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     new_circuit: simulation::CircuitIndex,
     gate_index_map: &mut HashMap<circuit2::GateIdx, simulation::GateIndex>,

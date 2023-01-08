@@ -1,4 +1,4 @@
-use generational_arena::Arena;
+use slotmap::SlotMap;
 
 pub(crate) mod position;
 pub(crate) mod logic;
@@ -6,15 +6,21 @@ pub(crate) mod draw;
 
 // TODO: clean up everything in here, for example some places use indexes and some use direct references, things like that, ...
 
+slotmap::new_key_type! {
+    pub(crate) struct CircuitIndex;
+}
+slotmap::new_key_type! {
+    pub(crate) struct GateIndex;
+}
+pub(crate) type CircuitMap = SlotMap<CircuitIndex, Circuit>;
+pub(crate) type GateMap = SlotMap<GateIndex, Gate>;
+
 pub(crate) struct Simulation {
-    pub(crate) circuits: Arena<Circuit>,
-    pub(crate) gates: Arena<Gate>,
+    pub(crate) circuits: CircuitMap,
+    pub(crate) gates: GateMap,
 
     pub(crate) main_circuit: CircuitIndex,
 }
-
-pub(crate) type CircuitIndex = generational_arena::Index;
-pub(crate) type GateIndex = generational_arena::Index;
 
 // circuit kind of blurs the boundary between the simulation and the logic component but
 pub(crate) struct Circuit {
