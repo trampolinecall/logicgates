@@ -58,7 +58,7 @@ impl Circuit {
 
     fn output_values(&self) -> impl Iterator<Item = bool> + '_ {
         // TODO: take this logic to check the producer of a receiver node out from everywhere it is used and put it into a method
-        self.outputs.iter().map(|output| if let Some(producer) = output.producer { connections::get_producer(self, producer).value } else { false })
+        self.outputs.iter().map(|output| if let Some(producer) = output.producer() { connections::get_producer(self, producer).value } else { false })
     }
 
     // TODO: tests
