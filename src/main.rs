@@ -16,11 +16,11 @@ impl App {
     }
 
     fn render(&mut self, render_args: &piston::RenderArgs) {
-        simulation::draw::render(&self.simulation.circuits, &self.simulation.gates, self.simulation.main_circuit, &mut self.gl, render_args)
+        simulation::draw::render(&self.simulation.circuits, &self.simulation.gates, self.simulation.main_circuit, &mut self.gl, render_args);
     }
 
     fn update(&mut self, _: piston::UpdateArgs) {
-        simulation::logic::update(&mut self.simulation.circuits, &mut self.simulation.gates)
+        simulation::logic::update(&mut self.simulation.circuits, &mut self.simulation.gates);
     }
 }
 

@@ -196,11 +196,11 @@ pub(crate) fn get_node_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, gat
 // node values {{{1
 // TODO: test connection, replacing old connection
 pub(crate) fn connect(circuits: &mut CircuitMap, gates: &mut GateMap, producer_idx: NodeIdx, receiver_idx: NodeIdx) {
-    set_node_value(circuits, gates, receiver_idx, Value::Passthrough(producer_idx))
+    set_node_value(circuits, gates, receiver_idx, Value::Passthrough(producer_idx));
 }
 // TODO: test removing, make sure it removes from both to keep in sync
 pub(crate) fn disconnect(circuits: &mut CircuitMap, gates: &mut GateMap, node: NodeIdx) {
-    set_node_value(circuits, gates, node, Value::Manual(false))
+    set_node_value(circuits, gates, node, Value::Manual(false));
 }
 
 pub(crate) fn get_node_value(circuits: &CircuitMap, gates: &GateMap, node: NodeIdx) -> bool {

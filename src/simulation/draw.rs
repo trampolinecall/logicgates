@@ -16,7 +16,7 @@ const ON_COLOR: [f32; 4] = [0.18, 0.8, 0.521, 1.0];
 const OFF_COLOR: [f32; 4] = [0.498, 0.549, 0.552, 1.0];
 
 pub(crate) fn render(circuits: &CircuitMap, gates: &GateMap, main_circuit: CircuitIndex, graphics: &mut opengl_graphics::GlGraphics, render_args: &piston::RenderArgs) {
-    use graphics::*;
+    use graphics::{clear, ellipse, line_from_to, rectangle};
 
     let main_circuit = &circuits[main_circuit];
     graphics.draw(render_args.viewport(), |c, gl| {
