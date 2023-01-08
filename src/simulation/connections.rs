@@ -174,7 +174,7 @@ pub(crate) fn update(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>) {
 
 fn update_gate(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>, update_stack: &mut Vec<GateIndex>, gate: GateIndex) -> bool {
     let gate = &gates[gate];
-    let outputs = compute(circuits, gates, &gate.kind);
+    let Some(outputs) = compute(circuits, gates, &gate.kind) else { return false; };
     assert_eq!(outputs.len(), gate.num_outputs());
 
     let mut changed = false;
@@ -241,28 +241,14 @@ pub(crate) fn gate_outputs(gate: &Gate) -> impl ExactSizeIterator<Item = GateOut
     (0..gate.outputs().len()).map(|i| GateOutputNodeIdx(gate.index, i, ()))
 }
 
-pub(crate) fn compute(circuits: &Arena<Circuit>, gates: &Arena<Gate>, gate: &GateKind) -> Vec<bool> {
-    // TODO: merge this with update
+fn compute(circuits: &Arena<Circuit>, gates: &Arena<Gate>, gate: &GateKind) -> Option<Vec<bool>> {
+    // TODO: merge this function with update
 
     let get_node_value = |node| get_node_value_not_idx(circuits, gates, node);
     // TODO: figure out a way for this to set its outputs
     match gate {
-        GateKind::Nand([a, b], _) => vec![!(get_node_value(a) && get_node_value(b))],
-        GateKind::Const(_, [o]) => vec![get_node_value(o)],
-        GateKind::Custom(inputs, _, subcircuit) => {
-            /*
-            // TODO: make passthrough nodes so this does not need to happen
-            let mut subcircuit = &mut circuits[*subcircuit];
-            for (input_node, subcircuit_input_node) in inputs.iter().zip(circuit_input_indexes(&mut subcircuit)) {
-                set_producer_value(circuits, gates, subcircuit_input_node.into(), get_producer_value(input_node.producer));
-            }
-
-            circuit_output_indexes(&subcircuit)
-                .into_iter()
-                .map(|output_idx| if let Some(producer) = get_receiver(circuits, gates, output_idx.into()).producer { get_producer(circuits, gates, producer).value } else { false })
-                .collect()
-            */
-            todo!()
-        }
+        GateKind::Nand([a, b], _) => Some(vec![!(get_node_value(a) && get_node_value(b))]),
+        GateKind::Const(_, [o]) => Some(vec![get_node_value(o)]),
+        GateKind::Custom(inputs, _, subcircuit) => None, // custom gates do not have to compute values because their nodes are passthrough nodes and should automatically be connected to the correct things
     }
 }
