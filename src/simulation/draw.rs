@@ -24,7 +24,7 @@ pub(crate) fn render(circuit: &Circuit, graphics: &mut opengl_graphics::GlGraphi
             let pos = circuit_input_pos(circuit, args, input_i);
             ellipse(bool_color(input_producer.value), ellipse::circle(pos[0], pos[1], CIRCLE_RAD), c.transform, gl);
         }
-        for (output_i, output) in connections::output_indexes(circuit).enumerate() {
+        for (output_i, output) in connections::circuit_output_indexes(circuit).enumerate() {
             let output_pos = circuit_output_pos(circuit, args, output_i);
             let color = receiver_color(circuit, output.into());
             ellipse(color, ellipse::circle(output_pos[0], output_pos[1], CIRCLE_RAD), c.transform, gl);

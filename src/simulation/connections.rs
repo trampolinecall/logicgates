@@ -73,10 +73,10 @@ impl From<CircuitOutputNodeIdx> for ReceiverIdx {
     }
 }
 
-pub(crate) fn input_indexes(circuit: &Circuit) -> impl Iterator<Item = CircuitInputNodeIdx> {
+pub(crate) fn circuit_input_indexes(circuit: &Circuit) -> impl Iterator<Item = CircuitInputNodeIdx> {
     (0..circuit.inputs.len()).map(|i| CircuitInputNodeIdx(i, ()))
 }
-pub(crate) fn output_indexes(circuit: &Circuit) -> impl Iterator<Item = CircuitOutputNodeIdx> {
+pub(crate) fn circuit_output_indexes(circuit: &Circuit) -> impl Iterator<Item = CircuitOutputNodeIdx> {
     (0..circuit.outputs.len()).map(|i| CircuitOutputNodeIdx(i, ()))
 }
 
@@ -218,13 +218,13 @@ pub(crate) fn compute(gate: &GateKind, circuit: &Circuit) -> Vec<bool> {
         GateKind::Const(_, [o]) => vec![o.value],
         GateKind::Subcircuit(inputs, _, subcircuit) => {
             let mut subcircuit = subcircuit.borrow_mut();
-            for (input_node, subcircuit_input_node) in inputs.iter().zip(input_indexes(&mut subcircuit)) {
+            for (input_node, subcircuit_input_node) in inputs.iter().zip(circuit_input_indexes(&mut subcircuit)) {
                 set_producer_value(&mut subcircuit, subcircuit_input_node.into(), get_producer_value(input_node.producer));
             }
 
             // TODO: move everything into one global Gate arena which means figuring out lifetimes and things
             update(&mut subcircuit);
-            output_indexes(&subcircuit)
+            circuit_output_indexes(&subcircuit)
                 .into_iter()
                 .map(|output_idx| if let Some(producer) = get_receiver(&mut subcircuit, output_idx.into()).producer { get_producer(&mut subcircuit, producer).value } else { false })
                 .collect()

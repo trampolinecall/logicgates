@@ -119,7 +119,7 @@ fn convert_producer_bundle(
 ) -> Vec<connections::ProducerIdx> {
     match producer {
         // TODO: figure out a better solution than to collect
-        circuit2::bundle::ProducerBundle::CurCircuitInput(_) => connections::input_indexes(new_circuit).map(Into::into).collect(),
+        circuit2::bundle::ProducerBundle::CurCircuitInput(_) => connections::circuit_input_indexes(new_circuit).map(Into::into).collect(),
         circuit2::bundle::ProducerBundle::GateOutput(_, old_gate_index) => connections::gate_outputs(new_circuit.get_gate(gate_index_map[old_gate_index])).map(Into::into).collect(),
         circuit2::bundle::ProducerBundle::Get(b, field) => {
             fn field_indexes(ty: &ty::Type, type_context: &ty::TypeContext<nominal_type::FullyDefinedStruct>, field: &str) -> Option<std::ops::Range<usize>> {
@@ -170,7 +170,7 @@ fn convert_receiver_bundle(
 ) -> Vec<connections::ReceiverIdx> {
     match receiver {
         // TODO: figure out a better solution than to collect
-        circuit2::bundle::ReceiverBundle::CurCircuitOutput(_) => connections::output_indexes(new_circuit).map(Into::into).collect(),
+        circuit2::bundle::ReceiverBundle::CurCircuitOutput(_) => connections::circuit_output_indexes(new_circuit).map(Into::into).collect(),
         circuit2::bundle::ReceiverBundle::GateInput(_, old_gate_index) => connections::gate_inputs(new_circuit.get_gate(gate_index_map[old_gate_index])).map(Into::into).collect(),
     }
 }
