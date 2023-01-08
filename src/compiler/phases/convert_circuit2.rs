@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    simulation::circuit,
+    simulation::{circuit, self},
     compiler::{
         data::{circuit1, circuit2, nominal_type, ty},
         error::{CompileError, File, Report},
@@ -26,6 +26,10 @@ impl<'file, 'circuit> From<InfiniteRecursion<'file, 'circuit>> for CompileError<
     }
 }
 
+pub(crate) fn convert(file: &File, convert_circuit1::IR { circuits, circuit_table, mut type_context }: convert_circuit1::IR) -> Option<simulation::Circuit> {
+    todo!()
+}
+/* TODO: put this back in after the simulation overhaul is done
 pub(crate) fn convert(file: &File, convert_circuit1::IR { circuits, circuit_table, mut type_context }: convert_circuit1::IR) -> Option<circuit::Circuit> {
     if let Some((_, _, main_id)) = circuit_table.get("main") {
         if let circuit2::CircuitOrIntrinsic::Custom(circuit) = circuits.get(*main_id) {
@@ -176,3 +180,4 @@ fn convert_receiver_bundle(
         circuit2::bundle::ReceiverBundle::GateInput(_, old_gate_index) => new_circuit.get_gate(gate_index_map[old_gate_index]).inputs().map(Into::into).collect(),
     }
 }
+*/

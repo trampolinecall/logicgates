@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, HashMap};
 
-use crate::simulation::circuit;
+use crate::simulation;
 
-pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit::GateIndex, (u32, f64)> {
+pub(crate) fn calculate_locations(circuit: &simulation::Circuit) -> HashMap<simulation::GateIndex, (u32, f64)> { // probably accept arena instead?
     /* old iterative position calculating algorithm based on a loss function and trying to find a minimum loss
     // gate position scoring; lower is better
     let score = |current_idx: usize, current_loc @ [x, y]: [f64; 2], gate: &circuit::Gate| -> f64 {
@@ -69,6 +69,8 @@ pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit
 
     // TODO: test this
 
+    todo!()
+    /* TODO: bring this back after everything is converted to ecs
     // group them into columns with each one going one column right of its rightmost dependency
     let mut xs: BTreeMap<circuit::GateIndex, u32> = circuit.gates.iter().map(|(g_i, _)| (g_i, 0)).collect();
     // TODO: this has to run repeatedly in case the gates are not in topologically sorted order
@@ -118,4 +120,5 @@ pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit
             (x_gate_index, (gate_x, gate_y))
         })
         .collect()
+    */
 }

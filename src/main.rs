@@ -1,36 +1,64 @@
 #![allow(clippy::upper_case_acronyms)]
+// #![allow(unreachable_code, dead_code, unused_variables, unused_imports, unused_mut)] // TODO: remove this when overhaul is done
 
 #[macro_use]
 pub(crate) mod utils;
-pub(crate) mod simulation;
 pub(crate) mod compiler;
+pub(crate) mod simulation;
 
 pub(crate) struct App {
     gl: opengl_graphics::GlGraphics,
-    circuit: simulation::circuit::Circuit,
+    simulation: simulation::Simulation,
 }
 
 impl App {
-    fn new(gl: opengl_graphics::GlGraphics, circuit: simulation::circuit::Circuit) -> App {
-        App { gl, circuit }
+    fn new(gl: opengl_graphics::GlGraphics, simulation: simulation::Simulation) -> App {
+        App { gl, simulation }
     }
 
     fn render(&mut self, render_args: &piston::RenderArgs) {
-        self.circuit.render(&mut self.gl, render_args);
+        self.simulation.render(&mut self.gl, render_args); // TODO: make the render component manager store gl?
     }
 
     fn update(&mut self, _: piston::UpdateArgs) {
-        self.circuit.update();
+        self.simulation.update();
     }
 }
 
 fn main() {
-    let circuit = compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap();
+    // let circuit = compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(); TODO
     let opengl = opengl_graphics::OpenGL::V3_2;
 
     let mut window: glutin_window::GlutinWindow = piston::WindowSettings::new("logic gates", [1280, 720]).graphics_api(opengl).resizable(true).samples(4).exit_on_esc(true).build().unwrap();
 
-    let mut app = App::new(opengl_graphics::GlGraphics::new(opengl), circuit);
+    let mut app = App::new(opengl_graphics::GlGraphics::new(opengl), {
+        let mut gates = generational_arena::Arena::new();
+
+        let nand = gates.insert_with(|index| simulation::Gate {
+            index,
+            calculation: simulation::components::calculator::CalculationComponent::new_nand(index),
+            draw_component: simulation::components::draw::DrawComponent { position: (0, 0.0) },
+        });
+
+        let circuit = gates.insert_with(|index| simulation::Gate {
+            index,
+            calculation: simulation::components::calculator::CalculationComponent::new_custom(
+                index,
+                simulation::Circuit {
+                    name: "main".into(),
+                    gates: vec![nand],
+                    inputs: simulation::components::connection::ProducersComponent(vec![
+                        simulation::components::connection::Producer::new(false),
+                        simulation::components::connection::Producer::new(true),
+                    ]),
+                    outputs: simulation::components::connection::ReceiversComponent(vec![simulation::components::connection::Receiver::new()]),
+                },
+            ),
+            draw_component: simulation::components::draw::DrawComponent { position: (0, 0.0) },
+        });
+
+        simulation::Simulation { gates, main_circuit: circuit }
+    });
 
     let mut events = piston::Events::new(piston::EventSettings { ups: 20, ..Default::default() });
     while let Some(e) = events.next(&mut window) {
@@ -39,6 +67,7 @@ fn main() {
             app.render(&args);
         }
 
+        /* TODO: probably move this to userinput component
         if let Some(piston::Button::Keyboard(key)) = e.press_args() {
             if let Some(index) = match key {
                 piston::Key::D1 => Some(0),
@@ -85,6 +114,7 @@ fn main() {
                 }
             }
         }
+        */
 
         if let Some(args) = e.update_args() {
             app.update(args);
