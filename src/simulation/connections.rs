@@ -205,28 +205,32 @@ fn update_gate(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>, update_st
 pub(crate) fn gate_get_input(gate: &Gate, input: GateInputNodeIdx) -> &Node {
     assert_eq!(gate.index, input.0, "get input node with index that is not this node");
     let inputs = gate.inputs();
-    inputs.get(input.1).unwrap_or_else(|| panic!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", input.1, gate.name(), inputs.len()))
+    // inputs.get(input.1).unwrap_or_else(|| panic!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", input.1, gate.name(), inputs.len()))
+    inputs.get(input.1).unwrap()
 }
 pub(crate) fn gate_get_input_mut(gate: &mut Gate, input: GateInputNodeIdx) -> &mut Node {
     assert_eq!(gate.index, input.0, "get input node with index that is not this node");
-    let name = gate.name();
+    // let name = gate.name();
     let inputs = gate.inputs_mut();
-    let len = inputs.len();
-    inputs.get_mut(input.1).unwrap_or_else(|| panic!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", input.1, name, len))
+    // let len = inputs.len();
+    // inputs.get_mut(input.1).unwrap_or_else(|| panic!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", input.1, name, len))
+    inputs.get_mut(input.1).unwrap()
     // TODO: there is probably a better way of doing this that doesnt need this code to be copy pasted
     // TODO: there is also probably a better way of doing this that doesnt need
 }
 pub(crate) fn gate_get_output(gate: &Gate, index: GateOutputNodeIdx) -> &Node {
     assert_eq!(gate.index, index.0, "get output node with index that is not this node");
     let outputs = gate.outputs();
-    outputs.get(index.1).unwrap_or_else(|| panic!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, gate.name(), outputs.len()))
+    // outputs.get(index.1).unwrap_or_else(|| panic!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, gate.name(), outputs.len()))
+    outputs.get(index.1).unwrap()
 }
 pub(crate) fn gate_get_output_mut(gate: &mut Gate, index: GateOutputNodeIdx) -> &mut Node {
     assert_eq!(gate.index, index.0, "get output node with index that is not this node");
-    let name = gate.name();
+    // let name = gate.name();
     let outputs = gate.outputs_mut();
-    let len = outputs.len();
-    outputs.get_mut(index.1).unwrap_or_else(|| panic!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, name, len))
+    // let len = outputs.len();
+    // outputs.get_mut(index.1).unwrap_or_else(|| panic!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, name, len))
+    outputs.get_mut(index.1).unwrap()
 }
 
 pub(crate) fn gate_inputs(gate: &Gate) -> impl ExactSizeIterator<Item = GateInputNodeIdx> + '_ {
