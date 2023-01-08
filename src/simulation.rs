@@ -1,6 +1,6 @@
 use slotmap::SlotMap;
 
-pub(crate) mod position;
+pub(crate) mod location;
 pub(crate) mod logic;
 pub(crate) mod draw;
 
@@ -34,7 +34,7 @@ pub(crate) struct Circuit {
 pub(crate) struct Gate {
     pub(crate) index: GateIndex,
     pub(crate) calculation: logic::Calculation,
-    pub(crate) location: (u32, f64),
+    pub(crate) location: location::Location,
 }
 
 impl Circuit {

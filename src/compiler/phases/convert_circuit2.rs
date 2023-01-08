@@ -6,7 +6,7 @@ use crate::{
         error::{CompileError, File, Report},
         phases::convert_circuit1,
     },
-    simulation::{self, logic},
+    simulation::{self, logic, location},
     utils::arena,
 };
 
@@ -39,7 +39,7 @@ pub(crate) fn convert(file: &File, convert_circuit1::IR { circuits: circuit2s, c
                 }
             };
 
-            simulation::position::calculate_locations(&mut circuits, &mut gates);
+            simulation::location::calculate_locations(&mut circuits, &mut gates);
 
             Some(simulation::Simulation { circuits, gates, main_circuit })
         } else {
@@ -96,11 +96,11 @@ fn add_gate<'file, 'circuit>(
     let (expansion_stack, gate_idx) = match circuit2s.get(circuit_id) {
         circuit2::CircuitOrIntrinsic::Custom(subcircuit) => {
             let (expansion_stack, subcircuit_idx) = convert_circuit(circuits, gates, circuit2s, type_context, expansion_stack, subcircuit)?;
-            (expansion_stack, gates.insert_with_key(|index| simulation::Gate { index, calculation: logic::Calculation::new_subcircuit(subcircuit_idx), location: (0, 0.0) }))
+            (expansion_stack, gates.insert_with_key(|index| simulation::Gate { index, calculation: logic::Calculation::new_subcircuit(subcircuit_idx), location: location::Location::new() }))
         }
-        circuit2::CircuitOrIntrinsic::Nand => (expansion_stack, gates.insert_with_key(|index| simulation::Gate { index, calculation: logic::Calculation::new_nand(index), location: (0, 0.0) })),
+        circuit2::CircuitOrIntrinsic::Nand => (expansion_stack, gates.insert_with_key(|index| simulation::Gate { index, calculation: logic::Calculation::new_nand(index), location: location::Location::new() })),
         circuit2::CircuitOrIntrinsic::Const(value) => {
-            (expansion_stack, gates.insert_with_key(|index| simulation::Gate { index, calculation: logic::Calculation::new_const(index, *value), location: (0, 0.0) }))
+            (expansion_stack, gates.insert_with_key(|index| simulation::Gate { index, calculation: logic::Calculation::new_const(index, *value), location: location::Location::new() }))
         }
     };
 

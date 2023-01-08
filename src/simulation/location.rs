@@ -2,7 +2,15 @@ use std::collections::{BTreeMap, HashMap};
 
 use crate::simulation::{self, draw, logic, CircuitMap, GateMap};
 
-// TODO: move this into location component
+pub(crate) struct Location {
+    pub(crate) location: (u32, f64),
+}
+
+impl Location {
+    pub(crate) fn new() -> Self {
+        Self { location: (0, 0.0) }
+    }
+}
 
 pub(crate) fn calculate_locations(circuits: &mut CircuitMap, gates: &mut GateMap) {
     let locations = calculate_locations_(circuits, gates);
@@ -132,6 +140,6 @@ fn calculate_locations_(circuits: &CircuitMap, gates: &GateMap) -> HashMap<simul
 
 fn apply_locations(gates: &mut GateMap, locations: HashMap<simulation::GateIndex, (u32, f64)>) {
     for (gate_i, location) in locations {
-        gates[gate_i].location = location;
+        gates[gate_i].location = simulation::location::Location { location };
     }
 }
