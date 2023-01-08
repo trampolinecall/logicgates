@@ -4,37 +4,38 @@ use generational_arena::Arena;
 
 use crate::simulation::{Gate, GateIndex};
 
-use super::calculator::{self, ProducerIdx, ReceiverIdx};
-
-pub(crate) enum Node {
-    Producer(Producer),
-    Passthrough(Receiver), // TODO: rename to Passthrough
-                           // TODO: computation node?
+pub(crate) enum Node<'node> {
+    Producer(&'node Producer),
+    Receiver(&'node Receiver), // TODO: computation node?
 }
 pub(crate) struct Producer {
-    dependants: HashSet<NodeIdx>,
     pub(crate) value: bool,
+    dependants: HashSet<NodeIdx>,
 }
 
 pub(crate) struct Receiver {
     producer: Option<NodeIdx>,
 }
 
-pub(crate) struct ProducersComponent(pub(crate) Vec<Producer>);
-pub(crate) struct ReceiversComponent(pub(crate) Vec<Receiver>);
-
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub(crate) struct NodeIdx {
     gate: GateIndex,
     outputs: bool,
     index: usize,
 }
 
+impl NodeIdx {
+    pub(crate) fn gate_index(&self) -> GateIndex {
+        self.gate
+    }
+}
+
 impl Producer {
     pub(crate) fn new(value: bool) -> Self {
-        Self { dependants: HashSet::new(), value }
+        Self { value, dependants: HashSet::new() }
     }
 
-    pub(crate) fn dependants(&self) -> &'static HashSet<ReceiverIdx> {
+    pub(crate) fn dependants(&self) -> &HashSet<NodeIdx> {
         &self.dependants
     }
 }
@@ -43,11 +44,42 @@ impl Receiver {
         Self { producer: None }
     }
 
-    pub(crate) fn producer(&self) -> Option<ProducerIdx> {
+    pub(crate) fn producer(&self) -> Option<NodeIdx> {
         self.producer
     }
 }
 
+pub(crate) fn get_node(gates: &Arena<Gate>, idx: NodeIdx) -> Option<Node> {
+    if let Some(gate) = gates.get(idx.gate) {
+        match &gate.calculation.calculation {
+            super::calculator::Calculation::Nand { inputs, outputs } => {
+                if !idx.outputs {
+                    Some(Node::Receiver(&inputs[idx.index]))
+                } else {
+                    Some(Node::Producer(&outputs[idx.index]))
+                }
+            }
+            super::calculator::Calculation::Const { value: _, inputs, outputs } => {
+                if !idx.outputs {
+                    Some(Node::Receiver(&inputs[idx.index]))
+                } else {
+                    Some(Node::Producer(&outputs[idx.index]))
+                }
+            }
+            super::calculator::Calculation::Custom(circuit) => {
+                if !idx.outputs {
+                    Some(Node::Producer(&circuit.inputs[idx.index]))
+                } else {
+                    Some(Node::Receiver(&circuit.outputs[idx.index]))
+                }
+            }
+        }
+    } else {
+        None
+    }
+}
+
+/*
 // TODO: test connection, replacing old connection
 pub(crate) fn connect(gates: &Arena<Gate>, producer_idx: ProducerIdx, receiver_idx: ReceiverIdx) {
     if let Some(old_producer) = get_receiver(receiver_idx).producer {
@@ -83,6 +115,7 @@ pub(crate) fn get_producer_mut(gates: &mut Arena<Gate>, index: ProducerIdx) -> &
         ProducerIdx::GO(go) => self.get_gate_mut(go.0).get_output_mut(go),
     }
 }
+*/
 
 /* TODO this in the producers and receivers compoennts
     pub(crate) fn get_input(&self, input: GateInputNodeIdx) -> &Receiver {

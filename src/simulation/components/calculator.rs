@@ -5,69 +5,43 @@ use std::collections::HashSet;
 
 pub(crate) struct CalculationComponent {
     index: GateIndex,
-    calculation: Calculation,
+    pub(crate) calculation: Calculation,
 }
 
-pub(crate) enum Either<L, R> { // TODO: probably move this into utils
-    Left(L),
-    Right(R),
-}
-use Either::*;
-
-enum Calculation {
-    Nand { inputs: connection::ReceiversComponent, outputs: connection::ProducersComponent },
-    Const { value: bool, inputs: connection::ReceiversComponent, outputs: connection::ProducersComponent },
+pub(crate) enum Calculation {
+    Nand { inputs: [connection::Receiver; 2], outputs: [connection::Producer; 1] },
+    Const { value: bool, inputs: [connection::Receiver; 0], outputs: [connection::Producer; 1] },
     Custom(Box<Circuit>),
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
-pub(crate) struct InputNodeIdx(GateIndex, usize);
-
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
-pub(crate) struct OutputNodeIdx(GateIndex, usize);
-
-impl InputNodeIdx {
-    pub fn gate_index(self) -> GateIndex {
-        self.0
-    }
-}
-impl OutputNodeIdx {
-    pub fn gate_index(self) -> GateIndex {
-        self.0
-    }
-}
 impl CalculationComponent {
     // default value for the outputs is whatever value results from having all false inputs
     pub(crate) fn new_nand(index: GateIndex) -> Self {
-        Self {
-            index,
-            calculation: Calculation::Nand {
-                outputs: connection::ProducersComponent(vec![connection::Producer::new(true)]),
-                inputs: connection::ReceiversComponent(vec![connection::Receiver::new(), connection::Receiver::new()]),
-            },
-        }
+        Self { index, calculation: Calculation::Nand { inputs: ([(connection::Receiver::new()), (connection::Receiver::new())]), outputs: ([(connection::Producer::new(true))]) } }
     }
     pub(crate) fn new_const(index: GateIndex, value: bool) -> Self {
-        Self { index, calculation: Calculation::Const { value, outputs: connection::ProducersComponent(vec![connection::Producer::new(value)]), inputs: connection::ReceiversComponent(vec![]) } }
+        Self { index, calculation: Calculation::Const { value, outputs: ([(connection::Producer::new(value))]), inputs: [] } }
     }
     pub(crate) fn new_custom(index: GateIndex, subcircuit: Circuit) -> Self {
         Self { index, calculation: Calculation::Custom(Box::new(subcircuit)) }
     }
 
-    pub(crate) fn inputs(&self) -> Either<&connection::ReceiversComponent, &connection::ProducersComponent> {
+    /*
+    pub(crate) fn inputs(&self) -> &connection::Nodes {
         match &self.calculation {
-            Calculation::Nand { inputs, outputs } => Left(&inputs),
-            Calculation::Const { value, inputs, outputs } => Left(&inputs),
-            Calculation::Custom(subc) => Right(&subc.inputs),
+            Calculation::Nand { inputs, outputs } => inputs,
+            Calculation::Const { value, inputs, outputs } => inputs,
+            Calculation::Custom(subc) => &subc.inputs,
         }
     }
-    pub(crate) fn outputs(&self) -> Either<&connection::ProducersComponent, &connection::ReceiversComponent> {
+    pub(crate) fn outputs(&self) -> &connection::Nodes {
         match &self.calculation {
-            Calculation::Nand { inputs, outputs } => Left(&outputs),
-            Calculation::Const { value, inputs, outputs } => Left(&outputs),
-            Calculation::Custom(subc) => Right(&subc.outputs),
+            Calculation::Nand { inputs, outputs } => outputs,
+            Calculation::Const { value, inputs, outputs } => outputs,
+            Calculation::Custom(subc) => &subc.outputs,
         }
     }
+    */
 
     pub(crate) fn name(&self) -> &str {
         match &self.calculation {
@@ -106,43 +80,40 @@ pub(crate) fn update(gates: &mut Arena<Gate>) {
             continue;
         };
 
-        let get_receiver_value = |receiver: &connection::Receiver| {
-            if let Some(producer_idx) = receiver.producer() {
-                if let Some(gate_with_producer) = gates.get(producer_idx.gate_index()) {
-                    // gate_with_producer.calculation.calculation.
-                    todo!()
-                } else {
-                    false
+        fn get_node_value(gates: &Arena<Gate>, node: &connection::Node) -> bool {
+            match node {
+                connection::Node::Producer(producer) => producer.value,
+                connection::Node::Receiver(receiver) => {
+                    if let Some(producer) = receiver.producer() {
+                        if let Some(producer) = connection::get_node(gates, producer) {
+                            get_node_value(gates, &producer)
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
                 }
-            } else {
-                false
             }
-        };
-        let output_values = match &gate.calculation.calculation {
-            Calculation::Nand { outputs: _, inputs } => vec![!(get_receiver_value(&inputs.0[0]) & get_receiver_value(&inputs.0[1]))],
-            Calculation::Const { value, outputs: _, inputs: _ } => vec![*value],
+        }
+        let new_value = match &gate.calculation.calculation {
+            Calculation::Nand { outputs: _, inputs: [a, b] } => !(get_node_value(gates, &connection::Node::Receiver(a)) & get_node_value(gates, &connection::Node::Receiver(b))),
+            Calculation::Const { value, outputs: _, inputs: _ } => *value,
             Calculation::Custom(_) => continue, // custom gates dont need to update their receivers (TODO) because their outputs just pass through the values of their subgates
         };
-        let output_nodes = match &mut gates.get_mut(gate_i).unwrap().calculation.calculation {
-            Calculation::Nand { outputs, inputs: _ } => outputs,
-            Calculation::Const { value: _, outputs, inputs: _ } => outputs,
+        let output_node = match &mut gates.get_mut(gate_i).unwrap().calculation.calculation {
+            Calculation::Nand { outputs: [o], inputs: _ } => o,
+            Calculation::Const { value: _, outputs: [o], inputs: _ } => o,
             Calculation::Custom(_) => continue,
         };
-        assert_eq!(output_values.len(), output_nodes.0.len());
 
-        let mut gate_changed = false;
+        let old_value = output_node.value;
+        let gate_changed = old_value != new_value;
 
-        for (new_value, producer) in output_values.into_iter().zip(output_nodes.0.iter_mut()) {
-            let old_value = producer.value;
-            if old_value != new_value {
-                gate_changed = true;
-            }
+        output_node.value = new_value;
 
-            producer.value = new_value;
-
-            for dependant in producer.dependants() {
-                update_stack.push(dependant.gate_index()); // the ReceiverIdx stores the GateIdx that the receiver is attached to
-            }
+        for dependant in output_node.dependants() {
+            update_stack.push(dependant.gate_index());
         }
 
         if gate_changed {

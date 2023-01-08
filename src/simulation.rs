@@ -9,8 +9,8 @@ pub(crate) type GateIndex = generational_arena::Index;
 pub(crate) struct Circuit {
     pub(crate) name: String,
     pub(crate) gates: Vec<GateIndex>,
-    pub(crate) inputs: components::connection::ProducersComponent, // usually inputs are receivers but in circuits, if this is the main circuit, the inputs are producers because they are user controlled, and inputs of subcircuits are just passthrough producer nodes
-    pub(crate) outputs: components::connection::ReceiversComponent,
+    pub(crate) inputs: Vec<components::connection::Producer>,
+    pub(crate) outputs: Vec<components::connection::Receiver>,
 }
 
 pub(crate) struct Gate {

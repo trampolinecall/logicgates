@@ -47,11 +47,8 @@ fn main() {
                 simulation::Circuit {
                     name: "main".into(),
                     gates: vec![nand],
-                    inputs: simulation::components::connection::ProducersComponent(vec![
-                        simulation::components::connection::Producer::new(false),
-                        simulation::components::connection::Producer::new(true),
-                    ]),
-                    outputs: simulation::components::connection::ReceiversComponent(vec![simulation::components::connection::Receiver::new()]),
+                    inputs: (vec![(simulation::components::connection::Producer::new(false)), (simulation::components::connection::Producer::new(true))]),
+                    outputs: (vec![(simulation::components::connection::Receiver::new())]),
                 },
             ),
             draw_component: simulation::components::draw::DrawComponent { position: (0, 0.0) },
