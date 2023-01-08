@@ -81,6 +81,7 @@ fn calculate_locations_(circuits: &Arena<circuit::Circuit>, gates: &Arena<circui
     // TODO: test this
 
     // gates in subcircuits just get processed based on the other gates they are connected to, meaning that their positions are independent of the positions of the gates in the supercircuits
+    // TODO: it actually does not work properly as described in the line above so fix this
 
     // group them into columns with each one going one column right of its rightmost dependency
     let mut xs: BTreeMap<circuit::GateIndex, u32> = gates.iter().map(|(g_i, _)| (g_i, 0)).collect();
