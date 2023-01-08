@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use crate::simulation::circuit;
+use crate::simulation::{circuit, draw};
 
 use super::connections;
 
@@ -106,11 +106,11 @@ pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit
 
         // set the y values
         const PADDING: f64 = 20.0;
-        let all_height: f64 = on_current_column.iter().map(|(_, g)| (g.display_size())[1]).sum::<f64>() + PADDING * (on_current_column.len() - 1) as f64;
+        let all_height: f64 = on_current_column.iter().map(|(_, g)| draw::gate_display_size(g)[1]).sum::<f64>() + PADDING * (on_current_column.len() - 1) as f64;
         let mut start_y = -all_height / 2.0;
         for (gate_i, gate) in &on_current_column {
             ys.insert(*gate_i, start_y);
-            start_y += (gate.display_size())[1];
+            start_y += draw::gate_display_size(gate)[1];
             start_y += PADDING;
         }
     }

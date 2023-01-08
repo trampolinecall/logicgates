@@ -2,8 +2,8 @@
 
 #[macro_use]
 pub(crate) mod utils;
-pub(crate) mod simulation;
 pub(crate) mod compiler;
+pub(crate) mod simulation;
 
 pub(crate) struct App {
     gl: opengl_graphics::GlGraphics,
@@ -16,7 +16,7 @@ impl App {
     }
 
     fn render(&mut self, render_args: &piston::RenderArgs) {
-        self.circuit.render(&mut self.gl, render_args);
+        simulation::draw::render(&self.circuit, &mut self.gl, render_args)
     }
 
     fn update(&mut self, _: piston::UpdateArgs) {
