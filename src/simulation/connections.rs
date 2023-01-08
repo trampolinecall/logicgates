@@ -7,7 +7,7 @@ use super::circuit::{Circuit, CircuitIndex, Gate, GateIndex, GateKind};
 
 #[derive(Clone)]
 pub(crate) struct Node {
-    pub(crate) gate: GateIndex,
+    gate: Option<GateIndex>, // the gate that should be updated when this node is updated
     value: Value,
     dependants: HashSet<NodeIdx>,
 }
@@ -30,15 +30,15 @@ pub(crate) struct CircuitInputNodeIdx(pub(crate) CircuitIndex, pub(crate) usize,
 pub(crate) struct CircuitOutputNodeIdx(pub(crate) CircuitIndex, pub(crate) usize, ());
 
 impl Node {
-    pub(crate) fn new_value(gate: GateIndex, value: bool) -> Self {
+    pub(crate) fn new_value(gate: Option<GateIndex>, value: bool) -> Self {
         Self { gate, value: Value::Manual(value), dependants: HashSet::new() }
     }
 
-    pub(crate) fn new_passthrough(gate: GateIndex, other: NodeIdx) -> Self {
+    pub(crate) fn new_passthrough(gate: Option<GateIndex>, other: NodeIdx) -> Self {
         Self { gate, value: Value::Passthrough(other), dependants: HashSet::new() }
     }
 
-    pub(crate) fn new_disconnected(gate: GateIndex) -> Self {
+    pub(crate) fn new_disconnected(gate: Option<GateIndex>) -> Self {
         Self { gate, value: Value::Disconnected, dependants: HashSet::new() }
     }
 }
@@ -150,6 +150,7 @@ pub(crate) fn get_node_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut Arena<Circuit>,
 }
 
 pub(crate) fn update(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>) {
+    // TODO: make this update stack of nodes instead of of gates
     let mut stack: Vec<_> = gates.iter().map(|(i, _)| i).collect();
     let mut changed = HashSet::new();
     while let Some(gate) = stack.pop() {
@@ -181,8 +182,13 @@ fn update_gate(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>, update_st
         set_node_value(circuits, gates, as_producer_index, Value::Manual(new_value));
 
         for dependant in &get_node(circuits, gates, as_producer_index).dependants {
-            let dependant_gate = get_node(circuits, gates, *dependant).gate;
-            update_stack.push(dependant_gate);
+            // if there is no dependant gate to update, this node is part of a circuit and even if
+            // that circuit is a subcircuit, updates to this node will (when this is properly
+            // implemented) propagate to this node's dependants, which will update the
+            // those other gates that should be updated
+            if let Some(dependant_gate) = get_node(circuits, gates, *dependant).gate {
+                update_stack.push(dependant_gate);
+            }
         }
     }
 
@@ -227,7 +233,7 @@ pub(crate) fn gate_outputs(gate: &Gate) -> impl ExactSizeIterator<Item = GateOut
 pub(crate) fn compute(circuits: &Arena<Circuit>, gates: &Arena<Gate>, gate: &GateKind) -> Vec<bool> {
     // TODO: merge this with update
 
-    let get_node_value = |node| get_node_value_not_idx(circuits, gates, node) ;
+    let get_node_value = |node| get_node_value_not_idx(circuits, gates, node);
     // TODO: figure out a way for this to set its outputs
     match gate {
         GateKind::Nand([a, b], _) => vec![!(get_node_value(a) && get_node_value(b))],

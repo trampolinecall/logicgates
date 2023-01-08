@@ -41,12 +41,14 @@ impl CustomGate {
 // TODO: refactor everything
 impl Circuit {
     pub(crate) fn new(index: CircuitIndex, name: String, num_inputs: usize, num_outputs: usize) -> Self {
+        // even if this circuit is part of a subcircuit, these nodes dont have to update anything
+        // instead, because the gates inside this circuit are connected to these nodes, updates to these nodes will propagate to the gates' nodes, properly updating those gates
         Self {
             index,
             name,
             gates: Vec::new(),
-            inputs: std::iter::repeat_with(|| connections::Node::new_value(todo!(), false)).take(num_inputs).collect(),
-            outputs: std::iter::repeat_with(|| connections::Node::new_disconnected(todo!())).take(num_outputs).collect(),
+            inputs: std::iter::repeat_with(|| connections::Node::new_value(None, false)).take(num_inputs).collect(),
+            outputs: std::iter::repeat_with(|| connections::Node::new_disconnected(None)).take(num_outputs).collect(),
         }
     }
 
@@ -64,10 +66,10 @@ impl Circuit {
     }
 
     pub(crate) fn set_num_inputs(&mut self, num: usize) {
-        self.inputs.resize(num, connections::Node::new_value(todo!(), false));
+        self.inputs.resize(num, connections::Node::new_value(None, false));
     }
     pub(crate) fn set_num_outputs(&mut self, num: usize) {
-        self.outputs.resize(num, connections::Node::new_disconnected(todo!()));
+        self.outputs.resize(num, connections::Node::new_disconnected(None));
     }
 }
 
@@ -76,13 +78,13 @@ impl Gate {
     pub(crate) fn new_nand_gate(index: GateIndex) -> Gate {
         Gate {
             index,
-            kind: GateKind::Nand([connections::Node::new_disconnected(index), connections::Node::new_disconnected(index)], [connections::Node::new_value(index, true)]),
+            kind: GateKind::Nand([connections::Node::new_disconnected(Some(index)), connections::Node::new_disconnected(Some(index))], [connections::Node::new_value(Some(index), true)]),
             location: (0, 0.0),
             _dont_construct: (),
         }
     }
     pub(crate) fn new_const_gate(index: GateIndex, value: bool) -> Gate {
-        Gate { index, kind: GateKind::Const([], [connections::Node::new_value(index, value)]), location: (0, 0.0), _dont_construct: () }
+        Gate { index, kind: GateKind::Const([], [connections::Node::new_value(Some(index), value)]), location: (0, 0.0), _dont_construct: () }
     }
     pub(crate) fn new_subcircuit_gate(index: GateIndex, subcircuit: CircuitIndex) -> Gate {
         let num_inputs = todo!(); // subcircuit.inputs.len();
@@ -90,8 +92,8 @@ impl Gate {
         Gate {
             index,
             kind: GateKind::Subcircuit(
-                (0..num_inputs).map(|_| connections::Node::new_disconnected(index)).collect(),
-                output_values.into_iter().map(|value| connections::Node::new_value(index, value)).collect(),
+                (0..num_inputs).map(|_| connections::Node::new_disconnected(Some(index))).collect(),
+                output_values.into_iter().map(|value| connections::Node::new_value(Some(index), value)).collect(),
                 subcircuit,
             ),
             location: (0, 0.0),
