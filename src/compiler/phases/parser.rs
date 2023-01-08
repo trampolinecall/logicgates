@@ -146,7 +146,7 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
         while Token::identifier_matcher().matches(self.peek()) {
             let field_name = Token::identifier_matcher().convert(self.next());
             let field_ty = self.type_()?;
-            fields.push((field_name, field_ty)) // TODO: anonymous fields too
+            fields.push((field_name, field_ty)); // TODO: anonymous fields too
         }
 
         self.expect(Token::cbrack_matcher())?;
@@ -178,8 +178,8 @@ impl<'file, T: Iterator<Item = Token<'file>>> Parser<'file, T> {
 
             &Token::OBrack(obrack) => {
                 self.next();
-
                 let (patterns, cbrack) = self.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), Parser::pattern)?;
+
                 Ok(circuit1::UntypedPattern { kind: circuit1::UntypedPatternKind::Product(obrack + cbrack, patterns), type_info: (), span: obrack + cbrack })
             }
             _ => Err(self.expected_and_next("pattern")),
@@ -448,7 +448,7 @@ mod test {
 
         let tokens = make_token_stream([Token::Let(sp), Token::Identifier(sp, "a"), Token::Semicolon(sp), Token::Identifier(sp, "bit"), Token::Equals(sp), Token::Identifier(sp, "b")], sp);
         assert_eq!(
-            Parser { tokens: tokens }.r#let(),
+            Parser { tokens }.r#let(),
             Ok(circuit1::UntypedLet {
                 pat: circuit1::UntypedPattern {
                     kind: circuit1::UntypedPatternKind::Identifier(sp, "a", type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(sp, "bit"), span: sp }),
@@ -495,7 +495,7 @@ mod test {
 
         let tokens = make_token_stream([Token::Apostrophe(sp), Token::Identifier(sp, "a"), Token::Identifier(sp, "b")], sp);
         assert_eq!(
-            Parser { tokens: tokens }.expr(),
+            Parser { tokens }.expr(),
             Ok(circuit1::UntypedExpr {
                 kind: circuit1::UntypedExprKind::Call((sp, "a"), false, Box::new(circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "b"), type_info: (), span: sp })),
                 type_info: (),
