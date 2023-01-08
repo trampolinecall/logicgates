@@ -95,7 +95,7 @@ fn add_gate<'file, 'circuit>(
     match circuit2s.get(circuit_id) {
         circuit2::CircuitOrIntrinsic::Custom(subcircuit) => {
             let (expansion_stack, subcircuit) = convert_circuit(circuits, gates, circuit2s, type_context, expansion_stack, subcircuit)?;
-            Ok((expansion_stack, gates.insert_with(|index| circuit::Gate::new_subcircuit_gate(index, subcircuit))))
+            Ok((expansion_stack, gates.insert_with(|index| circuit::Gate::new_subcircuit_gate(index, &circuits[subcircuit]))))
         }
         circuit2::CircuitOrIntrinsic::Nand => Ok((expansion_stack, gates.insert_with(|index| circuit::Gate::new_nand_gate(index)))),
         circuit2::CircuitOrIntrinsic::Const(value) => Ok((expansion_stack, gates.insert_with(|index| circuit::Gate::new_const_gate(index, *value)))),
