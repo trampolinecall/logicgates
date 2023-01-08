@@ -121,9 +121,10 @@ pub(crate) fn lex(file: &File) -> impl Iterator<Item = Token> + '_ {
 
 #[cfg(test)]
 mod test {
-    use super::lex;
-    use super::Token;
-    use crate::compiler::error::File;
+    use crate::compiler::{
+        error::File,
+        phases::lexer::{lex, Token},
+    };
 
     fn check_lexer_output<'file>(mut l: impl Iterator<Item = Token<'file>>, expected: impl IntoIterator<Item = Token<'file>>) -> () {
         let mut expected = expected.into_iter();
