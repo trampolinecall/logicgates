@@ -5,6 +5,8 @@ use generational_arena::Arena;
 
 use super::circuit::{Circuit, CircuitIndex, Gate, GateIndex, GateKind};
 
+// TODO: reorganize this module
+
 #[derive(Clone)]
 pub(crate) struct Node {
     gate: Option<GateIndex>, // the gate that should be updated when this node is updated
@@ -136,16 +138,16 @@ pub(crate) fn get_node<'a: 'c, 'b: 'c, 'c>(circuits: &'a Arena<Circuit>, gates: 
     match index {
         NodeIdx::CI(ci) => &circuits[ci.0].inputs[ci.1],
         NodeIdx::CO(co) => &circuits[co.0].outputs[co.1],
-        NodeIdx::GI(gi) => gate_get_input(&gates[gi.0], gi),
-        NodeIdx::GO(go) => gate_get_output(&gates[go.0], go),
+        NodeIdx::GI(gi) => gate_get_input(circuits, gates, gi),
+        NodeIdx::GO(go) => gate_get_output(circuits, gates, go),
     }
 }
 pub(crate) fn get_node_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut Arena<Circuit>, gates: &'b mut Arena<Gate>, index: NodeIdx) -> &'c mut Node {
     match index {
         NodeIdx::CI(ci) => &mut circuits[ci.0].inputs[ci.1],
         NodeIdx::CO(co) => &mut circuits[co.0].outputs[co.1],
-        NodeIdx::GI(gi) => gate_get_input_mut(&mut gates[gi.0], gi),
-        NodeIdx::GO(go) => gate_get_output_mut(&mut gates[go.0], go),
+        NodeIdx::GI(gi) => gate_get_input_mut(circuits, gates, gi),
+        NodeIdx::GO(go) => gate_get_output_mut(circuits, gates, go),
     }
 }
 
@@ -165,15 +167,16 @@ pub(crate) fn update(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>) {
     }
 }
 
-fn update_gate(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>, update_stack: &mut Vec<GateIndex>, gate: GateIndex) -> bool {
-    let gate = &gates[gate];
+fn update_gate(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>, update_stack: &mut Vec<GateIndex>, gate_index: GateIndex) -> bool {
+    let gate = &gates[gate_index];
     let outputs = compute(circuits, gates, &gate.kind);
-    assert_eq!(outputs.len(), gate.num_outputs());
+    assert_eq!(outputs.len(), gate_num_outputs(circuits, gates, gate_index));
 
     let mut changed = false;
 
     // TODO: merge this with update and compute and clean up
-    for (new_value, output_node) in outputs.into_iter().zip(gate_outputs(gate).collect::<Vec<_>>().into_iter()) {
+    for (new_value, output_node) in outputs.into_iter().zip(gate_output_indexes(circuits, gates, gate_index).collect::<Vec<_>>().into_iter()) {
+        // TODO: dont "clone" the iterator
         let as_producer_index = output_node.into();
         let old_value = get_node_value(circuits, gates, as_producer_index);
         if old_value != new_value {
@@ -195,39 +198,76 @@ fn update_gate(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>, update_st
     changed
 }
 
-pub(crate) fn gate_get_input(gate: &Gate, input: GateInputNodeIdx) -> &Node {
-    assert_eq!(gate.index, input.0, "get input node with index that is not this node");
-    let inputs = gate.inputs();
-    inputs.get(input.1).unwrap_or_else(|| panic!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", input.1, gate.name(), inputs.len()))
+pub(crate) fn gate_get_input<'a: 'c, 'b: 'c, 'c>(circuits: &'a Arena<Circuit>, gates: &'b Arena<Gate>, index: GateInputNodeIdx) -> &'c Node {
+    let name = gates[index.0].name();
+    let inputs = gate_inputs(circuits, gates, index.0);
+    inputs.get(index.1).unwrap_or_else(|| panic!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", index.1, name, inputs.len()))
 }
-pub(crate) fn gate_get_input_mut(gate: &mut Gate, input: GateInputNodeIdx) -> &mut Node {
-    assert_eq!(gate.index, input.0, "get input node with index that is not this node");
-    let name = gate.name();
-    let inputs = gate.inputs_mut();
+pub(crate) fn gate_get_input_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut Arena<Circuit>, gates: &'b mut Arena<Gate>, index: GateInputNodeIdx) -> &'c mut Node {
+    let name = gates[index.0].name();
+    let inputs = gate_inputs_mut(circuits, gates, index.0);
     let len = inputs.len();
-    inputs.get_mut(input.1).unwrap_or_else(|| panic!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", input.1, name, len))
+    inputs.get_mut(index.1).unwrap_or_else(|| panic!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", index.1, name, len))
     // TODO: there is probably a better way of doing this that doesnt need this code to be copy pasted
     // TODO: there is also probably a better way of doing this that doesnt need
 }
-pub(crate) fn gate_get_output(gate: &Gate, index: GateOutputNodeIdx) -> &Node {
-    assert_eq!(gate.index, index.0, "get output node with index that is not this node");
-    let outputs = gate.outputs();
-    outputs.get(index.1).unwrap_or_else(|| panic!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, gate.name(), outputs.len()))
+pub(crate) fn gate_get_output<'a: 'c, 'b: 'c, 'c>(circuits: &'a Arena<Circuit>, gates: &'b Arena<Gate>, index: GateOutputNodeIdx) -> &'c Node {
+    let name = gates[index.0].name();
+    let outputs = gate_outputs(circuits, gates, index.0);
+    outputs.get(index.1).unwrap_or_else(|| panic!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, name, outputs.len()))
 }
-pub(crate) fn gate_get_output_mut(gate: &mut Gate, index: GateOutputNodeIdx) -> &mut Node {
-    assert_eq!(gate.index, index.0, "get output node with index that is not this node");
-    let name = gate.name();
-    let outputs = gate.outputs_mut();
+pub(crate) fn gate_get_output_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut Arena<Circuit>, gates: &'b mut Arena<Gate>, index: GateOutputNodeIdx) -> &'c mut Node {
+    let name = gates[index.0].name();
+    let outputs = gate_outputs_mut(circuits, gates, index.0);
     let len = outputs.len();
     outputs.get_mut(index.1).unwrap_or_else(|| panic!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, name, len))
 }
 
-pub(crate) fn gate_inputs(gate: &Gate) -> impl ExactSizeIterator<Item = GateInputNodeIdx> + '_ {
-    (0..gate.inputs().len()).map(|i| GateInputNodeIdx(gate.index, i, ()))
+pub(crate) fn gate_input_indexes(circuits: &Arena<Circuit>, gates: &Arena<Gate>, gate: GateIndex) -> impl ExactSizeIterator<Item = GateInputNodeIdx> {
+    (0..gate_num_inputs(circuits, gates, gate)).map(move |i| GateInputNodeIdx(gate, i, ()))
+    // a bit strange because GateIndex is Copy so it really shouldnt have to be moved (?)
 }
 
-pub(crate) fn gate_outputs(gate: &Gate) -> impl ExactSizeIterator<Item = GateOutputNodeIdx> + '_ {
-    (0..gate.outputs().len()).map(|i| GateOutputNodeIdx(gate.index, i, ()))
+pub(crate) fn gate_output_indexes<'a, 'b, 'c>(circuits: &'a Arena<Circuit>, gates: &'b Arena<Gate>, gate: GateIndex) -> impl ExactSizeIterator<Item = GateOutputNodeIdx> {
+    (0..gate_num_outputs(circuits, gates, gate)).map(move |i| GateOutputNodeIdx(gate, i, ()))
+}
+pub(crate) fn gate_num_inputs(circuits: &Arena<Circuit>, gates: &Arena<Gate>, gate: GateIndex) -> usize {
+    gate_inputs(circuits, gates, gate).len()
+}
+pub(crate) fn gate_num_outputs(circuits: &Arena<Circuit>, gates: &Arena<Gate>, gate: GateIndex) -> usize {
+    gate_outputs(circuits, gates, gate).len()
+}
+
+pub(crate) fn gate_inputs<'a: 'c, 'b: 'c, 'c>(circuits: &'a Arena<Circuit>, gates: &'b Arena<Gate>, gate: GateIndex) -> &'c [Node] {
+    let gate = &gates[gate];
+    match &gate.kind {
+        GateKind::Nand(i, _) => i,
+        GateKind::Const(i, _) => i,
+        GateKind::Subcircuit(circuit_idx) => &circuits[*circuit_idx].inputs,
+    }
+}
+pub(crate) fn gate_outputs<'a: 'c, 'b: 'c, 'c>(circuits: &'a Arena<Circuit>, gates: &'b Arena<Gate>, gate: GateIndex) -> &'c [Node] {
+    let gate = &gates[gate];
+    match &gate.kind {
+        GateKind::Nand(_, o) | GateKind::Const(_, o) => o,
+        GateKind::Subcircuit(circuit_idx) => &circuits[*circuit_idx].outputs,
+    }
+}
+
+pub(crate) fn gate_inputs_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut Arena<Circuit>, gates: &'b mut Arena<Gate>, gate: GateIndex) -> &'c mut [Node] {
+    let gate = &mut gates[gate];
+    match &mut gate.kind {
+        GateKind::Nand(i, _) => i,
+        GateKind::Const(i, _) => i,
+        GateKind::Subcircuit(circuit_idx) => &mut circuits[*circuit_idx].inputs,
+    }
+}
+pub(crate) fn gate_outputs_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut Arena<Circuit>, gates: &'b mut Arena<Gate>, gate: GateIndex) -> &'c mut [Node] {
+    let gate = &mut gates[gate];
+    match &mut gate.kind {
+        GateKind::Nand(_, o) | GateKind::Const(_, o) => o,
+        GateKind::Subcircuit(circuit_idx) => &mut circuits[*circuit_idx].outputs,
+    }
 }
 
 pub(crate) fn compute(circuits: &Arena<Circuit>, gates: &Arena<Gate>, gate: &GateKind) -> Vec<bool> {
@@ -238,7 +278,7 @@ pub(crate) fn compute(circuits: &Arena<Circuit>, gates: &Arena<Gate>, gate: &Gat
     match gate {
         GateKind::Nand([a, b], _) => vec![!(get_node_value(a) && get_node_value(b))],
         GateKind::Const(_, [o]) => vec![get_node_value(o)],
-        GateKind::Subcircuit(inputs, _, subcircuit) => {
+        GateKind::Subcircuit(subcircuit) => {
             /*
             // TODO: make passthrough nodes so this does not need to happen
             let mut subcircuit = &mut circuits[*subcircuit];
