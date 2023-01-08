@@ -1,13 +1,13 @@
 use generational_arena::Arena;
 
 use crate::simulation::{
-    circuit::{Circuit, CircuitIndex, Gate},
     logic::{self, GateInputNodeIdx, GateOutputNodeIdx, NodeIdx},
+    {Circuit, CircuitIndex, Gate},
 };
 
 use super::{
-    circuit::GateIndex,
     logic::{CircuitInputNodeIdx, CircuitOutputNodeIdx},
+    GateIndex,
 };
 
 const CIRCLE_RAD: f64 = 5.0;
@@ -77,8 +77,7 @@ pub(crate) fn gate_display_size(circuits: &Arena<Circuit>, gates: &Arena<Gate>, 
     const EXTRA_VERTICAL_HEIGHT: f64 = 40.0;
     const GATE_WIDTH: f64 = 50.0;
 
-    let gate_height =
-        (std::cmp::max(logic::gate_num_inputs(circuits, gates, gate), logic::gate_num_outputs(circuits, gates, gate)) - 1) as f64 * VERTICAL_VALUE_SPACING + EXTRA_VERTICAL_HEIGHT;
+    let gate_height = (std::cmp::max(logic::gate_num_inputs(circuits, gates, gate), logic::gate_num_outputs(circuits, gates, gate)) - 1) as f64 * VERTICAL_VALUE_SPACING + EXTRA_VERTICAL_HEIGHT;
     [GATE_WIDTH, gate_height]
 }
 

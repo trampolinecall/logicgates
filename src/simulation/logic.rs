@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 use generational_arena::Arena;
 
-use super::circuit::{Circuit, CircuitIndex, Gate, GateIndex};
+use super::{Circuit, CircuitIndex, Gate, GateIndex};
 
 // TODO: reorganize this module
 
