@@ -25,7 +25,7 @@ impl App {
 }
 
 fn main() {
-    let circuit = compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap();
+    let Some(circuit) = compiler::compile(&std::env::args().nth(1).expect("expected input file")) else { return; };
     let opengl = opengl_graphics::OpenGL::V3_2;
 
     let mut window: glutin_window::GlutinWindow = piston::WindowSettings::new("logic gates", [1280, 720]).graphics_api(opengl).resizable(true).samples(4).exit_on_esc(true).build().unwrap();
