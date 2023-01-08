@@ -32,7 +32,7 @@ fn main() {
 
     let mut app = App::new(opengl_graphics::GlGraphics::new(opengl), circuit);
 
-    let mut events = piston::Events::new(piston::EventSettings { ups: 20, ..Default::default() });
+    let mut events = piston::Events::new(piston::EventSettings { ups: 10, ..Default::default() });
     while let Some(e) = events.next(&mut window) {
         use piston::{PressEvent, RenderEvent, UpdateEvent};
         if let Some(args) = e.render_args() {
