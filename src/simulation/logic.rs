@@ -2,8 +2,6 @@ use std::collections::HashSet;
 
 use crate::simulation::{Circuit, CircuitIndex, CircuitMap, GateIndex, GateMap};
 
-// TODO: reorganize this module
-
 pub(crate) struct Calculation {
     kind: CalculationKind,
 }
@@ -79,7 +77,6 @@ impl Calculation {
     }
 
     pub(crate) fn name<'a>(&self, circuits: &'a CircuitMap) -> &'a str {
-        // TODO: hopefully somehow turn this into &str
         match self.kind {
             CalculationKind::Nand(_, _) => "nand",
             CalculationKind::Const(_, [Node { value: Value::Manual(false), .. }]) => "false",
@@ -105,7 +102,7 @@ impl Node {
 }
 
 // inputs and outputs {{{1
-pub(crate) fn gate_inputs<'a: 'c, 'b: 'c, 'c>(circuits: &'a CircuitMap, gates: &'b GateMap, gate: GateIndex) -> &'c [Node] {
+fn gate_inputs<'a: 'c, 'b: 'c, 'c>(circuits: &'a CircuitMap, gates: &'b GateMap, gate: GateIndex) -> &'c [Node] {
     let gate = &gates[gate];
     match &gate.calculation.kind {
         CalculationKind::Nand(i, _) => i,
@@ -113,7 +110,7 @@ pub(crate) fn gate_inputs<'a: 'c, 'b: 'c, 'c>(circuits: &'a CircuitMap, gates: &
         CalculationKind::Custom(circuit_idx) => &circuits[*circuit_idx].inputs,
     }
 }
-pub(crate) fn gate_outputs<'a: 'c, 'b: 'c, 'c>(circuits: &'a CircuitMap, gates: &'b GateMap, gate: GateIndex) -> &'c [Node] {
+fn gate_outputs<'a: 'c, 'b: 'c, 'c>(circuits: &'a CircuitMap, gates: &'b GateMap, gate: GateIndex) -> &'c [Node] {
     let gate = &gates[gate];
     match &gate.calculation.kind {
         CalculationKind::Nand(_, o) | CalculationKind::Const(_, o) => o,
@@ -121,7 +118,7 @@ pub(crate) fn gate_outputs<'a: 'c, 'b: 'c, 'c>(circuits: &'a CircuitMap, gates: 
     }
 }
 
-pub(crate) fn gate_inputs_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, gates: &'b mut GateMap, gate: GateIndex) -> &'c mut [Node] {
+fn gate_inputs_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, gates: &'b mut GateMap, gate: GateIndex) -> &'c mut [Node] {
     let gate = &mut gates[gate];
     match &mut gate.calculation.kind {
         CalculationKind::Nand(i, _) => i,
@@ -129,7 +126,7 @@ pub(crate) fn gate_inputs_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, 
         CalculationKind::Custom(circuit_idx) => &mut circuits[*circuit_idx].inputs,
     }
 }
-pub(crate) fn gate_outputs_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, gates: &'b mut GateMap, gate: GateIndex) -> &'c mut [Node] {
+fn gate_outputs_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, gates: &'b mut GateMap, gate: GateIndex) -> &'c mut [Node] {
     let gate = &mut gates[gate];
     match &mut gate.calculation.kind {
         CalculationKind::Nand(_, o) | CalculationKind::Const(_, o) => o,
@@ -158,21 +155,21 @@ pub(crate) fn gate_output_indexes(circuits: &CircuitMap, gates: &GateMap, gate: 
     (0..gate_num_outputs(circuits, gates, gate)).map(move |i| GateOutputNodeIdx(gate, i, ()))
 }
 // getting nodes {{{1
-pub(crate) fn gate_get_input<'a: 'c, 'b: 'c, 'c>(circuits: &'a CircuitMap, gates: &'b GateMap, index: GateInputNodeIdx) -> &'c Node {
+fn gate_get_input<'a: 'c, 'b: 'c, 'c>(circuits: &'a CircuitMap, gates: &'b GateMap, index: GateInputNodeIdx) -> &'c Node {
     let inputs = gate_inputs(circuits, gates, index.0);
     inputs.get(index.1).unwrap()
 }
-pub(crate) fn gate_get_input_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, gates: &'b mut GateMap, index: GateInputNodeIdx) -> &'c mut Node {
+fn gate_get_input_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, gates: &'b mut GateMap, index: GateInputNodeIdx) -> &'c mut Node {
     let inputs = gate_inputs_mut(circuits, gates, index.0);
     inputs.get_mut(index.1).unwrap()
     // TODO: there is probably a better way of doing this that doesnt need this code to be copy pasted
     // TODO: there is also probably a better way of doing this that doesnt need
 }
-pub(crate) fn gate_get_output<'a: 'c, 'b: 'c, 'c>(circuits: &'a CircuitMap, gates: &'b GateMap, index: GateOutputNodeIdx) -> &'c Node {
+fn gate_get_output<'a: 'c, 'b: 'c, 'c>(circuits: &'a CircuitMap, gates: &'b GateMap, index: GateOutputNodeIdx) -> &'c Node {
     let outputs = gate_outputs(circuits, gates, index.0);
     outputs.get(index.1).unwrap()
 }
-pub(crate) fn gate_get_output_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, gates: &'b mut GateMap, index: GateOutputNodeIdx) -> &'c mut Node {
+fn gate_get_output_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, gates: &'b mut GateMap, index: GateOutputNodeIdx) -> &'c mut Node {
     let outputs = gate_outputs_mut(circuits, gates, index.0);
     outputs.get_mut(index.1).unwrap()
 }

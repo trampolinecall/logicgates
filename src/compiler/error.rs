@@ -1,5 +1,3 @@
-// TODO: reorganize this module
-
 #[macro_use]
 pub(crate) mod span;
 
