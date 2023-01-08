@@ -199,28 +199,32 @@ fn update_gate(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>, update_st
 }
 
 pub(crate) fn gate_get_input<'a: 'c, 'b: 'c, 'c>(circuits: &'a Arena<Circuit>, gates: &'b Arena<Gate>, index: GateInputNodeIdx) -> &'c Node {
-    let name = gates[index.0].name();
+    // let name = gates[index.0].name();
     let inputs = gate_inputs(circuits, gates, index.0);
-    inputs.get(index.1).unwrap_or_else(|| panic!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", index.1, name, inputs.len()))
+    // inputs.get(index.1).unwrap_or_else(|| panic!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", index.1, name, inputs.len()))
+    inputs.get(index.1).unwrap()
 }
 pub(crate) fn gate_get_input_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut Arena<Circuit>, gates: &'b mut Arena<Gate>, index: GateInputNodeIdx) -> &'c mut Node {
-    let name = gates[index.0].name();
+    // let name = gates[index.0].name();
     let inputs = gate_inputs_mut(circuits, gates, index.0);
-    let len = inputs.len();
-    inputs.get_mut(index.1).unwrap_or_else(|| panic!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", index.1, name, len))
+    // let len = inputs.len();
+    // inputs.get_mut(index.1).unwrap_or_else(|| panic!("gate input node index invalid: index has index {} but '{}' gate has only {} inputs", index.1, name, len))
+    inputs.get_mut(index.1).unwrap()
     // TODO: there is probably a better way of doing this that doesnt need this code to be copy pasted
     // TODO: there is also probably a better way of doing this that doesnt need
 }
 pub(crate) fn gate_get_output<'a: 'c, 'b: 'c, 'c>(circuits: &'a Arena<Circuit>, gates: &'b Arena<Gate>, index: GateOutputNodeIdx) -> &'c Node {
-    let name = gates[index.0].name();
+    // let name = gates[index.0].name();
     let outputs = gate_outputs(circuits, gates, index.0);
-    outputs.get(index.1).unwrap_or_else(|| panic!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, name, outputs.len()))
+    // outputs.get(index.1).unwrap_or_else(|| panic!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, name, outputs.len()))
+    outputs.get(index.1).unwrap()
 }
 pub(crate) fn gate_get_output_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut Arena<Circuit>, gates: &'b mut Arena<Gate>, index: GateOutputNodeIdx) -> &'c mut Node {
-    let name = gates[index.0].name();
+    // let name = gates[index.0].name();
     let outputs = gate_outputs_mut(circuits, gates, index.0);
-    let len = outputs.len();
-    outputs.get_mut(index.1).unwrap_or_else(|| panic!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, name, len))
+    // let len = outputs.len();
+    // outputs.get_mut(index.1).unwrap_or_else(|| panic!("gate output node index invalid: index has index {} but '{}' gate has only {} outputs", index.1, name, len))
+    outputs.get_mut(index.1).unwrap()
 }
 
 pub(crate) fn gate_input_indexes(circuits: &Arena<Circuit>, gates: &Arena<Gate>, gate: GateIndex) -> impl ExactSizeIterator<Item = GateInputNodeIdx> {
