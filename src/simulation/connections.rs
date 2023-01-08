@@ -27,7 +27,7 @@ pub(crate) struct CircuitOutputNodeIdx(pub(crate) usize, ());
 
 impl Receiver {
     pub(crate) fn new(gate: Option<GateIndex>) -> Self {
-        Self { gate, producer: None, _dont_construct: () }
+        Self { gate, producer: None }
     }
 
     pub(crate) fn producer(&self) -> Option<ProducerIdx> {
