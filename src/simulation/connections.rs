@@ -130,7 +130,6 @@ pub(crate) fn toggle_input(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate
 
 pub(crate) fn set_input(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>, ci: CircuitInputNodeIdx, value: bool) {
     set_node_value(circuits, gates, ci.into(), Value::Manual(value));
-    // TODO: consider whether or not this is supposed to call update()
 }
 
 pub(crate) fn get_node<'a: 'c, 'b: 'c, 'c>(circuits: &'a Arena<Circuit>, gates: &'b Arena<Gate>, index: NodeIdx) -> &'c Node {
