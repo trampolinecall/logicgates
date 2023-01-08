@@ -25,6 +25,8 @@ pub(crate) fn render(circuits: &CircuitMap, gates: &GateMap, circuit: CircuitInd
     graphics.draw(args.viewport(), |c, gl| {
         clear(BG, gl);
 
+        // TODO: clean this up
+
         // draw circuit inputs and outputs
         for input_node_index in logic::circuit_input_indexes(circuit) {
             let pos = circuit_input_pos(circuits, args, input_node_index);
