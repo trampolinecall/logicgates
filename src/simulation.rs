@@ -1,5 +1,3 @@
-use slotmap::SlotMap;
-
 pub(crate) mod draw;
 pub(crate) mod location;
 pub(crate) mod logic;
@@ -8,12 +6,10 @@ pub(crate) mod logic;
 
 slotmap::new_key_type! {
     pub(crate) struct CircuitIndex;
-}
-slotmap::new_key_type! {
     pub(crate) struct GateIndex;
 }
-pub(crate) type CircuitMap = SlotMap<CircuitIndex, Circuit>;
-pub(crate) type GateMap = SlotMap<GateIndex, Gate>;
+pub(crate) type CircuitMap = slotmap::SlotMap<CircuitIndex, Circuit>;
+pub(crate) type GateMap = slotmap::SlotMap<GateIndex, Gate>;
 
 pub(crate) struct Simulation {
     pub(crate) circuits: CircuitMap,
