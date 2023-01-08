@@ -245,22 +245,19 @@ pub(crate) fn update(circuits: &mut CircuitMap, gates: &mut GateMap) {
             continue;
         }
 
-        let (old_value, new_value, output_node_idx) = match &gates[gate].calculation.kind {
-            CalculationKind::Nand([_, _], [_]) => {
-                let a_i = GateInputNodeIdx(gate, 0, ()).into();
-                let b_i = GateInputNodeIdx(gate, 1, ()).into();
+        let (old_value, new_value, output_node_idx) = if let CalculationKind::Nand([_, _], [_]) = &gates[gate].calculation.kind {
+            let a_i = GateInputNodeIdx(gate, 0, ()).into();
+            let b_i = GateInputNodeIdx(gate, 1, ()).into();
 
-                let o_i = GateOutputNodeIdx(gate, 0, ()).into();
+            let o_i = GateOutputNodeIdx(gate, 0, ()).into();
 
-                (get_node_value(circuits, gates, o_i), !(get_node_value(circuits, gates, a_i) && get_node_value(circuits, gates, b_i)), o_i)
-            }
-            CalculationKind::Const(_, [_]) => {
-                let o_i = GateOutputNodeIdx(gate, 0, ()).into();
-
-                (get_node_value(circuits, gates, o_i), get_node_value(circuits, gates, o_i), o_i)
-            }
-            CalculationKind::Custom(_) => continue, // custom gates do not have to compute values because their nodes are connected to their inputs or are passthrough nodes and should automatically have the right values
+            (get_node_value(circuits, gates, o_i), !(get_node_value(circuits, gates, a_i) && get_node_value(circuits, gates, b_i)), o_i)
+        } else {
+            // const nodes do not need to update becuase they always output the value they were created with
+            // custom gates do not have to compute values because their nodes are connected to their inputs or are passthrough nodes and should automatically have the right values
+            continue;
         };
+
         let gate_changed = old_value != new_value;
 
         set_node_value(circuits, gates, output_node_idx, Value::Manual(new_value));
