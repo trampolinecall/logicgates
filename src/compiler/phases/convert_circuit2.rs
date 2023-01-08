@@ -95,8 +95,8 @@ fn add_gate<'file, 'circuit>(
 ) -> Result<(ExpandedStack<'file, 'circuit>, circuit::GateIndex), InfiniteRecursion<'file, 'circuit>> {
     let (expansion_stack, gate_idx) = match circuit2s.get(circuit_id) {
         circuit2::CircuitOrIntrinsic::Custom(subcircuit) => {
-            let (expansion_stack, subcircuit) = convert_circuit(circuits, gates, circuit2s, type_context, expansion_stack, subcircuit)?;
-            (expansion_stack, gates.insert_with(|index| circuit::Gate::new_subcircuit_gate(index, &circuits[subcircuit])))
+            let (expansion_stack, subcircuit_idx) = convert_circuit(circuits, gates, circuit2s, type_context, expansion_stack, subcircuit)?;
+            (expansion_stack, gates.insert_with(|index| circuit::Gate::new_subcircuit_gate(index, subcircuit_idx)))
         }
         circuit2::CircuitOrIntrinsic::Nand => (expansion_stack, gates.insert_with(circuit::Gate::new_nand_gate)),
         circuit2::CircuitOrIntrinsic::Const(value) => (expansion_stack, gates.insert_with(|index| circuit::Gate::new_const_gate(index, *value))),
@@ -136,7 +136,7 @@ fn convert_producer_bundle(
     match producer {
         // TODO: figure out a better solution than to collect
         circuit2::bundle::ProducerBundle::CurCircuitInput(_) => connections::circuit_input_indexes(&circuits[new_circuit]).map(Into::into).collect(),
-        circuit2::bundle::ProducerBundle::GateOutput(_, old_gate_index) => connections::gate_outputs(&gates[gate_index_map[old_gate_index]]).map(Into::into).collect(),
+        circuit2::bundle::ProducerBundle::GateOutput(_, old_gate_index) => connections::gate_output_indexes(circuits, gates, gate_index_map[old_gate_index]).map(Into::into).collect(),
         circuit2::bundle::ProducerBundle::Get(b, field) => {
             fn field_indexes(ty: &ty::Type, type_context: &ty::TypeContext<nominal_type::FullyDefinedStruct>, field: &str) -> Option<std::ops::Range<usize>> {
                 match ty {
@@ -191,6 +191,6 @@ fn convert_receiver_bundle(
     match receiver {
         // TODO: figure out a better solution than to collect
         circuit2::bundle::ReceiverBundle::CurCircuitOutput(_) => connections::circuit_output_indexes(&circuits[new_circuit]).map(Into::into).collect(),
-        circuit2::bundle::ReceiverBundle::GateInput(_, old_gate_index) => connections::gate_inputs(&gates[gate_index_map[old_gate_index]]).map(Into::into).collect(),
+        circuit2::bundle::ReceiverBundle::GateInput(_, old_gate_index) => connections::gate_input_indexes(circuits, gates, gate_index_map[old_gate_index]).map(Into::into).collect(),
     }
 }

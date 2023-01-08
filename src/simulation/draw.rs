@@ -5,6 +5,11 @@ use crate::simulation::{
     connections::{self, GateInputNodeIdx, GateOutputNodeIdx, NodeIdx},
 };
 
+use super::{
+    circuit::GateIndex,
+    connections::{CircuitInputNodeIdx, CircuitOutputNodeIdx},
+};
+
 const CIRCLE_RAD: f64 = 5.0;
 const CONNECTION_RAD: f64 = CIRCLE_RAD / 2.0;
 const VERTICAL_VALUE_SPACING: f64 = 20.0;
@@ -23,57 +28,57 @@ pub(crate) fn render(circuits: &Arena<Circuit>, gates: &Arena<Gate>, circuit: Ci
         clear(BG, gl);
 
         // draw circuit inputs and outputs
-        for (input_i, input_node_index) in connections::circuit_input_indexes(circuit).enumerate() {
-            let pos = circuit_input_pos(circuit, args, input_i);
+        for input_node_index in connections::circuit_input_indexes(circuit) {
+            let pos = circuit_input_pos(circuits, args, input_node_index);
             ellipse(node_color(circuits, gates, input_node_index.into()), ellipse::circle(pos[0], pos[1], CIRCLE_RAD), c.transform, gl);
         }
-        for (output_i, output) in connections::circuit_output_indexes(circuit).enumerate() {
-            let output_pos = circuit_output_pos(circuit, args, output_i);
-            let color = node_color(circuits, gates, output.into());
+        for output_node_index in connections::circuit_output_indexes(circuit) {
+            let output_pos = circuit_output_pos(circuits, args, output_node_index);
+            let color = node_color(circuits, gates, output_node_index.into());
             ellipse(color, ellipse::circle(output_pos[0], output_pos[1], CIRCLE_RAD), c.transform, gl);
 
             // draw lines connecting outputs with their values
-            if let Some(producer) = connections::get_node(circuits, gates, output.into()).producer() {
-                let connection_start_pos = node_pos(circuit, gates, args, producer);
+            if let Some(producer) = connections::get_node(circuits, gates, output_node_index.into()).producer() {
+                let connection_start_pos = node_pos(circuits, gates, args, producer);
                 line_from_to(color, CONNECTION_RAD, connection_start_pos, output_pos, c.transform, gl);
             }
         }
 
         // draw each gate
-        for gate in circuit.gates.iter() {
-            let gate = &gates[*gate];
-            let [gate_x, gate_y, gate_width, gate_height] = gate_box(args, gate);
+        for gate_i in circuit.gates.iter() {
+            let [gate_x, gate_y, gate_width, gate_height] = gate_box(circuits, gates, args, *gate_i);
 
             rectangle(GATE_COLOR, [gate_x, gate_y, gate_width, gate_height], c.transform, gl);
             // TODO: draw gate name
             // text(BLACK, 10, gate.name(), /* character cache */, c.transform, gl);
 
             // draw gate input dots and connections to their values
-            for input_receiver in connections::gate_inputs(gate) {
-                let color = node_color(circuits, gates, input_receiver.into());
-                let input_pos @ [x, y] = gate_input_pos(gates, args, input_receiver);
+            for input_receiver_index in connections::gate_input_indexes(circuits, gates, *gate_i) {
+                let color = node_color(circuits, gates, input_receiver_index.into());
+                let input_pos @ [x, y] = gate_input_pos(circuits, gates, args, input_receiver_index);
                 ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
 
-                if let Some(producer) = connections::get_node(circuits, gates, input_receiver.into()).producer() {
-                    let connection_start_pos = node_pos(circuit, gates, args, producer);
+                if let Some(producer) = connections::get_node(circuits, gates, input_receiver_index.into()).producer() {
+                    let connection_start_pos = node_pos(circuits, gates, args, producer);
                     line_from_to(color, CONNECTION_RAD, connection_start_pos, input_pos, c.transform, gl);
                 }
             }
             // draw gate output dots
-            for output in connections::gate_outputs(gate) {
+            for output in connections::gate_output_indexes(circuits, gates, *gate_i) {
                 let color = node_color(circuits, gates, output.into());
-                let [x, y] = gate_output_pos(gates, args, output);
+                let [x, y] = gate_output_pos(circuits, gates, args, output);
                 ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
             }
         }
     });
 }
 
-pub(crate) fn gate_display_size(gate: &Gate) -> [f64; 2] {
+pub(crate) fn gate_display_size(circuits: &Arena<Circuit>, gates: &Arena<Gate>, gate: GateIndex) -> [f64; 2] {
     const EXTRA_VERTICAL_HEIGHT: f64 = 40.0;
     const GATE_WIDTH: f64 = 50.0;
 
-    let gate_height = (std::cmp::max(gate.num_inputs(), gate.num_outputs()) - 1) as f64 * VERTICAL_VALUE_SPACING + EXTRA_VERTICAL_HEIGHT;
+    let gate_height =
+        (std::cmp::max(connections::gate_num_inputs(circuits, gates, gate), connections::gate_num_outputs(circuits, gates, gate)) - 1) as f64 * VERTICAL_VALUE_SPACING + EXTRA_VERTICAL_HEIGHT;
     [GATE_WIDTH, gate_height]
 }
 
@@ -83,36 +88,40 @@ fn centered_arg_y(center_y: f64, num_args: usize, i: usize) -> f64 {
     args_start_y + (i as f64) * VERTICAL_VALUE_SPACING
 }
 
-fn gate_box(args: &piston::RenderArgs, gate: &Gate) -> [f64; 4] {
+fn gate_box(circuits: &Arena<Circuit>, gates: &Arena<Gate>, args: &piston::RenderArgs, gate_index: GateIndex) -> [f64; 4] {
+    let gate = &gates[gate_index];
     let (gate_x, gate_y) = gate.location;
-    let [gate_width, gate_height] = gate_display_size(gate);
+    let [gate_width, gate_height] = gate_display_size(circuits, gates, gate_index);
     [gate_x as f64 * HORIZONTAL_GATE_SPACING, gate_y + args.window_size[1] / 2.0, gate_width, gate_height]
 }
 
-fn circuit_input_pos(circuit: &Circuit, args: &piston::RenderArgs, index: usize) -> [f64; 2] {
-    [0.0, centered_arg_y(args.window_size[1] / 2.0, circuit.inputs.len(), index)]
+fn circuit_input_pos(circuits: &Arena<Circuit>, args: &piston::RenderArgs, index: CircuitInputNodeIdx) -> [f64; 2] {
+    let circuit = &circuits[index.0];
+    [0.0, centered_arg_y(args.window_size[1] / 2.0, circuit.inputs.len(), index.1)]
 }
-fn circuit_output_pos(circuit: &Circuit, args: &piston::RenderArgs, index: usize) -> [f64; 2] {
-    [args.window_size[0], centered_arg_y(args.window_size[1] / 2.0, circuit.outputs.len(), index)]
-}
-
-fn gate_input_pos(gates: &Arena<Gate>, args: &piston::RenderArgs, input_idx: GateInputNodeIdx) -> [f64; 2] {
-    let gate = &gates[input_idx.0];
-    let [gate_x, gate_y, _, gate_height] = gate_box(args, gate);
-    [gate_x, centered_arg_y(gate_y + gate_height / 2.0, gate.num_inputs(), input_idx.1)]
-}
-fn gate_output_pos(gates: &Arena<Gate>, args: &piston::RenderArgs, output_idx: GateOutputNodeIdx) -> [f64; 2] {
-    let gate = &gates[output_idx.0];
-    let [gate_x, gate_y, gate_width, gate_height] = gate_box(args, gate);
-    [gate_x + gate_width, centered_arg_y(gate_y + gate_height / 2.0, gate.num_outputs(), output_idx.1)]
+fn circuit_output_pos(circuits: &Arena<Circuit>, args: &piston::RenderArgs, index: CircuitOutputNodeIdx) -> [f64; 2] {
+    let circuit = &circuits[index.0];
+    [args.window_size[0], centered_arg_y(args.window_size[1] / 2.0, circuit.outputs.len(), index.1)]
 }
 
-fn node_pos(circuit: &Circuit, gates: &Arena<Gate>, args: &piston::RenderArgs, node: NodeIdx) -> [f64; 2] {
+// TODO: merge these into node_pos()?
+fn gate_input_pos(circuits: &Arena<Circuit>, gates: &Arena<Gate>, args: &piston::RenderArgs, input_idx: GateInputNodeIdx) -> [f64; 2] {
+    let gate_index = input_idx.0;
+    let [gate_x, gate_y, _, gate_height] = gate_box(circuits, gates, args, gate_index);
+    [gate_x, centered_arg_y(gate_y + gate_height / 2.0, connections::gate_num_inputs(circuits, gates, gate_index), input_idx.1)]
+}
+fn gate_output_pos(circuits: &Arena<Circuit>, gates: &Arena<Gate>, args: &piston::RenderArgs, output_idx: GateOutputNodeIdx) -> [f64; 2] {
+    let gate_index = output_idx.0;
+    let [gate_x, gate_y, gate_width, gate_height] = gate_box(circuits, gates, args, gate_index);
+    [gate_x + gate_width, centered_arg_y(gate_y + gate_height / 2.0, connections::gate_num_outputs(circuits, gates, gate_index), output_idx.1)]
+}
+
+fn node_pos(circuits: &Arena<Circuit>, gates: &Arena<Gate>, args: &piston::RenderArgs, node: NodeIdx) -> [f64; 2] {
     match node {
-        NodeIdx::CI(ci) => circuit_input_pos(circuit, args, ci.1),
-        NodeIdx::CO(co) => circuit_output_pos(circuit, args, co.1),
-        NodeIdx::GI(gi) => gate_input_pos(gates, args, gi),
-        NodeIdx::GO(go) => gate_output_pos(gates, args, go),
+        NodeIdx::CI(ci) => circuit_input_pos(circuits, args, ci),
+        NodeIdx::CO(co) => circuit_output_pos(circuits, args, co),
+        NodeIdx::GI(gi) => gate_input_pos(circuits, gates, args, gi),
+        NodeIdx::GO(go) => gate_output_pos(circuits, gates, args, go),
     }
 }
 /* (unused)
