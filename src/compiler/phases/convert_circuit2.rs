@@ -111,8 +111,8 @@ fn connect(
     producer: &circuit2::bundle::ProducerBundle,
     receiver: &circuit2::bundle::ReceiverBundle,
 ) {
-    let producer_nodes: Vec<connections::ProducerIdx> = convert_producer_bundle(circuits, gates, type_context, new_circuit, gate_index_map, producer);
-    let receiver_nodes: Vec<connections::ReceiverIdx> = convert_receiver_bundle(circuits, gates, type_context, new_circuit, gate_index_map, receiver);
+    let producer_nodes: Vec<connections::NodeIdx> = convert_producer_bundle(circuits, gates, type_context, new_circuit, gate_index_map, producer);
+    let receiver_nodes: Vec<connections::NodeIdx> = convert_receiver_bundle(circuits, gates, type_context, new_circuit, gate_index_map, receiver);
 
     assert_eq!(producer_nodes.len(), receiver_nodes.len(), "connecting producer and receiver that have different size");
 
@@ -128,7 +128,7 @@ fn convert_producer_bundle(
     new_circuit: circuit::CircuitIndex,
     gate_index_map: &mut HashMap<circuit2::GateIdx, circuit::GateIndex>,
     producer: &circuit2::bundle::ProducerBundle,
-) -> Vec<connections::ProducerIdx> {
+) -> Vec<connections::NodeIdx> {
     match producer {
         // TODO: figure out a better solution than to collect
         circuit2::bundle::ProducerBundle::CurCircuitInput(_) => connections::circuit_input_indexes(&circuits[new_circuit]).map(Into::into).collect(),
@@ -183,7 +183,7 @@ fn convert_receiver_bundle(
     new_circuit: circuit::CircuitIndex,
     gate_index_map: &mut HashMap<circuit2::GateIdx, circuit::GateIndex>,
     receiver: &circuit2::bundle::ReceiverBundle,
-) -> Vec<connections::ReceiverIdx> {
+) -> Vec<connections::NodeIdx> {
     match receiver {
         // TODO: figure out a better solution than to collect
         circuit2::bundle::ReceiverBundle::CurCircuitOutput(_) => connections::circuit_output_indexes(&circuits[new_circuit]).map(Into::into).collect(),

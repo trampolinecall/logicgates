@@ -82,12 +82,14 @@ fn calculate_locations_(circuits: &Arena<circuit::Circuit>, gates: &Arena<circui
 
     // gates in subcircuits just get processed based on the other gates they are connected to, meaning that their positions are independent of the positions of the gates in the supercircuits
 
+    todo!()
+    /*
     // group them into columns with each one going one column right of its rightmost dependency
     let mut xs: BTreeMap<circuit::GateIndex, u32> = gates.iter().map(|(g_i, _)| (g_i, 0)).collect();
     // TODO: this has to run repeatedly in case the gates are not in topologically sorted order
     for (gate_i, gate) in gates.iter() {
-        let input_producer_x = |input: connections::GateInputNodeIdx| match connections::get_receiver(circuits, gates, input.into()).producer() {
-            Some(producer) => match connections::get_producer(circuits, gates, producer).gate {
+        let input_producer_x = |input: connections::GateInputNodeIdx| match connections::get_node(circuits, gates, input.into()).producer() {
+            Some(producer) => match connections::get_node(circuits, gates, producer).gate {
                 Some(producer_gate) => xs[&producer_gate], // receiver node connected to other gate output node
                 None => 0,                                 // receiver node connected to circuit input node
             },
@@ -99,8 +101,8 @@ fn calculate_locations_(circuits: &Arena<circuit::Circuit>, gates: &Arena<circui
     // within each column sort them by the average of their input ys
     let mut ys: BTreeMap<circuit::GateIndex, f64> = gates.iter().map(|(index, _)| (index, 0.0)).collect();
     for x in 1..=*xs.values().max().unwrap_or(&0) {
-        let input_producer_y = |input: connections::GateInputNodeIdx| match connections::get_receiver(circuits, gates, input.into()).producer() {
-            Some(producer) => match connections::get_producer(circuits, gates, producer).gate {
+        let input_producer_y = |input: connections::GateInputNodeIdx| match connections::get_node(circuits, gates, input.into()).producer() {
+            Some(producer) => match connections::get_node(circuits, gates, producer).gate {
                 Some(producer_gate) => ys[&producer_gate], // receiver node connected to other node
                 None => 0.0,                               // receiver node connected to circuit input node
             },
@@ -131,6 +133,7 @@ fn calculate_locations_(circuits: &Arena<circuit::Circuit>, gates: &Arena<circui
             (x_gate_index, (gate_x, gate_y))
         })
         .collect()
+    */
 }
 
 fn apply_locations(circuits: &mut Arena<circuit::Circuit>, gates: &mut Arena<circuit::Gate>, locations: HashMap<circuit::GateIndex, (u32, f64)>) {
