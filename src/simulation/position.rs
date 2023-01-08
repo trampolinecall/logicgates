@@ -77,7 +77,7 @@ pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit
     let mut xs: BTreeMap<circuit::GateIndex, u32> = circuit.gates.iter().map(|(g_i, _)| (g_i, 0)).collect();
     // TODO: this has to run repeatedly in case the gates are not in topologically sorted order
     for (gate_i, gate) in circuit.gates.iter() {
-        let input_producer_x = |input: connections::GateInputNodeIdx| match connections::get_receiver(circuit, input.into()).producer {
+        let input_producer_x = |input: connections::GateInputNodeIdx| match connections::get_receiver(circuit, input.into()).producer() {
             Some(producer) => match connections::get_producer(circuit, producer).gate {
                 Some(producer_gate) => xs[&producer_gate], // receiver node connected to other gate output node
                 None => 0,                                 // receiver node connected to circuit input node
@@ -90,7 +90,7 @@ pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit
     // within each column sort them by the average of their input ys
     let mut ys: BTreeMap<circuit::GateIndex, f64> = circuit.gates.iter().map(|(index, _)| (index, 0.0)).collect();
     for x in 1..=*xs.values().max().unwrap_or(&0) {
-        let input_producer_y = |input: connections::GateInputNodeIdx| match connections::get_receiver(circuit, input.into()).producer {
+        let input_producer_y = |input: connections::GateInputNodeIdx| match connections::get_receiver(circuit, input.into()).producer(){
             Some(producer) => match connections::get_producer(circuit, producer).gate {
                 Some(producer_gate) => ys[&producer_gate], // receiver node connected to other node
                 None => 0.0,                               // receiver node connected to circuit input node

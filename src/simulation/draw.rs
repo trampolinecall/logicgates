@@ -30,7 +30,7 @@ pub(crate) fn render(circuit: &Circuit, graphics: &mut opengl_graphics::GlGraphi
             ellipse(color, ellipse::circle(output_pos[0], output_pos[1], CIRCLE_RAD), c.transform, gl);
 
             // draw lines connecting outputs with their values
-            if let Some(producer) = connections::get_receiver(circuit, output.into()).producer {
+            if let Some(producer) = connections::get_receiver(circuit, output.into()).producer(){
                 let connection_start_pos = producer_pos(circuit, args, producer);
                 line_from_to(color, CONNECTION_RAD, connection_start_pos, output_pos, c.transform, gl);
             }
@@ -50,7 +50,7 @@ pub(crate) fn render(circuit: &Circuit, graphics: &mut opengl_graphics::GlGraphi
                 let input_pos @ [x, y] = gate_input_pos(circuit, args, input_receiver);
                 ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
 
-                if let Some(producer) = connections::get_receiver(circuit, input_receiver.into()).producer {
+                if let Some(producer) = connections::get_receiver(circuit, input_receiver.into()).producer(){
                     let connection_start_pos = producer_pos(circuit, args, producer);
                     line_from_to(color, CONNECTION_RAD, connection_start_pos, input_pos, c.transform, gl);
                 }
@@ -128,5 +128,5 @@ fn producer_color(circuit: &Circuit, producer: ProducerIdx) -> [f32; 4] {
     bool_color(connections::get_producer(circuit, producer).value)
 }
 fn receiver_color(circuit: &Circuit, receiver: ReceiverIdx) -> [f32; 4] {
-    bool_color(if let Some(producer) = connections::get_receiver(circuit, receiver).producer { connections::get_producer(circuit, producer).value } else { false })
+    bool_color(if let Some(producer) = connections::get_receiver(circuit, receiver).producer(){ connections::get_producer(circuit, producer).value } else { false })
 }
