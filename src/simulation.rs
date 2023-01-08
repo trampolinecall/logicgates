@@ -1,8 +1,8 @@
 use slotmap::SlotMap;
 
+pub(crate) mod draw;
 pub(crate) mod location;
 pub(crate) mod logic;
-pub(crate) mod draw;
 
 // TODO: clean up everything in here, for example some places use indexes and some use direct references, things like that, ...
 
