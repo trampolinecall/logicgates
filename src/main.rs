@@ -2,25 +2,25 @@
 
 #[macro_use]
 pub(crate) mod utils;
-pub(crate) mod simulation;
 pub(crate) mod compiler;
+pub(crate) mod simulation;
 
 pub(crate) struct App {
     gl: opengl_graphics::GlGraphics,
-    circuit: simulation::circuit::Circuit,
+    simulation: simulation::Simulation,
 }
 
 impl App {
-    fn new(gl: opengl_graphics::GlGraphics, circuit: simulation::circuit::Circuit) -> App {
-        App { gl, circuit }
+    fn new(gl: opengl_graphics::GlGraphics, simulation: simulation::Simulation) -> App {
+        App { gl, simulation }
     }
 
     fn render(&mut self, render_args: &piston::RenderArgs) {
-        self.circuit.render(&mut self.gl, render_args);
+        simulation::draw::render(&self.simulation.circuits, &self.simulation.gates, self.simulation.main_circuit, &mut self.gl, render_args)
     }
 
     fn update(&mut self, _: piston::UpdateArgs) {
-        self.circuit.update();
+        simulation::logic::update(&mut self.simulation.circuits, &mut self.simulation.gates)
     }
 }
 
@@ -80,8 +80,8 @@ fn main() {
 
                 _ => None,
             } {
-                if index < app.circuit.num_inputs() {
-                    app.circuit.toggle_input(index);
+                if index < app.simulation.circuits[app.simulation.main_circuit].num_inputs() {
+                    simulation::logic::toggle_input(&mut app.simulation.circuits, &mut app.simulation.gates, app.simulation.main_circuit, index);
                 }
             }
         }

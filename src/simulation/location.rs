@@ -1,18 +1,33 @@
 use std::collections::{BTreeMap, HashMap};
 
-use crate::simulation::circuit;
+use crate::simulation::{self, draw, logic, CircuitMap, GateMap};
 
-pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit::GateIndex, (u32, f64)> {
+pub(crate) struct Location {
+    pub(crate) location: (u32, f64),
+}
+
+impl Location {
+    pub(crate) fn new() -> Self {
+        Self { location: (0, 0.0) }
+    }
+}
+
+pub(crate) fn calculate_locations(circuits: &mut CircuitMap, gates: &mut GateMap) {
+    let locations = calculate_locations_(circuits, gates);
+    apply_locations(gates, locations);
+}
+
+fn calculate_locations_(circuits: &CircuitMap, gates: &GateMap) -> HashMap<simulation::GateIndex, (u32, f64)> {
     /* old iterative position calculating algorithm based on a loss function and trying to find a minimum loss
     // gate position scoring; lower is better
-    let score = |current_idx: usize, current_loc @ [x, y]: [f64; 2], gate: &circuit::Gate| -> f64 {
+    let score = |current_idx: usize, current_loc @ [x, y]: [f64; 2], gate: &simulation::Gate| -> f64 {
         let place_100_right_of_rightmost_input = {
             let desired_x = gate
                 .inputs()
                 .into_iter()
                 .map(|input| match input {
-                    crate::circuit::Value::Arg(_) => 0.0,
-                    crate::circuit::Value::GateValue(g, _) => locations[g][0],
+                    crate::simulation::Value::Arg(_) => 0.0,
+                    crate::simulation::Value::GateValue(g, _) => locations[g][0],
                 })
                 .reduce(f64::max)
                 .unwrap_or(0.0)
@@ -23,8 +38,8 @@ pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit
 
         let place_y_at_middle_of_inputs: f64 = {
             let input_y = |input| match input {
-                circuit::Value::Arg(_) => 360.0, // TODO: dont hardcode input argument position
-                circuit::Value::GateValue(g, o) => gate_output_pos(g, o)[1],
+                simulation::Value::Arg(_) => 360.0, // TODO: dont hardcode input argument position
+                simulation::Value::GateValue(g, o) => gate_output_pos(g, o)[1],
             };
             let desired_y = (gate.inputs().into_iter().map(input_y).sum::<f64>()) / (gate.num_inputs() as f64);
 
@@ -69,44 +84,47 @@ pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit
 
     // TODO: test this
 
+    // gates in subcircuits just get processed based on the other gates they are connected to, meaning that their positions are independent of the positions of the gates in the supercircuits
+    // TODO: it actually does not work properly as described in the line above so fix this
+
     // group them into columns with each one going one column right of its rightmost dependency
-    let mut xs: BTreeMap<circuit::GateIndex, u32> = circuit.gates.iter().map(|(g_i, _)| (g_i, 0)).collect();
+    let mut xs: BTreeMap<simulation::GateIndex, u32> = gates.iter().map(|(g_i, _)| (g_i, 0)).collect();
     // TODO: this has to run repeatedly in case the gates are not in topologically sorted order
-    for (gate_i, gate) in circuit.gates.iter() {
-        let input_producer_x = |input: circuit::GateInputNodeIdx| match circuit.get_receiver(input.into()).producer {
-            Some(producer) => match circuit.get_producer(producer).gate {
+    for (gate_i, _) in gates.iter() {
+        let input_producer_x = |input: logic::GateInputNodeIdx| match logic::get_node(circuits, gates, input.into()).producer() {
+            Some(producer) => match logic::get_node(circuits, gates, producer).gate {
                 Some(producer_gate) => xs[&producer_gate], // receiver node connected to other gate output node
                 None => 0,                                 // receiver node connected to circuit input node
             },
             None => 0, // receiver node not connected
         };
-        xs.insert(gate_i, gate.inputs().map(input_producer_x).max().unwrap_or(0) + 1);
+        xs.insert(gate_i, logic::gate_input_indexes(circuits, gates, gate_i).map(input_producer_x).max().unwrap_or(0) + 1);
     }
 
     // within each column sort them by the average of their input ys
-    let mut ys: BTreeMap<circuit::GateIndex, f64> = circuit.gates.iter().map(|(index, _)| (index, 0.0)).collect();
+    let mut ys: BTreeMap<simulation::GateIndex, f64> = gates.iter().map(|(index, _)| (index, 0.0)).collect();
     for x in 1..=*xs.values().max().unwrap_or(&0) {
-        let input_producer_y = |input: circuit::GateInputNodeIdx| match circuit.get_receiver(input.into()).producer {
-            Some(producer) => match circuit.get_producer(producer).gate {
+        let input_producer_y = |input: logic::GateInputNodeIdx| match logic::get_node(circuits, gates, input.into()).producer() {
+            Some(producer) => match logic::get_node(circuits, gates, producer).gate {
                 Some(producer_gate) => ys[&producer_gate], // receiver node connected to other node
                 None => 0.0,                               // receiver node connected to circuit input node
             },
             None => 0.0, // receiver node not connected
         };
-        let mut on_current_column: Vec<_> = circuit.gates.iter().filter(|(gate_i, _)| xs[gate_i] == x).collect();
-        on_current_column.sort_by(|(_, gate1), (_, gate2)| {
-            let gate1_y = gate1.inputs().map(input_producer_y).sum::<f64>(); // sum can be used as average because they are only being compared to each other
-            let gate2_y = gate2.inputs().map(input_producer_y).sum::<f64>();
+        let mut on_current_column: Vec<_> = gates.iter().filter(|(gate_i, _)| xs[gate_i] == x).collect();
+        on_current_column.sort_by(|(gate1_i, _), (gate2_i, _)| {
+            let gate1_y = logic::gate_input_indexes(circuits, gates, *gate1_i).map(input_producer_y).sum::<f64>(); // sum can be used as average because they are only being compared to each other
+            let gate2_y = logic::gate_input_indexes(circuits, gates, *gate2_i).map(input_producer_y).sum::<f64>();
             gate1_y.partial_cmp(&gate2_y).unwrap()
         });
 
         // set the y values
         const PADDING: f64 = 20.0;
-        let all_height: f64 = on_current_column.iter().map(|(_, g)| (g.display_size())[1]).sum::<f64>() + PADDING * (on_current_column.len() - 1) as f64;
+        let all_height: f64 = on_current_column.iter().map(|(g_i, _)| draw::gate_display_size(circuits, gates, *g_i)[1]).sum::<f64>() + PADDING * (on_current_column.len() - 1) as f64;
         let mut start_y = -all_height / 2.0;
-        for (gate_i, gate) in &on_current_column {
+        for (gate_i, _) in &on_current_column {
             ys.insert(*gate_i, start_y);
-            start_y += (gate.display_size())[1];
+            start_y += draw::gate_display_size(circuits, gates, *gate_i)[1];
             start_y += PADDING;
         }
     }
@@ -118,4 +136,10 @@ pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit
             (x_gate_index, (gate_x, gate_y))
         })
         .collect()
+}
+
+fn apply_locations(gates: &mut GateMap, locations: HashMap<simulation::GateIndex, (u32, f64)>) {
+    for (gate_i, location) in locations {
+        gates[gate_i].location = simulation::location::Location { location };
+    }
 }
