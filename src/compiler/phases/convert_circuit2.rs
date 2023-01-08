@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use crate::{
-    simulation::circuit,
     compiler::{
         data::{circuit1, circuit2, nominal_type, ty},
         error::{CompileError, File, Report},
         phases::convert_circuit1,
     },
+    simulation::{circuit, connections},
     utils::arena,
 };
 
@@ -56,9 +56,7 @@ fn convert_circuit<'file, 'circuit>(
 
     expansion_stack.push(circuit);
 
-    let mut new_circuit = circuit::Circuit::new(circuit.name.into());
-    new_circuit.set_num_inputs(type_context.get(circuit.input_type).size(type_context));
-    new_circuit.set_num_outputs(type_context.get(circuit.output_type).size(type_context));
+    let mut new_circuit = circuit::Circuit::new(circuit.name.into(), type_context.get(circuit.input_type).size(type_context), type_context.get(circuit.output_type).size(type_context));
     let mut gate_index_map = HashMap::new();
 
     for (old_gate_i, gate) in circuit.iter_gates() {
@@ -103,13 +101,13 @@ fn connect(
     producer: &circuit2::bundle::ProducerBundle,
     receiver: &circuit2::bundle::ReceiverBundle,
 ) {
-    let producer_nodes: Vec<circuit::ProducerIdx> = convert_producer_bundle(type_context, new_circuit, gate_index_map, producer);
-    let receiver_nodes: Vec<circuit::ReceiverIdx> = convert_receiver_bundle(type_context, new_circuit, gate_index_map, receiver);
+    let producer_nodes: Vec<connections::ProducerIdx> = convert_producer_bundle(type_context, new_circuit, gate_index_map, producer);
+    let receiver_nodes: Vec<connections::ReceiverIdx> = convert_receiver_bundle(type_context, new_circuit, gate_index_map, receiver);
 
     assert_eq!(producer_nodes.len(), receiver_nodes.len(), "connecting producer and receiver that have different size");
 
     for (p, r) in producer_nodes.into_iter().zip(receiver_nodes) {
-        new_circuit.connect(p, r);
+        connections::connect(new_circuit, p, r);
     }
 }
 
@@ -118,11 +116,11 @@ fn convert_producer_bundle(
     new_circuit: &mut circuit::Circuit,
     gate_index_map: &mut HashMap<circuit2::GateIdx, circuit::GateIndex>,
     producer: &circuit2::bundle::ProducerBundle,
-) -> Vec<circuit::ProducerIdx> {
+) -> Vec<connections::ProducerIdx> {
     match producer {
         // TODO: figure out a better solution than to collect
-        circuit2::bundle::ProducerBundle::CurCircuitInput(_) => new_circuit.input_indexes().map(Into::into).collect(),
-        circuit2::bundle::ProducerBundle::GateOutput(_, old_gate_index) => new_circuit.get_gate(gate_index_map[old_gate_index]).outputs().map(Into::into).collect(),
+        circuit2::bundle::ProducerBundle::CurCircuitInput(_) => connections::input_indexes(new_circuit).map(Into::into).collect(),
+        circuit2::bundle::ProducerBundle::GateOutput(_, old_gate_index) => connections::gate_outputs(new_circuit.get_gate(gate_index_map[old_gate_index])).map(Into::into).collect(),
         circuit2::bundle::ProducerBundle::Get(b, field) => {
             fn field_indexes(ty: &ty::Type, type_context: &ty::TypeContext<nominal_type::FullyDefinedStruct>, field: &str) -> Option<std::ops::Range<usize>> {
                 match ty {
@@ -169,10 +167,10 @@ fn convert_receiver_bundle(
     new_circuit: &mut circuit::Circuit,
     gate_index_map: &mut HashMap<circuit2::GateIdx, circuit::GateIndex>,
     receiver: &circuit2::bundle::ReceiverBundle,
-) -> Vec<circuit::ReceiverIdx> {
+) -> Vec<connections::ReceiverIdx> {
     match receiver {
         // TODO: figure out a better solution than to collect
-        circuit2::bundle::ReceiverBundle::CurCircuitOutput(_) => new_circuit.output_indexes().map(Into::into).collect(),
-        circuit2::bundle::ReceiverBundle::GateInput(_, old_gate_index) => new_circuit.get_gate(gate_index_map[old_gate_index]).inputs().map(Into::into).collect(),
+        circuit2::bundle::ReceiverBundle::CurCircuitOutput(_) => connections::output_indexes(new_circuit).map(Into::into).collect(),
+        circuit2::bundle::ReceiverBundle::GateInput(_, old_gate_index) => connections::gate_inputs(new_circuit.get_gate(gate_index_map[old_gate_index])).map(Into::into).collect(),
     }
 }
