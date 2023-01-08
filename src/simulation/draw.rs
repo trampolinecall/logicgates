@@ -22,16 +22,14 @@ pub(crate) fn render(circuits: &Arena<Circuit>, gates: &Arena<Gate>, circuit: Ci
     graphics.draw(args.viewport(), |c, gl| {
         clear(BG, gl);
 
-        todo!()
-        /*
         // draw circuit inputs and outputs
-        for (input_i, input_producer) in circuit.inputs.iter().enumerate() {
+        for (input_i, input_node_index) in connections::circuit_input_indexes(circuit).enumerate() {
             let pos = circuit_input_pos(circuit, args, input_i);
-            ellipse(bool_color(input_producer.value), ellipse::circle(pos[0], pos[1], CIRCLE_RAD), c.transform, gl);
+            ellipse(node_color(circuits, gates, input_node_index.into()), ellipse::circle(pos[0], pos[1], CIRCLE_RAD), c.transform, gl);
         }
         for (output_i, output) in connections::circuit_output_indexes(circuit).enumerate() {
             let output_pos = circuit_output_pos(circuit, args, output_i);
-            let color = receiver_color(circuits, gates, output.into());
+            let color = node_color(circuits, gates, output.into());
             ellipse(color, ellipse::circle(output_pos[0], output_pos[1], CIRCLE_RAD), c.transform, gl);
 
             // draw lines connecting outputs with their values
@@ -52,7 +50,7 @@ pub(crate) fn render(circuits: &Arena<Circuit>, gates: &Arena<Gate>, circuit: Ci
 
             // draw gate input dots and connections to their values
             for input_receiver in connections::gate_inputs(gate) {
-                let color = receiver_color(circuits, gates, input_receiver.into());
+                let color = node_color(circuits, gates, input_receiver.into());
                 let input_pos @ [x, y] = gate_input_pos(gates, args, input_receiver);
                 ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
 
@@ -68,7 +66,6 @@ pub(crate) fn render(circuits: &Arena<Circuit>, gates: &Arena<Gate>, circuit: Ci
                 ellipse(color, ellipse::circle(x, y, CIRCLE_RAD), c.transform, gl);
             }
         }
-        */
     });
 }
 
