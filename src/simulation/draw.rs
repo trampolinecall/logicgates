@@ -109,14 +109,14 @@ fn producer_pos(circuit: &Circuit, args: &piston::RenderArgs, node: ProducerIdx)
         ProducerIdx::GO(go) => gate_output_pos(circuit, args, go),
     }
 }
-// /* (unused)
+/* (unused)
 fn receiver_node_pos(circuit: &Circuit, args: &piston::RenderArgs, node: ReceiverIdx) -> [f64; 2] {
     match node {
         ReceiverIdx::CO(co) => circuit_output_pos(circuit, args, co.0),
         ReceiverIdx::GI(gi) => gate_input_pos(circuit, args, gi),
     }
 }
-// */
+*/
 fn bool_color(value: bool) -> [f32; 4] {
     if value {
         ON_COLOR
