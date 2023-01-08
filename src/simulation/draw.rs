@@ -1,12 +1,9 @@
 use crate::simulation::{
-    logic::{self, GateInputNodeIdx, GateOutputNodeIdx, NodeIdx},
-    CircuitIndex,
+    logic::{self, CircuitInputNodeIdx, CircuitOutputNodeIdx, GateInputNodeIdx, GateOutputNodeIdx, NodeIdx},
+    CircuitIndex, CircuitMap, GateIndex, GateMap,
 };
 
-use super::{
-    logic::{CircuitInputNodeIdx, CircuitOutputNodeIdx},
-    CircuitMap, GateIndex, GateMap,
-};
+// TODO: consider whether to merge draw and location components
 
 const CIRCLE_RAD: f64 = 5.0;
 const CONNECTION_RAD: f64 = CIRCLE_RAD / 2.0;
@@ -89,7 +86,7 @@ fn centered_arg_y(center_y: f64, num_args: usize, i: usize) -> f64 {
 
 fn gate_box(circuits: &CircuitMap, gates: &GateMap, args: &piston::RenderArgs, gate_index: GateIndex) -> [f64; 4] {
     let gate = &gates[gate_index];
-    let (gate_x, gate_y) = gate.location;
+    let (gate_x, gate_y) = gate.location.location;
     let [gate_width, gate_height] = gate_display_size(circuits, gates, gate_index);
     [gate_x as f64 * HORIZONTAL_GATE_SPACING, gate_y + args.window_size[1] / 2.0, gate_width, gate_height]
 }
