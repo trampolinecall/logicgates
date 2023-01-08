@@ -115,10 +115,10 @@ impl Circuit {
 
 impl Gate {
     pub(crate) fn num_inputs(&self) -> usize {
-        self._inputs().len()
+        self.inputs().len()
     }
     pub(crate) fn num_outputs(&self) -> usize {
-        self._outputs().len()
+        self.outputs().len()
     }
 
     pub(crate) fn name(&self) -> String {
@@ -131,27 +131,27 @@ impl Gate {
         }
     }
 
-    pub(crate) fn _inputs(&self) -> &[connections::Receiver] {
+    pub(crate) fn inputs(&self) -> &[connections::Receiver] {
         match &self.kind {
             GateKind::Nand(i, _) => i,
             GateKind::Const(i, _) => i,
             GateKind::Subcircuit(i, _, _) => i,
         }
     }
-    pub(crate) fn _outputs(&self) -> &[connections::Producer] {
+    pub(crate) fn outputs(&self) -> &[connections::Producer] {
         match &self.kind {
             GateKind::Nand(_, o) | GateKind::Const(_, o) => o,
             GateKind::Subcircuit(_, o, _) => o,
         }
     }
-    pub(crate) fn _inputs_mut(&mut self) -> &mut [connections::Receiver] {
+    pub(crate) fn inputs_mut(&mut self) -> &mut [connections::Receiver] {
         match &mut self.kind {
             GateKind::Nand(i, _) => i,
             GateKind::Const(i, _) => i,
             GateKind::Subcircuit(i, _, _) => i,
         }
     }
-    pub(crate) fn _outputs_mut(&mut self) -> &mut [connections::Producer] {
+    pub(crate) fn outputs_mut(&mut self) -> &mut [connections::Producer] {
         match &mut self.kind {
             GateKind::Nand(_, o) | GateKind::Const(_, o) => o,
             GateKind::Subcircuit(_, o, _) => o,
