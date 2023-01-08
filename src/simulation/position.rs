@@ -2,6 +2,10 @@ use std::collections::{BTreeMap, HashMap};
 
 use crate::simulation::circuit;
 
+use super::connections;
+
+// TODO: move this into location component
+
 pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit::GateIndex, (u32, f64)> {
     /* old iterative position calculating algorithm based on a loss function and trying to find a minimum loss
     // gate position scoring; lower is better
@@ -73,21 +77,21 @@ pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit
     let mut xs: BTreeMap<circuit::GateIndex, u32> = circuit.gates.iter().map(|(g_i, _)| (g_i, 0)).collect();
     // TODO: this has to run repeatedly in case the gates are not in topologically sorted order
     for (gate_i, gate) in circuit.gates.iter() {
-        let input_producer_x = |input: circuit::GateInputNodeIdx| match circuit.get_receiver(input.into()).producer {
-            Some(producer) => match circuit.get_producer(producer).gate {
+        let input_producer_x = |input: connections::GateInputNodeIdx| match connections::get_receiver(circuit, input.into()).producer {
+            Some(producer) => match connections::get_producer(circuit, producer).gate {
                 Some(producer_gate) => xs[&producer_gate], // receiver node connected to other gate output node
                 None => 0,                                 // receiver node connected to circuit input node
             },
             None => 0, // receiver node not connected
         };
-        xs.insert(gate_i, gate.inputs().map(input_producer_x).max().unwrap_or(0) + 1);
+        xs.insert(gate_i, connections::gate_inputs(gate).map(input_producer_x).max().unwrap_or(0) + 1);
     }
 
     // within each column sort them by the average of their input ys
     let mut ys: BTreeMap<circuit::GateIndex, f64> = circuit.gates.iter().map(|(index, _)| (index, 0.0)).collect();
     for x in 1..=*xs.values().max().unwrap_or(&0) {
-        let input_producer_y = |input: circuit::GateInputNodeIdx| match circuit.get_receiver(input.into()).producer {
-            Some(producer) => match circuit.get_producer(producer).gate {
+        let input_producer_y = |input: connections::GateInputNodeIdx| match connections::get_receiver(circuit, input.into()).producer {
+            Some(producer) => match connections::get_producer(circuit, producer).gate {
                 Some(producer_gate) => ys[&producer_gate], // receiver node connected to other node
                 None => 0.0,                               // receiver node connected to circuit input node
             },
@@ -95,8 +99,8 @@ pub(crate) fn calculate_locations(circuit: &circuit::Circuit) -> HashMap<circuit
         };
         let mut on_current_column: Vec<_> = circuit.gates.iter().filter(|(gate_i, _)| xs[gate_i] == x).collect();
         on_current_column.sort_by(|(_, gate1), (_, gate2)| {
-            let gate1_y = gate1.inputs().map(input_producer_y).sum::<f64>(); // sum can be used as average because they are only being compared to each other
-            let gate2_y = gate2.inputs().map(input_producer_y).sum::<f64>();
+            let gate1_y = connections::gate_inputs(gate1).map(input_producer_y).sum::<f64>(); // sum can be used as average because they are only being compared to each other
+            let gate2_y = connections::gate_inputs(gate2).map(input_producer_y).sum::<f64>();
             gate1_y.partial_cmp(&gate2_y).unwrap()
         });
 
