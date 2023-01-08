@@ -3,7 +3,6 @@ use super::connections;
 pub(crate) type CircuitIndex = generational_arena::Index;
 pub(crate) type GateIndex = generational_arena::Index;
 
-// TODO: separate subcircuit structure from gates, so there will be a flat gate arena, and then a separate recursive circuit structure
 pub(crate) struct Circuit {
     pub(crate) index: CircuitIndex,
     pub(crate) name: String,
@@ -19,6 +18,7 @@ pub(crate) struct Gate {
     _dont_construct: (),
 }
 
+#[allow(clippy::large_enum_variant)] // TODO: reconsider whether this is correct
 pub(crate) enum GateKind {
     Nand([connections::Node; 2], [connections::Node; 1]), // TODO: figure out a better way of doing this
     Const([connections::Node; 0], [connections::Node; 1]),
@@ -39,7 +39,6 @@ impl CustomGate {
 }
 */
 
-// TODO: refactor everything
 impl Circuit {
     pub(crate) fn new(index: CircuitIndex, name: String, num_inputs: usize, num_outputs: usize) -> Self {
         // even if this circuit is part of a subcircuit, these nodes dont have to update anything
@@ -48,31 +47,26 @@ impl Circuit {
             index,
             name,
             gates: Vec::new(),
-            inputs: std::iter::repeat_with(|| connections::Node::new_disconnected(None)).take(num_inputs).collect(),
-            outputs: std::iter::repeat_with(|| connections::Node::new_disconnected(None)).take(num_outputs).collect(),
+            inputs: std::iter::repeat_with(|| connections::Node::new(None, false)).take(num_inputs).collect(),
+            outputs: std::iter::repeat_with(|| connections::Node::new(None, false)).take(num_outputs).collect(),
         }
     }
 
     pub(crate) fn num_inputs(&self) -> usize {
         self.inputs.len()
     }
+    /* (unused, but may be used in the future)
     pub(crate) fn num_outputs(&self) -> usize {
         self.outputs.len()
     }
 
-    // TODO: tests
-    // TODO: test that it removes all connections
-    pub(crate) fn remove_gate(&mut self) {
-        todo!()
-    }
-
-    // TODO: update subcircuit amount of gates if this is in a subcircuit
     pub(crate) fn set_num_inputs(&mut self, num: usize) {
         self.inputs.resize(num, connections::Node::new_disconnected(None));
     }
     pub(crate) fn set_num_outputs(&mut self, num: usize) {
         self.outputs.resize(num, connections::Node::new_disconnected(None));
     }
+    */
 }
 
 impl Gate {
@@ -80,13 +74,13 @@ impl Gate {
     pub(crate) fn new_nand_gate(index: GateIndex) -> Gate {
         Gate {
             index,
-            kind: GateKind::Nand([connections::Node::new_disconnected(Some(index)), connections::Node::new_disconnected(Some(index))], [connections::Node::new_value(Some(index), true)]),
+            kind: GateKind::Nand([connections::Node::new(Some(index), false), connections::Node::new(Some(index), false)], [connections::Node::new(Some(index), true)]),
             location: (0, 0.0),
             _dont_construct: (),
         }
     }
     pub(crate) fn new_const_gate(index: GateIndex, value: bool) -> Gate {
-        Gate { index, kind: GateKind::Const([], [connections::Node::new_value(Some(index), value)]), location: (0, 0.0), _dont_construct: () }
+        Gate { index, kind: GateKind::Const([], [connections::Node::new(Some(index), value)]), location: (0, 0.0), _dont_construct: () }
     }
     pub(crate) fn new_subcircuit_gate(index: GateIndex, subcircuit: CircuitIndex) -> Gate {
         Gate { index, kind: GateKind::Custom(subcircuit), location: (0, 0.0), _dont_construct: () }

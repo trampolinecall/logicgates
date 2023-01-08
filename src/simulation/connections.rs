@@ -17,7 +17,6 @@ pub(crate) struct Node {
 enum Value {
     Manual(bool),
     Passthrough(NodeIdx),
-    Disconnected, // same as Manual(false)
 }
 
 // TODO: properly deal with removing gates so that it doesnt panic when gates are removed
@@ -32,22 +31,15 @@ pub(crate) struct CircuitInputNodeIdx(pub(crate) CircuitIndex, pub(crate) usize,
 pub(crate) struct CircuitOutputNodeIdx(pub(crate) CircuitIndex, pub(crate) usize, ());
 
 impl Node {
-    pub(crate) fn new_value(gate: Option<GateIndex>, value: bool) -> Self {
+    pub(crate) fn new(gate: Option<GateIndex>, value: bool) -> Self {
         Self { gate, value: Value::Manual(value), dependants: HashSet::new() }
     }
 
-    pub(crate) fn new_passthrough(gate: Option<GateIndex>, other: NodeIdx) -> Self {
-        Self { gate, value: Value::Passthrough(other), dependants: HashSet::new() }
-    }
-
-    pub(crate) fn new_disconnected(gate: Option<GateIndex>) -> Self {
-        Self { gate, value: Value::Disconnected, dependants: HashSet::new() }
-    }
-
     pub(crate) fn producer(&self) -> Option<NodeIdx> {
-        match self.value {
-            Value::Manual(_) | Value::Disconnected => None,
-            Value::Passthrough(v) => Some(v),
+        if let Value::Passthrough(v) = self.value {
+            Some(v)
+        } else {
+            None
         }
     }
 }
@@ -94,7 +86,7 @@ pub(crate) fn connect(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>, pr
 }
 // TODO: test removing, make sure it removes from both to keep in sync
 pub(crate) fn disconnect(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>, node: NodeIdx) {
-    set_node_value(circuits, gates, node, Value::Disconnected)
+    set_node_value(circuits, gates, node, Value::Manual(false))
 }
 
 pub(crate) fn get_node_value(circuits: &Arena<Circuit>, gates: &Arena<Gate>, node: NodeIdx) -> bool {
@@ -102,7 +94,6 @@ pub(crate) fn get_node_value(circuits: &Arena<Circuit>, gates: &Arena<Gate>, nod
     match node.value {
         Value::Manual(v) => v,
         Value::Passthrough(other) => get_node_value(circuits, gates, other),
-        Value::Disconnected => false,
     }
 }
 
@@ -114,7 +105,7 @@ fn set_node_value(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>, index:
         let other = get_node_mut(circuits, gates, other_idx);
         other.dependants.remove(&index);
     }
-    get_node_mut(circuits, gates, index).value = Value::Disconnected;
+    get_node_mut(circuits, gates, index).value = Value::Manual(false);
 
     // set the new value:
     get_node_mut(circuits, gates, index).value = new_value;
