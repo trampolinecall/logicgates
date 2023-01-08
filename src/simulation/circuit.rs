@@ -1,27 +1,29 @@
-use generational_arena::Arena;
 use std::cell::RefCell;
 
 use super::connections;
 
+pub(crate) type CircuitIndex = generational_arena::Index;
+pub(crate) type GateIndex = generational_arena::Index;
+
 pub(crate) struct Circuit {
+    pub(crate) index: CircuitIndex,
     pub(crate) name: String,
-    pub(crate) gates: Arena<Gate>,
+    pub(crate) gates: Vec<GateIndex>,
     pub(crate) inputs: Vec<connections::Producer>,
     pub(crate) outputs: Vec<connections::Receiver>,
 }
-
-pub(crate) type GateIndex = generational_arena::Index;
 
 pub(crate) struct Gate {
     pub(crate) index: GateIndex,
     pub(crate) kind: GateKind,
     pub(crate) location: (u32, f64),
+    _dont_construct: (),
 }
 
 pub(crate) enum GateKind {
     Nand([connections::Receiver; 2], [connections::Producer; 1]), // TODO: figure out a better way of doing this
     Const([connections::Receiver; 0], [connections::Producer; 1]),
-    Subcircuit(Vec<connections::Receiver>, Vec<connections::Producer>, RefCell<Circuit>),
+    Subcircuit(Vec<connections::Receiver>, Vec<connections::Producer>, CircuitIndex),
 }
 
 /* TODO: decide what to do with this
@@ -40,10 +42,11 @@ impl CustomGate {
 
 // TODO: refactor everything
 impl Circuit {
-    pub(crate) fn new(name: String, num_inputs: usize, num_outputs: usize) -> Self {
+    pub(crate) fn new(index: CircuitIndex, name: String, num_inputs: usize, num_outputs: usize) -> Self {
         Self {
+            index,
             name,
-            gates: Arena::new(),
+            gates: Vec::new(),
             inputs: std::iter::repeat_with(|| connections::Producer::new(None, false)).take(num_inputs).collect(),
             outputs: std::iter::repeat_with(|| connections::Receiver::new(None)).take(num_outputs).collect(),
         }
@@ -56,36 +59,7 @@ impl Circuit {
         self.outputs.len()
     }
 
-    fn output_values(&self) -> impl Iterator<Item = bool> + '_ {
-        // TODO: take this logic to check the producer of a receiver node out from everywhere it is used and put it into a method
-        self.outputs.iter().map(|output| if let Some(producer) = output.producer() { connections::get_producer(self, producer).value } else { false })
-    }
-
     // TODO: tests
-    // default value for the outputs is whatever value results from having all false inputs
-    pub(crate) fn new_nand_gate(&mut self) -> GateIndex {
-        self.gates.insert_with(|index| Gate {
-            index,
-            kind: GateKind::Nand([connections::Receiver::new(Some(index)), connections::Receiver::new(Some(index))], [connections::Producer::new(Some(index), true)]),
-            location: (0, 0.0),
-        })
-    }
-    pub(crate) fn new_const_gate(&mut self, value: bool) -> GateIndex {
-        self.gates.insert_with(|index| Gate { index, kind: GateKind::Const([], [connections::Producer::new(Some(index), value)]), location: (0, 0.0) })
-    }
-    pub(crate) fn new_subcircuit_gate(&mut self, subcircuit: Circuit) -> GateIndex {
-        let num_inputs = subcircuit.inputs.len();
-        let output_values: Vec<_> = subcircuit.output_values().collect();
-        self.gates.insert_with(|index| Gate {
-            index,
-            kind: GateKind::Subcircuit(
-                (0..num_inputs).map(|_| connections::Receiver::new(Some(index))).collect(),
-                output_values.into_iter().map(|value| connections::Producer::new(Some(index), value)).collect(),
-                RefCell::new(subcircuit),
-            ),
-            location: (0, 0.0),
-        })
-    }
     // TODO: test that it removes all connections
     pub(crate) fn remove_gate(&mut self) {
         todo!()
@@ -98,22 +72,44 @@ impl Circuit {
         self.outputs.resize(num, connections::Receiver::new(None));
     }
 
-    pub(crate) fn get_gate(&self, index: GateIndex) -> &Gate {
-        self.gates.get(index).unwrap()
-    }
-    pub(crate) fn get_gate_mut(&mut self, index: GateIndex) -> &mut Gate {
-        self.gates.get_mut(index).unwrap()
-    }
-
+    /*
     pub(crate) fn calculate_locations(&mut self) {
         let positions = crate::simulation::position::calculate_locations(self);
         for (gate_i, position) in positions {
             self.get_gate_mut(gate_i).location = position;
         }
     }
+    */
 }
 
 impl Gate {
+    // default value for the outputs is whatever value results from having all false inputs
+    pub(crate) fn new_nand_gate(index: GateIndex) -> Gate {
+        Gate {
+            index,
+            kind: GateKind::Nand([connections::Receiver::new(Some(index)), connections::Receiver::new(Some(index))], [connections::Producer::new(Some(index), true)]),
+            location: (0, 0.0),
+            _dont_construct: (),
+        }
+    }
+    pub(crate) fn new_const_gate(index: GateIndex, value: bool) -> Gate {
+        Gate { index, kind: GateKind::Const([], [connections::Producer::new(Some(index), value)]), location: (0, 0.0), _dont_construct: () }
+    }
+    pub(crate) fn new_subcircuit_gate(index: GateIndex, subcircuit: CircuitIndex) -> Gate {
+        let num_inputs = todo!(); // subcircuit.inputs.len();
+        let output_values: Vec<_> = todo!(); // subcircuit.output_values().collect();
+        Gate {
+            index,
+            kind: GateKind::Subcircuit(
+                (0..num_inputs).map(|_| connections::Receiver::new(Some(index))).collect(),
+                output_values.into_iter().map(|value| connections::Producer::new(Some(index), value)).collect(),
+                subcircuit,
+            ),
+            location: (0, 0.0),
+            _dont_construct: (),
+        }
+    }
+
     pub(crate) fn num_inputs(&self) -> usize {
         self.inputs().len()
     }
@@ -127,7 +123,7 @@ impl Gate {
             GateKind::Nand(_, _) => "nand".to_string(),
             GateKind::Const(_, [connections::Producer { value: true, .. }]) => "true".to_string(),
             GateKind::Const(_, [connections::Producer { value: false, .. }]) => "false".to_string(),
-            GateKind::Subcircuit(_, _, subcircuit) => subcircuit.borrow().name.clone(),
+            GateKind::Subcircuit(_, _, subcircuit) => /* subcircuit.borrow().name.clone() */ todo!() ,
         }
     }
 
