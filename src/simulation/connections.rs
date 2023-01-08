@@ -99,10 +99,6 @@ pub(crate) fn disconnect(circuits: &mut Arena<Circuit>, gates: &mut Arena<Gate>,
 
 pub(crate) fn get_node_value(circuits: &Arena<Circuit>, gates: &Arena<Gate>, node: NodeIdx) -> bool {
     let node = get_node(circuits, gates, node);
-    get_node_value_not_idx(circuits, gates, node)
-}
-// TODO: this function is only used in compute(), figure out a better way
-fn get_node_value_not_idx(circuits: &Arena<Circuit>, gates: &Arena<Gate>, node: &Node) -> bool {
     match node.value {
         Value::Manual(v) => v,
         Value::Passthrough(other) => get_node_value(circuits, gates, other),
