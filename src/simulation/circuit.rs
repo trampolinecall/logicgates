@@ -3,6 +3,7 @@ use super::connections;
 pub(crate) type CircuitIndex = generational_arena::Index;
 pub(crate) type GateIndex = generational_arena::Index;
 
+// TODO: separate subcircuit structure from gates, so there will be a flat gate arena, and then a separate recursive circuit structure
 pub(crate) struct Circuit {
     pub(crate) index: CircuitIndex,
     pub(crate) name: String,
@@ -89,9 +90,15 @@ impl Gate {
     pub(crate) fn new_subcircuit_gate(index: GateIndex, subcircuit: CircuitIndex) -> Gate {
         let num_inputs = todo!(); // subcircuit.inputs.len();
         let output_values: Vec<_> = todo!(); // subcircuit.output_values().collect();
+        // TODO: make the subcircuit nodes be connected to these outer nodes, and make the output outer nodes be connected to the output nodes of the subcircuit
         Gate {
             index,
             kind: GateKind::Custom(
+                // conceptually, these nodes represent the nodes on the outside of the gate,
+                // whereas the nodes in the subcircuit represent the nodes on the inside
+                // ie these nodes represent the nodes shown on the outside of the gate when the
+                // gate is displayed normally, and the nodes inside represent the ones shown on the
+                // edges of the screen when the simulation is zoomed into that subcircuit (TODO: implement zooming into subcircuits)
                 (0..num_inputs).map(|_| connections::Node::new_disconnected(Some(index))).collect(),
                 output_values.into_iter().map(|value| connections::Node::new_value(Some(index), value)).collect(),
                 subcircuit,

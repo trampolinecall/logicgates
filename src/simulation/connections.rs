@@ -7,7 +7,7 @@ use super::circuit::{Circuit, CircuitIndex, Gate, GateIndex, GateKind};
 
 #[derive(Clone)]
 pub(crate) struct Node {
-    gate: Option<GateIndex>, // the gate that should be updated when this node is updated
+    pub(crate) gate: Option<GateIndex>,
     value: Value,
     dependants: HashSet<NodeIdx>,
 }
@@ -40,6 +40,13 @@ impl Node {
 
     pub(crate) fn new_disconnected(gate: Option<GateIndex>) -> Self {
         Self { gate, value: Value::Disconnected, dependants: HashSet::new() }
+    }
+
+    pub(crate) fn producer(&self) -> Option<NodeIdx> {
+        match self.value {
+            Value::Manual(_) | Value::Disconnected => None,
+            Value::Passthrough(v) => Some(v),
+        }
     }
 }
 
