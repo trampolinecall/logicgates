@@ -84,7 +84,7 @@ pub(crate) fn render(gates: &Arena<Gate>, main_circuit: GateIndex, graphics: &mu
     });
 }
 
-pub(crate) fn centered_arg_y(center_y: f64, num_args: usize, i: usize) -> f64 {
+fn centered_arg_y(center_y: f64, num_args: usize, i: usize) -> f64 {
     let args_height: f64 = ((num_args - 1) as f64) * VERTICAL_VALUE_SPACING;
     let args_start_y = center_y - (args_height / 2.0);
     args_start_y + (i as f64) * VERTICAL_VALUE_SPACING
@@ -112,24 +112,10 @@ fn node_pos(render_args: &piston::RenderArgs, gates: &Arena<Gate>, idx: connecti
     }
 }
 
-pub(crate) fn display_size(gate: &Gate) -> [f64; 2] {
-    // TODO: display component
+fn display_size(gate: &Gate) -> [f64; 2] {
     let gate_height = (std::cmp::max(gate.calculation.num_inputs(), gate.calculation.num_outputs()) - 1) as f64 * VERTICAL_VALUE_SPACING + EXTRA_VERTICAL_HEIGHT;
     [GATE_WIDTH, gate_height]
 }
-
-/*
-fn producer_pos(node: ProducerIdx) {
-    match node {
-        ProducerIdx::CI(ci) => circuit_input_pos(ci.0),
-        ProducerIdx::GO(go) => gate_output_pos(go),
-    }
-}
-fn receiver_node_pos(node: ReceiverIdx) { match node {
-    ReceiverIdx::CO(co) => circuit_output_pos(co.0),
-    ReceiverIdx::GI(gi) => gate_input_pos(gi),
-}
-*/
 
 fn bool_color(value: bool) -> [f32; 4] {
     if value {
@@ -154,11 +140,3 @@ fn node_color(gates: &Arena<Gate>, node: connection::Node) -> [f32; 4] {
         } // TODO: move this logic into connection
     }
 }
-/*
-fn producer_color(producer: ProducerIdx) -> [f32; 4] {
-    bool_color(self.get_producer(producer).value)
-}
-fn receiver_color(receiver: ReceiverIdx) -> [f32; 4] {
-    bool_color(if let Some(producer) = self.get_receiver(receiver).producer { self.get_producer(producer).value } else { false })
-}
-*/
