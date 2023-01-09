@@ -26,9 +26,25 @@ pub(super) fn pattern<'file>(parser: &mut Parser<'file, impl Iterator<Item = Tok
 }
 
 fn product<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>, obrack: Span<'file>) -> Result<circuit1::UntypedPattern<'file>, ParseError<'file>> {
-    let (patterns, cbrack) = parser.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), pattern::pattern)?;
+    match parser.peek() {
+        Token::Semicolon(_) => {
+            parser.next();
 
-    Ok(circuit1::UntypedPattern { kind: circuit1::UntypedPatternKind::Product(obrack + cbrack, patterns), type_info: (), span: obrack + cbrack })
+            let (patterns, cbrack) = parser.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), |parser| {
+                let (_, name) = parser.expect(Token::identifier_matcher())?;
+                parser.expect(Token::equals_matcher())?;
+                let ty = pattern(parser)?;
+                Ok((name.to_string(), ty))
+            })?;
+
+            Ok(circuit1::UntypedPattern { kind: circuit1::UntypedPatternKind::Product(patterns), type_info: (), span: obrack + cbrack })
+        }
+
+        _ => {
+            let (patterns, cbrack) = parser.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), pattern::pattern)?;
+            Ok(circuit1::UntypedPattern { kind: circuit1::UntypedPatternKind::Product(patterns.into_iter().enumerate().map(|(i, p)| (i.to_string(), p)).collect()), type_info: (), span: obrack + cbrack })
+        }
+    }
 }
 
 #[cfg(test)]

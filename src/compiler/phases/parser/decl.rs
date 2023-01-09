@@ -110,7 +110,7 @@ mod test {
                                 (sp, "and"),
                                 false,
                                 Box::new(circuit1::UntypedExpr {
-                                    kind: circuit1::UntypedExprKind::Multiple(vec![
+                                    kind: circuit1::UntypedExprKind::Product(vec![
                                         circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "arg"), type_info: (), span: sp },
                                         circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "arg"), type_info: (), span: sp }
                                     ]),

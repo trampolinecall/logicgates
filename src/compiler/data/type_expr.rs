@@ -7,8 +7,7 @@ pub(crate) struct TypeExpr<'file> {
 }
 #[derive(PartialEq, Debug)]
 pub(crate) enum TypeExprKind<'file> {
-    Product(Vec<TypeExpr<'file>>),
+    Product(Vec<(String, TypeExpr<'file>)>),
     RepProduct((Span<'file>, usize), Box<TypeExpr<'file>>),
-    NamedProduct(Vec<((Span<'file>, &'file str), TypeExpr<'file>)>),
     Nominal(Span<'file>, &'file str),
 }

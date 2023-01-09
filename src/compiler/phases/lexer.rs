@@ -86,7 +86,6 @@ impl<'file> Lexer<'file> {
                     "let" => Ok(Some(Token::Let(span))),
                     "inline" => Ok(Some(Token::Inline(span))),
                     "struct" => Ok(Some(Token::Struct(span))),
-                    "named" => Ok(Some(Token::Named(span))),
                     iden => Ok(Some(Token::Identifier(span, iden))),
                 }
             }

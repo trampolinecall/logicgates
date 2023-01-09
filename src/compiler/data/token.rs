@@ -16,7 +16,6 @@ pub(crate) enum Token<'file> {
     Let(Span<'file>),
     Inline(Span<'file>),
     Struct(Span<'file>),
-    Named(Span<'file>),
 
     // TODO: variadic arguments / bundles
     Apostrophe(Span<'file>),
@@ -40,8 +39,7 @@ impl<'file> Token<'file> {
             | Token::Apostrophe(sp)
             | Token::Number(sp, _, _)
             | Token::Identifier(sp, _)
-            | Token::Struct(sp)
-            | Token::Named(sp) => *sp,
+            | Token::Struct(sp) => *sp,
         }
     }
 }
@@ -87,7 +85,6 @@ mod names {
     pub(super) const LET: &str = "'let'";
     pub(super) const INLINE: &str = "'inline'";
     pub(super) const STRUCT: &str = "'struct'";
-    pub(super) const NAMED: &str = "'named'";
 
     pub(super) const APOSTROPHE: &str = "'''";
 
@@ -146,7 +143,6 @@ define_matcher!(equals_matcher, 'file, Span<'file>, names::EQUALS, Token::Equals
 define_matcher!(let_matcher, 'file, Span<'file>, names::LET, Token::Let(sp) => sp);
 define_matcher!(inline_matcher, 'file, Span<'file>, names::INLINE, Token::Inline(sp) => sp);
 define_matcher!(struct_matcher, 'file, Span<'file>, names::STRUCT, Token::Struct(sp) => sp);
-define_matcher!(named_matcher, 'file, Span<'file>, names::NAMED, Token::Named(sp) => sp);
 
 define_matcher!(apostrophe_matcher, 'file, Span<'file>, names::APOSTROPHE, Token::Apostrophe(sp) => sp);
 
@@ -170,7 +166,6 @@ impl std::fmt::Display for Token<'_> {
             Token::Let(_) => write!(f, "{}", names::LET),
             Token::Inline(_) => write!(f, "{}", names::INLINE),
             Token::Struct(_) => write!(f, "{}", names::STRUCT),
-            Token::Named(_) => write!(f, "{}", names::NAMED),
 
             Token::Apostrophe(_) => write!(f, "{}", names::APOSTROPHE),
 

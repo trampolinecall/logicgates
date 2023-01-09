@@ -83,7 +83,7 @@ pub(crate) enum ExprKind<'file, TypeInfo> {
     Call((Span<'file>, &'file str), bool, Box<Expr<'file, TypeInfo>>),
     Const(Span<'file>, bool),
     Get(Box<Expr<'file, TypeInfo>>, (Span<'file>, &'file str)),
-    Multiple(Vec<Expr<'file, TypeInfo>>),
+    Product(Vec<(String, Expr<'file, TypeInfo>)>),
 }
 
 #[derive(PartialEq, Debug)]
@@ -95,7 +95,7 @@ pub(crate) struct Pattern<'file, PatTypeInfo, TypeExpr> {
 #[derive(PartialEq, Debug)]
 pub(crate) enum PatternKind<'file, PatTypeInfo, TypeExpr> {
     Identifier(Span<'file>, &'file str, TypeExpr),
-    Product(Span<'file>, Vec<Pattern<'file, PatTypeInfo, TypeExpr>>),
+    Product(Vec<(String, Pattern<'file, PatTypeInfo, TypeExpr>)>),
 }
 
 // TODO: this will probably be duplicated with the type code from circuit2 but i dont know how to fix that (although i think the solution might be a separate type checking phase so that circuit2 doesnt need to have type information)

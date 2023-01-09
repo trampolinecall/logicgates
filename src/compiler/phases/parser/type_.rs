@@ -23,17 +23,17 @@ pub(super) fn type_<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token
 
 fn product<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>, obrack: Span<'file>) -> Result<type_expr::TypeExpr<'file>, ParseError<'file>> {
     match parser.peek() {
-        &Token::Named(_) => {
+        Token::Semicolon(_) => {
             parser.next();
 
             let (types, cbrack) = parser.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), |parser| {
-                let name = parser.expect(Token::identifier_matcher())?;
+                let (_, name) = parser.expect(Token::identifier_matcher())?;
                 parser.expect(Token::semicolon_matcher())?;
                 let ty = type_::type_(parser)?;
-                Ok((name, ty))
+                Ok((name.to_string(), ty))
             })?;
 
-            Ok(type_expr::TypeExpr { kind: type_expr::TypeExprKind::NamedProduct(types), span: obrack + cbrack })
+            Ok(type_expr::TypeExpr { kind: type_expr::TypeExprKind::Product(types), span: obrack + cbrack })
         }
 
         Token::Number(_, _, _) => {
@@ -49,7 +49,7 @@ fn product<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>
 
         _ => {
             let (types, cbrack) = parser.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), type_::type_)?;
-            Ok(type_expr::TypeExpr { kind: type_expr::TypeExprKind::Product(types), span: obrack + cbrack })
+            Ok(type_expr::TypeExpr { kind: type_expr::TypeExprKind::Product(types.into_iter().enumerate().map(|(i, t)| (i.to_string(), t)).collect()), span: obrack + cbrack })
         }
     }
 }
