@@ -32,12 +32,24 @@ pub(crate) fn make(ast: parser::AST) -> Option<IR> {
     Some(IR { circuits, circuit_table, type_context, type_table })
 }
 
+fn intrinsic<'a, T>(table: &mut HashMap<&'a str, T>, name: &'a str, thing: T) {
+    let old_t = table.insert(name, thing);
+    assert!(old_t.is_none(), "cannot have other item named '{}' in empty table", name);
+}
+fn circuit_intrinsics(arena: &mut arena::Arena<circuit1::UntypedCircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>, table: &mut HashMap<&str, circuit1::CircuitOrIntrinsicId>) {
+    intrinsic(table, "nand", arena.add(circuit1::UntypedCircuitOrIntrinsic::Nand))
+}
+fn type_intrinsics(context: &mut ty::TypeContext<nominal_type::PartiallyDefinedStruct>, table: &mut HashMap<&str, ty::TypeSym>) {
+    intrinsic(table, "bit", context.intern(ty::Type::Bit))
+}
+
 fn make_circuit_table(
     circuits: Vec<circuit1::UntypedCircuit>,
 ) -> Option<(arena::Arena<circuit1::UntypedCircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>, HashMap<&str, circuit1::CircuitOrIntrinsicId>)> {
     let mut arena = arena::Arena::new();
     let mut table = HashMap::new();
-    table.insert("nand", arena.add(circuit1::UntypedCircuitOrIntrinsic::Nand));
+
+    circuit_intrinsics(&mut arena, &mut table);
 
     let mut errored = false;
     for circuit in circuits {
@@ -58,9 +70,8 @@ fn make_circuit_table(
 fn make_type_table(type_decls: Vec<crate::compiler::data::nominal_type::PartiallyDefinedStruct>) -> Option<(ty::TypeContext<nominal_type::PartiallyDefinedStruct>, HashMap<&str, ty::TypeSym>)> {
     let mut type_context = ty::TypeContext::new();
     let mut type_table = HashMap::new();
-    let bit_type = type_context.intern(ty::Type::Bit);
-    let old_bit_type = type_table.insert("bit", bit_type);
-    assert!(old_bit_type.is_none(), "cannot have other bit type in an empty type table");
+
+    type_intrinsics(&mut type_context, &mut type_table);
 
     let mut errored = false;
     for decl in type_decls {
