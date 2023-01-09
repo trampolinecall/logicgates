@@ -91,7 +91,7 @@ enum ValueKind<'file> {
     Const(Span<'file>, bool),
     Get(ValueId, (Span<'file>, &'file str)),
     MadeUpGet(ValueId, String), // used for gets in destructuring
-    Multiple { values: Vec<ValueId> },
+    Product { values: Vec<(String, ValueId)> },
     Input,
     Poison,
 }
@@ -191,11 +191,10 @@ fn assign_pattern<'file>(
         circuit1::TypedPatternKind::Identifier(_, iden, _) => {
             locals.insert(iden, value);
         }
-        circuit1::TypedPatternKind::Product(_, subpats) => {
-            for (subpat_i, subpat) in subpats.iter().enumerate() {
+        circuit1::TypedPatternKind::Product(subpats) => {
+            for (field_name, subpat) in subpats.iter() {
                 // destructuring happens by setting each subpattern to a made up get
-                // TODO: when named product literals are implemented, this should be the actual field name and not just the enumerate index
-                let field_name = subpat_i.to_string();
+                let field_name = field_name.to_string();
                 let field_type = type_context.get(pat.type_info).field_type(type_context, &field_name).expect("field name does not exist in made up get for destructuring pattern");
                 let new_value = values.add(Value { kind: ValueKind::MadeUpGet(value, field_name), type_info: field_type, span: subpat.span });
                 assign_pattern(type_context, values, locals, subpat, new_value)?;
@@ -206,19 +205,14 @@ fn assign_pattern<'file>(
     Ok(())
 }
 
-fn assign_pattern_poison<'file>(
-    values: &mut arena::Arena<Value<'file>, ValueId>,
-    locals: &mut HashMap<&'file str, ValueId>,
-    pat: &circuit1::TypedPattern<'file>,
-    span: Span<'file>,
-) {
+fn assign_pattern_poison<'file>(values: &mut arena::Arena<Value<'file>, ValueId>, locals: &mut HashMap<&'file str, ValueId>, pat: &circuit1::TypedPattern<'file>, span: Span<'file>) {
     match &pat.kind {
         circuit1::PatternKind::Identifier(_, iden, _) => {
             let value = values.add(Value { kind: ValueKind::Poison, type_info: pat.type_info, span });
             locals.insert(iden, value);
         }
-        circuit1::PatternKind::Product(_, subpats) => {
-            for subpat in subpats {
+        circuit1::PatternKind::Product(subpats) => {
+            for (_, subpat) in subpats {
                 assign_pattern_poison(values, locals, subpat, span);
             }
         }
@@ -232,7 +226,7 @@ fn convert_expr_to_value<'file>(values: &mut arena::Arena<Value<'file>, ValueId>
             circuit1::TypedExprKind::Call(name, inline, arg) => ValueKind::Call(name, inline, convert_expr_to_value(values, *arg)),
             circuit1::TypedExprKind::Const(sp, value) => ValueKind::Const(sp, value),
             circuit1::TypedExprKind::Get(base, field) => ValueKind::Get(convert_expr_to_value(values, *base), field),
-            circuit1::TypedExprKind::Multiple(exprs) => ValueKind::Multiple { values: exprs.into_iter().map(|e| convert_expr_to_value(values, e)).collect() },
+            circuit1::TypedExprKind::Product(exprs) => ValueKind::Product { values: exprs.into_iter().map(|(field_name, e)| (field_name, convert_expr_to_value(values, e))).collect() },
         },
         span: expr.span,
         type_info: expr.type_info,
@@ -276,13 +270,13 @@ fn convert_value(
         ValueKind::Get(expr, (_, field_name)) => do_get(*expr, field_name),
         ValueKind::MadeUpGet(expr, field_name) => do_get(*expr, field_name),
 
-        ValueKind::Multiple { values: subvalues, .. } => {
+        ValueKind::Product { values: subvalues, .. } => {
             let mut results = Vec::new();
 
             let mut errored = false;
-            for (ind, subvalue) in subvalues.iter().enumerate() {
+            for (field_name, subvalue) in subvalues.iter() {
                 match get_other_value_as_bundle.get(*subvalue) {
-                    arena::SingleTransformResult::Ok(result) => results.push((ind.to_string(), result.1.clone())),
+                    arena::SingleTransformResult::Ok(result) => results.push((field_name.clone(), result.1.clone())),
                     arena::SingleTransformResult::Dep(d_error) => return arena::SingleTransformResult::Dep(d_error),
                     arena::SingleTransformResult::Err(()) => errored = true,
                 }

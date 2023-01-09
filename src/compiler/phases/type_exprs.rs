@@ -84,9 +84,9 @@ fn put_pat_type<'file>(local_table: &mut HashMap<&'file str, ty::TypeSym>, pat: 
         circuit1::PatTypedPatternKind::Identifier(_, name, ty) => {
             local_table.insert(name, ty.1); // TODO: report error for duplicate locals
         }
-        circuit1::PatTypedPatternKind::Product(_, subpats) => {
+        circuit1::PatTypedPatternKind::Product(subpats) => {
             for subpat in subpats {
-                put_pat_type(local_table, subpat);
+                put_pat_type(local_table, &subpat.1);
             }
         }
     }
@@ -131,10 +131,10 @@ fn type_expr<'file>(
                 return None;
             }
         }
-        circuit1::UntypedExprKind::Multiple(exprs) => {
-            let exprs: Vec<_> = exprs.into_iter().map(|subexpr| type_expr(type_context, circuit_table, local_types, subexpr)).collect_all()?;
-            let types = exprs.iter().enumerate().map(|(field_i, subexpr)| (field_i.to_string(), subexpr.type_info)).collect();
-            (circuit1::TypedExprKind::Multiple(exprs), type_context.intern(ty::Type::Product(types)))
+        circuit1::UntypedExprKind::Product(exprs) => {
+            let exprs: Vec<_> = exprs.into_iter().map(|(subexpr_name, subexpr)| Some((subexpr_name, type_expr(type_context, circuit_table, local_types, subexpr)?))).collect_all()?;
+            let types = exprs.iter().map(|(field_name, subexpr)| (field_name.to_string(), subexpr.type_info)).collect();
+            (circuit1::TypedExprKind::Product(exprs), type_context.intern(ty::Type::Product(types)))
         }
     };
 

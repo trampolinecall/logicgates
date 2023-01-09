@@ -36,11 +36,11 @@ pub(crate) fn type_(resolve_type_expr::IR { circuits, circuit_table, mut type_co
 fn type_pat<'file>(type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>, pat: circuit1::TypeResolvedPattern<'file>) -> circuit1::PatTypedPattern<'file> {
     let (kind, type_info) = match pat.kind {
         circuit1::TypeResolvedPatternKind::Identifier(name_sp, name, ty) => (circuit1::PatTypedPatternKind::Identifier(name_sp, name, ty), ty.1),
-        circuit1::TypeResolvedPatternKind::Product(sp, pats) => {
-            let typed_pats: Vec<_> = pats.into_iter().map(|subpat| type_pat(type_context, subpat)).collect();
+        circuit1::TypeResolvedPatternKind::Product(pats) => {
+            let typed_pats: Vec<_> = pats.into_iter().map(|(field_name, subpat)| (field_name, type_pat(type_context, subpat))).collect();
 
-            let ty = ty::Type::Product(typed_pats.iter().enumerate().map(|(ind, subpat)| (ind.to_string(), subpat.type_info)).collect());
-            (circuit1::PatTypedPatternKind::Product(sp, typed_pats), type_context.intern(ty))
+            let ty = ty::Type::Product(typed_pats.iter().map(|(field_name, subpat)| (field_name.clone(), subpat.type_info)).collect());
+            (circuit1::PatTypedPatternKind::Product(typed_pats), type_context.intern(ty))
         }
     };
 

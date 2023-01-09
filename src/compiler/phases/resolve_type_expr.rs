@@ -28,7 +28,7 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
         circuit1::UntypedCircuitOrIntrinsic::Circuit(circuit) => Some(circuit1::TypeResolvedCircuitOrIntrinsic::Circuit(circuit1::TypeResolvedCircuit {
             name: circuit.name,
             input: resolve_in_pat(&mut type_context, &type_table, circuit.input)?,
-            output_type: resolve_type_expr(&mut type_context, &type_table, &circuit.output_type)?,
+            output_type: resolve_type_expr(&mut type_context, &type_table, circuit.output_type)?,
             lets: resolve_in_let(&mut type_context, &type_table, circuit.lets)?,
             output: circuit.output,
         })),
@@ -39,7 +39,7 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
     let type_context = type_context.transform_nominals(|type_context, struct_decl| {
         Some(nominal_type::FullyDefinedStruct {
             name: struct_decl.name,
-            fields: struct_decl.fields.into_iter().map(|(field_name, field_ty)| Some((field_name, resolve_type_expr_no_span(type_context, &type_table, &field_ty)?))).collect_all()?,
+            fields: struct_decl.fields.into_iter().map(|(field_name, field_ty)| Some((field_name, resolve_type_expr_no_span(type_context, &type_table, field_ty)?))).collect_all()?,
         })
     })?;
     // TODO: disallow recursive types / infinitely sized types
@@ -55,10 +55,10 @@ fn resolve_in_pat<'file>(
     Some(circuit1::TypeResolvedPattern {
         kind: match pat.kind {
             circuit1::UntypedPatternKind::Identifier(name_sp, name, type_expr) => {
-                circuit1::TypeResolvedPatternKind::Identifier(name_sp, name, resolve_type_expr(type_context, type_table, &type_expr)?)
+                circuit1::TypeResolvedPatternKind::Identifier(name_sp, name, resolve_type_expr(type_context, type_table, type_expr)?)
             }
-            circuit1::UntypedPatternKind::Product(sp, subpats) => {
-                circuit1::TypeResolvedPatternKind::Product(sp, subpats.into_iter().map(|subpat| resolve_in_pat(type_context, type_table, subpat)).collect_all()?)
+            circuit1::UntypedPatternKind::Product(subpats) => {
+                circuit1::TypeResolvedPatternKind::Product(subpats.into_iter().map(|(subpat_name, subpat)| Some((subpat_name, resolve_in_pat(type_context, type_table, subpat)?))).collect_all()?)
             }
         },
         type_info: (),
@@ -74,36 +74,32 @@ fn resolve_in_let<'file>(
     lets.into_iter().map(|let_| Some(circuit1::TypeResolvedLet { pat: resolve_in_pat(type_context, type_table, let_.pat)?, val: let_.val })).collect_all()
 }
 
-fn resolve_type_expr<'file, Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<&str, ty::TypeSym>, ty: &type_expr::TypeExpr<'file>) -> Option<(Span<'file>, ty::TypeSym)>
+fn resolve_type_expr<'file, Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<&str, ty::TypeSym>, ty: type_expr::TypeExpr<'file>) -> Option<(Span<'file>, ty::TypeSym)>
 where
     nominal_type::StructId: arena::IsArenaIdFor<Struct>,
 {
     let sp = ty.span;
     Some((sp, resolve_type_expr_no_span(type_context, type_table, ty)?))
 }
-fn resolve_type_expr_no_span<Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<&str, ty::TypeSym>, ty: &type_expr::TypeExpr) -> Option<ty::TypeSym>
+fn resolve_type_expr_no_span<Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<&str, ty::TypeSym>, ty: type_expr::TypeExpr) -> Option<ty::TypeSym>
 where
     nominal_type::StructId: arena::IsArenaIdFor<Struct>,
 {
-    match &ty.kind {
+    match ty.kind {
         type_expr::TypeExprKind::Product(subtypes) => {
-            let ty = ty::Type::Product((subtypes.iter().enumerate().map(|(ind, subty_ast)| Some((ind.to_string(), resolve_type_expr_no_span(type_context, type_table, subty_ast)?))).collect_all())?);
+            let ty = ty::Type::Product((subtypes.into_iter().map(|(field_name, subty_ast)| Some((field_name, resolve_type_expr_no_span(type_context, type_table, subty_ast)?))).collect_all())?);// TODO: report error if there are any duplicate fields, and also same in patterns and expressions
             Some(type_context.intern(ty))
         }
         type_expr::TypeExprKind::RepProduct(num, type_) => {
-            let ty = resolve_type_expr_no_span(type_context, type_table, type_)?;
+            let ty = resolve_type_expr_no_span(type_context, type_table, *type_)?;
             Some(type_context.intern(ty::Type::Product((0..num.1).map(|ind| (ind.to_string(), ty)).collect())))
         }
-        type_expr::TypeExprKind::NamedProduct(subtypes) => {
-            let ty = ty::Type::Product((subtypes.iter().map(|(name, ty)| Some((name.1.to_string(), (resolve_type_expr_no_span(type_context, type_table, ty)?)))).collect_all())?); // TODO: report error if there are any duplicate fields
-            Some(type_context.intern(ty))
-        }
         type_expr::TypeExprKind::Nominal(name_sp, name) => {
-            let res = type_table.get(*name).copied();
+            let res = type_table.get(name).copied();
             if let Some(other_type_decl) = res {
                 Some(other_type_decl)
             } else {
-                UndefinedType(*name_sp, name).report();
+                UndefinedType(name_sp, name).report();
                 None
             }
         }

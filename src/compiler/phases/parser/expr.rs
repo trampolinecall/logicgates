@@ -65,19 +65,25 @@ fn primary<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>
 }
 
 fn product<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>, obrack: Span<'file>) -> Result<circuit1::UntypedExpr<'file>, ParseError<'file>> {
-    let mut items = Vec::new();
-
-    if !Token::cbrack_matcher().matches(parser.peek()) {
-        items.push(expr(parser)?);
-        while Token::comma_matcher().matches(parser.peek()) {
+    match parser.peek() {
+        Token::Semicolon(_) => {
             parser.next();
-            items.push(expr(parser)?);
+
+            let (exprs, cbrack) = parser.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), |parser| {
+                let (_, name) = parser.expect(Token::identifier_matcher())?;
+                parser.expect(Token::equals_matcher())?;
+                let ty = expr(parser)?;
+                Ok((name.to_string(), ty))
+            })?;
+
+            Ok(circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Product(exprs), type_info: (), span: obrack + cbrack })
+        }
+
+        _ => {
+            let (exprs, cbrack) = parser.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), expr)?;
+            Ok(circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Product(exprs.into_iter().enumerate().map(|(i, e)| (i.to_string(), e)).collect()), type_info: (), span: obrack + cbrack })
         }
     }
-
-    let cbrack = parser.expect(Token::cbrack_matcher())?;
-
-    Ok(circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Multiple(items), type_info: (), span: obrack + cbrack })
 }
 
 #[cfg(test)]
@@ -147,7 +153,7 @@ mod test {
         assert_eq!(
             expr(&mut Parser { tokens }),
             Ok(circuit1::UntypedExpr {
-                kind: circuit1::UntypedExprKind::Multiple(vec![
+                kind: circuit1::UntypedExprKind::Product(vec![
                     circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "a"), type_info: (), span: sp },
                     circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "b"), type_info: (), span: sp },
                     circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Const(sp, false), type_info: (), span: sp },
