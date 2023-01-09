@@ -102,8 +102,6 @@ fn convert_circuit<'file>(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
     circuit1: circuit1::TypedCircuit<'file>,
 ) -> Option<circuit2::Circuit<'file>> {
-    // TODO: move all typechecking into a separate phase
-
     let mut circuit = circuit2::Circuit::new(circuit1.name.1, circuit1.input.type_info, circuit1.output_type.1);
 
     let mut values = arena::Arena::new();
