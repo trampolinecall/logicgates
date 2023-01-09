@@ -247,6 +247,7 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original,
                                 dep_id.get()
                             } else {
                                 // this node leads to the same loop as before
+                                waiting_nodes.retain(|item| !cur_loop.contains(item));
                                 continue 'each_loop;
                             }
                         } else {
