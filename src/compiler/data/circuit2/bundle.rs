@@ -21,7 +21,7 @@ impl ProducerBundle {
             ProducerBundle::CurCircuitInput(ty) | ProducerBundle::GateOutput(ty, _) => *ty,
             ProducerBundle::Get(producer, field) => {
                 let producer_type = producer.type_(type_context);
-                type_context.get(producer_type).field_type(type_context, field).unwrap()
+                ty::Type::get_field_type(&type_context.get(producer_type).fields(type_context), field).unwrap()
             }
             ProducerBundle::Product(tys) => {
                 let ty = ty::Type::Product(tys.iter().map(|(name, subbundle)| (name.to_string(), subbundle.type_(type_context))).collect());

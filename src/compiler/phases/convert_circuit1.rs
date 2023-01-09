@@ -195,7 +195,8 @@ fn assign_pattern<'file>(
             for (field_name, subpat) in subpats.iter() {
                 // destructuring happens by setting each subpattern to a made up get
                 let field_name = field_name.to_string();
-                let field_type = type_context.get(pat.type_info).field_type(type_context, &field_name).expect("field name does not exist in made up get for destructuring pattern");
+                let field_type =
+                    ty::Type::get_field_type(&type_context.get(pat.type_info).fields(type_context), &field_name).expect("field name does not exist in made up get for destructuring pattern");
                 let new_value = values.add(Value { kind: ValueKind::MadeUpGet(value, field_name), type_info: field_type, span: subpat.span });
                 assign_pattern(type_context, values, locals, subpat, new_value)?;
             }
@@ -246,7 +247,10 @@ fn convert_value(
     let mut do_get = |expr, field_name| -> arena::SingleTransformResult<circuit2::bundle::ProducerBundle, ValueId, ()> {
         let expr = try_transform_result!(get_other_value_as_bundle.get(expr)).1;
         let expr_type = expr.type_(type_context);
-        assert!(type_context.get(expr_type).field_type(type_context, field_name).is_some(), "get field that does not exist after already checking that all gets are valid in previous phase");
+        assert!(
+            ty::Type::get_field_type(&type_context.get(expr_type).fields(type_context), field_name).is_some(),
+            "get field that does not exist after already checking that all gets are valid in previous phase"
+        );
         arena::SingleTransformResult::Ok(circuit2::bundle::ProducerBundle::Get(Box::new(expr.clone()), field_name.to_string()))
     };
 
