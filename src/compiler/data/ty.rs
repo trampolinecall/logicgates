@@ -93,13 +93,16 @@ impl Type {
         s
     }
 
-    pub(crate) fn field_type(&self, type_context: &TypeContext<nominal_type::FullyDefinedStruct>, field: &str) -> Option<TypeSym> {
+    pub(crate) fn fields<'s: 'r, 'c: 'r, 'r>(&'s self, type_context: &'c TypeContext<nominal_type::FullyDefinedStruct>) -> Vec<(&'r str, TypeSym)> {
+        // TODO: figure out a better way than to return a vec (return slice or iterator?)
         match self {
-            Type::Bit => None,
-            Type::Product(fields) => fields.iter().find_map(|(field_name, field_type)| if field_name == field { Some(field_type) } else { None }).copied(),
-            Type::Nominal(struct_id) => {
-                type_context.structs.get(*struct_id).fields.iter().find_map(|((_, field_name), field_type)| if *field_name == field { Some(field_type) } else { None }).copied()
-            }
+            Type::Bit => Vec::new(),
+            Type::Product(fields) => fields.iter().map(|(name, ty)| (name.as_str(), *ty)).collect(),
+            Type::Nominal(struct_id) => type_context.structs.get(*struct_id).fields.iter().map(|((_, name), ty)| (*name, *ty)).collect(),
         }
+    }
+
+    pub(crate) fn get_field_type(fields: &[(&str, TypeSym)], field: &str) -> Option<TypeSym> {
+        fields.iter().find_map(|(field_name, field_type)| if *field_name == field { Some(field_type) } else { None }).copied()
     }
 }

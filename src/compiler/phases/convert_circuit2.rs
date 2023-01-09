@@ -142,40 +142,22 @@ fn convert_producer_bundle(
         circuit2::bundle::ProducerBundle::CurCircuitInput(_) => logic::circuit_input_indexes(&circuits[new_circuit]).map(Into::into).collect(),
         circuit2::bundle::ProducerBundle::GateOutput(_, old_gate_index) => logic::gate_output_indexes(circuits, gates, gate_index_map[old_gate_index]).map(Into::into).collect(),
         circuit2::bundle::ProducerBundle::Get(b, field) => {
-            fn field_indexes(ty: &ty::Type, type_context: &ty::TypeContext<nominal_type::FullyDefinedStruct>, field: &str) -> Option<std::ops::Range<usize>> {
-                match ty {
-                    ty::Type::Bit => None,
-                    ty::Type::Product(fields) => {
-                        let mut cur_index = 0;
-                        for (field_name, field_type) in fields {
-                            let cur_type_size = type_context.get(*field_type).size(type_context);
-                            if field_name == field {
-                                return Some(cur_index..cur_index + cur_type_size);
-                            }
-                            cur_index += cur_type_size;
-                        }
-
-                        None
+            fn field_indexes(type_context: &ty::TypeContext<nominal_type::FullyDefinedStruct>, fields: &[(&str, ty::TypeSym)], field: &str) -> Option<std::ops::Range<usize>> {
+                let mut cur_index = 0;
+                for (field_name, field_type) in fields {
+                    let cur_type_size = type_context.get(*field_type).size(type_context);
+                    if *field_name == field {
+                        return Some(cur_index..cur_index + cur_type_size);
                     }
-                    ty::Type::Nominal(struct_id) => {
-                        let fields = &type_context.structs.get(*struct_id).fields;
-                        let mut cur_index = 0;
-                        for ((_, field_name), field_type) in fields {
-                            let cur_type_size = type_context.get(*field_type).size(type_context);
-                            if *field_name == field {
-                                return Some(cur_index..cur_index + cur_type_size);
-                            }
-                            cur_index += cur_type_size;
-                        }
-
-                        None
-                    }
+                    cur_index += cur_type_size;
                 }
+
+                None
             }
             let b_nodes = convert_producer_bundle(circuits, gates, type_context, new_circuit, gate_index_map, b);
 
             let b_type = b.type_(type_context);
-            let field_indexes = field_indexes(type_context.get(b_type), type_context, field).expect("producer bundle should have field after type checking");
+            let field_indexes = field_indexes(type_context, &type_context.get(b_type).fields(type_context), field).expect("producer bundle should have field after type checking");
 
             b_nodes[field_indexes].to_vec()
         }

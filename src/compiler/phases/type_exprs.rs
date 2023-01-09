@@ -123,7 +123,7 @@ fn type_expr<'file>(
         circuit1::UntypedExprKind::Get(base, field) => {
             let base = type_expr(type_context, circuit_table, local_types, *base)?;
             let base_ty = base.type_info;
-            let field_ty = type_context.get(base_ty).field_type(type_context, field.1);
+            let field_ty = ty::Type::get_field_type(&type_context.get(base_ty).fields(type_context), field.1);
             if let Some(field_ty) = field_ty {
                 (circuit1::TypedExprKind::Get(Box::new(base), field), field_ty)
             } else {
