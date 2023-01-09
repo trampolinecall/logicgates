@@ -56,8 +56,12 @@ fn make_circuit_table(
 }
 
 fn make_type_table(type_decls: Vec<crate::compiler::data::nominal_type::PartiallyDefinedStruct>) -> Option<(ty::TypeContext<nominal_type::PartiallyDefinedStruct>, HashMap<&str, ty::TypeSym>)> {
-    let mut type_table = HashMap::new();
     let mut type_context = ty::TypeContext::new();
+    let mut type_table = HashMap::new();
+    let bit_type = type_context.intern(ty::Type::Bit);
+    let old_bit_type = type_table.insert("bit", bit_type);
+    assert!(old_bit_type.is_none(), "cannot have other bit type in an empty type table");
+
     let mut errored = false;
     for decl in type_decls {
         if type_table.contains_key(decl.name.1) {
