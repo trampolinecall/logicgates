@@ -78,14 +78,35 @@ impl Type {
         match self {
             Type::Bit => write!(s, "bit").unwrap(),
             Type::Product(items) => {
-                write!(s, "[named ").unwrap();
-                if let Some(((first_name, first), more)) = items.split_first() {
-                    write!(s, "{}; {}", first_name, type_context.get(*first).fmt(type_context)).unwrap();
-                    for (more_name, more) in more {
-                        write!(s, ", {}; {}", more_name, type_context.get(*more).fmt(type_context)).unwrap();
+                if items.is_empty() {
+                    write!(s, "[]").unwrap();
+                } else {
+                    let field_numbers_ascending = items.iter().map(|(name, _)| name.parse::<usize>()).zip(0..).all(|(actual, number)| actual == Ok(number));
+                    let first_ty = items[0].1;
+                    let all_same = items.iter().map(|(_, ty)| ty).all(|t| *t == first_ty);
+
+                    write!(s, "[").unwrap();
+                    if all_same && field_numbers_ascending {
+                        write!(s, "{}]{}", items.len(), type_context.get(first_ty).fmt(type_context)).unwrap();
+                    } else if field_numbers_ascending {
+                        if let Some(((_, first), more)) = items.split_first() {
+                            write!(s, "{}", type_context.get(*first).fmt(type_context)).unwrap();
+                            for (_, more) in more {
+                                write!(s, ", {}", type_context.get(*more).fmt(type_context)).unwrap();
+                            }
+                        }
+                        write!(s, "]").unwrap();
+                    } else {
+                        write!(s, "; ").unwrap();
+                        if let Some(((first_name, first), more)) = items.split_first() {
+                            write!(s, "{}; {}", first_name, type_context.get(*first).fmt(type_context)).unwrap();
+                            for (more_name, more) in more {
+                                write!(s, ", {}; {}", more_name, type_context.get(*more).fmt(type_context)).unwrap();
+                            }
+                        }
+                        write!(s, "]").unwrap();
                     }
                 }
-                write!(s, "]").unwrap();
             }
             Type::Nominal(index) => write!(s, "{}", type_context.structs.get(*index).name.1).unwrap(),
         };
