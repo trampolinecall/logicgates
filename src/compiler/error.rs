@@ -46,7 +46,7 @@ fn report(e: CompileError) {
     print_message(&format!("{} at {}: {}", LightRed.bold().paint("error"), LightCyan.paint(e.span.to_string()), Style::new().bold().paint(e.message)), e.span, e.note.as_deref());
 
     for (sp, message, note) in e.more {
-        print_message(&format!("   - {}", Style::new().bold().paint(message)), sp, note.as_deref());
+        print_message(&format!("   {} {}", LightCyan.paint(sp.to_string()), Style::new().bold().paint(message)), sp, note.as_deref());
     }
 }
 
