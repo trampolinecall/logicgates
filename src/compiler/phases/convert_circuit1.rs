@@ -93,6 +93,7 @@ enum ValueKind<'file> {
     MadeUpGet(ValueId, String), // used for gets in destructuring
     Multiple { values: Vec<ValueId> },
     Input,
+    Poison,
 }
 
 fn convert_circuit<'file>(
@@ -131,14 +132,12 @@ fn convert_circuit<'file>(
     // step 2: assign all patterns to values
     let mut locals = HashMap::new();
     let mut errored = false;
-    if let Err(e) = assign_pattern(type_context, &mut values, &mut locals, &circuit1.input, circuit_input_value) {
-        (&*type_context, e).report();
+    if let Err(()) = assign_pattern(type_context, &mut values, &mut locals, &circuit1.input, circuit_input_value) {
         errored = true;
     }
 
     for circuit1::Let { pat, val } in lets {
-        if let Err(e) = assign_pattern(type_context, &mut values, &mut locals, &pat, val) {
-            (&*type_context, e).report();
+        if let Err(()) = assign_pattern(type_context, &mut values, &mut locals, &pat, val) {
             errored = true;
         }
     }
@@ -183,10 +182,11 @@ fn assign_pattern<'file>(
     locals: &mut HashMap<&'file str, ValueId>,
     pat: &circuit1::TypedPattern<'file>,
     value: ValueId,
-) -> Result<(), TypeMismatch<'file>> {
-    // TODO: if this has a type error, any names in the pattern will go unassigned, meaning that getting that local later will panic
+) -> Result<(), ()> {
     if values.get(value).type_info != pat.type_info {
-        Err(TypeMismatch { expected_span: pat.span, got_type: values.get(value).type_info, expected_type: pat.type_info })?;
+        (&*type_context, TypeMismatch { expected_span: pat.span, got_type: values.get(value).type_info, expected_type: pat.type_info }).report();
+        assign_pattern_poison(values, locals, pat, values.get(value).span);
+        return Err(());
     }
 
     match &pat.kind {
@@ -208,6 +208,25 @@ fn assign_pattern<'file>(
     Ok(())
 }
 
+fn assign_pattern_poison<'file>(
+    values: &mut arena::Arena<Value<'file>, ValueId>,
+    locals: &mut HashMap<&'file str, ValueId>,
+    pat: &circuit1::TypedPattern<'file>,
+    span: Span<'file>,
+) {
+    match &pat.kind {
+        circuit1::PatternKind::Identifier(_, iden, _) => {
+            let value = values.add(Value { kind: ValueKind::Poison, type_info: pat.type_info, span });
+            locals.insert(iden, value);
+        }
+        circuit1::PatternKind::Product(_, subpats) => {
+            for subpat in subpats {
+                assign_pattern_poison(values, locals, subpat, span);
+            }
+        }
+    }
+}
+
 fn convert_expr_to_value<'file>(values: &mut arena::Arena<Value<'file>, ValueId>, expr: circuit1::TypedExpr<'file>) -> ValueId {
     let value = Value {
         kind: match expr.kind {
@@ -223,17 +242,16 @@ fn convert_expr_to_value<'file>(values: &mut arena::Arena<Value<'file>, ValueId>
     values.add(value)
 }
 
-enum NeverErrors {}
 fn convert_value(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
-    get_other_value_as_bundle: arena::DependancyGetter<circuit2::bundle::ProducerBundle, Value, NeverErrors, ValueId>,
+    get_other_value_as_bundle: arena::DependancyGetter<circuit2::bundle::ProducerBundle, Value, (), ValueId>,
     locals: &HashMap<&str, ValueId>,
     gates: &HashMap<ValueId, circuit2::GateIdx>,
     circuit: &circuit2::Circuit,
     value_id: ValueId,
     value: &Value,
-) -> arena::SingleTransformResult<circuit2::bundle::ProducerBundle, ValueId, NeverErrors> {
-    let mut do_get = |expr, field_name| -> arena::SingleTransformResult<circuit2::bundle::ProducerBundle, ValueId, NeverErrors> {
+) -> arena::SingleTransformResult<circuit2::bundle::ProducerBundle, ValueId, ()> {
+    let mut do_get = |expr, field_name| -> arena::SingleTransformResult<circuit2::bundle::ProducerBundle, ValueId, ()> {
         let expr = try_transform_result!(get_other_value_as_bundle.get(expr)).1;
         let expr_type = expr.type_(type_context);
         assert!(type_context.get(expr_type).field_type(type_context, field_name).is_some(), "get field that does not exist after already checking that all gets are valid in previous phase");
@@ -263,17 +281,23 @@ fn convert_value(
         ValueKind::Multiple { values: subvalues, .. } => {
             let mut results = Vec::new();
 
+            let mut errored = false;
             for (ind, subvalue) in subvalues.iter().enumerate() {
                 match get_other_value_as_bundle.get(*subvalue) {
                     arena::SingleTransformResult::Ok(result) => results.push((ind.to_string(), result.1.clone())),
                     arena::SingleTransformResult::Dep(d_error) => return arena::SingleTransformResult::Dep(d_error),
-                    arena::SingleTransformResult::Err(never) => match never {},
+                    arena::SingleTransformResult::Err(()) => errored = true,
                 }
             }
 
-            arena::SingleTransformResult::Ok(circuit2::bundle::ProducerBundle::Product(results))
+            if !errored {
+                arena::SingleTransformResult::Ok(circuit2::bundle::ProducerBundle::Product(results))
+            } else {
+                arena::SingleTransformResult::Err(())
+            }
         }
         ValueKind::Input => arena::SingleTransformResult::Ok(circuit2::bundle::ProducerBundle::CurCircuitInput(circuit.input_type)),
+        ValueKind::Poison => arena::SingleTransformResult::Err(()),
     }
 }
 
