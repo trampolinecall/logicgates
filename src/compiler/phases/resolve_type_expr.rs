@@ -25,7 +25,7 @@ impl<'file> From<UndefinedType<'file>> for CompileError<'file> {
 
 pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_context, mut type_table }: make_name_tables::IR) -> Option<IR> {
     let bit_type = type_context.intern(ty::Type::Bit);
-    let old_bit_type = type_table.insert("bit", bit_type);
+    let old_bit_type = type_table.insert("bit", bit_type); // TODO: this should actually be in the last phase because the user could declare a type 'bit' that would appear here
     assert!(old_bit_type.is_none(), "cannot have other bit type in an empty type table");
 
     let circuits = circuits.transform(|circuit| match circuit {

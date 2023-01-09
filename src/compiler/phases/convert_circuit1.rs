@@ -38,10 +38,10 @@ impl<'file> From<LoopInLocalsError<'file>> for CompileError<'file> {
         );
 
         for e in more {
-            error = error.note(e.span, "requires evaluating this one, which...".into());
+            error = error.note_and(e.span, "requires evaluating this one:".to_string(), "which...".to_string());
         }
 
-        error = error.note(first.span, "leads to the first expression".into());
+        error = error.note(first.span, "leads to the first expression".to_string());
 
         error
     }
