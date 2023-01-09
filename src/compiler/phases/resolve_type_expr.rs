@@ -54,9 +54,7 @@ fn resolve_in_pat<'file>(
 ) -> Option<circuit1::TypeResolvedPattern<'file>> {
     Some(circuit1::TypeResolvedPattern {
         kind: match pat.kind {
-            circuit1::UntypedPatternKind::Identifier(name_sp, name, type_expr) => {
-                circuit1::TypeResolvedPatternKind::Identifier(name_sp, name, resolve_type_expr(type_context, type_table, type_expr)?)
-            }
+            circuit1::UntypedPatternKind::Identifier(name_sp, name, type_expr) => circuit1::TypeResolvedPatternKind::Identifier(name_sp, name, resolve_type_expr(type_context, type_table, type_expr)?),
             circuit1::UntypedPatternKind::Product(subpats) => {
                 circuit1::TypeResolvedPatternKind::Product(subpats.into_iter().map(|(subpat_name, subpat)| Some((subpat_name, resolve_in_pat(type_context, type_table, subpat)?))).collect_all()?)
             }
@@ -87,7 +85,7 @@ where
 {
     match ty.kind {
         type_expr::TypeExprKind::Product(subtypes) => {
-            let ty = ty::Type::Product((subtypes.into_iter().map(|(field_name, subty_ast)| Some((field_name, resolve_type_expr_no_span(type_context, type_table, subty_ast)?))).collect_all())?);// TODO: report error if there are any duplicate fields, and also same in patterns and expressions
+            let ty = ty::Type::Product((subtypes.into_iter().map(|(field_name, subty_ast)| Some((field_name, resolve_type_expr_no_span(type_context, type_table, subty_ast)?))).collect_all())?); // TODO: report error if there are any duplicate fields, and also same in patterns and expressions
             Some(type_context.intern(ty))
         }
         type_expr::TypeExprKind::RepProduct(num, type_) => {
