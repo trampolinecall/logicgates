@@ -46,24 +46,26 @@ fn report(e: CompileError) {
     print_message(&format!("{} at {}: {}", LightRed.bold().paint("error"), LightCyan.paint(e.span.to_string()), Style::new().bold().paint(e.message)), e.span, e.note.as_deref());
 
     for (sp, message, note) in e.more {
-        print_message(&format!("- {}", Blue.paint(message)), sp, note.as_deref());
+        print_message(&format!("   - {}", Style::new().bold().paint(message)), sp, note.as_deref());
     }
 }
 
 fn print_message(message: &str, span: Span, note: Option<&str>) {
     use nu_ansi_term::Color::*;
+    use nu_ansi_term::Style;
+
     let (start_line_nr, start_col) = span::get_lc(span.0, span.1);
     let (end_line_nr, end_col) = span::get_lc(span.0, span.2);
     let line_quote = span.0.contents.lines().nth(start_line_nr - 1).unwrap_or("");
 
     eprintln!("{}", message);
     eprintln!("{}{}{}", &line_quote[..start_col - 1], LightGreen.bold().paint(&line_quote[start_col - 1..end_col - 1]), &line_quote[end_col - 1..]);
-    eprint!("{}{}", " ".repeat(start_col - 1), LightGreen.paint("^".repeat(std::cmp::max(1, end_col - start_col))));
+    eprint!("{}{}", " ".repeat(start_col - 1), LightGreen.bold().paint("^".repeat(std::cmp::max(1, end_col - start_col))));
     if start_line_nr != end_line_nr {
         eprint!("...")
     }
     if let Some(note) = note {
-        eprint!("{} {}", LightGreen.paint("--"), LightGreen.bold().paint(note));
+        eprint!("{} {}", LightGreen.bold().paint("--"), Style::new().bold().paint(note));
     }
     eprintln!()
 }
