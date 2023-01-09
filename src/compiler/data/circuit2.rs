@@ -24,8 +24,8 @@ impl arena::ArenaId for GateIdx {
 #[derive(Debug)]
 pub(crate) struct Circuit<'file> {
     pub(crate) name: &'file str,
-    gates: arena::Arena<circuit1::CircuitOrIntrinsicId, GateIdx>,
-    connections: Vec<(bundle::ProducerBundle, bundle::ReceiverBundle)>,
+    pub(crate) gates: arena::Arena<circuit1::CircuitOrIntrinsicId, GateIdx>,
+    pub(crate) connections: Vec<(bundle::ProducerBundle, bundle::ReceiverBundle)>,
     pub(crate) input_type: ty::TypeSym,
     pub(crate) output_type: ty::TypeSym,
 }
@@ -99,26 +99,5 @@ impl Gate {
 impl<'file> Circuit<'file> {
     pub(crate) fn new(name: &'file str, input_type: symtern::Sym<usize>, output_type: symtern::Sym<usize>) -> Circuit {
         Circuit { name, input_type, output_type, gates: arena::Arena::new(), connections: Vec::new() }
-    }
-
-    pub(crate) fn add_gate(&mut self, gate: circuit1::CircuitOrIntrinsicId) -> GateIdx {
-        self.gates.add(gate)
-    }
-
-    pub(crate) fn get_gate(&self, gate_idx: GateIdx) -> &circuit1::CircuitOrIntrinsicId {
-        self.gates.get(gate_idx)
-    }
-
-    pub(crate) fn add_connection(&mut self, producer: bundle::ProducerBundle, receiver: bundle::ReceiverBundle) {
-        // TODO: probably should put type error here or assertion
-        self.connections.push((producer, receiver));
-    }
-
-    pub(crate) fn iter_gates(&self) -> impl Iterator<Item = (GateIdx, &circuit1::CircuitOrIntrinsicId)> {
-        self.gates.iter().enumerate().map(|(i, g)| (GateIdx(i), g))
-    }
-
-    pub(crate) fn iter_connections(&self) -> std::slice::Iter<(bundle::ProducerBundle, bundle::ReceiverBundle)> {
-        self.connections.iter()
     }
 }

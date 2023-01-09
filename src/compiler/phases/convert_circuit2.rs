@@ -68,13 +68,13 @@ fn convert_circuit<'file, 'circuit>(
         .insert_with_key(|idx| simulation::Circuit::new(idx, circuit.name.into(), type_context.get(circuit.input_type).size(type_context), type_context.get(circuit.output_type).size(type_context)));
     let mut gate_index_map = HashMap::new();
 
-    for (old_gate_i, gate) in circuit.iter_gates() {
+    for (old_gate_i, gate) in circuit.gates.iter_with_ids() {
         let (expansion_stack_2, new_gate_i) = add_gate(circuits, gates, circuit2s, type_context, expansion_stack, *gate, new_circuit_idx)?;
         expansion_stack = expansion_stack_2;
         gate_index_map.insert(old_gate_i, new_gate_i);
     }
 
-    for (producer, receiver) in circuit.iter_connections() {
+    for (producer, receiver) in circuit.connections.iter() {
         connect(circuits, gates, type_context, new_circuit_idx, &mut gate_index_map, producer, receiver);
     }
 

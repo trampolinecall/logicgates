@@ -23,7 +23,7 @@ impl<'file> From<(&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, Typ
         let expected_type = types.get(expected_type).fmt(types);
         let got_type = types.get(got_type).fmt(types);
         CompileError::new_with_note(expected_span, format!("type mismatch: expected {}, got {}", expected_type, got_type), format!("this has type {}", expected_type))
-            // .note(got_span, format!("this has type {}", got_type)) TODO
+        // .note(got_span, format!("this has type {}", got_type)) TODO
     }
 }
 
@@ -31,11 +31,7 @@ impl<'file> From<LoopInLocalsError<'file>> for CompileError<'file> {
     fn from(LoopInLocalsError(loop_): LoopInLocalsError<'file>) -> Self {
         let (first, more) = loop_.split_first().expect("loop cannot be empty");
 
-        let mut error = CompileError::new_with_note(
-            first.span,
-            "infinite loop in evaluation of locals".into(),
-            "evaluating this expression...".into()
-        );
+        let mut error = CompileError::new_with_note(first.span, "infinite loop in evaluation of locals".into(), "evaluating this expression...".into());
 
         for e in more {
             error = error.note_and(e.span, "requires evaluating this one:".to_string(), "which...".to_string());
@@ -122,10 +118,10 @@ fn convert_circuit<'file>(
     for (value_id, value) in values.iter_with_ids() {
         match value.kind {
             ValueKind::Call((_, name), _, _) => {
-                gates.insert(value_id, circuit.add_gate(circuit_table[name].2));
+                gates.insert(value_id, circuit.gates.add(circuit_table[name].2));
             }
             ValueKind::Const(_, value) => {
-                gates.insert(value_id, circuit.add_gate(if value { const_1 } else { const_0 }));
+                gates.insert(value_id, circuit.gates.add(if value { const_1 } else { const_0 }));
             }
 
             _ => {}
@@ -296,7 +292,7 @@ fn connect_bundle(
         None?;
     }
 
-    circuit.add_connection(producer_bundle, receiver_bundle);
+    circuit.connections.push((producer_bundle, receiver_bundle));
 
     Some(())
 }
