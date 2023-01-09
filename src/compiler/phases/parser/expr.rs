@@ -1,10 +1,11 @@
 use crate::compiler::{
     data::{circuit1, token::Token},
+    error::Span,
     phases::parser::{ParseError, Parser},
 };
 
 pub(super) fn expr<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<circuit1::UntypedExpr<'file>, ParseError<'file>> {
-    let mut left = primary_expr(parser)?;
+    let mut left = primary(parser)?;
 
     while Token::dot_matcher().matches(parser.peek()) {
         parser.next();
@@ -25,7 +26,7 @@ pub(super) fn expr<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<
     Ok(left)
 }
 
-fn primary_expr<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<circuit1::UntypedExpr<'file>, ParseError<'file>> {
+fn primary<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<circuit1::UntypedExpr<'file>, ParseError<'file>> {
     match parser.peek() {
         Token::Number(_, _, _) => {
             let (n_sp, _, n) = Token::number_matcher().convert(parser.next());
@@ -56,24 +57,27 @@ fn primary_expr<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'fi
 
         &Token::OBrack(obrack) => {
             parser.next();
-
-            let mut items = Vec::new();
-
-            if !Token::cbrack_matcher().matches(parser.peek()) {
-                items.push(expr(parser)?);
-                while Token::comma_matcher().matches(parser.peek()) {
-                    parser.next();
-                    items.push(expr(parser)?);
-                }
-            }
-
-            let cbrack = parser.expect(Token::cbrack_matcher())?;
-
-            Ok(circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Multiple(items), type_info: (), span: obrack + cbrack })
+            product(parser, obrack)
         }
 
         _ => Err(parser.expected_and_next("expression"))?,
     }
+}
+
+fn product<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>, obrack: Span<'file>) -> Result<circuit1::UntypedExpr<'file>, ParseError<'file>> {
+    let mut items = Vec::new();
+
+    if !Token::cbrack_matcher().matches(parser.peek()) {
+        items.push(expr(parser)?);
+        while Token::comma_matcher().matches(parser.peek()) {
+            parser.next();
+            items.push(expr(parser)?);
+        }
+    }
+
+    let cbrack = parser.expect(Token::cbrack_matcher())?;
+
+    Ok(circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Multiple(items), type_info: (), span: obrack + cbrack })
 }
 
 #[cfg(test)]

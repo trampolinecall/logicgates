@@ -1,5 +1,6 @@
 use crate::compiler::{
     data::{circuit1, token::Token},
+    error::Span,
     phases::parser::{pattern, type_, ParseError, Parser},
 };
 
@@ -17,12 +18,17 @@ pub(super) fn pattern<'file>(parser: &mut Parser<'file, impl Iterator<Item = Tok
 
         &Token::OBrack(obrack) => {
             parser.next();
-            let (patterns, cbrack) = parser.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), pattern::pattern)?;
-
-            Ok(circuit1::UntypedPattern { kind: circuit1::UntypedPatternKind::Product(obrack + cbrack, patterns), type_info: (), span: obrack + cbrack })
+            product(parser, obrack)
         }
+
         _ => Err(parser.expected_and_next("pattern")),
     }
+}
+
+fn product<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>, obrack: Span<'file>) -> Result<circuit1::UntypedPattern<'file>, ParseError<'file>> {
+    let (patterns, cbrack) = parser.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), pattern::pattern)?;
+
+    Ok(circuit1::UntypedPattern { kind: circuit1::UntypedPatternKind::Product(obrack + cbrack, patterns), type_info: (), span: obrack + cbrack })
 }
 
 #[cfg(test)]
