@@ -5,36 +5,36 @@ pub(crate) mod logic;
 // TODO: clean up everything in here, for example some places use indexes and some use direct references, things like that, ...
 
 slotmap::new_key_type! {
-    pub(crate) struct CircuitIndex;
-    pub(crate) struct GateIndex;
+    pub(crate) struct CircuitKey;
+    pub(crate) struct GateKey;
 }
-pub(crate) type CircuitMap = slotmap::SlotMap<CircuitIndex, Circuit>;
-pub(crate) type GateMap = slotmap::SlotMap<GateIndex, Gate>;
+pub(crate) type CircuitMap = slotmap::SlotMap<CircuitKey, Circuit>;
+pub(crate) type GateMap = slotmap::SlotMap<GateKey, Gate>;
 
 pub(crate) struct Simulation {
     pub(crate) circuits: CircuitMap,
     pub(crate) gates: GateMap,
 
-    pub(crate) main_circuit: CircuitIndex,
+    pub(crate) main_circuit: CircuitKey,
 }
 
 // circuit kind of blurs the boundary between the simulation and the logic component but
 pub(crate) struct Circuit {
-    pub(crate) index: CircuitIndex,
+    pub(crate) index: CircuitKey,
     pub(crate) name: String,
-    pub(crate) gates: Vec<GateIndex>,
+    pub(crate) gates: Vec<GateKey>,
     pub(crate) inputs: Vec<logic::Node>,
     pub(crate) outputs: Vec<logic::Node>,
 }
 
 pub(crate) struct Gate {
-    pub(crate) index: GateIndex,
+    pub(crate) index: GateKey,
     pub(crate) calculation: logic::Calculation,
     pub(crate) location: location::Location,
 }
 
 impl Circuit {
-    pub(crate) fn new(index: CircuitIndex, name: String, num_inputs: usize, num_outputs: usize) -> Self {
+    pub(crate) fn new(index: CircuitKey, name: String, num_inputs: usize, num_outputs: usize) -> Self {
         // even if this circuit is part of a subcircuit, these nodes dont have to update anything
         // instead, because the gates inside this circuit are connected to these nodes, updates to these nodes will propagate to the gates' nodes, properly updating those gates
         Self {
