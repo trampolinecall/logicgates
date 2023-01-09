@@ -17,7 +17,7 @@ pub(crate) fn calculate_locations(circuits: &mut CircuitMap, gates: &mut GateMap
     apply_locations(gates, locations);
 }
 
-fn calculate_locations_(circuits: &CircuitMap, gates: &GateMap) -> HashMap<simulation::GateIndex, (u32, f64)> {
+fn calculate_locations_(circuits: &CircuitMap, gates: &GateMap) -> HashMap<simulation::GateKey, (u32, f64)> {
     /* old iterative position calculating algorithm based on a loss function and trying to find a minimum loss
     // gate position scoring; lower is better
     let score = |current_idx: usize, current_loc @ [x, y]: [f64; 2], gate: &simulation::Gate| -> f64 {
@@ -88,7 +88,7 @@ fn calculate_locations_(circuits: &CircuitMap, gates: &GateMap) -> HashMap<simul
     // TODO: it actually does not work properly as described in the line above so fix this
 
     // group them into columns with each one going one column right of its rightmost dependency
-    let mut xs: BTreeMap<simulation::GateIndex, u32> = gates.iter().map(|(g_i, _)| (g_i, 0)).collect();
+    let mut xs: BTreeMap<simulation::GateKey, u32> = gates.iter().map(|(g_i, _)| (g_i, 0)).collect();
     // TODO: this has to run repeatedly in case the gates are not in topologically sorted order
     for (gate_i, _) in gates.iter() {
         let input_producer_x = |input: logic::GateInputNodeIdx| match logic::get_node(circuits, gates, input.into()).producer() {
@@ -102,7 +102,7 @@ fn calculate_locations_(circuits: &CircuitMap, gates: &GateMap) -> HashMap<simul
     }
 
     // within each column sort them by the average of their input ys
-    let mut ys: BTreeMap<simulation::GateIndex, f64> = gates.iter().map(|(index, _)| (index, 0.0)).collect();
+    let mut ys: BTreeMap<simulation::GateKey, f64> = gates.iter().map(|(index, _)| (index, 0.0)).collect();
     for x in 1..=*xs.values().max().unwrap_or(&0) {
         let input_producer_y = |input: logic::GateInputNodeIdx| match logic::get_node(circuits, gates, input.into()).producer() {
             Some(producer) => match logic::get_node(circuits, gates, producer).gate {
@@ -138,7 +138,7 @@ fn calculate_locations_(circuits: &CircuitMap, gates: &GateMap) -> HashMap<simul
         .collect()
 }
 
-fn apply_locations(gates: &mut GateMap, locations: HashMap<simulation::GateIndex, (u32, f64)>) {
+fn apply_locations(gates: &mut GateMap, locations: HashMap<simulation::GateKey, (u32, f64)>) {
     for (gate_i, location) in locations {
         gates[gate_i].location = simulation::location::Location { location };
     }

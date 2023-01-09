@@ -57,7 +57,7 @@ fn convert_circuit<'file, 'circuit>(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     mut expansion_stack: ExpandedStack<'file, 'circuit>,
     circuit: &'circuit circuit2::Circuit<'file>,
-) -> Result<(ExpandedStack<'file, 'circuit>, simulation::CircuitIndex), InfiniteRecursion<'file, 'circuit>> {
+) -> Result<(ExpandedStack<'file, 'circuit>, simulation::CircuitKey), InfiniteRecursion<'file, 'circuit>> {
     if expansion_stack.iter().any(|c| std::ptr::eq(*c, circuit)) {
         return Err(InfiniteRecursion(expansion_stack, circuit));
     }
@@ -91,8 +91,8 @@ fn add_gate<'file, 'circuit>(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     expansion_stack: ExpandedStack<'file, 'circuit>,
     circuit_id: circuit1::CircuitOrIntrinsicId,
-    new_circuit_idx: simulation::CircuitIndex,
-) -> Result<(ExpandedStack<'file, 'circuit>, simulation::GateIndex), InfiniteRecursion<'file, 'circuit>> {
+    new_circuit_idx: simulation::CircuitKey,
+) -> Result<(ExpandedStack<'file, 'circuit>, simulation::GateKey), InfiniteRecursion<'file, 'circuit>> {
     let (expansion_stack, gate_idx) = match circuit2s.get(circuit_id) {
         circuit2::CircuitOrIntrinsic::Custom(subcircuit) => {
             let (expansion_stack, subcircuit_idx) = convert_circuit(circuits, gates, circuit2s, type_context, expansion_stack, subcircuit)?;
@@ -114,8 +114,8 @@ fn connect(
     circuits: &mut simulation::CircuitMap,
     gates: &mut simulation::GateMap,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
-    new_circuit: simulation::CircuitIndex,
-    gate_index_map: &mut HashMap<circuit2::GateIdx, simulation::GateIndex>,
+    new_circuit: simulation::CircuitKey,
+    gate_index_map: &mut HashMap<circuit2::GateIdx, simulation::GateKey>,
     producer: &circuit2::bundle::ProducerBundle,
     receiver: &circuit2::bundle::ReceiverBundle,
 ) {
@@ -133,8 +133,8 @@ fn convert_producer_bundle(
     circuits: &mut simulation::CircuitMap,
     gates: &mut simulation::GateMap,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
-    new_circuit: simulation::CircuitIndex,
-    gate_index_map: &mut HashMap<circuit2::GateIdx, simulation::GateIndex>,
+    new_circuit: simulation::CircuitKey,
+    gate_index_map: &mut HashMap<circuit2::GateIdx, simulation::GateKey>,
     producer: &circuit2::bundle::ProducerBundle,
 ) -> Vec<logic::NodeIdx> {
     match producer {
@@ -188,8 +188,8 @@ fn convert_receiver_bundle(
     circuits: &mut simulation::CircuitMap, // keep arguments for symmetry with convert_producer_bundle
     gates: &mut simulation::GateMap,
     _: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
-    new_circuit: simulation::CircuitIndex,
-    gate_index_map: &mut HashMap<circuit2::GateIdx, simulation::GateIndex>,
+    new_circuit: simulation::CircuitKey,
+    gate_index_map: &mut HashMap<circuit2::GateIdx, simulation::GateKey>,
     receiver: &circuit2::bundle::ReceiverBundle,
 ) -> Vec<logic::NodeIdx> {
     match receiver {

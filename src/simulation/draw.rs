@@ -1,4 +1,4 @@
-use crate::simulation::{logic, CircuitIndex, CircuitMap, GateIndex, GateMap};
+use crate::simulation::{logic, CircuitKey, CircuitMap, GateKey, GateMap};
 
 // TODO: consider whether to merge draw and location components
 
@@ -12,7 +12,7 @@ const GATE_COLOR: [f32; 4] = [0.584, 0.647, 0.65, 1.0];
 const ON_COLOR: [f32; 4] = [0.18, 0.8, 0.521, 1.0];
 const OFF_COLOR: [f32; 4] = [0.498, 0.549, 0.552, 1.0];
 
-pub(crate) fn render(circuits: &CircuitMap, gates: &GateMap, main_circuit: CircuitIndex, graphics: &mut opengl_graphics::GlGraphics, render_args: &piston::RenderArgs) {
+pub(crate) fn render(circuits: &CircuitMap, gates: &GateMap, main_circuit: CircuitKey, graphics: &mut opengl_graphics::GlGraphics, render_args: &piston::RenderArgs) {
     use graphics::{clear, ellipse, line_from_to, rectangle};
 
     let main_circuit = &circuits[main_circuit];
@@ -55,7 +55,7 @@ pub(crate) fn render(circuits: &CircuitMap, gates: &GateMap, main_circuit: Circu
     });
 }
 
-pub(crate) fn gate_display_size(circuits: &CircuitMap, gates: &GateMap, gate: GateIndex) -> [f64; 2] {
+pub(crate) fn gate_display_size(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> [f64; 2] {
     const EXTRA_VERTICAL_HEIGHT: f64 = 40.0;
     const GATE_WIDTH: f64 = 50.0;
 
@@ -69,7 +69,7 @@ fn y_centered_around(center_y: f64, total: usize, index: usize) -> f64 {
     args_start_y + (index as f64) * VERTICAL_VALUE_SPACING
 }
 
-fn gate_box(circuits: &CircuitMap, gates: &GateMap, args: &piston::RenderArgs, gate_index: GateIndex) -> [f64; 4] {
+fn gate_box(circuits: &CircuitMap, gates: &GateMap, args: &piston::RenderArgs, gate_index: GateKey) -> [f64; 4] {
     let (gate_x, gate_y) = gates[gate_index].location.location;
     let [gate_width, gate_height] = gate_display_size(circuits, gates, gate_index);
     [gate_x as f64 * HORIZONTAL_GATE_SPACING, gate_y + args.window_size[1] / 2.0, gate_width, gate_height]

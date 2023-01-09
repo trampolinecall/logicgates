@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::simulation::{Circuit, CircuitIndex, CircuitMap, GateIndex, GateMap};
+use crate::simulation::{Circuit, CircuitKey, CircuitMap, GateKey, GateMap};
 
 pub(crate) struct Calculation {
     kind: CalculationKind,
@@ -9,12 +9,12 @@ pub(crate) struct Calculation {
 enum CalculationKind {
     Nand([Node; 2], [Node; 1]),
     Const([Node; 0], [Node; 1]),
-    Custom(CircuitIndex), // the circuit already contains the input and output nodes
+    Custom(CircuitKey), // the circuit already contains the input and output nodes
 }
 
 #[derive(Clone)]
 pub(crate) struct Node {
-    pub(crate) gate: Option<GateIndex>,
+    pub(crate) gate: Option<GateKey>,
     value: Value,
     dependants: HashSet<NodeIdx>,
 }
@@ -27,13 +27,13 @@ enum Value {
 // TODO: properly deal with removing gates so that it doesnt panic when gates are removed
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
-pub(crate) struct GateInputNodeIdx(pub(crate) GateIndex, pub(crate) usize, ()); // unit at the end so that it cannot be constructed outside of this module
+pub(crate) struct GateInputNodeIdx(pub(crate) GateKey, pub(crate) usize, ()); // unit at the end so that it cannot be constructed outside of this module
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
-pub(crate) struct GateOutputNodeIdx(pub(crate) GateIndex, pub(crate) usize, ());
+pub(crate) struct GateOutputNodeIdx(pub(crate) GateKey, pub(crate) usize, ());
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
-pub(crate) struct CircuitInputNodeIdx(pub(crate) CircuitIndex, pub(crate) usize, ());
+pub(crate) struct CircuitInputNodeIdx(pub(crate) CircuitKey, pub(crate) usize, ());
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
-pub(crate) struct CircuitOutputNodeIdx(pub(crate) CircuitIndex, pub(crate) usize, ());
+pub(crate) struct CircuitOutputNodeIdx(pub(crate) CircuitKey, pub(crate) usize, ());
 
 impl From<GateOutputNodeIdx> for NodeIdx {
     fn from(v: GateOutputNodeIdx) -> Self {
@@ -66,13 +66,13 @@ pub(crate) enum NodeIdx {
 
 impl Calculation {
     // default value for the outputs is whatever value results from having all false inputs
-    pub(crate) fn new_nand(index: GateIndex) -> Calculation {
+    pub(crate) fn new_nand(index: GateKey) -> Calculation {
         Calculation { kind: CalculationKind::Nand([Node::new(Some(index), false), Node::new(Some(index), false)], [Node::new(Some(index), true)]) }
     }
-    pub(crate) fn new_const(index: GateIndex, value: bool) -> Calculation {
+    pub(crate) fn new_const(index: GateKey, value: bool) -> Calculation {
         Calculation { kind: CalculationKind::Const([], [Node::new(Some(index), value)]) }
     }
-    pub(crate) fn new_subcircuit(subcircuit: CircuitIndex) -> Calculation {
+    pub(crate) fn new_subcircuit(subcircuit: CircuitKey) -> Calculation {
         Calculation { kind: CalculationKind::Custom(subcircuit) }
     }
 
@@ -88,7 +88,7 @@ impl Calculation {
 }
 
 impl Node {
-    pub(crate) fn new(gate: Option<GateIndex>, value: bool) -> Self {
+    pub(crate) fn new(gate: Option<GateKey>, value: bool) -> Self {
         Self { gate, value: Value::Manual(value), dependants: HashSet::new() }
     }
 
@@ -102,7 +102,7 @@ impl Node {
 }
 
 // inputs and outputs {{{1
-fn gate_inputs<'a: 'c, 'b: 'c, 'c>(circuits: &'a CircuitMap, gates: &'b GateMap, gate: GateIndex) -> &'c [Node] {
+fn gate_inputs<'a: 'c, 'b: 'c, 'c>(circuits: &'a CircuitMap, gates: &'b GateMap, gate: GateKey) -> &'c [Node] {
     let gate = &gates[gate];
     match &gate.calculation.kind {
         CalculationKind::Nand(i, _) => i,
@@ -110,7 +110,7 @@ fn gate_inputs<'a: 'c, 'b: 'c, 'c>(circuits: &'a CircuitMap, gates: &'b GateMap,
         CalculationKind::Custom(circuit_idx) => &circuits[*circuit_idx].inputs,
     }
 }
-fn gate_outputs<'a: 'c, 'b: 'c, 'c>(circuits: &'a CircuitMap, gates: &'b GateMap, gate: GateIndex) -> &'c [Node] {
+fn gate_outputs<'a: 'c, 'b: 'c, 'c>(circuits: &'a CircuitMap, gates: &'b GateMap, gate: GateKey) -> &'c [Node] {
     let gate = &gates[gate];
     match &gate.calculation.kind {
         CalculationKind::Nand(_, o) | CalculationKind::Const(_, o) => o,
@@ -118,7 +118,7 @@ fn gate_outputs<'a: 'c, 'b: 'c, 'c>(circuits: &'a CircuitMap, gates: &'b GateMap
     }
 }
 
-fn gate_inputs_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, gates: &'b mut GateMap, gate: GateIndex) -> &'c mut [Node] {
+fn gate_inputs_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, gates: &'b mut GateMap, gate: GateKey) -> &'c mut [Node] {
     let gate = &mut gates[gate];
     match &mut gate.calculation.kind {
         CalculationKind::Nand(i, _) => i,
@@ -126,7 +126,7 @@ fn gate_inputs_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, gates: &'b 
         CalculationKind::Custom(circuit_idx) => &mut circuits[*circuit_idx].inputs,
     }
 }
-fn gate_outputs_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, gates: &'b mut GateMap, gate: GateIndex) -> &'c mut [Node] {
+fn gate_outputs_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, gates: &'b mut GateMap, gate: GateKey) -> &'c mut [Node] {
     let gate = &mut gates[gate];
     match &mut gate.calculation.kind {
         CalculationKind::Nand(_, o) | CalculationKind::Const(_, o) => o,
@@ -134,10 +134,10 @@ fn gate_outputs_mut<'a: 'c, 'b: 'c, 'c>(circuits: &'a mut CircuitMap, gates: &'b
     }
 }
 
-pub(crate) fn gate_num_inputs(circuits: &CircuitMap, gates: &GateMap, gate: GateIndex) -> usize {
+pub(crate) fn gate_num_inputs(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> usize {
     gate_inputs(circuits, gates, gate).len()
 }
-pub(crate) fn gate_num_outputs(circuits: &CircuitMap, gates: &GateMap, gate: GateIndex) -> usize {
+pub(crate) fn gate_num_outputs(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> usize {
     gate_outputs(circuits, gates, gate).len()
 }
 
@@ -148,10 +148,10 @@ pub(crate) fn circuit_input_indexes(circuit: &Circuit) -> impl Iterator<Item = C
 pub(crate) fn circuit_output_indexes(circuit: &Circuit) -> impl Iterator<Item = CircuitOutputNodeIdx> + '_ {
     (0..circuit.outputs.len()).map(|i| CircuitOutputNodeIdx(circuit.index, i, ()))
 }
-pub(crate) fn gate_input_indexes(circuits: &CircuitMap, gates: &GateMap, gate: GateIndex) -> impl ExactSizeIterator<Item = GateInputNodeIdx> {
+pub(crate) fn gate_input_indexes(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> impl ExactSizeIterator<Item = GateInputNodeIdx> {
     (0..gate_num_inputs(circuits, gates, gate)).map(move |i| GateInputNodeIdx(gate, i, ()))
 }
-pub(crate) fn gate_output_indexes(circuits: &CircuitMap, gates: &GateMap, gate: GateIndex) -> impl ExactSizeIterator<Item = GateOutputNodeIdx> {
+pub(crate) fn gate_output_indexes(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> impl ExactSizeIterator<Item = GateOutputNodeIdx> {
     (0..gate_num_outputs(circuits, gates, gate)).map(move |i| GateOutputNodeIdx(gate, i, ()))
 }
 // getting nodes {{{1
@@ -224,7 +224,7 @@ fn set_node_value(circuits: &mut CircuitMap, gates: &mut GateMap, index: NodeIdx
     }
 }
 
-pub(crate) fn toggle_input(circuits: &mut CircuitMap, gates: &mut GateMap, circuit: CircuitIndex, i: usize) {
+pub(crate) fn toggle_input(circuits: &mut CircuitMap, gates: &mut GateMap, circuit: CircuitKey, i: usize) {
     assert!(i < circuits[circuit].inputs.len(), "toggle input out of range of number of inputs");
     set_input(circuits, gates, CircuitInputNodeIdx(circuit, i, ()), !get_node_value(circuits, gates, CircuitInputNodeIdx(circuit, i, ()).into()));
 }
