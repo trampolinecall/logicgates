@@ -188,6 +188,7 @@ fn assign_pattern<'file>(
     pat: &circuit1::TypedPattern<'file>,
     value: ValueId,
 ) -> Result<(), TypeMismatch<'file>> {
+    // TODO: if this has a type error, any names in the pattern will go unassigned, meaning that getting that local later will panic
     if values.get(value).type_info != pat.type_info {
         Err(TypeMismatch { expected_span: pat.span, got_type: values.get(value).type_info, expected_type: pat.type_info })?;
     }
