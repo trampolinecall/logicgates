@@ -108,7 +108,7 @@ impl Type {
                     }
                 }
             }
-            Type::Nominal(index) => write!(s, "{}", type_context.structs.get(*index).name.1).unwrap(),
+            Type::Nominal(index) => write!(s, "{}", type_context.structs.get(*index).name.with_tag).unwrap(),
         };
 
         s
@@ -119,7 +119,7 @@ impl Type {
         match self {
             Type::Bit => Vec::new(),
             Type::Product(fields) => fields.iter().map(|(name, ty)| (name.as_str(), *ty)).collect(),
-            Type::Nominal(struct_id) => type_context.structs.get(*struct_id).fields.iter().map(|((_, name), ty)| (*name, *ty)).collect(),
+            Type::Nominal(struct_id) => type_context.structs.get(*struct_id).fields.iter().map(|(name, ty)| (name.name, *ty)).collect(),
         }
     }
 

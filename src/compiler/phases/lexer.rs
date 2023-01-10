@@ -1,5 +1,5 @@
 use crate::compiler::{
-    data::token::Token,
+    data::token::{self, Token},
     error::{CompileError, File, Report, Span},
 };
 
@@ -62,7 +62,7 @@ impl<'file> Lexer<'file> {
 
             '=' => Ok(Some(Token::Equals(self.span(start_i)))),
 
-            '\'' => Ok(Some(Token::Apostrophe(self.span(start_i)))),
+            '\\' => Ok(Some(Token::Backslash(self.span(start_i)))),
 
             '0'..='9' => {
                 while self.peek_is_digit() {
@@ -86,7 +86,7 @@ impl<'file> Lexer<'file> {
                     "let" => Ok(Some(Token::Let(span))),
                     "inline" => Ok(Some(Token::Inline(span))),
                     "struct" => Ok(Some(Token::Struct(span))),
-                    iden => Ok(Some(Token::Identifier(span, iden))),
+                    name => Ok(Some(Token::PlainIdentifier(token::PlainIdentifier { span, name }))),
                 }
             }
 
@@ -115,7 +115,27 @@ impl<'file> Iterator for Lexer<'file> {
 }
 
 pub(crate) fn lex(file: &File) -> impl Iterator<Item = Token> + '_ {
-    Lexer(file, file.contents.char_indices().peekable())
+    let mut l = Lexer(file, file.contents.char_indices().peekable()).peekable();
+
+    std::iter::from_fn(move || {
+        let n = l.next().unwrap();
+        if let Token::PlainIdentifier(_) = l.peek().expect("lexer should never return None") {
+            match n {
+                Token::Semicolon(semi_sp) => {
+                    let Token::PlainIdentifier(i) = l.next().expect("lexer should never return None") else { unreachable!() };
+                    return Some(Token::TypeIdentifier(token::TypeIdentifier { span: semi_sp + i.span, name: i.name, with_tag: ";".to_string() + i.name }));
+                }
+                Token::Backslash(backsl_sp) => {
+                    let Token::PlainIdentifier(i) = l.next().expect("lexer should never return None") else { unreachable!() };
+                    return Some(Token::CircuitIdentifier(token::CircuitIdentifier { span: backsl_sp + i.span, name: i.name, with_tag: "\\".to_string() + i.name }));
+                }
+
+                _ => {}
+            }
+        }
+
+        Some(n)
+    })
 }
 
 #[cfg(test)]
@@ -125,7 +145,7 @@ mod test {
         phases::lexer::{lex, Token},
     };
 
-    fn check_lexer_output<'file>(mut l: impl Iterator<Item = Token<'file>>, expected: impl IntoIterator<Item = Token<'file>>) -> () {
+    fn check_lexer_output<'file>(mut l: impl Iterator<Item = Token<'file>>, expected: impl IntoIterator<Item = Token<'file>>) {
         let mut expected = expected.into_iter();
         loop {
             let l_next = l.next();

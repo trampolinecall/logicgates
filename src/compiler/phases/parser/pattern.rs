@@ -6,14 +6,14 @@ use crate::compiler::{
 
 pub(super) fn pattern<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<circuit1::UntypedPattern<'file>, ParseError<'file>> {
     match parser.peek() {
-        Token::Identifier(_, _) => {
-            let iden = Token::identifier_matcher().convert(parser.next());
+        Token::PlainIdentifier(i) => {
+            let iden = Token::plain_identifier_matcher().convert(parser.next());
             parser.expect(Token::semicolon_matcher())?;
 
             let type_ = type_::type_(parser)?;
             let type_span = type_.span;
 
-            Ok(circuit1::UntypedPattern { kind: circuit1::UntypedPatternKind::Identifier(iden.0, iden.1, type_), type_info: (), span: iden.0 + type_span })
+            Ok(circuit1::UntypedPattern { kind: circuit1::UntypedPatternKind::Identifier(iden, type_), type_info: (), span: iden.span + type_span })
         }
 
         &Token::OBrack(obrack) => {
@@ -31,10 +31,10 @@ fn product<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>
             parser.next();
 
             let (patterns, cbrack) = parser.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), |parser| {
-                let (_, name) = parser.expect(Token::identifier_matcher())?;
+                let iden = parser.expect(Token::plain_identifier_matcher())?;
                 parser.expect(Token::equals_matcher())?;
                 let ty = pattern(parser)?;
-                Ok((name.to_string(), ty))
+                Ok((iden.name.to_string(), ty))
             })?;
 
             Ok(circuit1::UntypedPattern { kind: circuit1::UntypedPatternKind::Product(patterns), type_info: (), span: obrack + cbrack })

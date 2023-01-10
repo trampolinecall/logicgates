@@ -1,6 +1,6 @@
 use crate::{
     compiler::{
-        data::{circuit1, nominal_type, ty},
+        data::{circuit1, nominal_type, ty, token},
         error::{CompileError, Report, Span},
         phases::type_pats,
     },
@@ -15,8 +15,8 @@ struct NoField<'file> {
     field_name_sp: Span<'file>,
     field_name: &'file str,
 }
-struct NoSuchLocal<'file>(Span<'file>, &'file str);
-struct NoSuchCircuit<'file>(Span<'file>, &'file str);
+struct NoSuchLocal<'file>(token::PlainIdentifier<'file>);
+struct NoSuchCircuit<'file>(token::CircuitIdentifier<'file>);
 
 impl<'file> From<(&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, NoField<'file>)> for CompileError<'file> {
     fn from((types, NoField { ty, field_name_sp, field_name }): (&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, NoField<'file>)) -> Self {
@@ -24,13 +24,13 @@ impl<'file> From<(&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, NoF
     }
 }
 impl<'file> From<NoSuchLocal<'file>> for CompileError<'file> {
-    fn from(NoSuchLocal(name_sp, name): NoSuchLocal<'file>) -> Self {
-        CompileError::new(name_sp, format!("no local called '{}'", name))
+    fn from(NoSuchLocal(name): NoSuchLocal<'file>) -> Self {
+        CompileError::new(name.span, format!("no local called '{}'", name.name))
     }
 }
 impl<'file> From<NoSuchCircuit<'file>> for CompileError<'file> {
-    fn from(NoSuchCircuit(name_sp, name): NoSuchCircuit<'file>) -> Self {
-        CompileError::new(name_sp, format!("no circuit called '{}'", name))
+    fn from(NoSuchCircuit(name): NoSuchCircuit<'file>) -> Self {
+        CompileError::new(name.span, format!("no circuit called '{}'", name.with_tag))
     }
 }
 
@@ -81,8 +81,8 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
 
 fn put_pat_type<'file>(local_table: &mut HashMap<&'file str, ty::TypeSym>, pat: &circuit1::PatTypedPattern<'file>) {
     match &pat.kind {
-        circuit1::PatTypedPatternKind::Identifier(_, name, ty) => {
-            local_table.insert(name, ty.1); // TODO: report error for duplicate locals
+        circuit1::PatTypedPatternKind::Identifier(name, ty) => {
+            local_table.insert(name.name, ty.1); // TODO: report error for duplicate locals
         }
         circuit1::PatTypedPatternKind::Product(subpats) => {
             for subpat in subpats {
@@ -99,23 +99,23 @@ fn type_expr<'file>(
     expr: circuit1::UntypedExpr<'file>,
 ) -> Option<circuit1::TypedExpr<'file>> {
     let (kind, type_info) = match expr.kind {
-        circuit1::UntypedExprKind::Ref(name_sp, name) => {
-            let local_type = if let Some(ty) = local_types.get(name) {
+        circuit1::UntypedExprKind::Ref(name) => {
+            let local_type = if let Some(ty) = local_types.get(name.name) {
                 *ty
             } else {
-                NoSuchLocal(name_sp, name).report();
+                NoSuchLocal(name).report();
                 return None;
             };
             // TODO: replace with a ref to the locals id
-            (circuit1::TypedExprKind::Ref(name_sp, name), local_type)
+            (circuit1::TypedExprKind::Ref(name), local_type)
         }
-        circuit1::UntypedExprKind::Call((name_sp, name), inline, arg) => {
+        circuit1::UntypedExprKind::Call(name, inline, arg) => {
             // this also does circuit name resolution
-            if let Some((_, ty, _)) = circuit_table.get(name) {
+            if let Some((_, ty, _)) = circuit_table.get(name.name) {
                 // TODO: replace with a call to the circuitid
-                (circuit1::TypedExprKind::Call((name_sp, name), inline, Box::new(type_expr(type_context, circuit_table, local_types, *arg)?)), *ty)
+                (circuit1::TypedExprKind::Call(name, inline, Box::new(type_expr(type_context, circuit_table, local_types, *arg)?)), *ty)
             } else {
-                NoSuchCircuit(name_sp, name).report();
+                NoSuchCircuit(name).report();
                 return None;
             }
         }
