@@ -13,7 +13,7 @@ use crate::{
 struct NoMain<'file>(&'file File);
 impl<'file> From<NoMain<'file>> for CompileError<'file> {
     fn from(NoMain(file): NoMain<'file>) -> Self {
-        CompileError::new(file.eof_span(), "no 'main' circuit".into())
+        CompileError::new(file.eof_span(), "no '\\main' circuit".into())
     }
 }
 

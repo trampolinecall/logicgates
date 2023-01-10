@@ -1,7 +1,7 @@
 use crate::{
     compiler::{
-        data::{circuit1, nominal_type, ty},
-        error::{CompileError, Report, Span},
+        data::{circuit1, nominal_type, ty, token},
+        error::{CompileError, Report},
         phases::parser,
     },
     utils::arena,
@@ -17,10 +17,16 @@ pub(crate) struct IR<'file> {
     pub(crate) type_table: HashMap<&'file str, ty::TypeSym>,
 }
 
-struct Duplicate<'file>(&'static str, Span<'file>, &'file str); // TODO: show previous declaration
-impl<'file> From<Duplicate<'file>> for CompileError<'file> {
-    fn from(Duplicate(thing, name_sp, name): Duplicate<'file>) -> Self {
-        CompileError::new(name_sp, format!("{} '{}' defined more than once", thing, name))
+struct DuplicateCircuit<'file, 'tok>(&'tok token::CircuitIdentifier<'file>); // TODO: show previous declaration
+struct DuplicateType<'file, 'tok>(&'tok token::TypeIdentifier<'file>); // TODO: show previous declaration
+impl<'file> From<DuplicateCircuit<'file, '_>> for CompileError<'file> {
+    fn from(DuplicateCircuit(i): DuplicateCircuit<'file, '_>) -> Self {
+        CompileError::new(i.span, format!("circuit '{}' defined more than once", i.with_tag))
+    }
+}
+impl<'file> From<DuplicateType<'file, '_>> for CompileError<'file> {
+    fn from(DuplicateType(i): DuplicateType<'file, '_>) -> Self {
+        CompileError::new(i.span, format!("type '{}' defined more than once", i.with_tag))
     }
 }
 
@@ -54,7 +60,7 @@ fn make_circuit_table(
     let mut errored = false;
     for circuit in circuits {
         if table.contains_key(circuit.name.name) {
-            Duplicate("circuit", circuit.name.span, circuit.name.name).report();
+            DuplicateCircuit(&circuit.name).report();
             errored = true;
         }
         table.insert(circuit.name.name, arena.add(circuit1::UntypedCircuitOrIntrinsic::Circuit(circuit)));
@@ -76,7 +82,7 @@ fn make_type_table(type_decls: Vec<crate::compiler::data::nominal_type::Partiall
     let mut errored = false;
     for decl in type_decls {
         if type_table.contains_key(decl.name.name) {
-            Duplicate("nominal type", decl.name.span, decl.name.name).report();
+            DuplicateType(&decl.name).report();
             errored = true;
         }
         let name = decl.name.name;
