@@ -55,6 +55,12 @@ pub(crate) fn render(circuits: &CircuitMap, gates: &GateMap, main_circuit: Circu
     });
 }
 
+pub(crate) fn gate_box(circuits: &CircuitMap, gates: &GateMap, args: &piston::RenderArgs, gate_index: GateKey) -> [f64; 4] {
+    let (gate_x, gate_y) = gates[gate_index].location.location;
+    let [gate_width, gate_height] = gate_display_size(circuits, gates, gate_index);
+    [gate_x as f64 * HORIZONTAL_GATE_SPACING, gate_y + args.window_size[1] / 2.0, gate_width, gate_height]
+}
+
 pub(crate) fn gate_display_size(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> [f64; 2] {
     const EXTRA_VERTICAL_HEIGHT: f64 = 40.0;
     const GATE_WIDTH: f64 = 50.0;
@@ -67,12 +73,6 @@ fn y_centered_around(center_y: f64, total: usize, index: usize) -> f64 {
     let args_height: f64 = ((total - 1) as f64) * VERTICAL_VALUE_SPACING;
     let args_start_y = center_y - (args_height / 2.0);
     args_start_y + (index as f64) * VERTICAL_VALUE_SPACING
-}
-
-fn gate_box(circuits: &CircuitMap, gates: &GateMap, args: &piston::RenderArgs, gate_index: GateKey) -> [f64; 4] {
-    let (gate_x, gate_y) = gates[gate_index].location.location;
-    let [gate_width, gate_height] = gate_display_size(circuits, gates, gate_index);
-    [gate_x as f64 * HORIZONTAL_GATE_SPACING, gate_y + args.window_size[1] / 2.0, gate_width, gate_height]
 }
 
 fn circuit_input_pos(circuits: &CircuitMap, args: &piston::RenderArgs, index: logic::CircuitInputNodeIdx) -> [f64; 2] {
