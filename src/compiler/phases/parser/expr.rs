@@ -42,8 +42,8 @@ fn primary<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>
 
             let inline = parser.maybe_consume(Token::inline_matcher()).is_some();
 
-            let ci_span = ci.span;
             let arg = expr(parser)?;
+            let ci_span = ci.span;
             let arg_span = arg.span;
 
             Ok(circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Call(ci, inline, Box::new(arg)), type_info: (), span: ci_span + arg_span })
