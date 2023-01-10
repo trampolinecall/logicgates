@@ -11,7 +11,7 @@ pub(super) fn type_<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token
             product(parser, obrack)
         }
 
-        Token::PlainIdentifier(_) => {
+        Token::TypeIdentifier(_) => {
             let iden = Token::type_identifier_matcher().convert(parser.next());
             let iden_span = iden.span;
             Ok(type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(iden), span: iden_span })
