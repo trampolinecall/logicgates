@@ -5,41 +5,23 @@ pub(crate) mod utils;
 pub(crate) mod compiler;
 pub(crate) mod simulation;
 
-pub(crate) struct App {
-    gl: opengl_graphics::GlGraphics,
-    simulation: simulation::Simulation,
-}
-
-impl App {
-    fn new(gl: opengl_graphics::GlGraphics, simulation: simulation::Simulation) -> App {
-        App { gl, simulation }
-    }
-
-    fn render(&mut self, render_args: &piston::RenderArgs) {
-        simulation::draw::render(&self.simulation.circuits, &self.simulation.gates, self.simulation.main_circuit, &mut self.gl, render_args);
-    }
-
-    fn update(&mut self, _: piston::UpdateArgs) {
-        simulation::logic::update(&mut self.simulation.circuits, &mut self.simulation.gates);
-    }
-}
-
 fn main() {
-    let Some(circuit) = compiler::compile(&std::env::args().nth(1).expect("expected input file")) else { return; };
+    let Some(mut simulation) = compiler::compile(&std::env::args().nth(1).expect("expected input file")) else { return; };
     let opengl = opengl_graphics::OpenGL::V3_2;
 
     let mut window: glutin_window::GlutinWindow = piston::WindowSettings::new("logic gates", [1280, 720]).graphics_api(opengl).resizable(true).samples(4).exit_on_esc(true).build().unwrap();
 
-    let mut app = App::new(opengl_graphics::GlGraphics::new(opengl), circuit);
+    let mut gl = opengl_graphics::GlGraphics::new(opengl);
 
     let mut events = piston::Events::new(piston::EventSettings { ups: 10, ..Default::default() });
-    while let Some(e) = events.next(&mut window) {
+    while let Some(event) = events.next(&mut window) {
         use piston::{PressEvent, RenderEvent, UpdateEvent};
-        if let Some(args) = e.render_args() {
-            app.render(&args);
+        if let Some(render_args) = event.render_args() {
+            let gl: &mut opengl_graphics::GlGraphics = &mut gl;
+            simulation::draw::render(&simulation.circuits, &simulation.gates, simulation.main_circuit, gl, &render_args);
         }
 
-        if let Some(piston::Button::Keyboard(key)) = e.press_args() {
+        if let Some(piston::Button::Keyboard(key)) = event.press_args() {
             if let Some(index) = match key {
                 piston::Key::D1 => Some(0),
                 piston::Key::D2 => Some(1),
@@ -80,14 +62,14 @@ fn main() {
 
                 _ => None,
             } {
-                if index < app.simulation.circuits[app.simulation.main_circuit].num_inputs() {
-                    simulation::logic::toggle_input(&mut app.simulation.circuits, &mut app.simulation.gates, app.simulation.main_circuit, index);
+                if index < simulation.circuits[simulation.main_circuit].num_inputs() {
+                    simulation::logic::toggle_input(&mut simulation.circuits, &mut simulation.gates, simulation.main_circuit, index);
                 }
             }
         }
 
-        if let Some(args) = e.update_args() {
-            app.update(args);
+        if let Some(args) = event.update_args() {
+            simulation::logic::update(&mut simulation.circuits, &mut simulation.gates);
         }
     }
 }
