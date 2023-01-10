@@ -63,6 +63,7 @@ impl<'file> Lexer<'file> {
             '=' => Ok(Some(Token::Equals(self.span(start_i)))),
 
             '\\' => Ok(Some(Token::Backslash(self.span(start_i)))),
+            '/' => Ok(Some(Token::Slash(self.span(start_i)))),
 
             '0'..='9' => {
                 while self.peek_is_digit() {
@@ -121,9 +122,9 @@ pub(crate) fn lex(file: &File) -> impl Iterator<Item = Token> + '_ {
         let n = l.next().unwrap();
         if let Token::PlainIdentifier(_) = l.peek().expect("lexer should never return None") {
             match n {
-                Token::Semicolon(semi_sp) => {
+                Token::Struct(semi_sp) => { // TODO: figure out this better
                     let Token::PlainIdentifier(i) = l.next().expect("lexer should never return None") else { unreachable!() };
-                    return Some(Token::TypeIdentifier(token::TypeIdentifier { span: semi_sp + i.span, name: i.name, with_tag: ";".to_string() + i.name }));
+                    return Some(Token::TypeIdentifier(token::TypeIdentifier { span: semi_sp + i.span, name: i.name, with_tag: "struct ".to_string() + i.name }));
                 }
                 Token::Backslash(backsl_sp) => {
                     let Token::PlainIdentifier(i) = l.next().expect("lexer should never return None") else { unreachable!() };

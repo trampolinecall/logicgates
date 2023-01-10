@@ -39,6 +39,7 @@ pub(crate) enum Token<'file> {
 
     // TODO: variadic arguments / bundles
     Backslash(Span<'file>),
+    Slash(Span<'file>),
 
     Number(Span<'file>, &'file str, usize),
     PlainIdentifier(PlainIdentifier<'file>),
@@ -60,7 +61,8 @@ impl<'file> Token<'file> {
             | Token::Inline(sp)
             | Token::Number(sp, _, _)
             | Token::Struct(sp)
-            | Token::Backslash(sp) => *sp,
+            | Token::Backslash(sp)
+            | Token::Slash(sp) => *sp,
             Token::PlainIdentifier(i) => i.span,
             Token::TypeIdentifier(t) => t.span,
             Token::CircuitIdentifier(c) => c.span,
@@ -111,6 +113,7 @@ mod names {
     pub(super) const STRUCT: &str = "'struct'";
 
     pub(super) const BACKSLASH: &str = "'\\'";
+    pub(super) const SLASH: &str = "'/'";
 
     // different names to hopefully signal to me writing the Display impl that these constants should not be used for that
     pub(super) const NUMBER_DESC_NAME: &str = "number";
@@ -193,6 +196,7 @@ impl std::fmt::Display for Token<'_> {
             Token::Struct(_) => write!(f, "{}", names::STRUCT),
 
             Token::Backslash(_) => write!(f, "{}", names::BACKSLASH),
+            Token::Slash(_) => write!(f, "{}", names::SLASH),
 
             Token::Number(_, _, n) => write!(f, "number '{n}'"),
             Token::PlainIdentifier(i) => write!(f, "identifier '{}'", i.name),
