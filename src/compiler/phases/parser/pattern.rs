@@ -6,7 +6,7 @@ use crate::compiler::{
 
 pub(super) fn pattern<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<circuit1::UntypedPattern<'file>, ParseError<'file>> {
     match parser.peek() {
-        Token::PlainIdentifier(i) => {
+        Token::PlainIdentifier(_) => {
             let iden = Token::plain_identifier_matcher().convert(parser.next());
             parser.expect(Token::semicolon_matcher())?;
 

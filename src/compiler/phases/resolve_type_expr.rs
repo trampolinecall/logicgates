@@ -1,6 +1,6 @@
 use crate::{
     compiler::{
-        data::{circuit1, nominal_type, ty, type_expr},
+        data::{circuit1, nominal_type, ty, type_expr, token},
         error::{CompileError, Report, Span},
         phases::make_name_tables,
     },
@@ -16,10 +16,10 @@ pub(crate) struct IR<'file> {
     pub(crate) type_context: ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
 }
 
-struct UndefinedType<'file>(Span<'file>, &'file str);
-impl<'file> From<UndefinedType<'file>> for CompileError<'file> {
-    fn from(UndefinedType(sp, name): UndefinedType<'file>) -> Self {
-        CompileError::new(sp, format!("undefined type '{}'", name))
+struct UndefinedType<'file, 'tok>(&'tok token::TypeIdentifier<'file>);
+impl<'file> From<UndefinedType<'file, '_>> for CompileError<'file> {
+    fn from(UndefinedType(i): UndefinedType<'file, '_>) -> Self {
+        CompileError::new(i.span, format!("undefined type '{}'", i.with_tag))
     }
 }
 
@@ -97,7 +97,7 @@ where
             if let Some(other_type_decl) = res {
                 Some(other_type_decl)
             } else {
-                UndefinedType(iden.span, iden.name).report();
+                UndefinedType(&iden).report();
                 None
             }
         }
