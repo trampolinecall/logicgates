@@ -1,6 +1,6 @@
 use crate::{
     compiler::{
-        data::{nominal_type, ty, type_expr},
+        data::{nominal_type, ty, type_expr, token},
         error::Span,
     },
     utils::arena,
@@ -51,7 +51,7 @@ impl<'file, PatTypeInfo, ExprTypeInfo, TypeExpr> arena::IsArenaIdFor<CircuitOrIn
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct Circuit<'file, Expr, PatTypeInfo, TypeExpr> {
-    pub(crate) name: (Span<'file>, &'file str),
+    pub(crate) name: token::CircuitIdentifier<'file>,
     pub(crate) input: Pattern<'file, PatTypeInfo, TypeExpr>,
     pub(crate) output_type: TypeExpr,
     pub(crate) lets: Vec<Let<'file, Expr, PatTypeInfo, TypeExpr>>,
@@ -79,8 +79,8 @@ pub(crate) struct Expr<'file, TypeInfo> {
 }
 #[derive(PartialEq, Debug)]
 pub(crate) enum ExprKind<'file, TypeInfo> {
-    Ref(Span<'file>, &'file str),
-    Call((Span<'file>, &'file str), bool, Box<Expr<'file, TypeInfo>>),
+    Ref(token::PlainIdentifier<'file>),
+    Call(token::CircuitIdentifier<'file>, bool, Box<Expr<'file, TypeInfo>>),
     Const(Span<'file>, bool),
     Get(Box<Expr<'file, TypeInfo>>, (Span<'file>, &'file str)),
     Product(Vec<(String, Expr<'file, TypeInfo>)>),
@@ -94,7 +94,7 @@ pub(crate) struct Pattern<'file, PatTypeInfo, TypeExpr> {
 }
 #[derive(PartialEq, Debug)]
 pub(crate) enum PatternKind<'file, PatTypeInfo, TypeExpr> {
-    Identifier(Span<'file>, &'file str, TypeExpr),
+    Identifier(token::PlainIdentifier<'file>, TypeExpr),
     Product(Vec<(String, Pattern<'file, PatTypeInfo, TypeExpr>)>),
 }
 

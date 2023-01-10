@@ -4,8 +4,7 @@ use crate::compiler::{
 };
 
 pub(super) fn circuit<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<circuit1::UntypedCircuit<'file>, ParseError<'file>> {
-    parser.expect(/* TODO: "circuit name (starting with '`')", */ Token::apostrophe_matcher())?;
-    let name = parser.expect(/* "circuit name after '`'", */ Token::identifier_matcher())?;
+    let name = parser.expect(/* "circuit name", */ Token::circuit_identifier_matcher())?;
     let arguments = pattern::pattern(parser)?;
     let output_type = type_::type_(parser)?;
     let mut lets = Vec::new();
@@ -30,12 +29,12 @@ fn let_<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -
 
 pub(super) fn struct_<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<nominal_type::PartiallyDefinedStruct<'file>, ParseError<'file>> {
     parser.expect(Token::struct_matcher())?;
-    let name = parser.expect(Token::identifier_matcher())?;
+    let name = parser.expect(Token::type_identifier_matcher())?;
     parser.expect(Token::obrack_matcher())?;
 
     let mut fields = Vec::new();
-    while Token::identifier_matcher().matches(parser.peek()) {
-        let field_name = Token::identifier_matcher().convert(parser.next());
+    while Token::plain_identifier_matcher().matches(parser.peek()) {
+        let field_name = Token::plain_identifier_matcher().convert(parser.next());
         let field_ty = type_::type_(parser)?;
         fields.push((field_name, field_ty)); // TODO: anonymous fields too
     }

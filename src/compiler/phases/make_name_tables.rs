@@ -53,11 +53,11 @@ fn make_circuit_table(
 
     let mut errored = false;
     for circuit in circuits {
-        if table.contains_key(circuit.name.1) {
-            Duplicate("circuit", circuit.name.0, circuit.name.1).report();
+        if table.contains_key(circuit.name.name) {
+            Duplicate("circuit", circuit.name.span, circuit.name.name).report();
             errored = true;
         }
-        table.insert(circuit.name.1, arena.add(circuit1::UntypedCircuitOrIntrinsic::Circuit(circuit)));
+        table.insert(circuit.name.name, arena.add(circuit1::UntypedCircuitOrIntrinsic::Circuit(circuit)));
     }
 
     if errored {
@@ -75,11 +75,11 @@ fn make_type_table(type_decls: Vec<crate::compiler::data::nominal_type::Partiall
 
     let mut errored = false;
     for decl in type_decls {
-        if type_table.contains_key(decl.name.1) {
-            Duplicate("nominal type", decl.name.0, decl.name.1).report();
+        if type_table.contains_key(decl.name.name) {
+            Duplicate("nominal type", decl.name.span, decl.name.name).report();
             errored = true;
         }
-        let name = decl.name.1;
+        let name = decl.name.name;
         let nominal_index = type_context.structs.add(decl);
         type_table.insert(name, type_context.intern(ty::Type::Nominal(nominal_index)));
     }

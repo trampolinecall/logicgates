@@ -11,10 +11,10 @@ pub(super) fn type_<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token
             product(parser, obrack)
         }
 
-        Token::Identifier(_, _) => {
-            let iden = Token::identifier_matcher().convert(parser.next());
-
-            Ok(type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(iden.0, iden.1), span: iden.0 })
+        Token::PlainIdentifier(_) => {
+            let iden = Token::type_identifier_matcher().convert(parser.next());
+            let iden_span = iden.span;
+            Ok(type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(iden), span: iden_span })
         }
 
         _ => Err(parser.expected_and_next("type")),
@@ -27,10 +27,10 @@ fn product<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>
             parser.next();
 
             let (types, cbrack) = parser.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), |parser| {
-                let (_, name) = parser.expect(Token::identifier_matcher())?;
+                let iden = parser.expect(Token::plain_identifier_matcher())?;
                 parser.expect(Token::semicolon_matcher())?;
                 let ty = type_::type_(parser)?;
-                Ok((name.to_string(), ty))
+                Ok((iden.name.to_string(), ty))
             })?;
 
             Ok(type_expr::TypeExpr { kind: type_expr::TypeExprKind::Product(types), span: obrack + cbrack })

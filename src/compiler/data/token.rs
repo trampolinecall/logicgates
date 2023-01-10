@@ -1,5 +1,25 @@
 use crate::compiler::error::Span;
 
+#[derive(PartialEq, Debug, Copy, Clone)]
+pub(crate) struct PlainIdentifier<'file> {
+    pub(crate) span: Span<'file>,
+    pub(crate) name: &'file str,
+}
+
+#[derive(PartialEq, Debug)]
+pub(crate) struct TypeIdentifier<'file> {
+    pub(crate) span: Span<'file>,
+    pub(crate) name: &'file str,
+    pub(crate) with_tag: String,
+}
+
+#[derive(PartialEq, Debug)]
+pub(crate) struct CircuitIdentifier<'file> {
+    pub(crate) span: Span<'file>,
+    pub(crate) name: &'file str,
+    pub(crate) with_tag: String,
+}
+
 #[derive(PartialEq, Debug)]
 pub(crate) enum Token<'file> {
     EOF(Span<'file>),
@@ -18,10 +38,12 @@ pub(crate) enum Token<'file> {
     Struct(Span<'file>),
 
     // TODO: variadic arguments / bundles
-    Apostrophe(Span<'file>),
+    Backslash(Span<'file>),
 
     Number(Span<'file>, &'file str, usize),
-    Identifier(Span<'file>, &'file str),
+    PlainIdentifier(PlainIdentifier<'file>),
+    TypeIdentifier(TypeIdentifier<'file>),
+    CircuitIdentifier(CircuitIdentifier<'file>),
 }
 
 impl<'file> Token<'file> {
@@ -36,10 +58,12 @@ impl<'file> Token<'file> {
             | Token::Equals(sp)
             | Token::Let(sp)
             | Token::Inline(sp)
-            | Token::Apostrophe(sp)
             | Token::Number(sp, _, _)
-            | Token::Identifier(sp, _)
-            | Token::Struct(sp) => *sp,
+            | Token::Struct(sp)
+            | Token::Backslash(sp) => *sp,
+            Token::PlainIdentifier(i) => i.span,
+            Token::TypeIdentifier(t) => t.span,
+            Token::CircuitIdentifier(c) => c.span,
         }
     }
 }
@@ -86,19 +110,20 @@ mod names {
     pub(super) const INLINE: &str = "'inline'";
     pub(super) const STRUCT: &str = "'struct'";
 
-    pub(super) const APOSTROPHE: &str = "'''";
+    pub(super) const BACKSLASH: &str = "'\\'";
 
     // different names to hopefully signal to me writing the Display impl that these constants should not be used for that
     pub(super) const NUMBER_DESC_NAME: &str = "number";
-    pub(super) const IDENTIFIER_DESC_NAME: &str = "identifier";
+    pub(super) const TYPE_IDENTIFIER_DESC_NAME: &str = "type identifier";
+    pub(super) const CIRCUIT_IDENTIFIER_DESC_NAME: &str = "circuit identifier";
+    pub(super) const PLAIN_IDENTIFIER_DESC_NAME: &str = "identifier";
 }
 
 macro_rules! define_matcher {
     ($matcher_name:ident, $file:lifetime, $tok_data: ty, $name:path, $tok_pat:pat => $tok_extract:expr) => {
         mod $matcher_name {
             #![allow(dead_code, unused_imports)]
-            use super::Token;
-            use crate::compiler::error::Span;
+            use super::*;
 
             #[inline]
             pub(super) const fn matches(tok: &Token) -> bool {
@@ -144,10 +169,10 @@ define_matcher!(let_matcher, 'file, Span<'file>, names::LET, Token::Let(sp) => s
 define_matcher!(inline_matcher, 'file, Span<'file>, names::INLINE, Token::Inline(sp) => sp);
 define_matcher!(struct_matcher, 'file, Span<'file>, names::STRUCT, Token::Struct(sp) => sp);
 
-define_matcher!(apostrophe_matcher, 'file, Span<'file>, names::APOSTROPHE, Token::Apostrophe(sp) => sp);
-
 define_matcher!(number_matcher, 'file, (Span<'file>, &'file str, usize), names::NUMBER_DESC_NAME, Token::Number(sp, n_str, n) => (sp, n_str, n));
-define_matcher!(identifier_matcher, 'file, (Span<'file>, &'file str), names::IDENTIFIER_DESC_NAME, Token::Identifier(sp, i) => (sp, i));
+define_matcher!(plain_identifier_matcher, 'file, PlainIdentifier<'file>, names::PLAIN_IDENTIFIER_DESC_NAME, Token::PlainIdentifier(i) => i);
+define_matcher!(type_identifier_matcher, 'file, TypeIdentifier<'file>, names::TYPE_IDENTIFIER_DESC_NAME, Token::TypeIdentifier(i) => i);
+define_matcher!(circuit_identifier_matcher, 'file, CircuitIdentifier<'file>, names::CIRCUIT_IDENTIFIER_DESC_NAME, Token::CircuitIdentifier(i) => i);
 
 impl std::fmt::Display for Token<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -167,10 +192,12 @@ impl std::fmt::Display for Token<'_> {
             Token::Inline(_) => write!(f, "{}", names::INLINE),
             Token::Struct(_) => write!(f, "{}", names::STRUCT),
 
-            Token::Apostrophe(_) => write!(f, "{}", names::APOSTROPHE),
+            Token::Backslash(_) => write!(f, "{}", names::BACKSLASH),
 
             Token::Number(_, _, n) => write!(f, "number '{n}'"),
-            Token::Identifier(_, i) => write!(f, "identifier '{i}'"),
+            Token::PlainIdentifier(i) => write!(f, "identifier '{}'", i.name),
+            Token::TypeIdentifier(i) => write!(f, "type identifier '{}'", i.with_tag),
+            Token::CircuitIdentifier(i) => write!(f, "circuit identifier '{}'", i.with_tag),
         }
     }
 }

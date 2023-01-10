@@ -1,15 +1,12 @@
 use crate::{
-    compiler::{
-        data::{ty, type_expr::TypeExpr},
-        error::Span,
-    },
+    compiler::data::{token, ty, type_expr::TypeExpr},
     utils::arena,
 };
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct Struct<'file, TypeExpr> {
-    pub(crate) name: (Span<'file>, &'file str),
-    pub(crate) fields: Vec<((Span<'file>, &'file str), TypeExpr)>,
+    pub(crate) name: token::TypeIdentifier<'file>,
+    pub(crate) fields: Vec<(token::PlainIdentifier<'file>, TypeExpr)>,
 }
 
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Hash)]

@@ -54,7 +54,7 @@ fn resolve_in_pat<'file>(
 ) -> Option<circuit1::TypeResolvedPattern<'file>> {
     Some(circuit1::TypeResolvedPattern {
         kind: match pat.kind {
-            circuit1::UntypedPatternKind::Identifier(name_sp, name, type_expr) => circuit1::TypeResolvedPatternKind::Identifier(name_sp, name, resolve_type_expr(type_context, type_table, type_expr)?),
+            circuit1::UntypedPatternKind::Identifier(name, type_expr) => circuit1::TypeResolvedPatternKind::Identifier(name, resolve_type_expr(type_context, type_table, type_expr)?),
             circuit1::UntypedPatternKind::Product(subpats) => {
                 circuit1::TypeResolvedPatternKind::Product(subpats.into_iter().map(|(subpat_name, subpat)| Some((subpat_name, resolve_in_pat(type_context, type_table, subpat)?))).collect_all()?)
             }
@@ -92,12 +92,12 @@ where
             let ty = resolve_type_expr_no_span(type_context, type_table, *type_)?;
             Some(type_context.intern(ty::Type::Product((0..num.1).map(|ind| (ind.to_string(), ty)).collect())))
         }
-        type_expr::TypeExprKind::Nominal(name_sp, name) => {
-            let res = type_table.get(name).copied();
+        type_expr::TypeExprKind::Nominal(iden) => {
+            let res = type_table.get(iden.name).copied();
             if let Some(other_type_decl) = res {
                 Some(other_type_decl)
             } else {
-                UndefinedType(name_sp, name).report();
+                UndefinedType(iden.span, iden.name).report();
                 None
             }
         }

@@ -1,5 +1,5 @@
 use crate::compiler::{
-    data::{circuit1, token::Token},
+    data::{circuit1, token::{Token}},
     error::Span,
     phases::parser::{ParseError, Parser},
 };
@@ -13,7 +13,7 @@ pub(super) fn expr<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<
         let field = match parser.peek() {
             Token::Number(n_sp, n_str, _) => Ok((*n_sp, *n_str)),
 
-            Token::Identifier(i_sp, i) => Ok((*i_sp, *i)),
+            Token::PlainIdentifier(i) => Ok((i.span, i.name)),
 
             _ => Err(parser.expected_and_next("field name (a number or identifier)")),
         }?;
@@ -37,22 +37,22 @@ fn primary<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>
                 _ => Err(parser.expected_and_next("'0' or '1'")),
             }
         }
-        &Token::Apostrophe(apos) => {
-            parser.next();
-            let i = parser.expect(/* "circuit name after '`'", */ Token::identifier_matcher())?;
+        Token::CircuitIdentifier(_) => {
+            let ci = Token::circuit_identifier_matcher().convert(parser.next());
 
             let inline = parser.maybe_consume(Token::inline_matcher()).is_some();
 
+            let ci_span = ci.span;
             let arg = expr(parser)?;
             let arg_span = arg.span;
 
-            Ok(circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Call(i, inline, Box::new(arg)), type_info: (), span: apos + arg_span })
+            Ok(circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Call(ci, inline, Box::new(arg)), type_info: (), span: ci_span + arg_span })
         }
 
-        Token::Identifier(_, _) => {
-            let i = Token::identifier_matcher().convert(parser.next());
+        Token::PlainIdentifier(_) => {
+            let i = Token::plain_identifier_matcher().convert(parser.next());
 
-            Ok(circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(i.0, i.1), type_info: (), span: i.0 })
+            Ok(circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(i), type_info: (), span: i.span })
         }
 
         &Token::OBrack(obrack) => {
@@ -70,10 +70,10 @@ fn product<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>
             parser.next();
 
             let (exprs, cbrack) = parser.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), |parser| {
-                let (_, name) = parser.expect(Token::identifier_matcher())?;
+                let iden = parser.expect(Token::plain_identifier_matcher())?;
                 parser.expect(Token::equals_matcher())?;
                 let ty = expr(parser)?;
-                Ok((name.to_string(), ty))
+                Ok((iden.name.to_string(), ty))
             })?;
 
             Ok(circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Product(exprs), type_info: (), span: obrack + cbrack })

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     compiler::{
-        data::{circuit1, circuit2, nominal_type, ty},
+        data::{circuit1, circuit2, nominal_type, ty, token},
         error::{CompileError, Report, Span},
         phases::type_exprs,
     },
@@ -86,8 +86,8 @@ struct Value<'file> {
 }
 #[derive(Debug)]
 enum ValueKind<'file> {
-    Ref(Span<'file>, &'file str),
-    Call((Span<'file>, &'file str), bool, ValueId),
+    Ref(token::PlainIdentifier<'file>),
+    Call(token::CircuitIdentifier<'file>, bool, ValueId),
     Const(Span<'file>, bool),
     Get(ValueId, (Span<'file>, &'file str)),
     MadeUpGet(ValueId, String), // used for gets in destructuring
@@ -102,7 +102,7 @@ fn convert_circuit<'file>(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
     circuit1: circuit1::TypedCircuit<'file>,
 ) -> Option<circuit2::Circuit<'file>> {
-    let mut circuit = circuit2::Circuit::new(circuit1.name.1, circuit1.input.type_info, circuit1.output_type.1);
+    let mut circuit = circuit2::Circuit::new(circuit1.name.name, circuit1.input.type_info, circuit1.output_type.1);
 
     let mut values = arena::Arena::new();
 
@@ -115,12 +115,12 @@ fn convert_circuit<'file>(
     // step 1: add all gates
     let mut gates = HashMap::new(); // only calls and consts are included in this map
     for (value_id, value) in values.iter_with_ids() {
-        match value.kind {
-            ValueKind::Call((_, name), _, _) => {
-                gates.insert(value_id, circuit.gates.add(circuit_table[name].2));
+        match &value.kind {
+            ValueKind::Call(name, _, _) => {
+                gates.insert(value_id, circuit.gates.add(circuit_table[name.name].2));
             }
             ValueKind::Const(_, value) => {
-                gates.insert(value_id, circuit.gates.add(if value { const_1 } else { const_0 }));
+                gates.insert(value_id, circuit.gates.add(if *value { const_1 } else { const_0 }));
             }
 
             _ => {}
@@ -155,11 +155,11 @@ fn convert_circuit<'file>(
 
     // step 4: connect all receiver bundles
     for (value_id, value) in values.iter_with_ids() {
-        if let ValueKind::Call((_, name), _, arg) = value.0.kind {
-            let (input_type, _, _) = circuit_table[name];
-            let arg_span = values.get(arg).0.span;
+        if let ValueKind::Call(name, _, arg) = &value.0.kind {
+            let (input_type, _, _) = circuit_table[name.name];
+            let arg_span = values.get(*arg).0.span;
             let gate_i = gates[&value_id];
-            let arg = values.get(arg).1.clone();
+            let arg = values.get(*arg).1.clone();
             connect_bundle(type_context, &mut circuit, arg_span, arg, circuit2::bundle::ReceiverBundle::GateInput(input_type, gate_i))?;
         }
     }
@@ -188,8 +188,8 @@ fn assign_pattern<'file>(
     }
 
     match &pat.kind {
-        circuit1::TypedPatternKind::Identifier(_, iden, _) => {
-            locals.insert(iden, value);
+        circuit1::TypedPatternKind::Identifier(name, _) => {
+            locals.insert(name.name, value);
         }
         circuit1::TypedPatternKind::Product(subpats) => {
             for (field_name, subpat) in subpats.iter() {
@@ -208,9 +208,9 @@ fn assign_pattern<'file>(
 
 fn assign_pattern_poison<'file>(values: &mut arena::Arena<Value<'file>, ValueId>, locals: &mut HashMap<&'file str, ValueId>, pat: &circuit1::TypedPattern<'file>, span: Span<'file>) {
     match &pat.kind {
-        circuit1::PatternKind::Identifier(_, iden, _) => {
+        circuit1::PatternKind::Identifier(name, _) => {
             let value = values.add(Value { kind: ValueKind::Poison, type_info: pat.type_info, span });
-            locals.insert(iden, value);
+            locals.insert(name.name, value);
         }
         circuit1::PatternKind::Product(subpats) => {
             for (_, subpat) in subpats {
@@ -223,7 +223,7 @@ fn assign_pattern_poison<'file>(values: &mut arena::Arena<Value<'file>, ValueId>
 fn convert_expr_to_value<'file>(values: &mut arena::Arena<Value<'file>, ValueId>, expr: circuit1::TypedExpr<'file>) -> ValueId {
     let value = Value {
         kind: match expr.kind {
-            circuit1::TypedExprKind::Ref(sp, name) => ValueKind::Ref(sp, name),
+            circuit1::TypedExprKind::Ref(name) => ValueKind::Ref(name),
             circuit1::TypedExprKind::Call(name, inline, arg) => ValueKind::Call(name, inline, convert_expr_to_value(values, *arg)),
             circuit1::TypedExprKind::Const(sp, value) => ValueKind::Const(sp, value),
             circuit1::TypedExprKind::Get(base, field) => ValueKind::Get(convert_expr_to_value(values, *base), field),
@@ -255,7 +255,7 @@ fn convert_value(
     };
 
     match &value.kind {
-        ValueKind::Ref(_, name) => arena::SingleTransformResult::Ok((try_transform_result!(get_other_value_as_bundle.get(locals[name]))).1.clone()),
+        ValueKind::Ref(name) => arena::SingleTransformResult::Ok((try_transform_result!(get_other_value_as_bundle.get(locals[name.name]))).1.clone()),
 
         ValueKind::Call(_, _, _) => {
             // TODO: implement inlining

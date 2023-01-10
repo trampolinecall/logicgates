@@ -1,4 +1,4 @@
-use crate::compiler::error::Span;
+use crate::compiler::{error::Span, data::token};
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct TypeExpr<'file> {
@@ -9,5 +9,5 @@ pub(crate) struct TypeExpr<'file> {
 pub(crate) enum TypeExprKind<'file> {
     Product(Vec<(String, TypeExpr<'file>)>),
     RepProduct((Span<'file>, usize), Box<TypeExpr<'file>>),
-    Nominal(Span<'file>, &'file str),
+    Nominal(token::TypeIdentifier<'file>),
 }
