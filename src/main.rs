@@ -68,7 +68,7 @@ fn main() {
             }
         }
 
-        if let Some(args) = event.update_args() {
+        if let Some(_) = event.update_args() {
             simulation::logic::update(&mut simulation.circuits, &mut simulation.gates);
         }
     }
