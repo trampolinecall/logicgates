@@ -13,7 +13,7 @@ fn main() {
 
     let mut gl = opengl_graphics::GlGraphics::new(opengl);
 
-    let mut events = piston::Events::new(piston::EventSettings { ups: 10, ..Default::default() });
+    let mut events = piston::Events::new(piston::EventSettings { ups: 30, ..Default::default() });
     while let Some(event) = events.next(&mut window) {
         use piston::{PressEvent, RenderEvent, UpdateEvent};
         if let Some(render_args) = event.render_args() {
