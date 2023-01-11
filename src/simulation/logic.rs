@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use crate::simulation::{Circuit, CircuitKey, CircuitMap, GateKey, GateMap};
 
 pub(crate) struct Calculation {
@@ -12,11 +10,12 @@ enum CalculationKind {
     Custom(CircuitKey), // the circuit already contains the input and output nodes
 }
 
+const SUBTICKS_PER_UPDATE: usize = 1; // TODO: make this adjustable at runtime
+
 #[derive(Clone)]
 pub(crate) struct Node {
     pub(crate) gate: Option<GateKey>,
     value: Value,
-    dependants: HashSet<NodeIdx>,
 }
 #[derive(Clone, Copy)]
 enum Value {
@@ -89,7 +88,7 @@ impl Calculation {
 
 impl Node {
     pub(crate) fn new(gate: Option<GateKey>, value: bool) -> Self {
-        Self { gate, value: Value::Manual(value), dependants: HashSet::new() }
+        Self { gate, value: Value::Manual(value), }
     }
 
     pub(crate) fn producer(&self) -> Option<NodeIdx> {
@@ -210,18 +209,7 @@ pub(crate) fn get_node_value(circuits: &CircuitMap, gates: &GateMap, node: NodeI
 
 // TODO: test every possibility
 fn set_node_value(circuits: &mut CircuitMap, gates: &mut GateMap, index: NodeIdx, new_value: Value) {
-    // remove any existing connection:
-    if let Value::Passthrough(other_idx) = get_node(circuits, gates, index).value {
-        let other = get_node_mut(circuits, gates, other_idx);
-        other.dependants.remove(&index);
-    }
-    get_node_mut(circuits, gates, index).value = Value::Manual(false);
-
-    // set the new value:
     get_node_mut(circuits, gates, index).value = new_value;
-    if let Value::Passthrough(new_dep) = new_value {
-        get_node_mut(circuits, gates, new_dep).dependants.insert(index);
-    }
 }
 
 pub(crate) fn toggle_input(circuits: &mut CircuitMap, gates: &mut GateMap, circuit: CircuitKey, i: usize) {
@@ -234,44 +222,28 @@ pub(crate) fn set_input(circuits: &mut CircuitMap, gates: &mut GateMap, ci: Circ
 }
 // update {{{1
 pub(crate) fn update(circuits: &mut CircuitMap, gates: &mut GateMap) {
-    // TODO: make this update stack of nodes instead of of gates
-    let mut update_stack: Vec<_> = gates.iter().map(|(i, _)| i).collect();
-    let mut changed = HashSet::new();
-    while let Some(gate) = update_stack.pop() {
-        if changed.contains(&gate) {
-            continue;
+    use std::collections::HashMap;
+    for _ in 0..SUBTICKS_PER_UPDATE {
+        // all gates calculate their values based on the values of the nodes in the previous subtick and then all updates get applied all at once
+        let mut node_values: HashMap<NodeIdx, Value> = HashMap::new();
+
+        for (gate_i, gate) in gates.iter() {
+            if let CalculationKind::Nand([_, _], [_]) = &gate.calculation.kind {
+                let a_i = GateInputNodeIdx(gate_i, 0, ()).into();
+                let b_i = GateInputNodeIdx(gate_i, 1, ()).into();
+
+                let o_i = GateOutputNodeIdx(gate_i, 0, ()).into();
+
+                node_values.insert(o_i, Value::Manual(!(get_node_value(circuits, gates, a_i) && get_node_value(circuits, gates, b_i))));
+            } else {
+                // const nodes do not need to update becuase they always output the value they were created with
+                // custom gates do not have to compute values because their nodes are connected to their inputs or are passthrough nodes and should automatically have the right values
+                continue;
+            };
         }
 
-        let (old_value, new_value, output_node_idx) = if let CalculationKind::Nand([_, _], [_]) = &gates[gate].calculation.kind {
-            let a_i = GateInputNodeIdx(gate, 0, ()).into();
-            let b_i = GateInputNodeIdx(gate, 1, ()).into();
-
-            let o_i = GateOutputNodeIdx(gate, 0, ()).into();
-
-            (get_node_value(circuits, gates, o_i), !(get_node_value(circuits, gates, a_i) && get_node_value(circuits, gates, b_i)), o_i)
-        } else {
-            // const nodes do not need to update becuase they always output the value they were created with
-            // custom gates do not have to compute values because their nodes are connected to their inputs or are passthrough nodes and should automatically have the right values
-            continue;
-        };
-
-        let gate_changed = old_value != new_value;
-
-        set_node_value(circuits, gates, output_node_idx, Value::Manual(new_value));
-
-        if gate_changed {
-            changed.insert(gate);
-
-            // recursively propogate to this nodes dependencies, and then the dependencies' dependencies, ...
-            let mut dependant_stack = vec![output_node_idx];
-            while let Some(dependant) = dependant_stack.pop() {
-                let dependant = get_node(circuits, gates, dependant);
-                if let Some(dependant_gate) = dependant.gate {
-                    update_stack.push(dependant_gate);
-                }
-
-                dependant_stack.extend(&dependant.dependants);
-            }
+        for (node, value) in node_values {
+            set_node_value(circuits, gates, node, value);
         }
     }
 }
