@@ -88,7 +88,7 @@ impl Calculation {
 
 impl Node {
     pub(crate) fn new(gate: Option<GateKey>, value: bool) -> Self {
-        Self { gate, value: Value::Manual(value), }
+        Self { gate, value: Value::Manual(value) }
     }
 
     pub(crate) fn producer(&self) -> Option<NodeIdx> {
@@ -225,22 +225,23 @@ pub(crate) fn update(circuits: &mut CircuitMap, gates: &mut GateMap) {
     use std::collections::HashMap;
     for _ in 0..SUBTICKS_PER_UPDATE {
         // all gates calculate their values based on the values of the nodes in the previous subtick and then all updates get applied all at once
-        let mut node_values: HashMap<NodeIdx, Value> = HashMap::new();
+        let node_values: HashMap<NodeIdx, Value> = gates
+            .iter()
+            .filter_map(|(gate_i, gate)| {
+                if let CalculationKind::Nand([_, _], [_]) = &gate.calculation.kind {
+                    let a_i = GateInputNodeIdx(gate_i, 0, ()).into();
+                    let b_i = GateInputNodeIdx(gate_i, 1, ()).into();
 
-        for (gate_i, gate) in gates.iter() {
-            if let CalculationKind::Nand([_, _], [_]) = &gate.calculation.kind {
-                let a_i = GateInputNodeIdx(gate_i, 0, ()).into();
-                let b_i = GateInputNodeIdx(gate_i, 1, ()).into();
+                    let o_i = GateOutputNodeIdx(gate_i, 0, ()).into();
 
-                let o_i = GateOutputNodeIdx(gate_i, 0, ()).into();
-
-                node_values.insert(o_i, Value::Manual(!(get_node_value(circuits, gates, a_i) && get_node_value(circuits, gates, b_i))));
-            } else {
-                // const nodes do not need to update becuase they always output the value they were created with
-                // custom gates do not have to compute values because their nodes are connected to their inputs or are passthrough nodes and should automatically have the right values
-                continue;
-            };
-        }
+                    Some((o_i, Value::Manual(!(get_node_value(circuits, gates, a_i) && get_node_value(circuits, gates, b_i)))))
+                } else {
+                    // const nodes do not need to update becuase they always output the value they were created with
+                    // custom gates do not have to compute values because their nodes are connected to their inputs or are passthrough nodes and should automatically have the right values
+                    None
+                }
+            })
+            .collect();
 
         for (node, value) in node_values {
             set_node_value(circuits, gates, node, value);
