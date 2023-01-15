@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     compiler::{
-        data::{circuit1, circuit2, nominal_type, ty, token},
+        data::{circuit1, circuit2, nominal_type, token, ty},
         error::{CompileError, Report, Span},
         phases::type_exprs,
     },
@@ -160,12 +160,12 @@ fn convert_circuit<'file>(
             let arg_span = values.get(*arg).0.span;
             let gate_i = gates[&value_id];
             let arg = values.get(*arg).1.clone();
+            // TODO: this should pass in the span for the expected type but it passes the span for the got type
             connect_bundle(type_context, &mut circuit, arg_span, arg, circuit2::bundle::ReceiverBundle::GateInput(input_type, gate_i))?;
         }
     }
-    let output_value_span = values.get(circuit_output_value).0.span;
     let output_value = values.get(circuit_output_value);
-    connect_bundle(type_context, &mut circuit, output_value_span, output_value.1.clone(), circuit2::bundle::ReceiverBundle::CurCircuitOutput(circuit1.output_type.1));
+    connect_bundle(type_context, &mut circuit, circuit1.output_type.0, output_value.1.clone(), circuit2::bundle::ReceiverBundle::CurCircuitOutput(circuit1.output_type.1));
 
     if errored {
         None
