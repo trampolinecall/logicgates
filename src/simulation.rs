@@ -19,6 +19,7 @@ pub(crate) struct Simulation {
 }
 
 // circuit kind of blurs the boundary between the simulation and the logic component but
+// TODO: move to logic module?
 pub(crate) struct Circuit {
     pub(crate) index: CircuitKey,
     pub(crate) name: String,
