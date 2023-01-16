@@ -1,14 +1,15 @@
 use std::collections::{BTreeMap, HashMap};
 
-use crate::simulation::{self, draw, logic, CircuitMap, GateMap};
+use crate::simulation::{self, logic, draw, CircuitMap, GateMap};
 
 pub(crate) struct Location {
-    pub(crate) location: (u32, f32),
+    pub(crate) x: u32,
+    pub(crate) y: f32,
 }
 
 impl Location {
     pub(crate) fn new() -> Self {
-        Self { location: (0, 0.0) }
+        Self { x: 0, y: 0.0 }
     }
 }
 
@@ -17,7 +18,7 @@ pub(crate) fn calculate_locations(circuits: &mut CircuitMap, gates: &mut GateMap
     apply_locations(gates, locations);
 }
 
-fn calculate_locations_(circuits: &CircuitMap, gates: &GateMap) -> HashMap<simulation::GateKey, (u32, f32)> {
+fn calculate_locations_(circuits: &CircuitMap, gates: &GateMap) -> HashMap<simulation::GateKey, Location> {
     /* old iterative position calculating algorithm based on a loss function and trying to find a minimum loss
     // gate position scoring; lower is better
     let score = |current_idx: usize, current_loc @ [x, y]: [f64; 2], gate: &simulation::Gate| -> f64 {
@@ -131,15 +132,15 @@ fn calculate_locations_(circuits: &CircuitMap, gates: &GateMap) -> HashMap<simul
 
     xs.into_iter()
         .zip(ys)
-        .map(|((x_gate_index, gate_x), (y_gate_index, gate_y))| {
+        .map(|((x_gate_index, x), (y_gate_index, y))| {
             assert_eq!(x_gate_index, y_gate_index); // should be the same because the maps are sorted by the key
-            (x_gate_index, (gate_x, gate_y))
+            (x_gate_index, Location { x, y })
         })
         .collect()
 }
 
-fn apply_locations(gates: &mut GateMap, locations: HashMap<simulation::GateKey, (u32, f32)>) {
+fn apply_locations(gates: &mut GateMap, locations: HashMap<simulation::GateKey, Location>) {
     for (gate_i, location) in locations {
-        gates[gate_i].location = simulation::location::Location { location };
+        gates[gate_i].location = location;
     }
 }
