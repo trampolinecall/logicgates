@@ -5,71 +5,71 @@ pub(crate) mod utils;
 pub(crate) mod compiler;
 pub(crate) mod simulation;
 
+use nannou::prelude::*;
+
 fn main() {
-    let Some(mut simulation) = compiler::compile(&std::env::args().nth(1).expect("expected input file")) else { return; };
-    let opengl = opengl_graphics::OpenGL::V3_2;
+    nannou::app(model).event(event).update(update).simple_window(view).run();
+}
 
-    let mut window: glutin_window::GlutinWindow = piston::WindowSettings::new("logic gates", [1280, 720]).graphics_api(opengl).resizable(true).samples(4).exit_on_esc(true).build().unwrap();
+fn event(_: &App, simulation: &mut simulation::Simulation, event: Event) {
+    if let Event::WindowEvent { simple: Some(KeyPressed(key)), .. } = event {
+        if let Some(index) = match key {
+            Key::Key1 => Some(0),
+            Key::Key2 => Some(1),
+            Key::Key3 => Some(2),
+            Key::Key4 => Some(3),
+            Key::Key5 => Some(4),
+            Key::Key6 => Some(5),
+            Key::Key7 => Some(6),
+            Key::Key8 => Some(7),
+            Key::Key9 => Some(8),
+            Key::Key0 => Some(9),
+            Key::A => Some(10),
+            Key::B => Some(11),
+            Key::C => Some(12),
+            Key::D => Some(13),
+            Key::E => Some(14),
+            Key::F => Some(15),
+            Key::G => Some(16),
+            Key::H => Some(17),
+            Key::I => Some(18),
+            Key::J => Some(19),
+            Key::K => Some(20),
+            Key::L => Some(21),
+            Key::M => Some(22),
+            Key::N => Some(23),
+            Key::O => Some(24),
+            Key::P => Some(25),
+            Key::Q => Some(26),
+            Key::R => Some(27),
+            Key::S => Some(28),
+            Key::T => Some(29),
+            Key::U => Some(30),
+            Key::V => Some(31),
+            Key::W => Some(32),
+            Key::X => Some(33),
+            Key::Y => Some(34),
+            Key::Z => Some(35),
 
-    let mut gl = opengl_graphics::GlGraphics::new(opengl);
-
-    let mut events = piston::Events::new(piston::EventSettings { ups: 30, ..Default::default() });
-    while let Some(event) = events.next(&mut window) {
-        use piston::{PressEvent, RenderEvent, UpdateEvent};
-        if let Some(render_args) = event.render_args() {
-            let gl: &mut opengl_graphics::GlGraphics = &mut gl;
-            simulation::draw::render(&simulation.circuits, &simulation.gates, simulation.main_circuit, gl, &render_args);
-        }
-
-        if let Some(piston::Button::Keyboard(key)) = event.press_args() {
-            if let Some(index) = match key {
-                piston::Key::D1 => Some(0),
-                piston::Key::D2 => Some(1),
-                piston::Key::D3 => Some(2),
-                piston::Key::D4 => Some(3),
-                piston::Key::D5 => Some(4),
-                piston::Key::D6 => Some(5),
-                piston::Key::D7 => Some(6),
-                piston::Key::D8 => Some(7),
-                piston::Key::D9 => Some(8),
-                piston::Key::D0 => Some(9),
-                piston::Key::A => Some(10),
-                piston::Key::B => Some(11),
-                piston::Key::C => Some(12),
-                piston::Key::D => Some(13),
-                piston::Key::E => Some(14),
-                piston::Key::F => Some(15),
-                piston::Key::G => Some(16),
-                piston::Key::H => Some(17),
-                piston::Key::I => Some(18),
-                piston::Key::J => Some(19),
-                piston::Key::K => Some(20),
-                piston::Key::L => Some(21),
-                piston::Key::M => Some(22),
-                piston::Key::N => Some(23),
-                piston::Key::O => Some(24),
-                piston::Key::P => Some(25),
-                piston::Key::Q => Some(26),
-                piston::Key::R => Some(27),
-                piston::Key::S => Some(28),
-                piston::Key::T => Some(29),
-                piston::Key::U => Some(30),
-                piston::Key::V => Some(31),
-                piston::Key::W => Some(32),
-                piston::Key::X => Some(33),
-                piston::Key::Y => Some(34),
-                piston::Key::Z => Some(35),
-
-                _ => None,
-            } {
-                if index < simulation.circuits[simulation.main_circuit].num_inputs() {
-                    simulation::logic::toggle_input(&mut simulation.circuits, &mut simulation.gates, simulation.main_circuit, index);
-                }
+            _ => None,
+        } {
+            if index < simulation.circuits[simulation.main_circuit].num_inputs() {
+                simulation::logic::toggle_input(&mut simulation.circuits, &mut simulation.gates, simulation.main_circuit, index);
             }
         }
-
-        if let Some(_) = event.update_args() {
-            simulation::logic::update(&mut simulation.circuits, &mut simulation.gates);
-        }
     }
+}
+
+fn model(_: &App) -> simulation::Simulation {
+    compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap()
+}
+
+fn update(_: &App, simulation: &mut simulation::Simulation, _: Update) {
+    simulation::logic::update(&mut simulation.circuits, &mut simulation.gates);
+}
+
+fn view(app: &App, simulation: &simulation::Simulation, frame: Frame) {
+    let draw = app.draw();
+    simulation::draw::render(app, &draw, &simulation.circuits, &simulation.gates, simulation.main_circuit);
+    draw.to_frame(app, &frame).unwrap();
 }

@@ -32,7 +32,7 @@ pub(super) fn struct_<'file>(parser: &mut Parser<'file, impl Iterator<Item = Tok
     let name = parser.expect(Token::type_identifier_matcher())?;
     parser.expect(Token::obrack_matcher())?;
 
-    let mut fields = Vec::new();
+    let mut fields = Vec::new(); // TODO: use type_::product() here
     while Token::plain_identifier_matcher().matches(parser.peek()) {
         let field_name = Token::plain_identifier_matcher().convert(parser.next());
         let field_ty = type_::type_(parser)?;
