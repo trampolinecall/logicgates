@@ -116,11 +116,11 @@ fn convert_circuit<'file>(
     let mut gates = HashMap::new(); // only calls and consts are included in this map
     for (value_id, value) in values.iter_with_ids() {
         match &value.kind {
-            ValueKind::Call(name, _, _) => {
-                gates.insert(value_id, circuit.gates.add(circuit_table[name.name].2));
+            ValueKind::Call(name, inline, _) => {
+                gates.insert(value_id, circuit.gates.add((circuit_table[name.name].2, *inline)));
             }
             ValueKind::Const(_, value) => {
-                gates.insert(value_id, circuit.gates.add(if *value { const_1 } else { const_0 }));
+                gates.insert(value_id, circuit.gates.add((if *value { const_1 } else { const_0 }, false)));
             }
 
             _ => {}
@@ -258,8 +258,6 @@ fn convert_value(
         ValueKind::Ref(name) => arena::SingleTransformResult::Ok((try_transform_result!(get_other_value_as_bundle.get(locals[name.name]))).1.clone()),
 
         ValueKind::Call(_, _, _) => {
-            // TODO: implement inlining
-
             let gate_i = gates[&value_id];
             // the gate stays unconnected to its input because gates can be truend into a producerb undle with needing to be connected, which allows for loops
             // for example 'let x = 'not x' will be allowed because x refers to the output of the 'not gate and the input to the 'not gate doesnt need to be connected for x to have a value

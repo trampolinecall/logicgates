@@ -90,13 +90,14 @@ fn add_gate<'file, 'circuit>(
     circuit2s: &'circuit arena::Arena<circuit2::CircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     expansion_stack: ExpandedStack<'file, 'circuit>,
-    circuit_id: circuit1::CircuitOrIntrinsicId,
+    (circuit_id, _): (circuit1::CircuitOrIntrinsicId, bool),
     new_circuit_idx: simulation::CircuitKey,
 ) -> Result<(ExpandedStack<'file, 'circuit>, simulation::GateKey), InfiniteRecursion<'file, 'circuit>> {
     let (expansion_stack, gate_idx) = match circuit2s.get(circuit_id) {
         circuit2::CircuitOrIntrinsic::Custom(subcircuit) => {
             let (expansion_stack, subcircuit_idx) = convert_circuit(circuits, gates, circuit2s, type_context, expansion_stack, subcircuit)?;
-            (expansion_stack, gates.insert_with_key(|index| simulation::Gate { calculation: logic::Calculation::new_subcircuit(subcircuit_idx), location: location::Location::new() }))
+            // TODO: implement inlining
+            (expansion_stack, gates.insert_with_key(|_| simulation::Gate { calculation: logic::Calculation::new_subcircuit(subcircuit_idx), location: location::Location::new() }))
         }
         circuit2::CircuitOrIntrinsic::Nand => {
             (expansion_stack, gates.insert_with_key(|index| simulation::Gate { calculation: logic::Calculation::new_nand(index), location: location::Location::new() }))
