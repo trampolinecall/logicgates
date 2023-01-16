@@ -38,13 +38,9 @@ pub(crate) fn render(app: &App, draw: &Draw, circuits: &CircuitMap, gates: &Gate
 
     // draw gate rectangles
     for gate_i in &main_circuit.gates {
-        let [x, y, width, height] = gate_box(window_rect, circuits, gates, *gate_i);
-        let x = x + width / 2.0; // convert to center based coordinates
-        let y = y + height / 2.0;
-
-        draw.rect().color(GATE_COLOR).x_y(x, y).w_h(width, height);
-
-        draw.text(gates[*gate_i].calculation.name(circuits)).x_y(x, y).w_h(width, height).center_justify().align_text_middle_y();
+        let rect = gate_rect(window_rect, circuits, gates, *gate_i);
+        draw.rect().color(GATE_COLOR).xy(rect.xy()).wh(rect.wh());
+        draw.text(gates[*gate_i].calculation.name(circuits)).xy(rect.xy()).wh(rect.wh()).center_justify().align_text_middle_y();
     }
 
     // draw nodes
@@ -59,10 +55,10 @@ pub(crate) fn render(app: &App, draw: &Draw, circuits: &CircuitMap, gates: &Gate
     }
 }
 
-fn gate_box(window_rect: Rect, circuits: &CircuitMap, gates: &GateMap, gate_index: GateKey) -> [f32; 4] {
-    let (x, y) = gates[gate_index].location.location;
+fn gate_rect(window_rect: Rect, circuits: &CircuitMap, gates: &GateMap, gate_index: GateKey) -> Rect {
+    let (x, y) = gates[gate_index].location.location; // TODO: this should eventually be the center
     let wh = gate_display_size(circuits, gates, gate_index);
-    [x as f32 * HORIZONTAL_GATE_SPACING - window_rect.x.len() / 2.0, y, wh.x, wh.y]
+    Rect::from_x_y_w_h(x as f32 * HORIZONTAL_GATE_SPACING - window_rect.x.len() / 2.0 + wh.x / 2.0, y + wh.y / 2.0, wh.x, wh.y)
 }
 
 pub(crate) fn gate_display_size(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> Vec2 {
@@ -90,13 +86,13 @@ fn circuit_output_pos(window_rect: Rect, circuits: &CircuitMap, index: logic::Ci
 
 fn gate_input_pos(window_rect: Rect, circuits: &CircuitMap, gates: &GateMap, input_idx: logic::GateInputNodeIdx) -> Vec2 {
     let gate_index = input_idx.0;
-    let [gate_x, gate_y, _, gate_height] = gate_box(window_rect, circuits, gates, gate_index);
-    pt2(gate_x, y_centered_around(gate_y + gate_height / 2.0, logic::gate_num_inputs(circuits, gates, gate_index), input_idx.1))
+    let rect = gate_rect(window_rect, circuits, gates, gate_index);
+    pt2(rect.left(), y_centered_around(rect.y(), logic::gate_num_inputs(circuits, gates, gate_index), input_idx.1))
 }
 fn gate_output_pos(window_rect: Rect, circuits: &CircuitMap, gates: &GateMap, output_idx: logic::GateOutputNodeIdx) -> Vec2 {
     let gate_index = output_idx.0;
-    let [gate_x, gate_y, gate_width, gate_height] = gate_box(window_rect, circuits, gates, gate_index);
-    pt2(gate_x + gate_width, y_centered_around(gate_y + gate_height / 2.0, logic::gate_num_outputs(circuits, gates, gate_index), output_idx.1))
+    let rect = gate_rect(window_rect, circuits, gates, gate_index);
+    pt2(rect.right(), y_centered_around(rect.y(), logic::gate_num_outputs(circuits, gates, gate_index), output_idx.1))
 }
 
 fn node_pos(window_rect: Rect, circuits: &CircuitMap, gates: &GateMap, node: logic::NodeIdx) -> Vec2 {
