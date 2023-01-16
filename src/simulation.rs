@@ -28,7 +28,6 @@ pub(crate) struct Circuit {
 }
 
 pub(crate) struct Gate {
-    pub(crate) index: GateKey,
     pub(crate) calculation: logic::Calculation,
     pub(crate) location: location::Location,
 }
