@@ -56,7 +56,8 @@ pub(crate) fn render(app: &App, draw: &Draw, circuits: &CircuitMap, gates: &Gate
 }
 
 fn gate_rect(window_rect: Rect, circuits: &CircuitMap, gates: &GateMap, gate_index: GateKey) -> Rect {
-    let (x, y) = gates[gate_index].location.location; // TODO: this should eventually be the center
+    let location = &gates[gate_index].location; // TODO: this should eventually be the center
+    let (x, y) = (location.x, location.y);
     let wh = gate_display_size(circuits, gates, gate_index);
     Rect::from_x_y_w_h(x as f32 * HORIZONTAL_GATE_SPACING - window_rect.x.len() / 2.0 + wh.x / 2.0, y + wh.y / 2.0, wh.x, wh.y)
 }
