@@ -16,7 +16,7 @@ struct TypeMismatch<'file> {
     pub(super) expected_type: ty::TypeSym,
 }
 
-struct LoopInLocalsError<'file>(Vec<Value<'file>>);
+struct LoopInLocalsError<'file>(Vec<ExprInArena<'file>>);
 
 impl<'file> From<(&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, TypeMismatch<'file>)> for CompileError<'file> {
     fn from((types, TypeMismatch { expected_span, got_type, expected_type }): (&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, TypeMismatch<'file>)) -> Self {
@@ -66,8 +66,8 @@ pub(crate) fn convert(type_exprs::IR { mut circuits, circuit_table, mut type_con
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct ValueId(usize);
-impl arena::ArenaId for ValueId {
+struct ExprId(usize);
+impl arena::ArenaId for ExprId {
     fn make(i: usize) -> Self {
         Self(i)
     }
@@ -76,22 +76,22 @@ impl arena::ArenaId for ValueId {
         self.0
     }
 }
-impl<'file> arena::IsArenaIdFor<Value<'file>> for ValueId {}
-impl<'file> arena::IsArenaIdFor<(Value<'file>, ir::bundle::ProducerBundle)> for ValueId {}
+impl<'file> arena::IsArenaIdFor<ExprInArena<'file>> for ExprId {}
+impl<'file> arena::IsArenaIdFor<(ExprInArena<'file>, ir::bundle::ProducerBundle)> for ExprId {}
 #[derive(Debug)]
-struct Value<'file> {
-    kind: ValueKind<'file>,
+struct ExprInArena<'file> {
+    kind: ExprInArenaKind<'file>,
     span: Span<'file>,
     type_info: ty::TypeSym,
 }
 #[derive(Debug)]
-enum ValueKind<'file> {
+enum ExprInArenaKind<'file> {
     Ref(token::PlainIdentifier<'file>),
-    Call(token::CircuitIdentifier<'file>, bool, ValueId),
+    Call(token::CircuitIdentifier<'file>, bool, ExprId),
     Const(Span<'file>, bool),
-    Get(ValueId, (Span<'file>, &'file str)),
-    MadeUpGet(ValueId, String), // used for gets in destructuring
-    Product { values: Vec<(String, ValueId)> },
+    Get(ExprId, (Span<'file>, &'file str)),
+    MadeUpGet(ExprId, String), // used for gets in destructuring
+    Product { values: Vec<(String, ExprId)> },
     Input,
     Poison,
 }
@@ -106,7 +106,7 @@ fn convert_circuit<'file>(
 
     let mut values = arena::Arena::new();
 
-    let circuit_input_value = values.add(Value { kind: ValueKind::Input, type_info: circuit_ast.input.type_info, span: circuit_ast.input.span });
+    let circuit_input_value = values.add(ExprInArena { kind: ExprInArenaKind::Input, type_info: circuit_ast.input.type_info, span: circuit_ast.input.span });
     let lets: Vec<_> = circuit_ast.lets.into_iter().map(|ast::TypedLet { pat, val }| ast::Let { pat, val: convert_expr_to_value(&mut values, val) }).collect();
     let circuit_output_value = convert_expr_to_value(&mut values, circuit_ast.output);
 
@@ -116,10 +116,10 @@ fn convert_circuit<'file>(
     let mut gates = HashMap::new(); // only calls and consts are included in this map
     for (value_id, value) in values.iter_with_ids() {
         match &value.kind {
-            ValueKind::Call(name, inline, _) => {
+            ExprInArenaKind::Call(name, inline, _) => {
                 gates.insert(value_id, circuit.gates.add((circuit_table[name.name].2, *inline)));
             }
-            ValueKind::Const(_, value) => {
+            ExprInArenaKind::Const(_, value) => {
                 gates.insert(value_id, circuit.gates.add((if *value { const_1 } else { const_0 }, false)));
             }
 
@@ -141,7 +141,7 @@ fn convert_circuit<'file>(
     }
 
     // step 3: convert all values to producer bundles
-    let values = match values.transform_dependant_with_id(
+    let values = match values.transform_dependent_with_id(
         |value_id, value, get_other_value_as_bundle| convert_value(type_context, get_other_value_as_bundle, &locals, &gates, &circuit, value_id, value),
         |original_value, producer_bundle| (original_value, producer_bundle),
     ) {
@@ -157,7 +157,7 @@ fn convert_circuit<'file>(
 
     // step 4: connect all receiver bundles
     for (value_id, value) in values.iter_with_ids() {
-        if let ValueKind::Call(name, _, arg) = &value.0.kind {
+        if let ExprInArenaKind::Call(name, _, arg) = &value.0.kind {
             let (input_type, _, _) = circuit_table[name.name];
             let arg_span = values.get(*arg).0.span;
             let gate_i = gates[&value_id];
@@ -178,10 +178,10 @@ fn convert_circuit<'file>(
 
 fn assign_pattern<'file>(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
-    values: &mut arena::Arena<Value<'file>, ValueId>,
-    locals: &mut HashMap<&'file str, ValueId>,
+    values: &mut arena::Arena<ExprInArena<'file>, ExprId>,
+    locals: &mut HashMap<&'file str, ExprId>,
     pat: &ast::TypedPattern<'file>,
-    value: ValueId,
+    value: ExprId,
 ) -> Result<(), ()> {
     if values.get(value).type_info != pat.type_info {
         (&*type_context, TypeMismatch { expected_span: pat.span, got_type: values.get(value).type_info, expected_type: pat.type_info }).report();
@@ -199,7 +199,7 @@ fn assign_pattern<'file>(
                 let field_name = field_name.to_string();
                 let field_type =
                     ty::Type::get_field_type(&type_context.get(pat.type_info).fields(type_context), &field_name).expect("field name does not exist in made up get for destructuring pattern");
-                let new_value = values.add(Value { kind: ValueKind::MadeUpGet(value, field_name), type_info: field_type, span: subpat.span });
+                let new_value = values.add(ExprInArena { kind: ExprInArenaKind::MadeUpGet(value, field_name), type_info: field_type, span: subpat.span });
                 assign_pattern(type_context, values, locals, subpat, new_value)?;
             }
         }
@@ -208,10 +208,10 @@ fn assign_pattern<'file>(
     Ok(())
 }
 
-fn assign_pattern_poison<'file>(values: &mut arena::Arena<Value<'file>, ValueId>, locals: &mut HashMap<&'file str, ValueId>, pat: &ast::TypedPattern<'file>, span: Span<'file>) {
+fn assign_pattern_poison<'file>(values: &mut arena::Arena<ExprInArena<'file>, ExprId>, locals: &mut HashMap<&'file str, ExprId>, pat: &ast::TypedPattern<'file>, span: Span<'file>) {
     match &pat.kind {
         ast::PatternKind::Identifier(name, _) => {
-            let value = values.add(Value { kind: ValueKind::Poison, type_info: pat.type_info, span });
+            let value = values.add(ExprInArena { kind: ExprInArenaKind::Poison, type_info: pat.type_info, span });
             locals.insert(name.name, value);
         }
         ast::PatternKind::Product(subpats) => {
@@ -222,14 +222,14 @@ fn assign_pattern_poison<'file>(values: &mut arena::Arena<Value<'file>, ValueId>
     }
 }
 
-fn convert_expr_to_value<'file>(values: &mut arena::Arena<Value<'file>, ValueId>, expr: ast::TypedExpr<'file>) -> ValueId {
-    let value = Value {
+fn convert_expr_to_value<'file>(values: &mut arena::Arena<ExprInArena<'file>, ExprId>, expr: ast::TypedExpr<'file>) -> ExprId {
+    let value = ExprInArena {
         kind: match expr.kind {
-            ast::TypedExprKind::Ref(name) => ValueKind::Ref(name),
-            ast::TypedExprKind::Call(name, inline, arg) => ValueKind::Call(name, inline, convert_expr_to_value(values, *arg)),
-            ast::TypedExprKind::Const(sp, value) => ValueKind::Const(sp, value),
-            ast::TypedExprKind::Get(base, field) => ValueKind::Get(convert_expr_to_value(values, *base), field),
-            ast::TypedExprKind::Product(exprs) => ValueKind::Product { values: exprs.into_iter().map(|(field_name, e)| (field_name, convert_expr_to_value(values, e))).collect() },
+            ast::TypedExprKind::Ref(name) => ExprInArenaKind::Ref(name),
+            ast::TypedExprKind::Call(name, inline, arg) => ExprInArenaKind::Call(name, inline, convert_expr_to_value(values, *arg)),
+            ast::TypedExprKind::Const(sp, value) => ExprInArenaKind::Const(sp, value),
+            ast::TypedExprKind::Get(base, field) => ExprInArenaKind::Get(convert_expr_to_value(values, *base), field),
+            ast::TypedExprKind::Product(exprs) => ExprInArenaKind::Product { values: exprs.into_iter().map(|(field_name, e)| (field_name, convert_expr_to_value(values, e))).collect() },
         },
         span: expr.span,
         type_info: expr.type_info,
@@ -239,14 +239,14 @@ fn convert_expr_to_value<'file>(values: &mut arena::Arena<Value<'file>, ValueId>
 
 fn convert_value(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
-    get_other_value_as_bundle: arena::DependancyGetter<ir::bundle::ProducerBundle, Value, (), ValueId>,
-    locals: &HashMap<&str, ValueId>,
-    gates: &HashMap<ValueId, ir::GateIdx>,
+    get_other_value_as_bundle: arena::DependancyGetter<ir::bundle::ProducerBundle, ExprInArena, (), ExprId>,
+    locals: &HashMap<&str, ExprId>,
+    gates: &HashMap<ExprId, ir::GateIdx>,
     circuit: &ir::Circuit,
-    value_id: ValueId,
-    value: &Value,
-) -> arena::SingleTransformResult<ir::bundle::ProducerBundle, ValueId, ()> {
-    let mut do_get = |expr, field_name| -> arena::SingleTransformResult<ir::bundle::ProducerBundle, ValueId, ()> {
+    value_id: ExprId,
+    value: &ExprInArena,
+) -> arena::SingleTransformResult<ir::bundle::ProducerBundle, ExprId, ()> {
+    let mut do_get = |expr, field_name| -> arena::SingleTransformResult<ir::bundle::ProducerBundle, ExprId, ()> {
         let expr = try_transform_result!(get_other_value_as_bundle.get(expr)).1;
         let expr_type = expr.type_(type_context);
         assert!(
@@ -257,24 +257,24 @@ fn convert_value(
     };
 
     match &value.kind {
-        ValueKind::Ref(name) => arena::SingleTransformResult::Ok((try_transform_result!(get_other_value_as_bundle.get(locals[name.name]))).1.clone()),
+        ExprInArenaKind::Ref(name) => arena::SingleTransformResult::Ok((try_transform_result!(get_other_value_as_bundle.get(locals[name.name]))).1.clone()),
 
-        ValueKind::Call(_, _, _) => {
+        ExprInArenaKind::Call(_, _, _) => {
             let gate_i = gates[&value_id];
             // the gate stays unconnected to its input because gates can be truend into a producerb undle with needing to be connected, which allows for loops
             // for example 'let x = 'not x' will be allowed because x refers to the output of the 'not gate and the input to the 'not gate doesnt need to be connected for x to have a value
             arena::SingleTransformResult::Ok(ir::bundle::ProducerBundle::GateOutput(value.type_info, gate_i))
         }
 
-        ValueKind::Const(_, _) => {
+        ExprInArenaKind::Const(_, _) => {
             let gate_i = gates[&value_id];
             arena::SingleTransformResult::Ok(ir::bundle::ProducerBundle::GateOutput(type_context.intern(ty::Type::Bit), gate_i))
         }
 
-        ValueKind::Get(expr, (_, field_name)) => do_get(*expr, field_name),
-        ValueKind::MadeUpGet(expr, field_name) => do_get(*expr, field_name),
+        ExprInArenaKind::Get(expr, (_, field_name)) => do_get(*expr, field_name),
+        ExprInArenaKind::MadeUpGet(expr, field_name) => do_get(*expr, field_name),
 
-        ValueKind::Product { values: subvalues, .. } => {
+        ExprInArenaKind::Product { values: subvalues, .. } => {
             let mut results = Vec::new();
 
             let mut errored = false;
@@ -292,8 +292,8 @@ fn convert_value(
                 arena::SingleTransformResult::Err(())
             }
         }
-        ValueKind::Input => arena::SingleTransformResult::Ok(ir::bundle::ProducerBundle::CurCircuitInput(circuit.input_type)),
-        ValueKind::Poison => arena::SingleTransformResult::Err(()),
+        ExprInArenaKind::Input => arena::SingleTransformResult::Ok(ir::bundle::ProducerBundle::CurCircuitInput(circuit.input_type)),
+        ExprInArenaKind::Poison => arena::SingleTransformResult::Err(()),
     }
 }
 
