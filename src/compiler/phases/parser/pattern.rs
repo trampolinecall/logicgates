@@ -50,7 +50,11 @@ fn product<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>
 #[cfg(test)]
 mod test {
     use crate::compiler::{
-        data::{ast, token::Token, type_expr},
+        data::{
+            ast,
+            token::{self, Token},
+            type_expr,
+        },
         error::File,
         phases::parser::{pattern::pattern, test::make_token_stream, Parser},
     };
@@ -60,11 +64,21 @@ mod test {
         let file = File::test_file();
         let sp = file.eof_span();
 
-        let tokens = make_token_stream([Token::Identifier(sp, "iden"), Token::Semicolon(sp), Token::Identifier(sp, "bit")], sp);
+        let tokens = make_token_stream(
+            [
+                Token::PlainIdentifier(token::PlainIdentifier { span: sp, name: "iden" }),
+                Token::Semicolon(sp),
+                Token::TypeIdentifier(token::TypeIdentifier { span: sp, name: "bit", with_tag: "-bit".to_string() }),
+            ],
+            sp,
+        );
         assert_eq!(
             pattern(&mut Parser { tokens }),
             Ok(ast::UntypedPattern {
-                kind: ast::UntypedPatternKind::Identifier(sp, "iden", type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(sp, "bit"), span: sp }),
+                kind: ast::UntypedPatternKind::Identifier(
+                    token::PlainIdentifier { span: sp, name: "iden" },
+                    type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(token::TypeIdentifier { span: sp, name: "bit", with_tag: "-bit".to_string() }), span: sp }
+                ),
                 type_info: (),
                 span: sp
             })

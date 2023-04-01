@@ -1,5 +1,5 @@
 use crate::compiler::{
-    data::{ast, token::{Token}},
+    data::{ast, token::Token},
     error::Span,
     phases::parser::{ParseError, Parser},
 };
@@ -89,7 +89,10 @@ fn product<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>
 #[cfg(test)]
 mod test {
     use crate::compiler::{
-        data::{ast, token::Token},
+        data::{
+            ast,
+            token::{self, Token},
+        },
         error::File,
         phases::parser::{expr::expr, test::make_token_stream, Parser},
     };
@@ -111,11 +114,16 @@ mod test {
         let file = File::test_file();
         let sp = file.eof_span();
 
-        let tokens = make_token_stream([Token::Apostrophe(sp), Token::Identifier(sp, "a"), Token::Identifier(sp, "b")], sp);
+        let tokens =
+            make_token_stream([Token::CircuitIdentifier(token::CircuitIdentifier { span: sp, name: "a", with_tag: "\\a".to_string() }), Token::PlainIdentifier(token::PlainIdentifier { span: sp, name: "b" })], sp);
         assert_eq!(
             expr(&mut Parser { tokens }),
             Ok(ast::UntypedExpr {
-                kind: ast::UntypedExprKind::Call((sp, "a"), false, Box::new(ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(sp, "b"), type_info: (), span: sp })),
+                kind: ast::UntypedExprKind::Call(
+                    token::CircuitIdentifier { span: sp, name: "a", with_tag: "\\a".to_string() },
+                    false,
+                    Box::new(ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "b" }), type_info: (), span: sp })
+                ),
                 type_info: (),
                 span: sp
             })
@@ -127,21 +135,21 @@ mod test {
         let file = File::test_file();
         let sp = file.eof_span();
 
-        let tokens = make_token_stream([Token::Identifier(sp, "a")], sp);
-        assert_eq!(expr(&mut Parser { tokens }), Ok(ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(sp, "a"), type_info: (), span: sp }));
+        let tokens = make_token_stream([Token::PlainIdentifier(token::PlainIdentifier { span: sp, name: "a" })], sp);
+        assert_eq!(expr(&mut Parser { tokens }), Ok(ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "a" }), type_info: (), span: sp }));
     }
 
     #[test]
-    fn multiple_expr() {
+    fn product_expr() {
         let file = File::test_file();
         let sp = file.eof_span();
 
         let tokens = make_token_stream(
             [
                 Token::OBrack(sp),
-                Token::Identifier(sp, "a"),
+                Token::PlainIdentifier(token::PlainIdentifier { span: sp, name: "a" }),
                 Token::Comma(sp),
-                Token::Identifier(sp, "b"),
+                Token::PlainIdentifier(token::PlainIdentifier { span: sp, name: "b" }),
                 Token::Comma(sp),
                 Token::Number(sp, "0", 0),
                 Token::Comma(sp),
@@ -154,10 +162,10 @@ mod test {
             expr(&mut Parser { tokens }),
             Ok(ast::UntypedExpr {
                 kind: ast::UntypedExprKind::Product(vec![
-                    ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(sp, "a"), type_info: (), span: sp },
-                    ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(sp, "b"), type_info: (), span: sp },
-                    ast::UntypedExpr { kind: ast::UntypedExprKind::Const(sp, false), type_info: (), span: sp },
-                    ast::UntypedExpr { kind: ast::UntypedExprKind::Const(sp, true), type_info: (), span: sp }
+                    ("0".to_string(), ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "a" }), type_info: (), span: sp }),
+                    ("1".to_string(), ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "b" }), type_info: (), span: sp }),
+                    ("2".to_string(), ast::UntypedExpr { kind: ast::UntypedExprKind::Const(sp, false), type_info: (), span: sp }),
+                    ("3".to_string(), ast::UntypedExpr { kind: ast::UntypedExprKind::Const(sp, true), type_info: (), span: sp }),
                 ]),
                 type_info: (),
                 span: sp
