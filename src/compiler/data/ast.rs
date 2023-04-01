@@ -37,7 +37,7 @@ pub(crate) type TypedExpr<'file> = Expr<'file, ty::TypeSym>;
 pub(crate) type TypedExprKind<'file> = ExprKind<'file, ty::TypeSym>;
 
 #[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
-pub(crate) struct CircuitOrIntrinsicId(usize); // not ideal because this is also the id for circuit2::CircuitOrIntrinsic but i dont know where else to put it
+pub(crate) struct CircuitOrIntrinsicId(usize); // not ideal because this is also the id for ir::CircuitOrIntrinsic but i dont know where else to put it
 impl arena::ArenaId for CircuitOrIntrinsicId {
     fn make(i: usize) -> Self {
         CircuitOrIntrinsicId(i)
@@ -98,7 +98,7 @@ pub(crate) enum PatternKind<'file, PatTypeInfo, TypeExpr> {
     Product(Vec<(String, Pattern<'file, PatTypeInfo, TypeExpr>)>),
 }
 
-// TODO: this will probably be duplicated with the type code from circuit2 but i dont know how to fix that (although i think the solution might be a separate type checking phase so that circuit2 doesnt need to have type information)
+// TODO: this will probably be duplicated with the type code from the ir but i dont know how to fix that (although i think the solution might be a separate type checking phase so that the ir doesnt need to have type information)
 impl<'file, ExprTypeInfo, TypeExpr> CircuitOrIntrinsic<'file, ExprTypeInfo, ty::TypeSym, TypeExpr> {
     pub(crate) fn input_type(&self, type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>) -> ty::TypeSym {
         match self {

@@ -1,5 +1,5 @@
 use crate::{
-    compiler::data::{circuit1, ty},
+    compiler::data::{ast, ty},
     utils::arena,
 };
 
@@ -8,9 +8,9 @@ pub(crate) mod bundle;
 #[derive(Clone, Debug, Copy, Eq, Hash, PartialEq)]
 pub(crate) struct GateIdx(usize);
 
-impl arena::IsArenaIdFor<CircuitOrIntrinsic<'_>> for circuit1::CircuitOrIntrinsicId {}
+impl arena::IsArenaIdFor<CircuitOrIntrinsic<'_>> for ast::CircuitOrIntrinsicId {}
 
-impl arena::IsArenaIdFor<(circuit1::CircuitOrIntrinsicId, bool)> for GateIdx {}
+impl arena::IsArenaIdFor<(ast::CircuitOrIntrinsicId, bool)> for GateIdx {}
 impl arena::ArenaId for GateIdx {
     fn make(i: usize) -> Self {
         GateIdx(i)
@@ -24,7 +24,7 @@ impl arena::ArenaId for GateIdx {
 #[derive(Debug)]
 pub(crate) struct Circuit<'file> {
     pub(crate) name: &'file str,
-    pub(crate) gates: arena::Arena<(circuit1::CircuitOrIntrinsicId, bool), GateIdx>,
+    pub(crate) gates: arena::Arena<(ast::CircuitOrIntrinsicId, bool), GateIdx>,
     pub(crate) connections: Vec<(bundle::ProducerBundle, bundle::ReceiverBundle)>,
     pub(crate) input_type: ty::TypeSym,
     pub(crate) output_type: ty::TypeSym,

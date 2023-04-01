@@ -1,6 +1,6 @@
 use crate::{
     compiler::{
-        data::{circuit1, nominal_type, ty, token},
+        data::{ast, nominal_type, ty, token},
         error::{CompileError, Report, Span},
         phases::type_pats,
     },
@@ -35,8 +35,8 @@ impl<'file> From<NoSuchCircuit<'file>> for CompileError<'file> {
 }
 
 pub(crate) struct IR<'file> {
-    pub(crate) circuits: arena::Arena<circuit1::TypedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
-    pub(crate) circuit_table: HashMap<&'file str, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
+    pub(crate) circuits: arena::Arena<ast::TypedCircuitOrIntrinsic<'file>, ast::CircuitOrIntrinsicId>,
+    pub(crate) circuit_table: HashMap<&'file str, (ty::TypeSym, ty::TypeSym, ast::CircuitOrIntrinsicId)>,
 
     pub(crate) type_context: ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
 }
@@ -50,7 +50,7 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
         .collect();
 
     let circuits = circuits.transform(|circuit| match circuit {
-        circuit1::PatTypedCircuitOrIntrinsic::Circuit(circuit) => {
+        ast::PatTypedCircuitOrIntrinsic::Circuit(circuit) => {
             let mut local_table = HashMap::new();
 
             put_pat_type(&mut local_table, &circuit.input);
@@ -58,20 +58,20 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
                 put_pat_type(&mut local_table, &let_.pat);
             }
 
-            Some(circuit1::TypedCircuitOrIntrinsic::Circuit(circuit1::TypedCircuit {
+            Some(ast::TypedCircuitOrIntrinsic::Circuit(ast::TypedCircuit {
                 name: circuit.name,
                 input: circuit.input,
                 output_type: circuit.output_type,
                 lets: circuit
                     .lets
                     .into_iter()
-                    .map(|circuit1::PatTypedLet { pat, val }| Some(circuit1::TypedLet { pat, val: type_expr(&mut type_context, &circuit_table, &local_table, val)? }))
+                    .map(|ast::PatTypedLet { pat, val }| Some(ast::TypedLet { pat, val: type_expr(&mut type_context, &circuit_table, &local_table, val)? }))
                     .collect_all()?,
                 output: type_expr(&mut type_context, &circuit_table, &local_table, circuit.output)?,
             }))
         }
-        circuit1::PatTypedCircuitOrIntrinsic::Nand => Some(circuit1::TypedCircuitOrIntrinsic::Nand),
-        circuit1::PatTypedCircuitOrIntrinsic::Const(value) => Some(circuit1::TypedCircuitOrIntrinsic::Const(value)),
+        ast::PatTypedCircuitOrIntrinsic::Nand => Some(ast::TypedCircuitOrIntrinsic::Nand),
+        ast::PatTypedCircuitOrIntrinsic::Const(value) => Some(ast::TypedCircuitOrIntrinsic::Const(value)),
     })?;
 
     let circuit_table = circuit_table.into_iter().map(|(name, old_id)| (name, old_id)).collect();
@@ -79,12 +79,12 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
     Some(IR { circuits, circuit_table, type_context })
 }
 
-fn put_pat_type<'file>(local_table: &mut HashMap<&'file str, ty::TypeSym>, pat: &circuit1::PatTypedPattern<'file>) {
+fn put_pat_type<'file>(local_table: &mut HashMap<&'file str, ty::TypeSym>, pat: &ast::PatTypedPattern<'file>) {
     match &pat.kind {
-        circuit1::PatTypedPatternKind::Identifier(name, ty) => {
+        ast::PatTypedPatternKind::Identifier(name, ty) => {
             local_table.insert(name.name, ty.1); // TODO: report error for duplicate locals
         }
-        circuit1::PatTypedPatternKind::Product(subpats) => {
+        ast::PatTypedPatternKind::Product(subpats) => {
             for subpat in subpats {
                 put_pat_type(local_table, &subpat.1);
             }
@@ -94,12 +94,12 @@ fn put_pat_type<'file>(local_table: &mut HashMap<&'file str, ty::TypeSym>, pat: 
 
 fn type_expr<'file>(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
-    circuit_table: &HashMap<&str, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
+    circuit_table: &HashMap<&str, (ty::TypeSym, ty::TypeSym, ast::CircuitOrIntrinsicId)>,
     local_types: &HashMap<&str, ty::TypeSym>,
-    expr: circuit1::UntypedExpr<'file>,
-) -> Option<circuit1::TypedExpr<'file>> {
+    expr: ast::UntypedExpr<'file>,
+) -> Option<ast::TypedExpr<'file>> {
     let (kind, type_info) = match expr.kind {
-        circuit1::UntypedExprKind::Ref(name) => {
+        ast::UntypedExprKind::Ref(name) => {
             let local_type = if let Some(ty) = local_types.get(name.name) {
                 *ty
             } else {
@@ -107,36 +107,36 @@ fn type_expr<'file>(
                 return None;
             };
             // TODO: replace with a ref to the locals id
-            (circuit1::TypedExprKind::Ref(name), local_type)
+            (ast::TypedExprKind::Ref(name), local_type)
         }
-        circuit1::UntypedExprKind::Call(name, inline, arg) => {
+        ast::UntypedExprKind::Call(name, inline, arg) => {
             // this also does circuit name resolution
             if let Some((_, ty, _)) = circuit_table.get(name.name) {
                 // TODO: replace with a call to the circuitid
-                (circuit1::TypedExprKind::Call(name, inline, Box::new(type_expr(type_context, circuit_table, local_types, *arg)?)), *ty)
+                (ast::TypedExprKind::Call(name, inline, Box::new(type_expr(type_context, circuit_table, local_types, *arg)?)), *ty)
             } else {
                 NoSuchCircuit(name).report();
                 return None;
             }
         }
-        circuit1::UntypedExprKind::Const(sp, value) => (circuit1::TypedExprKind::Const(sp, value), type_context.intern(ty::Type::Bit)),
-        circuit1::UntypedExprKind::Get(base, field) => {
+        ast::UntypedExprKind::Const(sp, value) => (ast::TypedExprKind::Const(sp, value), type_context.intern(ty::Type::Bit)),
+        ast::UntypedExprKind::Get(base, field) => {
             let base = type_expr(type_context, circuit_table, local_types, *base)?;
             let base_ty = base.type_info;
             let field_ty = ty::Type::get_field_type(&type_context.get(base_ty).fields(type_context), field.1);
             if let Some(field_ty) = field_ty {
-                (circuit1::TypedExprKind::Get(Box::new(base), field), field_ty)
+                (ast::TypedExprKind::Get(Box::new(base), field), field_ty)
             } else {
                 (&*type_context, NoField { ty: base_ty, field_name_sp: field.0, field_name: field.1 }).report();
                 return None;
             }
         }
-        circuit1::UntypedExprKind::Product(exprs) => {
+        ast::UntypedExprKind::Product(exprs) => {
             let exprs: Vec<_> = exprs.into_iter().map(|(subexpr_name, subexpr)| Some((subexpr_name, type_expr(type_context, circuit_table, local_types, subexpr)?))).collect_all()?;
             let types = exprs.iter().map(|(field_name, subexpr)| (field_name.to_string(), subexpr.type_info)).collect();
-            (circuit1::TypedExprKind::Product(exprs), type_context.intern(ty::Type::Product(types)))
+            (ast::TypedExprKind::Product(exprs), type_context.intern(ty::Type::Product(types)))
         }
     };
 
-    Some(circuit1::TypedExpr { type_info, kind, span: expr.span })
+    Some(ast::TypedExpr { type_info, kind, span: expr.span })
 }

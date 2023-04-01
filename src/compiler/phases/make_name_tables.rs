@@ -1,6 +1,6 @@
 use crate::{
     compiler::{
-        data::{circuit1, nominal_type, ty, token},
+        data::{ast, nominal_type, ty, token},
         error::{CompileError, Report},
         phases::parser,
     },
@@ -10,8 +10,8 @@ use crate::{
 use std::collections::HashMap;
 
 pub(crate) struct IR<'file> {
-    pub(crate) circuits: arena::Arena<circuit1::UntypedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
-    pub(crate) circuit_table: HashMap<&'file str, circuit1::CircuitOrIntrinsicId>,
+    pub(crate) circuits: arena::Arena<ast::UntypedCircuitOrIntrinsic<'file>, ast::CircuitOrIntrinsicId>,
+    pub(crate) circuit_table: HashMap<&'file str, ast::CircuitOrIntrinsicId>,
 
     pub(crate) type_context: ty::TypeContext<nominal_type::PartiallyDefinedStruct<'file>>,
     pub(crate) type_table: HashMap<&'file str, ty::TypeSym>,
@@ -42,16 +42,16 @@ fn intrinsic<'a, T>(table: &mut HashMap<&'a str, T>, name: &'a str, thing: T) {
     let old_t = table.insert(name, thing);
     assert!(old_t.is_none(), "cannot have other item named '{}' in empty table", name);
 }
-fn circuit_intrinsics(arena: &mut arena::Arena<circuit1::UntypedCircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>, table: &mut HashMap<&str, circuit1::CircuitOrIntrinsicId>) {
-    intrinsic(table, "nand", arena.add(circuit1::UntypedCircuitOrIntrinsic::Nand))
+fn circuit_intrinsics(arena: &mut arena::Arena<ast::UntypedCircuitOrIntrinsic, ast::CircuitOrIntrinsicId>, table: &mut HashMap<&str, ast::CircuitOrIntrinsicId>) {
+    intrinsic(table, "nand", arena.add(ast::UntypedCircuitOrIntrinsic::Nand))
 }
 fn type_intrinsics(context: &mut ty::TypeContext<nominal_type::PartiallyDefinedStruct>, table: &mut HashMap<&str, ty::TypeSym>) {
     intrinsic(table, "bit", context.intern(ty::Type::Bit))
 }
 
 fn make_circuit_table(
-    circuits: Vec<circuit1::UntypedCircuit>,
-) -> Option<(arena::Arena<circuit1::UntypedCircuitOrIntrinsic, circuit1::CircuitOrIntrinsicId>, HashMap<&str, circuit1::CircuitOrIntrinsicId>)> {
+    circuits: Vec<ast::UntypedCircuit>,
+) -> Option<(arena::Arena<ast::UntypedCircuitOrIntrinsic, ast::CircuitOrIntrinsicId>, HashMap<&str, ast::CircuitOrIntrinsicId>)> {
     let mut arena = arena::Arena::new();
     let mut table = HashMap::new();
 
@@ -63,7 +63,7 @@ fn make_circuit_table(
             DuplicateCircuit(&circuit.name).report();
             errored = true;
         }
-        table.insert(circuit.name.name, arena.add(circuit1::UntypedCircuitOrIntrinsic::Circuit(circuit)));
+        table.insert(circuit.name.name, arena.add(ast::UntypedCircuitOrIntrinsic::Circuit(circuit)));
     }
 
     if errored {

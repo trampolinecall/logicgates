@@ -10,6 +10,6 @@ pub(crate) mod type_pats;
 
 pub(crate) mod type_exprs;
 
-pub(crate) mod convert_circuit1;
+pub(crate) mod ast_to_ir;
 
-pub(crate) mod convert_circuit2;
+pub(crate) mod ir_to_simulation;

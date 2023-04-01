@@ -1,6 +1,6 @@
 use crate::compiler::{
     data::{
-        circuit1, nominal_type,
+        ast, nominal_type,
         token::{Token, TokenMatcher},
     },
     error::{CompileError, Report},
@@ -10,7 +10,7 @@ use std::iter::Peekable;
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct AST<'file> {
-    pub(crate) circuits: Vec<circuit1::UntypedCircuit<'file>>,
+    pub(crate) circuits: Vec<ast::UntypedCircuit<'file>>,
     pub(crate) type_decls: Vec<nominal_type::PartiallyDefinedStruct<'file>>,
 }
 
@@ -129,7 +129,7 @@ pub(crate) fn parse<'file>(tokens: impl Iterator<Item = Token<'file>>) -> AST<'f
 #[cfg(test)]
 mod test {
     use crate::compiler::{
-        data::{circuit1, token::Token},
+        data::{ast, token::Token},
         error::{File, Span},
         phases::parser::{expr, Parser},
     };
@@ -152,8 +152,8 @@ mod test {
             Parser { tokens }.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), expr::expr),
             Ok((
                 vec![
-                    circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "a"), type_info: (), span: sp },
-                    circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "b"), type_info: (), span: sp }
+                    ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(sp, "a"), type_info: (), span: sp },
+                    ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(sp, "b"), type_info: (), span: sp }
                 ],
                 sp
             ))
@@ -171,8 +171,8 @@ mod test {
             Parser { tokens }.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), expr::expr),
             Ok((
                 vec![
-                    circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "a"), type_info: (), span: sp },
-                    circuit1::UntypedExpr { kind: circuit1::UntypedExprKind::Ref(sp, "b"), type_info: (), span: sp }
+                    ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(sp, "a"), type_info: (), span: sp },
+                    ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(sp, "b"), type_info: (), span: sp }
                 ],
                 sp
             ))

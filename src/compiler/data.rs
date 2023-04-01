@@ -1,5 +1,5 @@
-pub(crate) mod circuit1;
-pub(crate) mod circuit2;
+pub(crate) mod ast;
+pub(crate) mod ir;
 pub(crate) mod nominal_type;
 pub(crate) mod token;
 pub(crate) mod ty;
