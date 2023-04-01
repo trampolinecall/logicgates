@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use crate::simulation::{self, logic, draw, CircuitMap, GateMap};
+use crate::simulation::{self, draw, logic, CircuitMap, GateMap};
 
 pub(crate) struct Location {
     pub(crate) x: u32,

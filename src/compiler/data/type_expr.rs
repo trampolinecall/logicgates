@@ -1,4 +1,4 @@
-use crate::compiler::{error::Span, data::token};
+use crate::compiler::{data::token, error::Span};
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct TypeExpr<'file> {

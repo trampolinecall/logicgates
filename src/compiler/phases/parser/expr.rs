@@ -114,8 +114,10 @@ mod test {
         let file = File::test_file();
         let sp = file.eof_span();
 
-        let tokens =
-            make_token_stream([Token::CircuitIdentifier(token::CircuitIdentifier { span: sp, name: "a", with_tag: "\\a".to_string() }), Token::PlainIdentifier(token::PlainIdentifier { span: sp, name: "b" })], sp);
+        let tokens = make_token_stream(
+            [Token::CircuitIdentifier(token::CircuitIdentifier { span: sp, name: "a", with_tag: "\\a".to_string() }), Token::PlainIdentifier(token::PlainIdentifier { span: sp, name: "b" })],
+            sp,
+        );
         assert_eq!(
             expr(&mut Parser { tokens }),
             Ok(ast::UntypedExpr {

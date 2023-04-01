@@ -1,6 +1,6 @@
 use crate::{
     compiler::{
-        data::{ast, nominal_type, ty, token},
+        data::{ast, nominal_type, token, ty},
         error::{CompileError, Report},
         phases::parser,
     },
@@ -49,9 +49,7 @@ fn type_intrinsics(context: &mut ty::TypeContext<nominal_type::PartiallyDefinedS
     intrinsic(table, "bit", context.intern(ty::Type::Bit))
 }
 
-fn make_circuit_table(
-    circuits: Vec<ast::UntypedCircuit>,
-) -> Option<(arena::Arena<ast::UntypedCircuitOrIntrinsic, ast::CircuitOrIntrinsicId>, HashMap<&str, ast::CircuitOrIntrinsicId>)> {
+fn make_circuit_table(circuits: Vec<ast::UntypedCircuit>) -> Option<(arena::Arena<ast::UntypedCircuitOrIntrinsic, ast::CircuitOrIntrinsicId>, HashMap<&str, ast::CircuitOrIntrinsicId>)> {
     let mut arena = arena::Arena::new();
     let mut table = HashMap::new();
 

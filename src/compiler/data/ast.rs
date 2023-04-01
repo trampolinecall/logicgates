@@ -1,6 +1,6 @@
 use crate::{
     compiler::{
-        data::{nominal_type, ty, type_expr, token},
+        data::{nominal_type, token, ty, type_expr},
         error::Span,
     },
     utils::arena,

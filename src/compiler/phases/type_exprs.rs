@@ -1,6 +1,6 @@
 use crate::{
     compiler::{
-        data::{ast, nominal_type, ty, token},
+        data::{ast, nominal_type, token, ty},
         error::{CompileError, Report, Span},
         phases::type_pats,
     },
@@ -62,11 +62,7 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
                 name: circuit.name,
                 input: circuit.input,
                 output_type: circuit.output_type,
-                lets: circuit
-                    .lets
-                    .into_iter()
-                    .map(|ast::PatTypedLet { pat, val }| Some(ast::TypedLet { pat, val: type_expr(&mut type_context, &circuit_table, &local_table, val)? }))
-                    .collect_all()?,
+                lets: circuit.lets.into_iter().map(|ast::PatTypedLet { pat, val }| Some(ast::TypedLet { pat, val: type_expr(&mut type_context, &circuit_table, &local_table, val)? })).collect_all()?,
                 output: type_expr(&mut type_context, &circuit_table, &local_table, circuit.output)?,
             }))
         }
