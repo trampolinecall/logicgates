@@ -25,7 +25,7 @@ pub(crate) fn compile(filename: &str) -> Option<simulation::Simulation> {
     let ir = phases::type_pats::type_(ir);
     let ir = phases::type_exprs::type_(ir)?;
 
-    let ir = phases::convert_circuit1::convert(ir)?;
+    let ir = phases::ast_to_ir::convert(ir)?;
 
-    phases::convert_circuit2::convert(&file, ir)
+    phases::ir_to_simulation::convert(&file, ir)
 }

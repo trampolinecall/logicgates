@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     compiler::{
-        data::{circuit1, circuit2, nominal_type, token, ty},
+        data::{ast, ir, nominal_type, token, ty},
         error::{CompileError, Report, Span},
         phases::type_exprs,
     },
@@ -44,21 +44,21 @@ impl<'file> From<LoopInLocalsError<'file>> for CompileError<'file> {
 }
 
 pub(crate) struct IR<'file> {
-    pub(crate) circuits: arena::Arena<circuit2::CircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
-    pub(crate) circuit_table: HashMap<&'file str, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
+    pub(crate) circuits: arena::Arena<ir::CircuitOrIntrinsic<'file>, ast::CircuitOrIntrinsicId>,
+    pub(crate) circuit_table: HashMap<&'file str, (ty::TypeSym, ty::TypeSym, ast::CircuitOrIntrinsicId)>,
 
     pub(crate) type_context: ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
 }
 
 pub(crate) fn convert(type_exprs::IR { mut circuits, circuit_table, mut type_context }: type_exprs::IR) -> Option<IR> {
-    let const_0 = circuits.add(circuit1::TypedCircuitOrIntrinsic::Const(false));
-    let const_1 = circuits.add(circuit1::TypedCircuitOrIntrinsic::Const(true));
+    let const_0 = circuits.add(ast::TypedCircuitOrIntrinsic::Const(false));
+    let const_1 = circuits.add(ast::TypedCircuitOrIntrinsic::Const(true));
 
     let circuits = circuits.transform(|circuit| {
         Some(match circuit {
-            circuit1::TypedCircuitOrIntrinsic::Circuit(circuit) => circuit2::CircuitOrIntrinsic::Custom(convert_circuit((const_0, const_1), &circuit_table, &mut type_context, circuit)?),
-            circuit1::TypedCircuitOrIntrinsic::Nand => circuit2::CircuitOrIntrinsic::Nand,
-            circuit1::TypedCircuitOrIntrinsic::Const(value) => circuit2::CircuitOrIntrinsic::Const(value),
+            ast::TypedCircuitOrIntrinsic::Circuit(circuit) => ir::CircuitOrIntrinsic::Custom(convert_circuit((const_0, const_1), &circuit_table, &mut type_context, circuit)?),
+            ast::TypedCircuitOrIntrinsic::Nand => ir::CircuitOrIntrinsic::Nand,
+            ast::TypedCircuitOrIntrinsic::Const(value) => ir::CircuitOrIntrinsic::Const(value),
         })
     })?;
 
@@ -77,7 +77,7 @@ impl arena::ArenaId for ValueId {
     }
 }
 impl<'file> arena::IsArenaIdFor<Value<'file>> for ValueId {}
-impl<'file> arena::IsArenaIdFor<(Value<'file>, circuit2::bundle::ProducerBundle)> for ValueId {}
+impl<'file> arena::IsArenaIdFor<(Value<'file>, ir::bundle::ProducerBundle)> for ValueId {}
 #[derive(Debug)]
 struct Value<'file> {
     kind: ValueKind<'file>,
@@ -97,18 +97,18 @@ enum ValueKind<'file> {
 }
 
 fn convert_circuit<'file>(
-    (const_0, const_1): (circuit1::CircuitOrIntrinsicId, circuit1::CircuitOrIntrinsicId),
-    circuit_table: &HashMap<&'file str, (ty::TypeSym, ty::TypeSym, circuit1::CircuitOrIntrinsicId)>,
+    (const_0, const_1): (ast::CircuitOrIntrinsicId, ast::CircuitOrIntrinsicId),
+    circuit_table: &HashMap<&'file str, (ty::TypeSym, ty::TypeSym, ast::CircuitOrIntrinsicId)>,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
-    circuit1: circuit1::TypedCircuit<'file>,
-) -> Option<circuit2::Circuit<'file>> {
-    let mut circuit = circuit2::Circuit::new(circuit1.name.name, circuit1.input.type_info, circuit1.output_type.1);
+    circuit_ast: ast::TypedCircuit<'file>,
+) -> Option<ir::Circuit<'file>> {
+    let mut circuit = ir::Circuit::new(circuit_ast.name.name, circuit_ast.input.type_info, circuit_ast.output_type.1);
 
     let mut values = arena::Arena::new();
 
-    let circuit_input_value = values.add(Value { kind: ValueKind::Input, type_info: circuit1.input.type_info, span: circuit1.input.span });
-    let lets: Vec<_> = circuit1.lets.into_iter().map(|circuit1::TypedLet { pat, val }| circuit1::Let { pat, val: convert_expr_to_value(&mut values, val) }).collect();
-    let circuit_output_value = convert_expr_to_value(&mut values, circuit1.output);
+    let circuit_input_value = values.add(Value { kind: ValueKind::Input, type_info: circuit_ast.input.type_info, span: circuit_ast.input.span });
+    let lets: Vec<_> = circuit_ast.lets.into_iter().map(|ast::TypedLet { pat, val }| ast::Let { pat, val: convert_expr_to_value(&mut values, val) }).collect();
+    let circuit_output_value = convert_expr_to_value(&mut values, circuit_ast.output);
 
     // steps for resolving locals
 
@@ -130,11 +130,11 @@ fn convert_circuit<'file>(
     // step 2: assign all patterns to values
     let mut locals = HashMap::new();
     let mut errored = false;
-    if let Err(()) = assign_pattern(type_context, &mut values, &mut locals, &circuit1.input, circuit_input_value) {
+    if let Err(()) = assign_pattern(type_context, &mut values, &mut locals, &circuit_ast.input, circuit_input_value) {
         errored = true;
     }
 
-    for circuit1::Let { pat, val } in lets {
+    for ast::Let { pat, val } in lets {
         if let Err(()) = assign_pattern(type_context, &mut values, &mut locals, &pat, val) {
             errored = true;
         }
@@ -163,11 +163,11 @@ fn convert_circuit<'file>(
             let gate_i = gates[&value_id];
             let arg = values.get(*arg).1.clone();
             // TODO: this should pass in the span for the expected type but it passes the span for the got type
-            connect_bundle(type_context, &mut circuit, arg_span, arg, circuit2::bundle::ReceiverBundle::GateInput(input_type, gate_i))?;
+            connect_bundle(type_context, &mut circuit, arg_span, arg, ir::bundle::ReceiverBundle::GateInput(input_type, gate_i))?;
         }
     }
     let output_value = values.get(circuit_output_value);
-    connect_bundle(type_context, &mut circuit, circuit1.output_type.0, output_value.1.clone(), circuit2::bundle::ReceiverBundle::CurCircuitOutput(circuit1.output_type.1));
+    connect_bundle(type_context, &mut circuit, circuit_ast.output_type.0, output_value.1.clone(), ir::bundle::ReceiverBundle::CurCircuitOutput(circuit_ast.output_type.1));
 
     if errored {
         None
@@ -180,7 +180,7 @@ fn assign_pattern<'file>(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     values: &mut arena::Arena<Value<'file>, ValueId>,
     locals: &mut HashMap<&'file str, ValueId>,
-    pat: &circuit1::TypedPattern<'file>,
+    pat: &ast::TypedPattern<'file>,
     value: ValueId,
 ) -> Result<(), ()> {
     if values.get(value).type_info != pat.type_info {
@@ -190,10 +190,10 @@ fn assign_pattern<'file>(
     }
 
     match &pat.kind {
-        circuit1::TypedPatternKind::Identifier(name, _) => {
+        ast::TypedPatternKind::Identifier(name, _) => {
             locals.insert(name.name, value);
         }
-        circuit1::TypedPatternKind::Product(subpats) => {
+        ast::TypedPatternKind::Product(subpats) => {
             for (field_name, subpat) in subpats.iter() {
                 // destructuring happens by setting each subpattern to a made up get
                 let field_name = field_name.to_string();
@@ -208,13 +208,13 @@ fn assign_pattern<'file>(
     Ok(())
 }
 
-fn assign_pattern_poison<'file>(values: &mut arena::Arena<Value<'file>, ValueId>, locals: &mut HashMap<&'file str, ValueId>, pat: &circuit1::TypedPattern<'file>, span: Span<'file>) {
+fn assign_pattern_poison<'file>(values: &mut arena::Arena<Value<'file>, ValueId>, locals: &mut HashMap<&'file str, ValueId>, pat: &ast::TypedPattern<'file>, span: Span<'file>) {
     match &pat.kind {
-        circuit1::PatternKind::Identifier(name, _) => {
+        ast::PatternKind::Identifier(name, _) => {
             let value = values.add(Value { kind: ValueKind::Poison, type_info: pat.type_info, span });
             locals.insert(name.name, value);
         }
-        circuit1::PatternKind::Product(subpats) => {
+        ast::PatternKind::Product(subpats) => {
             for (_, subpat) in subpats {
                 assign_pattern_poison(values, locals, subpat, span);
             }
@@ -222,14 +222,14 @@ fn assign_pattern_poison<'file>(values: &mut arena::Arena<Value<'file>, ValueId>
     }
 }
 
-fn convert_expr_to_value<'file>(values: &mut arena::Arena<Value<'file>, ValueId>, expr: circuit1::TypedExpr<'file>) -> ValueId {
+fn convert_expr_to_value<'file>(values: &mut arena::Arena<Value<'file>, ValueId>, expr: ast::TypedExpr<'file>) -> ValueId {
     let value = Value {
         kind: match expr.kind {
-            circuit1::TypedExprKind::Ref(name) => ValueKind::Ref(name),
-            circuit1::TypedExprKind::Call(name, inline, arg) => ValueKind::Call(name, inline, convert_expr_to_value(values, *arg)),
-            circuit1::TypedExprKind::Const(sp, value) => ValueKind::Const(sp, value),
-            circuit1::TypedExprKind::Get(base, field) => ValueKind::Get(convert_expr_to_value(values, *base), field),
-            circuit1::TypedExprKind::Product(exprs) => ValueKind::Product { values: exprs.into_iter().map(|(field_name, e)| (field_name, convert_expr_to_value(values, e))).collect() },
+            ast::TypedExprKind::Ref(name) => ValueKind::Ref(name),
+            ast::TypedExprKind::Call(name, inline, arg) => ValueKind::Call(name, inline, convert_expr_to_value(values, *arg)),
+            ast::TypedExprKind::Const(sp, value) => ValueKind::Const(sp, value),
+            ast::TypedExprKind::Get(base, field) => ValueKind::Get(convert_expr_to_value(values, *base), field),
+            ast::TypedExprKind::Product(exprs) => ValueKind::Product { values: exprs.into_iter().map(|(field_name, e)| (field_name, convert_expr_to_value(values, e))).collect() },
         },
         span: expr.span,
         type_info: expr.type_info,
@@ -239,21 +239,21 @@ fn convert_expr_to_value<'file>(values: &mut arena::Arena<Value<'file>, ValueId>
 
 fn convert_value(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
-    get_other_value_as_bundle: arena::DependancyGetter<circuit2::bundle::ProducerBundle, Value, (), ValueId>,
+    get_other_value_as_bundle: arena::DependancyGetter<ir::bundle::ProducerBundle, Value, (), ValueId>,
     locals: &HashMap<&str, ValueId>,
-    gates: &HashMap<ValueId, circuit2::GateIdx>,
-    circuit: &circuit2::Circuit,
+    gates: &HashMap<ValueId, ir::GateIdx>,
+    circuit: &ir::Circuit,
     value_id: ValueId,
     value: &Value,
-) -> arena::SingleTransformResult<circuit2::bundle::ProducerBundle, ValueId, ()> {
-    let mut do_get = |expr, field_name| -> arena::SingleTransformResult<circuit2::bundle::ProducerBundle, ValueId, ()> {
+) -> arena::SingleTransformResult<ir::bundle::ProducerBundle, ValueId, ()> {
+    let mut do_get = |expr, field_name| -> arena::SingleTransformResult<ir::bundle::ProducerBundle, ValueId, ()> {
         let expr = try_transform_result!(get_other_value_as_bundle.get(expr)).1;
         let expr_type = expr.type_(type_context);
         assert!(
             ty::Type::get_field_type(&type_context.get(expr_type).fields(type_context), field_name).is_some(),
             "get field that does not exist after already checking that all gets are valid in previous phase"
         );
-        arena::SingleTransformResult::Ok(circuit2::bundle::ProducerBundle::Get(Box::new(expr.clone()), field_name.to_string()))
+        arena::SingleTransformResult::Ok(ir::bundle::ProducerBundle::Get(Box::new(expr.clone()), field_name.to_string()))
     };
 
     match &value.kind {
@@ -263,12 +263,12 @@ fn convert_value(
             let gate_i = gates[&value_id];
             // the gate stays unconnected to its input because gates can be truend into a producerb undle with needing to be connected, which allows for loops
             // for example 'let x = 'not x' will be allowed because x refers to the output of the 'not gate and the input to the 'not gate doesnt need to be connected for x to have a value
-            arena::SingleTransformResult::Ok(circuit2::bundle::ProducerBundle::GateOutput(value.type_info, gate_i))
+            arena::SingleTransformResult::Ok(ir::bundle::ProducerBundle::GateOutput(value.type_info, gate_i))
         }
 
         ValueKind::Const(_, _) => {
             let gate_i = gates[&value_id];
-            arena::SingleTransformResult::Ok(circuit2::bundle::ProducerBundle::GateOutput(type_context.intern(ty::Type::Bit), gate_i))
+            arena::SingleTransformResult::Ok(ir::bundle::ProducerBundle::GateOutput(type_context.intern(ty::Type::Bit), gate_i))
         }
 
         ValueKind::Get(expr, (_, field_name)) => do_get(*expr, field_name),
@@ -287,23 +287,23 @@ fn convert_value(
             }
 
             if !errored {
-                arena::SingleTransformResult::Ok(circuit2::bundle::ProducerBundle::Product(results))
+                arena::SingleTransformResult::Ok(ir::bundle::ProducerBundle::Product(results))
             } else {
                 arena::SingleTransformResult::Err(())
             }
         }
-        ValueKind::Input => arena::SingleTransformResult::Ok(circuit2::bundle::ProducerBundle::CurCircuitInput(circuit.input_type)),
+        ValueKind::Input => arena::SingleTransformResult::Ok(ir::bundle::ProducerBundle::CurCircuitInput(circuit.input_type)),
         ValueKind::Poison => arena::SingleTransformResult::Err(()),
     }
 }
 
 fn connect_bundle(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
-    circuit: &mut circuit2::Circuit,
+    circuit: &mut ir::Circuit,
     // got_span: Span,
     expected_span: Span,
-    producer_bundle: circuit2::bundle::ProducerBundle,
-    receiver_bundle: circuit2::bundle::ReceiverBundle,
+    producer_bundle: ir::bundle::ProducerBundle,
+    receiver_bundle: ir::bundle::ReceiverBundle,
 ) -> Option<()> {
     let producer_type = producer_bundle.type_(type_context);
     let receiver_type = receiver_bundle.type_(type_context);

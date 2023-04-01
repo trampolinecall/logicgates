@@ -2,15 +2,15 @@ use std::collections::HashMap;
 
 use crate::{
     compiler::{
-        data::{circuit1, nominal_type, ty},
+        data::{ast, nominal_type, ty},
         phases::resolve_type_expr,
     },
     utils::arena,
 };
 
 pub(crate) struct IR<'file> {
-    pub(crate) circuits: arena::Arena<circuit1::PatTypedCircuitOrIntrinsic<'file>, circuit1::CircuitOrIntrinsicId>,
-    pub(crate) circuit_table: HashMap<&'file str, circuit1::CircuitOrIntrinsicId>,
+    pub(crate) circuits: arena::Arena<ast::PatTypedCircuitOrIntrinsic<'file>, ast::CircuitOrIntrinsicId>,
+    pub(crate) circuit_table: HashMap<&'file str, ast::CircuitOrIntrinsicId>,
 
     pub(crate) type_context: ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
 }
@@ -18,31 +18,31 @@ pub(crate) struct IR<'file> {
 pub(crate) fn type_(resolve_type_expr::IR { circuits, circuit_table, mut type_context }: resolve_type_expr::IR) -> IR {
     IR {
         circuits: circuits.transform_infallible(|circuit| match circuit {
-            circuit1::TypeResolvedCircuitOrIntrinsic::Circuit(circuit) => circuit1::PatTypedCircuitOrIntrinsic::Circuit(circuit1::PatTypedCircuit {
+            ast::TypeResolvedCircuitOrIntrinsic::Circuit(circuit) => ast::PatTypedCircuitOrIntrinsic::Circuit(ast::PatTypedCircuit {
                 name: circuit.name,
                 input: type_pat(&mut type_context, circuit.input),
                 output_type: circuit.output_type,
-                lets: circuit.lets.into_iter().map(|let_| circuit1::PatTypedLet { pat: type_pat(&mut type_context, let_.pat), val: let_.val }).collect(),
+                lets: circuit.lets.into_iter().map(|let_| ast::PatTypedLet { pat: type_pat(&mut type_context, let_.pat), val: let_.val }).collect(),
                 output: circuit.output,
             }),
-            circuit1::TypeResolvedCircuitOrIntrinsic::Nand => circuit1::PatTypedCircuitOrIntrinsic::Nand,
-            circuit1::TypeResolvedCircuitOrIntrinsic::Const(value) => circuit1::PatTypedCircuitOrIntrinsic::Const(value),
+            ast::TypeResolvedCircuitOrIntrinsic::Nand => ast::PatTypedCircuitOrIntrinsic::Nand,
+            ast::TypeResolvedCircuitOrIntrinsic::Const(value) => ast::PatTypedCircuitOrIntrinsic::Const(value),
         }),
         circuit_table,
         type_context,
     }
 }
 
-fn type_pat<'file>(type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>, pat: circuit1::TypeResolvedPattern<'file>) -> circuit1::PatTypedPattern<'file> {
+fn type_pat<'file>(type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>, pat: ast::TypeResolvedPattern<'file>) -> ast::PatTypedPattern<'file> {
     let (kind, type_info) = match pat.kind {
-        circuit1::TypeResolvedPatternKind::Identifier(name, ty) => (circuit1::PatTypedPatternKind::Identifier(name, ty), ty.1),
-        circuit1::TypeResolvedPatternKind::Product(pats) => {
+        ast::TypeResolvedPatternKind::Identifier(name, ty) => (ast::PatTypedPatternKind::Identifier(name, ty), ty.1),
+        ast::TypeResolvedPatternKind::Product(pats) => {
             let typed_pats: Vec<_> = pats.into_iter().map(|(field_name, subpat)| (field_name, type_pat(type_context, subpat))).collect();
 
             let ty = ty::Type::Product(typed_pats.iter().map(|(field_name, subpat)| (field_name.clone(), subpat.type_info)).collect());
-            (circuit1::PatTypedPatternKind::Product(typed_pats), type_context.intern(ty))
+            (ast::PatTypedPatternKind::Product(typed_pats), type_context.intern(ty))
         }
     };
 
-    circuit1::PatTypedPattern { kind, type_info, span: pat.span }
+    ast::PatTypedPattern { kind, type_info, span: pat.span }
 }

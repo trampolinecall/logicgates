@@ -1,4 +1,4 @@
-use crate::compiler::data::{circuit2::GateIdx, nominal_type, ty};
+use crate::compiler::data::{ir::GateIdx, nominal_type, ty};
 
 #[derive(Clone, Debug)]
 pub(crate) enum ProducerBundle {
