@@ -32,6 +32,7 @@ pub(crate) enum Token<'file> {
     Comma(Span<'file>),
 
     Equals(Span<'file>),
+    Dash(Span<'file>),
 
     Let(Span<'file>),
     Inline(Span<'file>),
@@ -62,7 +63,8 @@ impl<'file> Token<'file> {
             | Token::Number(sp, _, _)
             | Token::Struct(sp)
             | Token::Backslash(sp)
-            | Token::Slash(sp) => *sp,
+            | Token::Slash(sp)
+            | Token::Dash(sp) => *sp,
             Token::PlainIdentifier(i) => i.span,
             Token::TypeIdentifier(t) => t.span,
             Token::CircuitIdentifier(c) => c.span,
@@ -107,6 +109,7 @@ mod names {
     pub(super) const COMMA: &str = "','";
 
     pub(super) const EQUALS: &str = "'='";
+    pub(super) const DASH: &str = "'-'";
 
     pub(super) const LET: &str = "'let'";
     pub(super) const INLINE: &str = "'inline'";
@@ -167,6 +170,7 @@ define_matcher!(dot_matcher, 'file, Span<'file>, names::DOT, Token::Dot(sp) => s
 define_matcher!(comma_matcher, 'file, Span<'file>, names::COMMA, Token::Comma(sp) => sp);
 
 define_matcher!(equals_matcher, 'file, Span<'file>, names::EQUALS, Token::Equals(sp) => sp);
+define_matcher!(dash_matcher, 'file, Span<'file>, names::DASH, Token::Dash(sp) => sp);
 
 define_matcher!(let_matcher, 'file, Span<'file>, names::LET, Token::Let(sp) => sp);
 define_matcher!(inline_matcher, 'file, Span<'file>, names::INLINE, Token::Inline(sp) => sp);
@@ -190,6 +194,7 @@ impl std::fmt::Display for Token<'_> {
             Token::Comma(_) => write!(f, "{}", names::COMMA),
 
             Token::Equals(_) => write!(f, "{}", names::EQUALS),
+            Token::Dash(_) => write!(f, "{}", names::DASH),
 
             Token::Let(_) => write!(f, "{}", names::LET),
             Token::Inline(_) => write!(f, "{}", names::INLINE),
