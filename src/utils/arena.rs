@@ -59,9 +59,9 @@ impl<T, Id: ArenaId + IsArenaIdFor<T>> Arena<T, Id> {
     }
 }
 
-// dependant transform things {{{1
+// dependent transform things {{{1
 #[macro_use]
-mod dependant_transform {
+mod dependent_transform {
     use crate::utils::{
         arena::{ArenaId, IsArenaIdFor},
         collect_all::CanCollectAll,
@@ -142,12 +142,12 @@ mod dependant_transform {
         };
     }
 }
-pub(crate) use dependant_transform::DependancyGetter;
-pub(crate) use dependant_transform::SingleTransformResult;
+pub(crate) use dependent_transform::DependancyGetter;
+pub(crate) use dependent_transform::SingleTransformResult;
 
 impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original, Id> {
     // TODO: write tests for this
-    pub(crate) fn transform_dependant_with_id<Annotation, New, Error>(
+    pub(crate) fn transform_dependent_with_id<Annotation, New, Error>(
         self,
         mut try_annotate: impl FnMut(Id, &Original, DependancyGetter<Annotation, Original, Error, Id>) -> SingleTransformResult<Annotation, Id, Error>,
         incorporate_annotation: impl Fn(Original, Annotation) -> New,
@@ -155,10 +155,10 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original,
     where
         Id: IsArenaIdFor<New>,
     {
-        use dependant_transform::*;
-        // some transformations have operations that are dependant on the results of other transformations
-        // for example in name resolution, the result of a single name might be dependant on the resolution of another name
-        // another example is in calculating the sizes of types, the size of a single type might be dependant on the sizes of other types (for example the size of a product type is dependant on the sizes of each of its child types)
+        use dependent_transform::*;
+        // some transformations have operations that are dependent on the results of other transformations
+        // for example in name resolution, the result of a single name might be dependent on the resolution of another name
+        // another example is in calculating the sizes of types, the size of a single type might be dependent on the sizes of other types (for example the size of a product type is dependent on the sizes of each of its child types)
         // this method holds the logic for allowing the operations to happen in a centralized place so that it does not need to be copied and pasted around to every part that needs it (not only because of dry but also because some of the logic, for example the loop detection logic, is annoying to constantly reimplement)
 
         let mut things: Vec<_> = self.0.into_iter().map(|item| (item, ItemState::Waiting::<Annotation, Id, Error>)).collect();
@@ -264,7 +264,7 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original,
                     // TODO: remove other nodes leading into loop
                     loops.push(cur_loop);
                 }
-                break loops; // cannot continue because if none of them are changing, they are all dependant on the loop
+                break loops; // cannot continue because if none of them are changing, they are all dependent on the loop
             }
         };
 
@@ -303,7 +303,7 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original,
         }
     }
 
-    pub(crate) fn transform_dependant<Annotation, New, Error>(
+    pub(crate) fn transform_dependent<Annotation, New, Error>(
         self,
         mut try_convert: impl FnMut(&Original, DependancyGetter<Annotation, Original, Error, Id>) -> SingleTransformResult<Annotation, Id, Error>,
         incorporate_annotation: impl Fn(Original, Annotation) -> New,
@@ -311,6 +311,6 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original,
     where
         Id: IsArenaIdFor<New>,
     {
-        self.transform_dependant_with_id(|_, thing, dependency_getter| try_convert(thing, dependency_getter), incorporate_annotation)
+        self.transform_dependent_with_id(|_, thing, dependency_getter| try_convert(thing, dependency_getter), incorporate_annotation)
     }
 }
