@@ -52,7 +52,6 @@ fn report(e: CompileError) {
 
 fn print_message(message: &str, span: Span, note: Option<&str>) {
     use nu_ansi_term::Color::*;
-    use nu_ansi_term::Style;
 
     let (start_line_nr, start_col) = span::get_lc(span.0, span.1);
     let (end_line_nr, end_col) = span::get_lc(span.0, span.2);
@@ -65,7 +64,7 @@ fn print_message(message: &str, span: Span, note: Option<&str>) {
         eprint!("...")
     }
     if let Some(note) = note {
-        eprint!("{} {}", LightGreen.bold().paint("--"), Style::new().bold().paint(note));
+        eprint!("{} {}", LightGreen.bold().paint("--"), LightGreen.bold().paint(note));
     }
     eprintln!()
 }
