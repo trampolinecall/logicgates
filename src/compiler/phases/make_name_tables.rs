@@ -73,7 +73,7 @@ fn make_circuit_table(
     }
 }
 
-fn make_type_table(type_decls: Vec<crate::compiler::data::nominal_type::PartiallyDefinedStruct>) -> Option<(ty::TypeContext<nominal_type::PartiallyDefinedStruct>, HashMap<&str, ty::TypeSym>)> {
+fn make_type_table(type_decls: Vec<nominal_type::PartiallyDefinedStruct>) -> Option<(ty::TypeContext<nominal_type::PartiallyDefinedStruct>, HashMap<&str, ty::TypeSym>)> {
     let mut type_context = ty::TypeContext::new();
     let mut type_table = HashMap::new();
 

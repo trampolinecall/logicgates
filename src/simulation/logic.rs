@@ -3,7 +3,6 @@ use crate::simulation::{Circuit, CircuitKey, CircuitMap, GateKey, GateMap};
 pub(crate) struct Calculation {
     kind: CalculationKind,
 }
-#[allow(clippy::large_enum_variant)] // TODO: reconsider whether this is correct
 enum CalculationKind {
     Nand([Node; 2], [Node; 1]),
     Const([Node; 0], [Node; 1]),
