@@ -1,6 +1,6 @@
 use crate::{
     compiler::{
-        data::{ast, nominal_type, ty, type_expr, token},
+        data::{ast, nominal_type, token, ty, type_expr},
         error::{CompileError, Report, Span},
         phases::make_name_tables,
     },

@@ -99,9 +99,7 @@ fn add_gate<'file, 'circuit>(
             // TODO: implement inlining
             (expansion_stack, gate_map.insert_with_key(|_| simulation::Gate { calculation: logic::Calculation::new_subcircuit(subcircuit_idx), location: location::Location::new() }))
         }
-        ir::CircuitOrIntrinsic::Nand => {
-            (expansion_stack, gate_map.insert_with_key(|index| simulation::Gate { calculation: logic::Calculation::new_nand(index), location: location::Location::new() }))
-        }
+        ir::CircuitOrIntrinsic::Nand => (expansion_stack, gate_map.insert_with_key(|index| simulation::Gate { calculation: logic::Calculation::new_nand(index), location: location::Location::new() })),
         ir::CircuitOrIntrinsic::Const(value) => {
             (expansion_stack, gate_map.insert_with_key(|index| simulation::Gate { calculation: logic::Calculation::new_const(index, *value), location: location::Location::new() }))
         }
@@ -162,9 +160,7 @@ fn convert_producer_bundle(
 
             b_nodes[field_indexes].to_vec()
         }
-        ir::bundle::ProducerBundle::Product(subbundles) => {
-            subbundles.iter().flat_map(|(_, sb)| convert_producer_bundle(circuits, gates, type_context, new_circuit, gate_index_map, sb)).collect()
-        }
+        ir::bundle::ProducerBundle::Product(subbundles) => subbundles.iter().flat_map(|(_, sb)| convert_producer_bundle(circuits, gates, type_context, new_circuit, gate_index_map, sb)).collect(),
     }
 }
 fn convert_receiver_bundle(
