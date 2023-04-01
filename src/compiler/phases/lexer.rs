@@ -144,7 +144,7 @@ pub(crate) fn lex(file: &File) -> impl Iterator<Item = Token> + '_ {
 mod test {
     use crate::compiler::{
         error::File,
-        phases::lexer::{lex, Token},
+        phases::lexer::{lex, token, Token},
     };
 
     fn check_lexer_output<'file>(mut l: impl Iterator<Item = Token<'file>>, expected: impl IntoIterator<Item = Token<'file>>) {
@@ -166,13 +166,15 @@ mod test {
         let mut file = File::test_file();
         let expected = make_spans!(file,
             [
-                (",", sp => Token::Comma(sp)),
                 ("[", sp => Token::OBrack(sp)),
                 ("]", sp => Token::CBrack(sp)),
-                ("=", sp => Token::Equals(sp)),
-                (".", sp => Token::Dot(sp)),
                 (";", sp => Token::Semicolon(sp)),
-                ("'", sp => Token::Apostrophe(sp)),
+                (".", sp => Token::Dot(sp)),
+                (",", sp => Token::Comma(sp)),
+                ("-", sp => Token::Dash(sp)),
+                ("=", sp => Token::Equals(sp)),
+                ("\\", sp => Token::Backslash(sp)),
+                ("/", sp => Token::Slash(sp)),
             ],
             sp => Token::EOF(sp),
         );
@@ -202,13 +204,13 @@ mod test {
         let mut file = File::test_file();
         let expected = make_spans!(file,
             [
-                ("a", sp => Some(Token::Identifier(sp, "a"))),
+                ("a", sp => Some(Token::PlainIdentifier(token::PlainIdentifier {name: "a", span: sp}))),
                 (" ", _sp => None),
-                ("abc", sp => Some(Token::Identifier(sp, "abc"))),
+                ("abc", sp => Some(Token::PlainIdentifier(token::PlainIdentifier {name: "abc", span: sp}))),
                 (" ", _sp => None),
-                ("abc87", sp => Some(Token::Identifier(sp, "abc87"))),
+                ("abc87", sp => Some(Token::PlainIdentifier(token::PlainIdentifier {name: "abc87", span: sp}))),
                 (" ", _sp => None),
-                ("abC-'()", sp => Some(Token::Identifier(sp, "abC-'()"))),
+                ("abC-'()", sp => Some(Token::PlainIdentifier(token::PlainIdentifier {name: "abC-'()", span: sp}))),
             ],
             sp => Some(Token::EOF(sp)),
         );
@@ -222,7 +224,7 @@ mod test {
         let expected = make_spans!(file,
             [
                 ("    ", _sp => None),
-                ("abc", sp => Some(Token::Identifier(sp, "abc"))),
+                ("abc", sp => Some(Token::PlainIdentifier(token::PlainIdentifier {name: "abc", span: sp}))),
                 ("\n", _sp => None),
                 ("   ", _sp => None),
                 ("2", sp => Some(Token::Number(sp, "2", 2)))

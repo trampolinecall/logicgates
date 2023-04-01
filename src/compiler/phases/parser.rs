@@ -129,7 +129,10 @@ pub(crate) fn parse<'file>(tokens: impl Iterator<Item = Token<'file>>) -> AST<'f
 #[cfg(test)]
 mod test {
     use crate::compiler::{
-        data::{ast, token::Token},
+        data::{
+            ast,
+            token::{self, Token},
+        },
         error::{File, Span},
         phases::parser::{expr, Parser},
     };
@@ -146,14 +149,17 @@ mod test {
         let file = File::test_file();
         let sp = file.eof_span();
 
-        let tokens = make_token_stream([Token::Identifier(sp, "a"), Token::Comma(sp), Token::Identifier(sp, "b"), Token::CBrack(sp)], sp);
+        let tokens = make_token_stream(
+            [Token::PlainIdentifier(token::PlainIdentifier { span: sp, name: "a" }), Token::Comma(sp), Token::PlainIdentifier(token::PlainIdentifier { span: sp, name: "b" }), Token::CBrack(sp)],
+            sp,
+        );
 
         assert_eq!(
             Parser { tokens }.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), expr::expr),
             Ok((
                 vec![
-                    ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(sp, "a"), type_info: (), span: sp },
-                    ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(sp, "b"), type_info: (), span: sp }
+                    ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "a" }), type_info: (), span: sp },
+                    ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "b" }), type_info: (), span: sp }
                 ],
                 sp
             ))
@@ -165,14 +171,23 @@ mod test {
         let file = File::test_file();
         let sp = file.eof_span();
 
-        let tokens = make_token_stream([Token::Identifier(sp, "a"), Token::Comma(sp), Token::Identifier(sp, "b"), Token::Comma(sp), Token::CBrack(sp)], sp);
+        let tokens = make_token_stream(
+            [
+                Token::PlainIdentifier(token::PlainIdentifier { span: sp, name: "a" }),
+                Token::Comma(sp),
+                Token::PlainIdentifier(token::PlainIdentifier { span: sp, name: "b" }),
+                Token::Comma(sp),
+                Token::CBrack(sp),
+            ],
+            sp,
+        );
 
         assert_eq!(
             Parser { tokens }.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), expr::expr),
             Ok((
                 vec![
-                    ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(sp, "a"), type_info: (), span: sp },
-                    ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(sp, "b"), type_info: (), span: sp }
+                    ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "a" }), type_info: (), span: sp },
+                    ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "b" }), type_info: (), span: sp }
                 ],
                 sp
             ))
