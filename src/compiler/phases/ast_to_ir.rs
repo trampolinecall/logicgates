@@ -10,7 +10,7 @@ use crate::{
 };
 
 struct TypeMismatch<'file> {
-    // got_span: Span<'file>, TODO
+    got_span: Span<'file>,
     pub(super) expected_span: Span<'file>,
     pub(super) got_type: ty::TypeSym,
     pub(super) expected_type: ty::TypeSym,
@@ -19,11 +19,11 @@ struct TypeMismatch<'file> {
 struct LoopInLocalsError<'file>(Vec<ExprInArena<'file>>);
 
 impl<'file> From<(&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, TypeMismatch<'file>)> for CompileError<'file> {
-    fn from((types, TypeMismatch { expected_span, got_type, expected_type }): (&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, TypeMismatch<'file>)) -> Self {
+    fn from((types, TypeMismatch { expected_span, got_type, expected_type, got_span }): (&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, TypeMismatch<'file>)) -> Self {
         let expected_type = types.get(expected_type).fmt(types);
         let got_type = types.get(got_type).fmt(types);
-        CompileError::new_with_note(expected_span, format!("type mismatch: expected {}, got {}", expected_type, got_type), format!("this has type {}", expected_type))
-        // .note(got_span, format!("this has type {}", got_type)) TODO
+        CompileError::new_with_note(expected_span, format!("type mismatch: expected {}, got {}", expected_type, got_type), format!("expected {}", expected_type))
+        .note(got_span, format!("got {}", got_type))
     }
 }
 
@@ -162,12 +162,12 @@ fn convert_circuit<'file>(
             let arg_span = values.get(*arg).0.span;
             let gate_i = gates[&value_id];
             let arg = values.get(*arg).1.clone();
-            // TODO: this should pass in the span for the expected type but it passes the span for the got type
-            connect_bundle(type_context, &mut circuit, arg_span, arg, ir::bundle::ReceiverBundle::GateInput(input_type, gate_i))?;
+            // TODO: the second arg_span argument should really be the receiver span, but arg_span is the producer span
+            connect_bundle(type_context, &mut circuit, arg_span, arg_span, arg, ir::bundle::ReceiverBundle::GateInput(input_type, gate_i))?;
         }
     }
     let output_value = values.get(circuit_output_value);
-    connect_bundle(type_context, &mut circuit, circuit_ast.output_type.0, output_value.1.clone(), ir::bundle::ReceiverBundle::CurCircuitOutput(circuit_ast.output_type.1));
+    connect_bundle(type_context, &mut circuit, output_value.0.span, circuit_ast.output_type.0, output_value.1.clone(), ir::bundle::ReceiverBundle::CurCircuitOutput(circuit_ast.output_type.1));
 
     if errored {
         None
@@ -184,7 +184,7 @@ fn assign_pattern<'file>(
     value: ExprId,
 ) -> Result<(), ()> {
     if values.get(value).type_info != pat.type_info {
-        (&*type_context, TypeMismatch { expected_span: pat.span, got_type: values.get(value).type_info, expected_type: pat.type_info }).report();
+        (&*type_context, TypeMismatch { expected_span: pat.span, got_type: values.get(value).type_info, expected_type: pat.type_info, got_span: values.get(value).span }).report();
         assign_pattern_poison(values, locals, pat, values.get(value).span);
         return Err(());
     }
@@ -300,15 +300,15 @@ fn convert_value(
 fn connect_bundle(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     circuit: &mut ir::Circuit,
-    // got_span: Span,
-    expected_span: Span,
+    producer_span: Span,
+    receiver_span: Span,
     producer_bundle: ir::bundle::ProducerBundle,
     receiver_bundle: ir::bundle::ReceiverBundle,
 ) -> Option<()> {
     let producer_type = producer_bundle.type_(type_context);
     let receiver_type = receiver_bundle.type_(type_context);
     if producer_type != receiver_type {
-        (&*type_context, TypeMismatch { got_type: producer_type, expected_type: receiver_type, /* got_span, */ expected_span }).report();
+        (&*type_context, TypeMismatch { got_type: producer_type, expected_type: receiver_type, expected_span: receiver_span, got_span: producer_span }).report();
         None?;
     }
 

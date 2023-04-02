@@ -6,8 +6,6 @@ use crate::{
     utils::arena,
 };
 
-// TODO: separate ast from this?
-
 pub(crate) type UntypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, UntypedExpr<'file>, (), type_expr::TypeExpr<'file>>;
 pub(crate) type UntypedCircuit<'file> = Circuit<'file, UntypedExpr<'file>, (), type_expr::TypeExpr<'file>>;
 pub(crate) type UntypedLet<'file> = Let<'file, UntypedExpr<'file>, (), type_expr::TypeExpr<'file>>;

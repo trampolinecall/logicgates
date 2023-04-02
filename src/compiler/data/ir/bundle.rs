@@ -11,8 +11,6 @@ pub(crate) enum ProducerBundle {
 pub(crate) enum ReceiverBundle {
     CurCircuitOutput(ty::TypeSym),
     GateInput(ty::TypeSym, GateIdx),
-    // Get(Box<ReceiverBundle>, &'file str), TODO: is this needed?
-    // Product(Vec<(String, ReceiverBundle)>),
 }
 
 impl ProducerBundle {

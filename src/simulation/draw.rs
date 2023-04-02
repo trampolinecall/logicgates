@@ -4,8 +4,6 @@ use nannou::prelude::*;
 
 use crate::simulation::{logic, CircuitKey, CircuitMap, GateKey, GateMap};
 
-// TODO: consider whether to merge draw and location components
-
 const CIRCLE_RAD: f32 = 5.0;
 const CONNECTION_RAD: f32 = CIRCLE_RAD / 2.0;
 const VERTICAL_VALUE_SPACING: f32 = 20.0;

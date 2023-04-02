@@ -76,7 +76,7 @@ impl Type {
         use std::fmt::Write;
         let mut s = String::new();
         match self {
-            Type::Bit => write!(s, "struct bit").unwrap(),
+            Type::Bit => write!(s, "-bit").unwrap(),
             Type::Product(items) => {
                 if items.is_empty() {
                     write!(s, "[]").unwrap();
