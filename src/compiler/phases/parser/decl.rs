@@ -169,5 +169,5 @@ mod test {
         );
     }
 
-    // TODO: test struct ype decl
+    // TODO: test struct type decl
 }
