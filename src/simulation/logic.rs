@@ -11,7 +11,7 @@ pub(crate) struct NodeLogic {
 pub(crate) struct GateLogic(GateLogicKind);
 enum GateLogicKind {
     Nand([NodeKey; 2], [NodeKey; 1]),
-    Const([NodeKey; 0], [NodeKey; 1]),
+    Const([NodeKey; 0], [NodeKey; 1], &'static str),
     Custom(CircuitKey),
 }
 
@@ -29,7 +29,7 @@ impl GateLogic {
         GateLogic(GateLogicKind::Nand([nodes.insert(Node { value: NodeLogic::new(false) }), nodes.insert(Node { value: NodeLogic::new(false) })], [nodes.insert(Node { value: NodeLogic::new(true) })]))
     }
     pub(crate) fn new_const(nodes: &mut NodeMap, value: bool) -> GateLogic {
-        GateLogic(GateLogicKind::Const([], [nodes.insert(Node { value: NodeLogic::new(value) })]))
+        GateLogic(GateLogicKind::Const([], [nodes.insert(Node { value: NodeLogic::new(value) })], if value { "true" } else { "false" }))
     }
     pub(crate) fn new_subcircuit(_: &mut NodeMap, subcircuit: CircuitKey) -> GateLogic {
         GateLogic(GateLogicKind::Custom(subcircuit))
@@ -38,7 +38,7 @@ impl GateLogic {
     pub(crate) fn name<'c>(&self, circuits: &'c CircuitMap) -> &'c str {
         match self.0 {
             GateLogicKind::Nand(_, _) => "nand",
-            GateLogicKind::Const(_, _) => "const", // TODO: change name to "true" or "false"
+            GateLogicKind::Const(_, _, name) => name,
             GateLogicKind::Custom(ck) => &circuits[ck].name,
         }
     }
@@ -62,13 +62,13 @@ impl NodeLogic {
 pub(crate) fn gate_inputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r [NodeKey] {
     match &gates[gate].logic.0 {
         GateLogicKind::Nand(i, _) => i,
-        GateLogicKind::Const(i, _) => i,
+        GateLogicKind::Const(i, _, _) => i,
         GateLogicKind::Custom(circuit_idx) => &circuits[*circuit_idx].inputs,
     }
 }
 pub(crate) fn gate_outputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r [NodeKey] {
     match &gates[gate].logic.0 {
-        GateLogicKind::Nand(_, o) | GateLogicKind::Const(_, o) => o,
+        GateLogicKind::Nand(_, o) | GateLogicKind::Const(_, o, _) => o,
         GateLogicKind::Custom(circuit_idx) => &circuits[*circuit_idx].outputs,
     }
 }
@@ -125,7 +125,7 @@ pub(crate) fn update(gates: &mut GateMap, nodes: &mut NodeMap) {
             .filter_map(|(_, gate)| {
                 match &gate.logic.0 {
                     GateLogicKind::Nand([a, b], [o]) => Some((*o, Value::Manual(!(get_node_value(nodes, *a) && get_node_value(nodes, *b))))),
-                    GateLogicKind::Const(_, _) => None, // const nodes do not need to update becuase they always output the value they were created with
+                    GateLogicKind::Const(_, _, _) => None, // const nodes do not need to update becuase they always output the value they were created with
                     GateLogicKind::Custom(_) => None, // custom gates do not have to compute values because their nodes are connected to their inputs or are passthrough nodes and should automatically have the right values
                 }
             })
