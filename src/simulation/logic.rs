@@ -26,10 +26,13 @@ enum Value {
 impl GateLogic {
     // default value for the outputs is whatever value results from having all false inputs
     pub(crate) fn new_nand(nodes: &mut NodeMap) -> GateLogic {
-        GateLogic(GateLogicKind::Nand([nodes.insert(Node { value: NodeLogic::new(false) }), nodes.insert(Node { value: NodeLogic::new(false) })], [nodes.insert(Node { value: NodeLogic::new(true) })]))
+        GateLogic(GateLogicKind::Nand(
+            [nodes.insert(Node { value: { NodeLogic { value: Value::Manual(false) } } }), nodes.insert(Node { value: { NodeLogic { value: Value::Manual(false) } } })],
+            [nodes.insert(Node { value: { NodeLogic { value: Value::Manual(true) } } })],
+        ))
     }
     pub(crate) fn new_const(nodes: &mut NodeMap, value: bool) -> GateLogic {
-        GateLogic(GateLogicKind::Const([], [nodes.insert(Node { value: NodeLogic::new(value) })], if value { "true" } else { "false" }))
+        GateLogic(GateLogicKind::Const([], [nodes.insert(Node { value: { NodeLogic { value: Value::Manual(value) } } })], if value { "true" } else { "false" }))
     }
     pub(crate) fn new_subcircuit(_: &mut NodeMap, subcircuit: CircuitKey) -> GateLogic {
         GateLogic(GateLogicKind::Custom(subcircuit))
@@ -45,8 +48,8 @@ impl GateLogic {
 }
 
 impl NodeLogic {
-    pub(crate) fn new(value: bool) -> Self {
-        Self { value: Value::Manual(value) }
+    pub(crate) fn new() -> Self {
+        Self { value: Value::Manual(false) } // TODO: reconsider whether this default is actually correct
     }
 
     pub(crate) fn producer(&self) -> Option<NodeKey> {
