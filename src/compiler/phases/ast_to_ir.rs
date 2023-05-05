@@ -23,7 +23,7 @@ impl<'file> From<(&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, Typ
         let expected_type = types.get(expected_type).fmt(types);
         let got_type = types.get(got_type).fmt(types);
         CompileError::new_with_note(expected_span, format!("type mismatch: expected {}, got {}", expected_type, got_type), format!("expected {}", expected_type))
-        .note(got_span, format!("got {}", got_type))
+            .note(got_span, format!("got {}", got_type))
     }
 }
 
