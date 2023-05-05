@@ -83,7 +83,7 @@ impl Gate {
     }
 
     // default value for the outputs is whatever value results from having all false inputs
-    pub(crate) fn new_nand(nodes: &mut NodeMap, index: GateKey) -> Gate {
+    pub(crate) fn new_nand(nodes: &mut NodeMap) -> Gate {
         Gate {
             kind: GateKind::Nand(
                 [nodes.insert(Node { value: logic::NodeValue::new(false) }), nodes.insert(Node { value: logic::NodeValue::new(false) })],
@@ -92,31 +92,31 @@ impl Gate {
             location: location::GateLocation::new(),
         }
     }
-    pub(crate) fn new_const(nodes: &mut NodeMap, index: GateKey, value: bool) -> Gate {
+    pub(crate) fn new_const(nodes: &mut NodeMap, value: bool) -> Gate {
         Gate { kind: GateKind::Const([], [nodes.insert(Node { value: logic::NodeValue::new(value) })]), location: location::GateLocation::new() }
     }
-    pub(crate) fn new_subcircuit(nodes: &mut NodeMap, subcircuit: CircuitKey) -> Gate {
+    pub(crate) fn new_subcircuit(_: &mut NodeMap, subcircuit: CircuitKey) -> Gate {
         Gate { kind: GateKind::Custom(subcircuit), location: location::GateLocation::new() }
     }
 }
 
-pub(crate) fn gate_inputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, nodes: &NodeMap, gate: GateKey) -> &'r [NodeKey] {
+pub(crate) fn gate_inputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r [NodeKey] {
     match &gates[gate].kind {
         GateKind::Nand(i, _) => i,
         GateKind::Const(i, _) => i,
         GateKind::Custom(circuit_idx) => &circuits[*circuit_idx].inputs,
     }
 }
-pub(crate) fn gate_outputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, nodes: &NodeMap, gate: GateKey) -> &'r [NodeKey] {
+pub(crate) fn gate_outputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r [NodeKey] {
     match &gates[gate].kind {
         GateKind::Nand(_, o) | GateKind::Const(_, o) => o,
         GateKind::Custom(circuit_idx) => &circuits[*circuit_idx].outputs,
     }
 }
 
-pub(crate) fn gate_num_inputs(circuits: &CircuitMap, gates: &GateMap, nodes: &NodeMap, gate: GateKey) -> usize {
-    gate_inputs(circuits, gates, nodes, gate).len()
+pub(crate) fn gate_num_inputs(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> usize {
+    gate_inputs(circuits, gates, gate).len()
 }
-pub(crate) fn gate_num_outputs(circuits: &CircuitMap, gates: &GateMap, nodes: &NodeMap, gate: GateKey) -> usize {
-    gate_outputs(circuits, gates, nodes, gate).len()
+pub(crate) fn gate_num_outputs(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> usize {
+    gate_outputs(circuits, gates, gate).len()
 }

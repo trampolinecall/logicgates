@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use crate::simulation::{self, draw, logic, CircuitMap, GateMap, NodeKey, Simulation};
+use crate::simulation::{self, draw, GateMap, NodeKey, Simulation};
 
 pub(crate) struct GateLocation {
     pub(crate) x: u32,
@@ -100,7 +100,7 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<simulation::GateKey,
              */
             None => 0, // receiver node not connected
         };
-        xs.insert(gate_i, simulation::gate_inputs(&simulation.circuits, &simulation.gates, &simulation.nodes, gate_i).iter().copied().map(input_producer_x).max().unwrap_or(0) + 1);
+        xs.insert(gate_i, simulation::gate_inputs(&simulation.circuits, &simulation.gates, gate_i).iter().copied().map(input_producer_x).max().unwrap_or(0) + 1);
     }
 
     // within each column sort them by the average of their input ys
@@ -116,8 +116,8 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<simulation::GateKey,
         };
         let mut on_current_column: Vec<_> = simulation.gates.iter().filter(|(gate_i, _)| xs[gate_i] == x).collect();
         on_current_column.sort_by(|(gate1_i, _), (gate2_i, _)| {
-            let gate1_y = simulation::gate_inputs(&simulation.circuits, &simulation.gates, &simulation.nodes, *gate1_i).iter().copied().map(input_producer_y).sum::<f32>(); // sum can be used as average because they are only being compared to each other
-            let gate2_y = simulation::gate_inputs(&simulation.circuits, &simulation.gates, &simulation.nodes, *gate2_i).iter().copied().map(input_producer_y).sum::<f32>();
+            let gate1_y = simulation::gate_inputs(&simulation.circuits, &simulation.gates, *gate1_i).iter().copied().map(input_producer_y).sum::<f32>(); // sum can be used as average because they are only being compared to each other
+            let gate2_y = simulation::gate_inputs(&simulation.circuits, &simulation.gates, *gate2_i).iter().copied().map(input_producer_y).sum::<f32>();
             gate1_y.partial_cmp(&gate2_y).unwrap()
         });
 
