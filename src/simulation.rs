@@ -42,8 +42,8 @@ impl Circuit {
         Circuit {
             name,
             gates: Vec::new(),
-            inputs: std::iter::repeat_with(|| nodes.insert(Node { value: logic::NodeLogic::new(false) })).take(num_inputs).collect(),
-            outputs: std::iter::repeat_with(|| nodes.insert(Node { value: logic::NodeLogic::new(false) })).take(num_outputs).collect(),
+            inputs: std::iter::repeat_with(|| nodes.insert(Node { value: logic::NodeLogic::new() })).take(num_inputs).collect(),
+            outputs: std::iter::repeat_with(|| nodes.insert(Node { value: logic::NodeLogic::new() })).take(num_outputs).collect(),
         }
     }
 
