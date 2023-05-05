@@ -17,7 +17,7 @@ enum Value {
 
 impl NodeValue {
     pub(crate) fn new(value: bool) -> Self {
-        Self { /* gate, */ value: Value::Manual(value) }
+        Self { value: Value::Manual(value) }
     }
 
     pub(crate) fn producer(&self) -> Option<NodeKey> {
@@ -68,10 +68,9 @@ pub(crate) fn set_input(circuits: &mut CircuitMap, nodes: &mut NodeMap, circuit:
 }
 // update {{{1
 pub(crate) fn update(circuits: &mut CircuitMap, gates: &mut GateMap, nodes: &mut NodeMap) {
-    use std::collections::HashMap;
     for _ in 0..SUBTICKS_PER_UPDATE {
         // all gates calculate their values based on the values of the nodes in the previous subtick and then all updates get applied all at once
-        let node_values: HashMap<NodeKey, Value> = gates
+        let node_values: Vec<(NodeKey, Value)> = gates
             .iter()
             .filter_map(|(_, gate)| {
                 match &gate.kind {
