@@ -92,7 +92,7 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
     let mut xs: BTreeMap<GateKey, u32> = simulation.gates.iter().map(|(g_i, _)| (g_i, 0)).collect();
     // TODO: this has to run repeatedly in case the gates are not in topologically sorted order
     for (gate_i, _) in simulation.gates.iter() {
-        let input_producer_x = |input: NodeKey| match simulation.nodes[input.into()].value.producer() {
+        let input_producer_x = |input: NodeKey| match simulation.nodes[input].value.producer() {
             Some(producer) => 0, /* TODO: match simulation.nodes[producer].gate {
             Some(producer_gate) => xs[&producer_gate], // receiver node connected to other gate output node
             None => 0,                                 // receiver node connected to circuit input node
@@ -106,7 +106,7 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
     // within each column sort them by the average of their input ys
     let mut ys: BTreeMap<GateKey, f32> = simulation.gates.iter().map(|(index, _)| (index, 0.0)).collect();
     for x in 1..=*xs.values().max().unwrap_or(&0) {
-        let input_producer_y = |input: NodeKey| match simulation.nodes[input.into()].value.producer() {
+        let input_producer_y = |input: NodeKey| match simulation.nodes[input].value.producer() {
             Some(producer) => 0.0, /* TODO: match simulation.nodes[producer].value.gate {
             Some(producer_gate) => ys[&producer_gate], // receiver node connected to other node
             None => 0.0,                               // receiver node connected to circuit input node
