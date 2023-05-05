@@ -15,31 +15,6 @@ enum Value {
 
 // TODO: properly deal with removing gates so that it doesnt panic when gates are removed
 
-/*
-impl Calculation {
-    // default value for the outputs is whatever value results from having all false inputs
-    pub(crate) fn new_nand(index: GateKey) -> Calculation {
-        Calculation { kind: CalculationKind::Nand([Node::new(Some(index), false), Node::new(Some(index), false)], [Node::new(Some(index), true)]) }
-    }
-    pub(crate) fn new_const(index: GateKey, value: bool) -> Calculation {
-        Calculation { kind: CalculationKind::Const([], [Node::new(Some(index), value)]) }
-    }
-    pub(crate) fn new_subcircuit(subcircuit: CircuitKey) -> Calculation {
-        Calculation { kind: CalculationKind::Custom(subcircuit) }
-    }
-
-    pub(crate) fn name<'a>(&self, circuits: &'a CircuitMap) -> &'a str {
-        match self.kind {
-            CalculationKind::Nand(_, _) => "nand",
-            CalculationKind::Const(_, [Node { value: Value::Manual(false), .. }]) => "false",
-            CalculationKind::Const(_, [Node { value: Value::Manual(true), .. }]) => "true",
-            CalculationKind::Const(_, [Node { value: Value::Passthrough(_), .. }]) => unreachable!("const node with passthrough value"),
-            CalculationKind::Custom(subcircuit) => &circuits[subcircuit].name,
-        }
-    }
-}
-*/
-
 impl NodeValue {
     pub(crate) fn new(value: bool) -> Self {
         Self { /* gate, */ value: Value::Manual(value) }

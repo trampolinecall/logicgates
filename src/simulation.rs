@@ -35,7 +35,7 @@ pub(crate) struct Gate {
     pub(crate) location: location::GateLocation,
 }
 
-pub(crate) enum GateKind {
+enum GateKind {
     Nand([NodeKey; 2], [NodeKey; 1]),
     Const([NodeKey; 0], [NodeKey; 1]),
     Custom(CircuitKey),
