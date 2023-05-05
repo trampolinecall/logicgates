@@ -54,7 +54,7 @@ fn event(_: &App, simulation: &mut simulation::Simulation, event: Event) {
             _ => None,
         } {
             if index < simulation.circuits[simulation.main_circuit].num_inputs() {
-                simulation::logic::toggle_input(&mut simulation.circuits, &mut simulation.gates, simulation.main_circuit, index);
+                simulation::logic::toggle_input(&mut simulation.circuits, &mut simulation.gates, &mut simulation.nodes, simulation.main_circuit, index);
             }
         }
     }
@@ -65,11 +65,11 @@ fn model(_: &App) -> simulation::Simulation {
 }
 
 fn update(_: &App, simulation: &mut simulation::Simulation, _: Update) {
-    simulation::logic::update(&mut simulation.circuits, &mut simulation.gates);
+    simulation::logic::update(&mut simulation.circuits, &mut simulation.gates, &mut simulation.nodes);
 }
 
 fn view(app: &App, simulation: &simulation::Simulation, frame: Frame) {
     let draw = app.draw();
-    simulation::draw::render(app, &draw, &simulation.circuits, &simulation.gates, simulation.main_circuit);
+    simulation::draw::render(app, &draw, &simulation, simulation.main_circuit);
     draw.to_frame(app, &frame).unwrap();
 }
