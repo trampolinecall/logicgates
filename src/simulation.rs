@@ -47,7 +47,6 @@ impl Circuit {
         }
     }
 
-    // TODO: where is this used?
     pub(crate) fn num_inputs(&self) -> usize {
         self.inputs.len()
     }
