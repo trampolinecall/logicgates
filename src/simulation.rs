@@ -72,4 +72,3 @@ impl Circuit {
         self.outputs.as_ref()
     }
 }
-

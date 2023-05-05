@@ -31,8 +31,7 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
     // dont go through circuit inputs (the ones on the left edge of the screen) because those should not be drawn connected to anything
     // dont go through gate output indexes (the ones on the right edge of gates) because those are usually conteccted to some internal gates not part of the main circuit
     let circuit_outputs = main_circuit.outputs.iter().enumerate().map(|(i, k)| (NodePos::CO(simulation.main_circuit, i), *k));
-    let gate_inputs =
-        main_circuit.gates.iter().flat_map(|gk| logic::gate_inputs(&simulation.circuits, &simulation.gates, *gk).iter().enumerate().map(|(i, k)| (NodePos::GI(*gk, i), *k)));
+    let gate_inputs = main_circuit.gates.iter().flat_map(|gk| logic::gate_inputs(&simulation.circuits, &simulation.gates, *gk).iter().enumerate().map(|(i, k)| (NodePos::GI(*gk, i), *k)));
     for (pos, node_idx) in circuit_outputs.chain(gate_inputs) {
         if let Some(producer) = simulation.nodes[node_idx].value.producer() {
             let color = node_color(simulation, node_idx);
@@ -52,10 +51,8 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
     // draw nodes
     let circuit_inputs = main_circuit.inputs.iter().enumerate().map(|(i, k)| (NodePos::CI(simulation.main_circuit, i), *k));
     let circuit_outputs = main_circuit.outputs.iter().enumerate().map(|(i, k)| (NodePos::CO(simulation.main_circuit, i), *k));
-    let gate_inputs =
-        main_circuit.gates.iter().flat_map(|gk| logic::gate_inputs(&simulation.circuits, &simulation.gates, *gk).iter().enumerate().map(|(i, k)| (NodePos::GI(*gk, i), *k)));
-    let gate_outputs =
-        main_circuit.gates.iter().flat_map(|gk| logic::gate_outputs(&simulation.circuits, &simulation.gates, *gk).iter().enumerate().map(|(i, k)| (NodePos::GO(*gk, i), *k)));
+    let gate_inputs = main_circuit.gates.iter().flat_map(|gk| logic::gate_inputs(&simulation.circuits, &simulation.gates, *gk).iter().enumerate().map(|(i, k)| (NodePos::GI(*gk, i), *k)));
+    let gate_outputs = main_circuit.gates.iter().flat_map(|gk| logic::gate_outputs(&simulation.circuits, &simulation.gates, *gk).iter().enumerate().map(|(i, k)| (NodePos::GO(*gk, i), *k)));
     for (pos, node_idx) in circuit_inputs.chain(circuit_outputs).chain(gate_inputs).chain(gate_outputs) {
         let pos = node_pos(window_rect, simulation, pos);
         let color = node_color(simulation, node_idx);
@@ -74,10 +71,7 @@ pub(crate) fn gate_display_size(simulation: &Simulation, gate: GateKey) -> Vec2 
     const EXTRA_VERTICAL_HEIGHT: f32 = 40.0;
     const GATE_WIDTH: f32 = 50.0;
 
-    let gate_height = (std::cmp::max(
-        logic::gate_num_inputs(&simulation.circuits, &simulation.gates, gate),
-        logic::gate_num_outputs(&simulation.circuits, &simulation.gates, gate),
-    ) - 1) as f32
+    let gate_height = (std::cmp::max(logic::gate_num_inputs(&simulation.circuits, &simulation.gates, gate), logic::gate_num_outputs(&simulation.circuits, &simulation.gates, gate)) - 1) as f32
         * VERTICAL_VALUE_SPACING
         + EXTRA_VERTICAL_HEIGHT;
     pt2(GATE_WIDTH, gate_height)
