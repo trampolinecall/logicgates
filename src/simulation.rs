@@ -22,23 +22,17 @@ pub(crate) struct Simulation {
 pub(crate) struct Circuit {
     pub(crate) name: String,
     pub(crate) gates: Vec<GateKey>,
-    pub(crate) inputs: Vec<NodeKey>,
-    pub(crate) outputs: Vec<NodeKey>,
+    inputs: Vec<NodeKey>,
+    outputs: Vec<NodeKey>,
 }
 
 pub(crate) struct Node {
-    pub(crate) value: logic::NodeValue,
+    pub(crate) value: logic::NodeLogic,
 }
 
 pub(crate) struct Gate {
-    kind: GateKind,
+    pub(crate) logic: logic::GateLogic,
     pub(crate) location: location::GateLocation,
-}
-
-enum GateKind {
-    Nand([NodeKey; 2], [NodeKey; 1]),
-    Const([NodeKey; 0], [NodeKey; 1]),
-    Custom(CircuitKey),
 }
 
 impl Circuit {
@@ -48,13 +42,11 @@ impl Circuit {
         Circuit {
             name,
             gates: Vec::new(),
-            inputs: std::iter::repeat_with(|| nodes.insert(Node { value: logic::NodeValue::new(false) })).take(num_inputs).collect(),
-            outputs: std::iter::repeat_with(|| nodes.insert(Node { value: logic::NodeValue::new(false) })).take(num_outputs).collect(),
+            inputs: std::iter::repeat_with(|| nodes.insert(Node { value: logic::NodeLogic::new(false) })).take(num_inputs).collect(),
+            outputs: std::iter::repeat_with(|| nodes.insert(Node { value: logic::NodeLogic::new(false) })).take(num_outputs).collect(),
         }
     }
-}
 
-impl Circuit {
     // TODO: where is this used?
     pub(crate) fn num_inputs(&self) -> usize {
         self.inputs.len()
@@ -71,52 +63,13 @@ impl Circuit {
         self.outputs.resize(num, connections::Node::new_disconnected(None));
     }
     */
-}
 
-impl Gate {
-    fn name<'c>(&self, circuits: &'c CircuitMap) -> &'c str {
-        match self.kind {
-            GateKind::Nand(_, _) => "nand",
-            GateKind::Const(_, _) => "const", // TODO: change name to "true" or "false"
-            GateKind::Custom(ck) => &circuits[ck].name,
-        }
+    pub(crate) fn inputs(&self) -> &[NodeKey] {
+        self.inputs.as_ref()
     }
 
-    // default value for the outputs is whatever value results from having all false inputs
-    pub(crate) fn new_nand(nodes: &mut NodeMap) -> Gate {
-        Gate {
-            kind: GateKind::Nand(
-                [nodes.insert(Node { value: logic::NodeValue::new(false) }), nodes.insert(Node { value: logic::NodeValue::new(false) })],
-                [nodes.insert(Node { value: logic::NodeValue::new(true) })],
-            ),
-            location: location::GateLocation::new(),
-        }
-    }
-    pub(crate) fn new_const(nodes: &mut NodeMap, value: bool) -> Gate {
-        Gate { kind: GateKind::Const([], [nodes.insert(Node { value: logic::NodeValue::new(value) })]), location: location::GateLocation::new() }
-    }
-    pub(crate) fn new_subcircuit(_: &mut NodeMap, subcircuit: CircuitKey) -> Gate {
-        Gate { kind: GateKind::Custom(subcircuit), location: location::GateLocation::new() }
+    pub(crate) fn outputs(&self) -> &[NodeKey] {
+        self.outputs.as_ref()
     }
 }
 
-pub(crate) fn gate_inputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r [NodeKey] {
-    match &gates[gate].kind {
-        GateKind::Nand(i, _) => i,
-        GateKind::Const(i, _) => i,
-        GateKind::Custom(circuit_idx) => &circuits[*circuit_idx].inputs,
-    }
-}
-pub(crate) fn gate_outputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r [NodeKey] {
-    match &gates[gate].kind {
-        GateKind::Nand(_, o) | GateKind::Const(_, o) => o,
-        GateKind::Custom(circuit_idx) => &circuits[*circuit_idx].outputs,
-    }
-}
-
-pub(crate) fn gate_num_inputs(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> usize {
-    gate_inputs(circuits, gates, gate).len()
-}
-pub(crate) fn gate_num_outputs(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> usize {
-    gate_outputs(circuits, gates, gate).len()
-}

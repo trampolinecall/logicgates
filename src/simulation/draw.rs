@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use nannou::prelude::*;
 
-use crate::simulation::{self, logic, CircuitKey, GateKey, NodeKey, Simulation};
+use crate::simulation::{logic, CircuitKey, GateKey, NodeKey, Simulation};
 
 const CIRCLE_RAD: f32 = 5.0;
 const CONNECTION_RAD: f32 = CIRCLE_RAD / 2.0;
@@ -32,7 +32,7 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
     // dont go through gate output indexes (the ones on the right edge of gates) because those are usually conteccted to some internal gates not part of the main circuit
     let circuit_outputs = main_circuit.outputs.iter().enumerate().map(|(i, k)| (NodePos::CO(simulation.main_circuit, i), *k));
     let gate_inputs =
-        main_circuit.gates.iter().flat_map(|gk| simulation::gate_inputs(&simulation.circuits, &simulation.gates, *gk).iter().enumerate().map(|(i, k)| (NodePos::GI(*gk, i), *k)));
+        main_circuit.gates.iter().flat_map(|gk| logic::gate_inputs(&simulation.circuits, &simulation.gates, *gk).iter().enumerate().map(|(i, k)| (NodePos::GI(*gk, i), *k)));
     for (pos, node_idx) in circuit_outputs.chain(gate_inputs) {
         if let Some(producer) = simulation.nodes[node_idx].value.producer() {
             let color = node_color(simulation, node_idx);
@@ -46,16 +46,16 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
     for gate_i in &main_circuit.gates {
         let rect = gate_rect(window_rect, simulation, *gate_i);
         draw.rect().color(GATE_COLOR).xy(rect.xy()).wh(rect.wh());
-        draw.text(simulation.gates[*gate_i].name(&simulation.circuits)).xy(rect.xy()).wh(rect.wh()).center_justify().align_text_middle_y();
+        draw.text(simulation.gates[*gate_i].logic.name(&simulation.circuits)).xy(rect.xy()).wh(rect.wh()).center_justify().align_text_middle_y();
     }
 
     // draw nodes
     let circuit_inputs = main_circuit.inputs.iter().enumerate().map(|(i, k)| (NodePos::CI(simulation.main_circuit, i), *k));
     let circuit_outputs = main_circuit.outputs.iter().enumerate().map(|(i, k)| (NodePos::CO(simulation.main_circuit, i), *k));
     let gate_inputs =
-        main_circuit.gates.iter().flat_map(|gk| simulation::gate_inputs(&simulation.circuits, &simulation.gates, *gk).iter().enumerate().map(|(i, k)| (NodePos::GI(*gk, i), *k)));
+        main_circuit.gates.iter().flat_map(|gk| logic::gate_inputs(&simulation.circuits, &simulation.gates, *gk).iter().enumerate().map(|(i, k)| (NodePos::GI(*gk, i), *k)));
     let gate_outputs =
-        main_circuit.gates.iter().flat_map(|gk| simulation::gate_outputs(&simulation.circuits, &simulation.gates, *gk).iter().enumerate().map(|(i, k)| (NodePos::GO(*gk, i), *k)));
+        main_circuit.gates.iter().flat_map(|gk| logic::gate_outputs(&simulation.circuits, &simulation.gates, *gk).iter().enumerate().map(|(i, k)| (NodePos::GO(*gk, i), *k)));
     for (pos, node_idx) in circuit_inputs.chain(circuit_outputs).chain(gate_inputs).chain(gate_outputs) {
         let pos = node_pos(window_rect, simulation, pos);
         let color = node_color(simulation, node_idx);
@@ -75,8 +75,8 @@ pub(crate) fn gate_display_size(simulation: &Simulation, gate: GateKey) -> Vec2 
     const GATE_WIDTH: f32 = 50.0;
 
     let gate_height = (std::cmp::max(
-        simulation::gate_num_inputs(&simulation.circuits, &simulation.gates, gate),
-        simulation::gate_num_outputs(&simulation.circuits, &simulation.gates, gate),
+        logic::gate_num_inputs(&simulation.circuits, &simulation.gates, gate),
+        logic::gate_num_outputs(&simulation.circuits, &simulation.gates, gate),
     ) - 1) as f32
         * VERTICAL_VALUE_SPACING
         + EXTRA_VERTICAL_HEIGHT;
@@ -100,11 +100,11 @@ fn circuit_output_pos(window_rect: Rect, simulation: &Simulation, circuit: Circu
 
 fn gate_input_pos(window_rect: Rect, simulation: &Simulation, gate: GateKey, idx: usize) -> Vec2 {
     let rect = gate_rect(window_rect, simulation, gate);
-    pt2(rect.left(), y_centered_around(rect.y(), simulation::gate_num_inputs(&simulation.circuits, &simulation.gates, gate), idx))
+    pt2(rect.left(), y_centered_around(rect.y(), logic::gate_num_inputs(&simulation.circuits, &simulation.gates, gate), idx))
 }
 fn gate_output_pos(window_rect: Rect, simulation: &Simulation, gate: GateKey, idx: usize) -> Vec2 {
     let rect = gate_rect(window_rect, simulation, gate);
-    pt2(rect.right(), y_centered_around(rect.y(), simulation::gate_num_outputs(&simulation.circuits, &simulation.gates, gate), idx))
+    pt2(rect.right(), y_centered_around(rect.y(), logic::gate_num_outputs(&simulation.circuits, &simulation.gates, gate), idx))
 }
 
 fn node_pos(window_rect: Rect, simulation: &Simulation, node: NodePos) -> Vec2 {
