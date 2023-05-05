@@ -117,7 +117,7 @@ fn node_pos(window_rect: Rect, simulation: &Simulation, node: NodePos) -> Vec2 {
 }
 
 fn node_color(simulation: &Simulation, node: NodeKey) -> Rgb {
-    if logic::get_node_value(&simulation.circuits, &simulation.gates, &simulation.nodes, node) {
+    if logic::get_node_value(&simulation.nodes, node) {
         ON_COLOR
     } else {
         OFF_COLOR
