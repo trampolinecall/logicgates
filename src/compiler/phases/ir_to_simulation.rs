@@ -6,7 +6,7 @@ use crate::{
         error::{CompileError, File, Report},
         phases::ast_to_ir,
     },
-    simulation::{self, location, logic},
+    simulation::{self, logic},
     utils::arena,
 };
 
@@ -67,9 +67,8 @@ fn convert_circuit<'file, 'circuit>(
 
     expansion_stack.push(circuit);
 
-    let new_circuit_idx = circuit_map.insert_with_key(|idx| {
-        simulation::Circuit::new(node_map, circuit.name.into(), type_context.get(circuit.input_type).size(type_context), type_context.get(circuit.output_type).size(type_context))
-    });
+    let new_circuit_idx =
+        circuit_map.insert(simulation::Circuit::new(node_map, circuit.name.into(), type_context.get(circuit.input_type).size(type_context), type_context.get(circuit.output_type).size(type_context)));
     let mut gate_index_map = HashMap::new();
 
     for (old_gate_i, gate) in circuit.gates.iter_with_ids() {
@@ -102,10 +101,10 @@ fn add_gate<'file, 'circuit>(
         ir::CircuitOrIntrinsic::Custom(subcircuit) => {
             let (expansion_stack, subcircuit_idx) = convert_circuit(circuit_map, gate_map, node_map, circuits, type_context, expansion_stack, subcircuit)?;
             // TODO: implement inlining
-            (expansion_stack, gate_map.insert_with_key(|_| simulation::Gate::new_subcircuit(node_map, subcircuit_idx)))
+            (expansion_stack, gate_map.insert(simulation::Gate::new_subcircuit(node_map, subcircuit_idx)))
         }
-        ir::CircuitOrIntrinsic::Nand => (expansion_stack, gate_map.insert_with_key(|index| simulation::Gate::new_nand(node_map, index))),
-        ir::CircuitOrIntrinsic::Const(value) => (expansion_stack, gate_map.insert_with_key(|index| simulation::Gate::new_const(node_map, index, *value))),
+        ir::CircuitOrIntrinsic::Nand => (expansion_stack, gate_map.insert(simulation::Gate::new_nand(node_map))),
+        ir::CircuitOrIntrinsic::Const(value) => (expansion_stack, gate_map.insert(simulation::Gate::new_const(node_map, *value))),
     };
 
     circuit_map[new_circuit_idx].gates.push(gate_idx);
@@ -128,7 +127,7 @@ fn connect(
     assert_eq!(producer_nodes.len(), receiver_nodes.len(), "connecting producer and receiver that have different size");
 
     for (p, r) in producer_nodes.into_iter().zip(receiver_nodes) {
-        logic::connect(circuits, gates, nodes, p, r);
+        logic::connect(nodes, p, r);
     }
 }
 
@@ -144,7 +143,7 @@ fn convert_producer_bundle(
     match producer {
         // TODO: figure out a better solution than to collect
         ir::bundle::ProducerBundle::CurCircuitInput(_) => circuits[new_circuit].inputs.clone(),
-        ir::bundle::ProducerBundle::GateOutput(_, old_gate_index) => simulation::gate_outputs(circuits, gates, nodes, gate_index_map[old_gate_index]).to_owned(),
+        ir::bundle::ProducerBundle::GateOutput(_, old_gate_index) => simulation::gate_outputs(circuits, gates, gate_index_map[old_gate_index]).to_owned(),
         ir::bundle::ProducerBundle::Get(b, field) => {
             fn field_indexes(type_context: &ty::TypeContext<nominal_type::FullyDefinedStruct>, fields: &[(&str, ty::TypeSym)], field: &str) -> Option<std::ops::Range<usize>> {
                 let mut cur_index = 0;
@@ -173,7 +172,7 @@ fn convert_producer_bundle(
 fn convert_receiver_bundle<'a>(
     circuits: &'a simulation::CircuitMap, // keep arguments for symmetry with convert_producer_bundle
     gates: &'a simulation::GateMap,
-    nodes: &simulation::NodeMap,
+    _: &simulation::NodeMap,
     _: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     new_circuit: simulation::CircuitKey,
     gate_index_map: &HashMap<ir::GateIdx, simulation::GateKey>,
@@ -181,6 +180,6 @@ fn convert_receiver_bundle<'a>(
 ) -> &'a [simulation::NodeKey] {
     match receiver {
         ir::bundle::ReceiverBundle::CurCircuitOutput(_) => &circuits[new_circuit].outputs,
-        ir::bundle::ReceiverBundle::GateInput(_, old_gate_index) => simulation::gate_inputs(circuits, gates, nodes, gate_index_map[old_gate_index]),
+        ir::bundle::ReceiverBundle::GateInput(_, old_gate_index) => simulation::gate_inputs(circuits, gates, gate_index_map[old_gate_index]),
     }
 }
