@@ -40,7 +40,7 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
         let location = gate.location(&simulation.circuits);
         let num_inputs = simulation::gate_num_inputs(&simulation.circuits, &simulation.gates, gate_k);
         let num_outputs = simulation::gate_num_outputs(&simulation.circuits, &simulation.gates, gate_k);
-        let rect = gate_rect(window_rect, simulation, location, num_inputs, num_outputs);
+        let rect = gate_rect(window_rect, location, num_inputs, num_outputs);
         draw.rect().color(GATE_COLOR).xy(rect.xy()).wh(rect.wh());
         draw.text(simulation.gates[gate_k].name(&simulation.circuits)).xy(rect.xy()).wh(rect.wh()).center_justify().align_text_middle_y();
     }
@@ -57,7 +57,7 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
     }
 }
 
-fn gate_rect(window_rect: Rect, simulation: &Simulation, gate_location: &location::GateLocation, num_inputs: usize, num_outputs: usize) -> Rect {
+fn gate_rect(window_rect: Rect, gate_location: &location::GateLocation, num_inputs: usize, num_outputs: usize) -> Rect {
     // TODO: gate_location should eventually be the center
     let (x, y) = (gate_location.x, gate_location.y);
     let wh = gate_display_size(num_inputs, num_outputs);
@@ -87,12 +87,12 @@ fn circuit_output_pos(window_rect: Rect, simulation: &Simulation, circuit: Circu
     pt2(window_rect.x.end, y_centered_around(0.0, circuit.outputs.len(), index))
 }
 
-fn gate_input_pos(window_rect: Rect, simulation: &Simulation, gate_location: &location::GateLocation, num_inputs: usize, num_outputs: usize, idx: usize) -> Vec2 {
-    let rect = gate_rect(window_rect, simulation, gate_location, num_inputs, num_outputs);
+fn gate_input_pos(window_rect: Rect, gate_location: &location::GateLocation, num_inputs: usize, num_outputs: usize, idx: usize) -> Vec2 {
+    let rect = gate_rect(window_rect, gate_location, num_inputs, num_outputs);
     pt2(rect.left(), y_centered_around(rect.y(), num_inputs, idx))
 }
-fn gate_output_pos(window_rect: Rect, simulation: &Simulation, gate_location: &location::GateLocation, num_inputs: usize, num_outputs: usize, idx: usize) -> Vec2 {
-    let rect = gate_rect(window_rect, simulation, gate_location, num_inputs, num_outputs);
+fn gate_output_pos(window_rect: Rect, gate_location: &location::GateLocation, num_inputs: usize, num_outputs: usize, idx: usize) -> Vec2 {
+    let rect = gate_rect(window_rect, gate_location, num_inputs, num_outputs);
     pt2(rect.right(), y_centered_around(rect.y(), num_outputs, idx))
 }
 
@@ -106,28 +106,28 @@ fn node_pos(window_rect: Rect, simulation: &Simulation, node: NodeKey) -> Vec2 {
             let location = &circuit.location;
             let num_inputs = circuit.inputs.len();
             let num_outputs = circuit.outputs.len();
-            gate_input_pos(window_rect, simulation, location, num_inputs, num_outputs, i)
+            gate_input_pos(window_rect, location, num_inputs, num_outputs, i)
         }
         NodeParent::CircuitOut(c, i) => {
             let circuit = &simulation.circuits[c];
             let location = &circuit.location;
             let num_inputs = circuit.inputs.len();
             let num_outputs = circuit.outputs.len();
-            gate_output_pos(window_rect, simulation, location, num_inputs, num_outputs, i)
+            gate_output_pos(window_rect, location, num_inputs, num_outputs, i)
         }
         NodeParent::GateIn(g, i) => {
             let gate = &simulation.gates[g];
             let location = gate.location(&simulation.circuits);
             let num_inputs = simulation::gate_num_inputs(&simulation.circuits, &simulation.gates, g);
             let num_outputs = simulation::gate_num_outputs(&simulation.circuits, &simulation.gates, g);
-            gate_input_pos(window_rect, simulation, location, num_inputs, num_outputs, i)
+            gate_input_pos(window_rect, location, num_inputs, num_outputs, i)
         }
         NodeParent::GateOut(g, i) => {
             let gate = &simulation.gates[g];
             let location = gate.location(&simulation.circuits);
             let num_inputs = simulation::gate_num_inputs(&simulation.circuits, &simulation.gates, g);
             let num_outputs = simulation::gate_num_outputs(&simulation.circuits, &simulation.gates, g);
-            gate_output_pos(window_rect, simulation, location, num_inputs, num_outputs, i)
+            gate_output_pos(window_rect, location, num_inputs, num_outputs, i)
         }
     }
 }
