@@ -9,6 +9,8 @@ use crate::{
 pub(crate) type UntypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, UntypedExpr<'file>, (), type_expr::TypeExpr<'file>>;
 pub(crate) type UntypedCircuit<'file> = Circuit<'file, UntypedExpr<'file>, (), type_expr::TypeExpr<'file>>;
 pub(crate) type UntypedAlias<'file> = Alias<'file, UntypedExpr<'file>, (), type_expr::TypeExpr<'file>>;
+pub(crate) type UntypedConnect<'file> = Connect<UntypedExpr<'file>>;
+pub(crate) type UntypedLet<'file> = Let<'file>;
 pub(crate) type UntypedPattern<'file> = Pattern<'file, (), type_expr::TypeExpr<'file>>;
 pub(crate) type UntypedPatternKind<'file> = PatternKind<'file, (), type_expr::TypeExpr<'file>>;
 pub(crate) type UntypedExpr<'file> = Expr<'file, ()>;
@@ -17,18 +19,24 @@ pub(crate) type UntypedExprKind<'file> = ExprKind<'file, ()>;
 pub(crate) type TypeResolvedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, UntypedExpr<'file>, (), (Span<'file>, ty::TypeSym)>;
 pub(crate) type TypeResolvedCircuit<'file> = Circuit<'file, UntypedExpr<'file>, (), (Span<'file>, ty::TypeSym)>;
 pub(crate) type TypeResolvedAlias<'file> = Alias<'file, UntypedExpr<'file>, (), (Span<'file>, ty::TypeSym)>;
+pub(crate) type TypeResolvedConnect<'file> = Connect<UntypedExpr<'file>>;
+pub(crate) type TypeResolvedLet<'file> = Let<'file>;
 pub(crate) type TypeResolvedPattern<'file> = Pattern<'file, (), (Span<'file>, ty::TypeSym)>;
 pub(crate) type TypeResolvedPatternKind<'file> = PatternKind<'file, (), (Span<'file>, ty::TypeSym)>;
 
 pub(crate) type PatTypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, UntypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
 pub(crate) type PatTypedCircuit<'file> = Circuit<'file, UntypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
 pub(crate) type PatTypedAlias<'file> = Alias<'file, UntypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
+pub(crate) type PatTypedConnect<'file> = Connect<UntypedExpr<'file>>;
+pub(crate) type PatTypedLet<'file> = Let<'file>;
 pub(crate) type PatTypedPattern<'file> = Pattern<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
 pub(crate) type PatTypedPatternKind<'file> = PatternKind<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
 
 pub(crate) type TypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, TypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
 pub(crate) type TypedCircuit<'file> = Circuit<'file, TypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
 pub(crate) type TypedAlias<'file> = Alias<'file, TypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
+pub(crate) type TypedConnect<'file> = Connect<TypedExpr<'file>>;
+pub(crate) type TypedLet<'file> = Let<'file>;
 pub(crate) type TypedPattern<'file> = Pattern<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
 pub(crate) type TypedPatternKind<'file> = PatternKind<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
 pub(crate) type TypedExpr<'file> = Expr<'file, ty::TypeSym>;

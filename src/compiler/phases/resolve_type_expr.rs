@@ -31,6 +31,7 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
             output_type: resolve_type_expr(&mut type_context, &type_table, circuit.output_type)?,
             lets: circuit.lets,
             connects: circuit.connects,
+            aliases: circuit.aliases.into_iter().map(|alias| resolve_in_alias(&mut type_context, &type_table, alias)).collect::<Option<Vec<_>>>()?,
         })),
         ast::UntypedCircuitOrIntrinsic::Nand => Some(ast::TypeResolvedCircuitOrIntrinsic::Nand),
         ast::UntypedCircuitOrIntrinsic::Const(value) => Some(ast::TypeResolvedCircuitOrIntrinsic::Const(value)),
@@ -45,6 +46,14 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
     // TODO: disallow recursive types / infinitely sized types
 
     Some(IR { circuits, circuit_table, type_context })
+}
+
+fn resolve_in_alias<'file>(
+    type_context: &mut ty::TypeContext<nominal_type::Struct<type_expr::TypeExpr>>,
+    type_table: &HashMap<&str, symtern::Sym<usize>>,
+    alias: ast::Alias<ast::Expr<()>, (), type_expr::TypeExpr>,
+) -> Option<ast::TypeResolvedAlias<'file>> {
+    Some(ast::TypeResolvedAlias { pat: resolve_in_pat(type_context, type_table, alias.pat)?, expr: alias.expr })
 }
 
 fn resolve_in_pat<'file>(

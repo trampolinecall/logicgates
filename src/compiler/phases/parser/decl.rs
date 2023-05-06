@@ -1,6 +1,6 @@
 use crate::compiler::{
     data::{ast, nominal_type, token::Token},
-    phases::parser::{expr, type_, ParseError, Parser},
+    phases::parser::{expr, pattern, type_, ParseError, Parser},
 };
 
 pub(super) fn circuit<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedCircuit<'file>, ParseError<'file>> {
@@ -9,16 +9,21 @@ pub(super) fn circuit<'file>(parser: &mut Parser<'file, impl Iterator<Item = Tok
     let output_type = type_::type_(parser)?;
 
     let mut lets = Vec::new();
-    while Token::let_matcher().matches(parser.peek()) {
-        lets.push(let_(parser)?);
-    }
-
     let mut connects = Vec::new();
-    while Token::connect_matcher().matches(parser.peek()) {
-        connects.push(connect(parser)?);
+    let mut aliases = Vec::new();
+    loop {
+        if Token::let_matcher().matches(parser.peek()) {
+            lets.push(let_(parser)?);
+        } else if Token::connect_matcher().matches(parser.peek()) {
+            connects.push(connect(parser)?);
+        } else if Token::alias_matcher().matches(parser.peek()) {
+            aliases.push(alias(parser)?);
+        } else {
+            break;
+        }
     }
 
-    Ok(ast::UntypedCircuit { name, input_type, output_type, lets, connects })
+    Ok(ast::UntypedCircuit { name, input_type, output_type, lets, connects, aliases })
 }
 
 fn let_<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedLet<'file>, ParseError<'file>> {
@@ -35,6 +40,14 @@ fn connect<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>
     let start = expr::expr(parser)?;
     let end = expr::expr(parser)?;
     Ok(ast::Connect { start, end })
+}
+
+fn alias<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedAlias<'file>, ParseError<'file>> {
+    parser.expect(Token::alias_matcher())?;
+    let pat = pattern::pattern(parser)?;
+    parser.expect(Token::equals_matcher())?;
+    let expr = expr::expr(parser)?;
+    Ok(ast::UntypedAlias { pat, expr })
 }
 
 pub(super) fn struct_<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<nominal_type::PartiallyDefinedStruct<'file>, ParseError<'file>> {

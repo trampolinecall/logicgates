@@ -79,6 +79,7 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
                         })
                     })
                     .collect::<Option<Vec<_>>>()?,
+                aliases: circuit.aliases.into_iter().map(|ast::PatTypedAlias { pat, expr }| Some(ast::TypedAlias { pat, expr: type_expr(&mut type_context, &circuit_table, &local_gate_table, expr)? })).collect::<Option<Vec<_>>>()?,
             }))
         }
         ast::PatTypedCircuitOrIntrinsic::Nand => Some(ast::TypedCircuitOrIntrinsic::Nand),
