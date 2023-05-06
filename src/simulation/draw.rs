@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{collections::BTreeSet, marker::PhantomData};
 
 use nannou::prelude::*;
 
@@ -22,22 +22,43 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
 
     let window_rect = app.window_rect();
 
-    // TODO: overhaul this to deal with new connection system
+    let (custom_gates_in_current, gates_in_current) = {
+        let mut custom_gates_in_current = BTreeSet::new();
+        let mut gates_in_current = BTreeSet::new();
+        for gate in main_circuit.gates.iter() {
+            match &simulation.gates[*gate] {
+                simulation::Gate::Nand { logic: _, location: _ } => gates_in_current.insert(gate),
+                simulation::Gate::Const { logic: _, location: _ } => gates_in_current.insert(gate),
+                simulation::Gate::Custom(subck) => custom_gates_in_current.insert(subck),
+            };
+        }
+        (custom_gates_in_current, gates_in_current)
+    };
 
-    // TODO: only show connections in the current circuit
-    // draw connections first
-    // dont go through circuit inputs (the ones on the left edge of the screen) because those should not be drawn connected to anything
-    // dont go through gate output indexes (the ones on the right edge of gates) because those are usually conteccted to some internal gates not part of the main circuit
     let circuit_inputs = main_circuit.inputs.iter();
     let circuit_outputs = main_circuit.outputs.iter();
     let gate_inputs = main_circuit.gates.iter().flat_map(|gk| simulation::gate_inputs(&simulation.circuits, &simulation.gates, *gk));
     let gate_outputs = main_circuit.gates.iter().flat_map(|gk| simulation::gate_outputs(&simulation.circuits, &simulation.gates, *gk));
-    for &cur_node in circuit_inputs.chain(circuit_outputs).chain(gate_inputs).chain(gate_outputs) {
+    let all_nodes = circuit_inputs.chain(circuit_outputs).chain(gate_inputs).chain(gate_outputs);
+
+    // TODO: overhaul this to deal with new connection system
+
+    // draw connections first
+    for &cur_node in all_nodes.clone() {
+        // cur node is guaranteed to be part of the current circuit and not a node in a subcircuit
         for adjacent in simulation.nodes[cur_node].logic.adjacent() {
-            let color = node_color(simulation, cur_node, false);
-            let cur_pos = node_pos(window_rect, simulation, cur_node);
-            let producer_pos = node_pos(window_rect, simulation, *adjacent);
-            draw.line().start(producer_pos).end(cur_pos).color(color).weight(CONNECTION_RAD);
+            let adjacent_in_current_circuit = match simulation.nodes[*adjacent].parent {
+                NodeParent::GateIn(gk, _) | NodeParent::GateOut(gk, _) => gates_in_current.contains(&gk),
+                NodeParent::CircuitIn(ck, _) | NodeParent::CircuitOut(ck, _) if ck == simulation.main_circuit => true,
+                NodeParent::CircuitIn(ck, _) | NodeParent::CircuitOut(ck, _) => custom_gates_in_current.contains(&ck),
+            };
+
+            if adjacent_in_current_circuit {
+                let color = node_color(simulation, cur_node, false);
+                let cur_pos = node_pos(window_rect, simulation, cur_node);
+                let producer_pos = node_pos(window_rect, simulation, *adjacent);
+                draw.line().start(producer_pos).end(cur_pos).color(color).weight(CONNECTION_RAD);
+            }
         }
     }
 
@@ -53,11 +74,7 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
     }
 
     // draw nodes
-    let circuit_inputs = main_circuit.inputs.iter();
-    let circuit_outputs = main_circuit.outputs.iter();
-    let gate_inputs = main_circuit.gates.iter().flat_map(|gk| simulation::gate_inputs(&simulation.circuits, &simulation.gates, *gk));
-    let gate_outputs = main_circuit.gates.iter().flat_map(|gk| simulation::gate_outputs(&simulation.circuits, &simulation.gates, *gk));
-    for &node_key in circuit_inputs.chain(circuit_outputs).chain(gate_inputs).chain(gate_outputs) {
+    for &node_key in all_nodes {
         let pos = node_pos(window_rect, simulation, node_key);
         let color = node_color(simulation, node_key, true);
         draw.ellipse().color(color).x_y(pos[0], pos[1]).radius(CIRCLE_RAD);
