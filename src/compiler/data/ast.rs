@@ -6,35 +6,31 @@ use crate::{
     utils::arena,
 };
 
-pub(crate) type UntypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, UntypedExpr<'file>, type_expr::TypeExpr<'file>>;
-pub(crate) type UntypedCircuit<'file> = Circuit<'file, UntypedExpr<'file>, type_expr::TypeExpr<'file>>;
-pub(crate) type UntypedLet<'file> = Let<'file>;
-pub(crate) type UntypedConnect<'file> = Connect<UntypedExpr<'file>>;
+pub(crate) type UntypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, UntypedExpr<'file>, (), type_expr::TypeExpr<'file>>;
+pub(crate) type UntypedCircuit<'file> = Circuit<'file, UntypedExpr<'file>, (), type_expr::TypeExpr<'file>>;
+pub(crate) type UntypedAlias<'file> = Alias<'file, UntypedExpr<'file>, (), type_expr::TypeExpr<'file>>;
 pub(crate) type UntypedPattern<'file> = Pattern<'file, (), type_expr::TypeExpr<'file>>;
 pub(crate) type UntypedPatternKind<'file> = PatternKind<'file, (), type_expr::TypeExpr<'file>>;
 pub(crate) type UntypedExpr<'file> = Expr<'file, ()>;
 pub(crate) type UntypedExprKind<'file> = ExprKind<'file, ()>;
 
-pub(crate) type TypeResolvedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, UntypedExpr<'file>, (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypeResolvedCircuit<'file> = Circuit<'file, UntypedExpr<'file>, (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypeResolvedLet<'file> = Let<'file>;
-pub(crate) type TypeResolvedConnect<'file> = Connect<UntypedExpr<'file>>;
+pub(crate) type TypeResolvedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, UntypedExpr<'file>, (), (Span<'file>, ty::TypeSym)>;
+pub(crate) type TypeResolvedCircuit<'file> = Circuit<'file, UntypedExpr<'file>, (), (Span<'file>, ty::TypeSym)>;
+pub(crate) type TypeResolvedAlias<'file> = Alias<'file, UntypedExpr<'file>, (), (Span<'file>, ty::TypeSym)>;
 pub(crate) type TypeResolvedPattern<'file> = Pattern<'file, (), (Span<'file>, ty::TypeSym)>;
 pub(crate) type TypeResolvedPatternKind<'file> = PatternKind<'file, (), (Span<'file>, ty::TypeSym)>;
 
-pub(crate) type PatTypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, UntypedExpr<'file>, (Span<'file>, ty::TypeSym)>;
-pub(crate) type PatTypedCircuit<'file> = Circuit<'file, UntypedExpr<'file>, (Span<'file>, ty::TypeSym)>;
-pub(crate) type PatTypedLet<'file> = Let<'file>;
-pub(crate) type PatTypedConnect<'file> = Connect<UntypedExpr<'file>>;
-pub(crate) type PatTypedPattern<'file> = Pattern<'file, (Span<'file>, ty::TypeSym), (Span<'file>, ty::TypeSym)>;
-pub(crate) type PatTypedPatternKind<'file> = PatternKind<'file, (Span<'file>, ty::TypeSym), (Span<'file>, ty::TypeSym)>;
+pub(crate) type PatTypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, UntypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
+pub(crate) type PatTypedCircuit<'file> = Circuit<'file, UntypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
+pub(crate) type PatTypedAlias<'file> = Alias<'file, UntypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
+pub(crate) type PatTypedPattern<'file> = Pattern<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
+pub(crate) type PatTypedPatternKind<'file> = PatternKind<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
 
-pub(crate) type TypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, TypedExpr<'file>, (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypedCircuit<'file> = Circuit<'file, TypedExpr<'file>, (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypedLet<'file> = Let<'file>;
-pub(crate) type TypedConnect<'file> = Connect<TypedExpr<'file>>;
-pub(crate) type TypedPattern<'file> = Pattern<'file, (Span<'file>, ty::TypeSym), (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypedPatternKind<'file> = PatternKind<'file, (Span<'file>, ty::TypeSym), (Span<'file>, ty::TypeSym)>;
+pub(crate) type TypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, TypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
+pub(crate) type TypedCircuit<'file> = Circuit<'file, TypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
+pub(crate) type TypedAlias<'file> = Alias<'file, TypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
+pub(crate) type TypedPattern<'file> = Pattern<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
+pub(crate) type TypedPatternKind<'file> = PatternKind<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
 pub(crate) type TypedExpr<'file> = Expr<'file, ty::TypeSym>;
 pub(crate) type TypedExprKind<'file> = ExprKind<'file, ty::TypeSym>;
 
@@ -51,19 +47,20 @@ impl arena::ArenaId for CircuitOrIntrinsicId {
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct Circuit<'file, Expr, TypeExpr> {
+pub(crate) struct Circuit<'file, Expr, PatTypeInfo, TypeExpr> {
     pub(crate) name: token::CircuitIdentifier<'file>,
 
     pub(crate) input_type: TypeExpr,
     pub(crate) output_type: TypeExpr,
 
     pub(crate) lets: Vec<Let<'file>>,
+    pub(crate) aliases: Vec<Alias<'file, Expr, PatTypeInfo, TypeExpr>>,
     pub(crate) connects: Vec<Connect<Expr>>,
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) enum CircuitOrIntrinsic<'file, Expr, TypeExpr> {
-    Circuit(Circuit<'file, Expr, TypeExpr>),
+pub(crate) enum CircuitOrIntrinsic<'file, Expr, PatTypeInfo, TypeExpr> {
+    Circuit(Circuit<'file, Expr, PatTypeInfo, TypeExpr>),
     Nand,
     Const(bool), // never in circuit table
 }
@@ -72,6 +69,11 @@ pub(crate) enum CircuitOrIntrinsic<'file, Expr, TypeExpr> {
 pub(crate) struct Let<'file> {
     pub(crate) name: token::PlainIdentifier<'file>,
     pub(crate) gate: token::CircuitIdentifier<'file>,
+}
+#[derive(PartialEq, Debug)]
+pub(crate) struct Alias<'file, Expr, PatTypeInfo, TypeExpr> {
+    pub(crate) pat: Pattern<'file, PatTypeInfo, TypeExpr>,
+    pub(crate) expr: Expr,
 }
 #[derive(PartialEq, Debug)]
 pub(crate) struct Connect<Expr> {
@@ -107,8 +109,7 @@ pub(crate) enum PatternKind<'file, PatTypeInfo, TypeExpr> {
 }
 
 // TODO: this will probably be duplicated with the type code from the ir but i dont know how to fix that (although i think the solution might be a separate type checking phase so that the ir doesnt need to have type information)
-
-impl<'file, ExprTypeInfo> CircuitOrIntrinsic<'file, ExprTypeInfo, (Span<'file>, ty::TypeSym)> {
+impl<'file, ExprTypeInfo, PatTypeInfo> CircuitOrIntrinsic<'file, ExprTypeInfo, PatTypeInfo, (Span<'file>, ty::TypeSym)> {
     pub(crate) fn input_type(&self, type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>) -> ty::TypeSym {
         match self {
             CircuitOrIntrinsic::Circuit(circuit) => circuit.input_type.1,

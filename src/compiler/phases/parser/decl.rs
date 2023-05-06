@@ -105,7 +105,7 @@ mod test {
             AST {
                 circuits: vec![ast::UntypedCircuit {
                     name: token::CircuitIdentifier { span: sp, name: "thingy", with_tag: "\\thingy".to_string() },
-                    input: ast::UntypedPattern {
+                    input_type: ast::UntypedPattern {
                         kind: ast::UntypedPatternKind::Identifier(
                             token::PlainIdentifier { span: sp, name: "arg" },
                             type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(token::TypeIdentifier { span: sp, name: "bit", with_tag: "-bit".to_string() }), span: sp }

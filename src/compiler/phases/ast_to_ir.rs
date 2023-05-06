@@ -100,11 +100,11 @@ fn convert_circuit<'file>(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
     circuit_ast: ast::TypedCircuit<'file>,
 ) -> Option<ir::Circuit<'file>> {
-    let mut circuit = ir::Circuit::new(circuit_ast.name.name, circuit_ast.input.type_info, circuit_ast.output_type.1);
+    let mut circuit = ir::Circuit::new(circuit_ast.name.name, circuit_ast.input_type.type_info, circuit_ast.output_type.1);
 
     let mut values = arena::Arena::new();
 
-    let circuit_input_value = values.add(ExprInArena { kind: ExprInArenaKind::Input, type_info: circuit_ast.input.type_info, span: circuit_ast.input.span });
+    let circuit_input_value = values.add(ExprInArena { kind: ExprInArenaKind::Input, type_info: circuit_ast.input_type.type_info, span: circuit_ast.input_type.span });
     let lets: Vec<_> = circuit_ast.lets.into_iter().map(|ast::TypedLet { pat, val }| ast::Let { pat, val: convert_expr_to_value(&mut values, val) }).collect();
     let circuit_output_value = convert_expr_to_value(&mut values, circuit_ast.output);
 
@@ -128,7 +128,7 @@ fn convert_circuit<'file>(
     // step 2: assign all patterns to values
     let mut locals = HashMap::new();
     let mut errored = false;
-    if let Err(()) = assign_pattern(type_context, &mut values, &mut locals, &circuit_ast.input, circuit_input_value) {
+    if let Err(()) = assign_pattern(type_context, &mut values, &mut locals, &circuit_ast.input_type, circuit_input_value) {
         errored = true;
     }
 
