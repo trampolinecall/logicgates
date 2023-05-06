@@ -87,7 +87,7 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
     // TODO: test this
 
     // gates in subcircuits just get processed based on the other gates they are connected to, meaning that their positions are independent of the positions of the gates in the supercircuits
-    // TODO: it actually does not work properly as described in the line above so fix this
+    // TODO: overhaul to work with new connection system
 
     let mut locations = HashMap::new();
     for (cur_circuit_key, cur_circuit) in &simulation.circuits {
@@ -106,12 +106,23 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
         let get_prev_gates_excluding_self = |gate: GateKey| {
             let gate_inputs = simulation::gate_inputs(&simulation.circuits, &simulation.gates, gate);
             let prev_gates = gate_inputs.iter().filter_map(|&cur_node| {
-                let producer_node = simulation.nodes[cur_node].value.producer()?;
-                match simulation.nodes[producer_node].parent {
-                    NodeParent::GateIn(gk, _) | NodeParent::GateOut(gk, _) => Some(Some(gk)), // it should not be GateIn but
-                    NodeParent::CircuitIn(ck, _) | NodeParent::CircuitOut(ck, _) if ck == cur_circuit_key => Some(None),
-                    NodeParent::CircuitIn(ck, _) | NodeParent::CircuitOut(ck, _) => {
-                        Some(Some(*subcircuits_in_cur_circuit.get(&ck).expect("gate is connected to custom gate outside of current circuit")))
+                // TODO: do this function better / overhaul whole positioning algorithm
+                let mut adj_nodes = simulation.nodes[cur_node].logic.adjacent().iter();
+                loop {
+                    let adj = adj_nodes.next()?;
+                    match simulation.nodes[*adj].parent {
+                        // GateIn should not be possible
+                        NodeParent::GateIn(gk, _) | NodeParent::GateOut(gk, _) => {
+                            if cur_circuit.gates.contains(&gk) { // TODO: do something better than linear search
+                                break Some(Some(gk));
+                            }
+                        }
+                        NodeParent::CircuitIn(ck, _) | NodeParent::CircuitOut(ck, _) if ck == cur_circuit_key => break Some(None),
+                        NodeParent::CircuitIn(ck, _) | NodeParent::CircuitOut(ck, _) => {
+                            if let Some(gk) = subcircuits_in_cur_circuit.get(&ck) {
+                                break Some(Some(*gk));
+                            }
+                        }
                     }
                 }
             });

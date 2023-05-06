@@ -35,7 +35,7 @@ pub(crate) enum NodeParent {
     CircuitOut(CircuitKey, usize),
 }
 pub(crate) struct Node {
-    pub(crate) value: logic::NodeLogic,
+    pub(crate) logic: logic::NodeLogic,
     pub(crate) parent: NodeParent, // TODO: move into NodeLocation component?
 }
 
@@ -52,8 +52,8 @@ impl Circuit {
         Circuit {
             name,
             gates: Vec::new(),
-            inputs: (0..num_inputs).map(|i| nodes.insert(Node { value: logic::NodeLogic::new(), parent: NodeParent::CircuitIn(circuit_key, i) })).collect(),
-            outputs: (0..num_outputs).map(|i| nodes.insert(Node { value: logic::NodeLogic::new(), parent: NodeParent::CircuitOut(circuit_key, i) })).collect(),
+            inputs: (0..num_inputs).map(|i| nodes.insert(Node { logic: logic::NodeLogic::new(), parent: NodeParent::CircuitIn(circuit_key, i) })).collect(),
+            outputs: (0..num_outputs).map(|i| nodes.insert(Node { logic: logic::NodeLogic::new(), parent: NodeParent::CircuitOut(circuit_key, i) })).collect(),
             location: location::GateLocation::new(),
         }
     }
