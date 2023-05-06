@@ -99,7 +99,7 @@ fn add_gate<'file, 'circuit>(
     circuits: &'circuit arena::Arena<ir::CircuitOrIntrinsic<'file>, ast::CircuitOrIntrinsicId>,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     expansion_stack: ExpansionStack<'file, 'circuit>,
-    (circuit_id, _): (ast::CircuitOrIntrinsicId, bool),
+    (circuit_id, _): (ast::CircuitOrIntrinsicId, ir::Inline),
     new_circuit_idx: simulation::CircuitKey,
 ) -> Result<(ExpansionStack<'file, 'circuit>, simulation::GateKey), InfiniteRecursion<'file, 'circuit>> {
     let (expansion_stack, gate_idx) = match circuits.get(circuit_id) {

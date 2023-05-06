@@ -117,10 +117,10 @@ fn convert_circuit<'file>(
     for (value_id, value) in values.iter_with_ids() {
         match &value.kind {
             ExprInArenaKind::Call(name, inline, _) => {
-                gates.insert(value_id, circuit.gates.add((circuit_table[name.name].2, *inline)));
+                gates.insert(value_id, circuit.gates.add((circuit_table[name.name].2, if *inline { ir::Inline::Inline } else { ir::Inline::NoInline })));
             }
             ExprInArenaKind::Const(_, value) => {
-                gates.insert(value_id, circuit.gates.add((if *value { const_1 } else { const_0 }, false)));
+                gates.insert(value_id, circuit.gates.add((if *value { const_1 } else { const_0 }, ir::Inline::NoInline)));
             }
 
             _ => {}

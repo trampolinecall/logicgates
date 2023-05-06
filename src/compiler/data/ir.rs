@@ -10,7 +10,7 @@ pub(crate) struct GateIdx(usize);
 
 impl arena::IsArenaIdFor<CircuitOrIntrinsic<'_>> for ast::CircuitOrIntrinsicId {}
 
-impl arena::IsArenaIdFor<(ast::CircuitOrIntrinsicId, bool)> for GateIdx {}
+impl arena::IsArenaIdFor<(ast::CircuitOrIntrinsicId, Inline)> for GateIdx {}
 impl arena::ArenaId for GateIdx {
     fn make(i: usize) -> Self {
         GateIdx(i)
@@ -21,10 +21,15 @@ impl arena::ArenaId for GateIdx {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Inline {
+    Inline,
+    NoInline,
+}
 #[derive(Debug)]
 pub(crate) struct Circuit<'file> {
     pub(crate) name: &'file str,
-    pub(crate) gates: arena::Arena<(ast::CircuitOrIntrinsicId, bool), GateIdx>,
+    pub(crate) gates: arena::Arena<(ast::CircuitOrIntrinsicId, Inline), GateIdx>,
     pub(crate) connections: Vec<(bundle::ProducerBundle, bundle::ReceiverBundle)>,
     pub(crate) input_type: ty::TypeSym,
     pub(crate) output_type: ty::TypeSym,
