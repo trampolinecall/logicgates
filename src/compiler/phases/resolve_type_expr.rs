@@ -27,10 +27,10 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
     let circuits = circuits.transform(|circuit| match circuit {
         ast::UntypedCircuitOrIntrinsic::Circuit(circuit) => Some(ast::TypeResolvedCircuitOrIntrinsic::Circuit(ast::TypeResolvedCircuit {
             name: circuit.name,
-            input: resolve_in_pat(&mut type_context, &type_table, circuit.input)?,
+            input_type: resolve_type_expr(&mut type_context, &type_table, circuit.input_type)?,
             output_type: resolve_type_expr(&mut type_context, &type_table, circuit.output_type)?,
-            lets: resolve_in_let(&mut type_context, &type_table, circuit.lets)?,
-            output: circuit.output,
+            lets: circuit.lets,
+            connects: circuit.connects,
         })),
         ast::UntypedCircuitOrIntrinsic::Nand => Some(ast::TypeResolvedCircuitOrIntrinsic::Nand),
         ast::UntypedCircuitOrIntrinsic::Const(value) => Some(ast::TypeResolvedCircuitOrIntrinsic::Const(value)),
@@ -62,14 +62,6 @@ fn resolve_in_pat<'file>(
         type_info: (),
         span: pat.span,
     })
-}
-
-fn resolve_in_let<'file>(
-    type_context: &mut ty::TypeContext<nominal_type::PartiallyDefinedStruct<'file>>,
-    type_table: &HashMap<&str, symtern::Sym<usize>>,
-    lets: Vec<ast::UntypedLet<'file>>,
-) -> Option<Vec<ast::TypeResolvedLet<'file>>> {
-    lets.into_iter().map(|let_| Some(ast::TypeResolvedLet { pat: resolve_in_pat(type_context, type_table, let_.pat)?, val: let_.val })).collect_all()
 }
 
 fn resolve_type_expr<'file, Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<&str, ty::TypeSym>, ty: type_expr::TypeExpr<'file>) -> Option<(Span<'file>, ty::TypeSym)> {
