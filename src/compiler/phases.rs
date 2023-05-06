@@ -12,4 +12,6 @@ pub(crate) mod type_exprs;
 
 pub(crate) mod ast_to_ir;
 
+pub(crate) mod inline_gates;
+
 pub(crate) mod ir_to_simulation;

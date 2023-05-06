@@ -44,7 +44,7 @@ impl<'file> From<LoopInLocalsError<'file>> for CompileError<'file> {
 }
 
 pub(crate) struct IR<'file> {
-    pub(crate) circuits: arena::Arena<ir::CircuitOrIntrinsic<'file>, ast::CircuitOrIntrinsicId>,
+    pub(crate) circuits: arena::Arena<ir::CircuitOrIntrinsic<'file, ir::Inline>, ast::CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<&'file str, (ty::TypeSym, ty::TypeSym, ast::CircuitOrIntrinsicId)>,
 
     pub(crate) type_context: ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
@@ -99,7 +99,7 @@ fn convert_circuit<'file>(
     circuit_table: &HashMap<&'file str, (ty::TypeSym, ty::TypeSym, ast::CircuitOrIntrinsicId)>,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
     circuit_ast: ast::TypedCircuit<'file>,
-) -> Option<ir::Circuit<'file>> {
+) -> Option<ir::Circuit<'file, ir::Inline>> {
     let mut circuit = ir::Circuit::new(circuit_ast.name.name, circuit_ast.input.type_info, circuit_ast.output_type.1);
 
     let mut values = arena::Arena::new();
@@ -240,7 +240,7 @@ fn convert_value(
     get_other_value_as_bundle: arena::DependancyGetter<ir::bundle::ProducerBundle, ExprInArena, (), ExprId>,
     locals: &HashMap<&str, ExprId>,
     gates: &HashMap<ExprId, ir::GateIdx>,
-    circuit: &ir::Circuit,
+    circuit: &ir::Circuit<ir::Inline>,
     value_id: ExprId,
     value: &ExprInArena,
 ) -> arena::SingleTransformResult<ir::bundle::ProducerBundle, ExprId, ()> {
@@ -259,7 +259,7 @@ fn convert_value(
 
         ExprInArenaKind::Call(_, _, _) => {
             let gate_i = gates[&value_id];
-            // the gate stays unconnected to its input because gates can be truend into a producerb undle with needing to be connected, which allows for loops
+            // the gate stays unconnected to its input because gates can be turned into a producer bundle with needing to be connected, which allows for loops
             // for example 'let x = 'not x' will be allowed because x refers to the output of the 'not gate and the input to the 'not gate doesnt need to be connected for x to have a value
             arena::SingleTransformResult::Ok(ir::bundle::ProducerBundle::GateOutput(value.type_info, gate_i))
         }
@@ -297,7 +297,7 @@ fn convert_value(
 
 fn connect_bundle(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
-    circuit: &mut ir::Circuit,
+    circuit: &mut ir::Circuit<ir::Inline>,
     producer_span: Span,
     receiver_span: Span,
     producer_bundle: ir::bundle::ProducerBundle,

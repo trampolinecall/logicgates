@@ -24,17 +24,17 @@ pub(crate) enum Inline {
     NoInline,
 }
 #[derive(Debug)]
-pub(crate) struct Circuit<'file> {
+pub(crate) struct Circuit<'file, InlineData> {
     pub(crate) name: &'file str,
-    pub(crate) gates: arena::Arena<(ast::CircuitOrIntrinsicId, Inline), GateIdx>,
+    pub(crate) gates: arena::Arena<(ast::CircuitOrIntrinsicId, InlineData), GateIdx>,
     pub(crate) connections: Vec<(bundle::ProducerBundle, bundle::ReceiverBundle)>,
     pub(crate) input_type: ty::TypeSym,
     pub(crate) output_type: ty::TypeSym,
 }
 
 #[derive(Debug)]
-pub(crate) enum CircuitOrIntrinsic<'file> {
-    Custom(Circuit<'file>),
+pub(crate) enum CircuitOrIntrinsic<'file, InlineData> {
+    Custom(Circuit<'file, InlineData>),
     Nand,
     Const(bool),
 }
@@ -98,8 +98,8 @@ impl Gate {
     }
 }
 */
-impl<'file> Circuit<'file> {
-    pub(crate) fn new(name: &'file str, input_type: symtern::Sym<usize>, output_type: symtern::Sym<usize>) -> Circuit {
+impl<'file, InlineData> Circuit<'file, InlineData> {
+    pub(crate) fn new(name: &'file str, input_type: symtern::Sym<usize>, output_type: symtern::Sym<usize>) -> Circuit<'file, InlineData> {
         Circuit { name, input_type, output_type, gates: arena::Arena::new(), connections: Vec::new() }
     }
 }

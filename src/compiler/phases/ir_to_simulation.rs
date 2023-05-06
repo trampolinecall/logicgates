@@ -17,8 +17,8 @@ impl<'file> From<NoMain<'file>> for CompileError<'file> {
     }
 }
 
-type ExpansionStack<'file, 'circuit> = Vec<&'circuit ir::Circuit<'file>>;
-struct InfiniteRecursion<'file, 'circuit>(ExpansionStack<'file, 'circuit>, &'circuit ir::Circuit<'file>);
+type ExpansionStack<'file, 'circuit> = Vec<&'circuit ir::Circuit<'file, ()>>;
+struct InfiniteRecursion<'file, 'circuit>(ExpansionStack<'file, 'circuit>, &'circuit ir::Circuit<'file, ()>);
 impl<'file, 'circuit> From<InfiniteRecursion<'file, 'circuit>> for CompileError<'file> {
     fn from(InfiniteRecursion(circuits, repeat): InfiniteRecursion<'file, 'circuit>) -> Self {
         todo!("{circuits:?} -> {repeat:?}")
@@ -60,10 +60,10 @@ fn convert_circuit<'file, 'circuit>(
     circuit_map: &mut simulation::CircuitMap,
     gate_map: &mut simulation::GateMap,
     node_map: &mut simulation::NodeMap,
-    circuits: &'circuit arena::Arena<ir::CircuitOrIntrinsic<'file>, ast::CircuitOrIntrinsicId>,
+    circuits: &'circuit arena::Arena<ir::CircuitOrIntrinsic<'file, ()>, ast::CircuitOrIntrinsicId>,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     mut expansion_stack: ExpansionStack<'file, 'circuit>,
-    circuit: &'circuit ir::Circuit<'file>,
+    circuit: &'circuit ir::Circuit<'file, ()>,
 ) -> Result<(ExpansionStack<'file, 'circuit>, simulation::CircuitKey), InfiniteRecursion<'file, 'circuit>> {
     if expansion_stack.iter().any(|c| std::ptr::eq(*c, circuit)) {
         return Err(InfiniteRecursion(expansion_stack, circuit));
@@ -96,7 +96,7 @@ fn add_gate<'file, 'circuit>(
     circuit_map: &mut simulation::CircuitMap,
     gate_map: &mut simulation::GateMap,
     node_map: &mut simulation::NodeMap,
-    circuits: &'circuit arena::Arena<ir::CircuitOrIntrinsic<'file>, ast::CircuitOrIntrinsicId>,
+    circuits: &'circuit arena::Arena<ir::CircuitOrIntrinsic<'file, ()>, ast::CircuitOrIntrinsicId>,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     expansion_stack: ExpansionStack<'file, 'circuit>,
     (circuit_id, _): (ast::CircuitOrIntrinsicId, ir::Inline),
