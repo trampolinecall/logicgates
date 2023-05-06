@@ -147,7 +147,7 @@ fn convert_circuit<'file>(
         Err((loop_errors, _)) => {
             // never makes other errors
             for loop_ in loop_errors {
-                LoopInLocalsError(loop_).report()
+                LoopInLocalsError(loop_).report();
             }
             return None;
         }

@@ -43,10 +43,10 @@ fn intrinsic<'a, T>(table: &mut HashMap<&'a str, T>, name: &'a str, thing: T) {
     assert!(old_t.is_none(), "cannot have other item named '{}' in empty table", name);
 }
 fn circuit_intrinsics(arena: &mut arena::Arena<ast::UntypedCircuitOrIntrinsic, ast::CircuitOrIntrinsicId>, table: &mut HashMap<&str, ast::CircuitOrIntrinsicId>) {
-    intrinsic(table, "nand", arena.add(ast::UntypedCircuitOrIntrinsic::Nand))
+    intrinsic(table, "nand", arena.add(ast::UntypedCircuitOrIntrinsic::Nand));
 }
 fn type_intrinsics(context: &mut ty::TypeContext<nominal_type::PartiallyDefinedStruct>, table: &mut HashMap<&str, ty::TypeSym>) {
-    intrinsic(table, "bit", context.intern(ty::Type::Bit))
+    intrinsic(table, "bit", context.intern(ty::Type::Bit));
 }
 
 fn make_circuit_table(circuits: Vec<ast::UntypedCircuit>) -> Option<(arena::Arena<ast::UntypedCircuitOrIntrinsic, ast::CircuitOrIntrinsicId>, HashMap<&str, ast::CircuitOrIntrinsicId>)> {

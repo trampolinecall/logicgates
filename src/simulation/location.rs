@@ -98,8 +98,7 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
             .gates
             .iter()
             .filter_map(|&gk| match &simulation.gates[gk] {
-                simulation::Gate::Nand { logic: _, location: _ } => None,
-                simulation::Gate::Const { logic: _, location: _ } => None,
+                simulation::Gate::Nand { logic: _, location: _ } | simulation::Gate::Const { logic: _, location: _ } => None,
                 simulation::Gate::Custom(sck) => Some((*sck, gk)),
             })
             .collect();
@@ -195,7 +194,7 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
         locations.extend(xs.into_iter().zip(ys).map(|((x_gate_index, x), (y_gate_index, y))| {
             assert_eq!(x_gate_index, y_gate_index); // should be the same because the maps are sorted by the key
             (x_gate_index, GateLocation { x, y })
-        }))
+        }));
     }
     locations
 }
