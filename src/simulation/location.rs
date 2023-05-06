@@ -113,7 +113,8 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
                     match simulation.nodes[*adj].parent {
                         // GateIn should not be possible
                         NodeParent::GateIn(gk, _) | NodeParent::GateOut(gk, _) => {
-                            if cur_circuit.gates.contains(&gk) { // TODO: do something better than linear search
+                            if cur_circuit.gates.contains(&gk) {
+                                // TODO: do something better than linear search
                                 break Some(Some(gk));
                             }
                         }

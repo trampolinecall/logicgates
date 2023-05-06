@@ -168,10 +168,10 @@ pub(crate) fn update(gates: &mut GateMap, nodes: &mut NodeMap) {
         for (cur_node, node) in &*nodes {
             if let Some(production) = node.logic.production {
                 let mut already: HashSet<_> = HashSet::new();
-                let mut queue: Vec<_> = node.logic.adjacent().iter().copied().chain(std::iter::once(cur_node)) .collect();
+                let mut queue: Vec<_> = node.logic.adjacent().iter().copied().chain(std::iter::once(cur_node)).collect();
                 while let Some(adj) = queue.pop() {
                     if already.contains(&adj) {
-                        continue
+                        continue;
                     }
                     already.insert(adj);
 

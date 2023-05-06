@@ -41,9 +41,8 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
     let gate_outputs = main_circuit.gates.iter().flat_map(|gk| simulation::gate_outputs(&simulation.circuits, &simulation.gates, *gk));
     let all_nodes = circuit_inputs.chain(circuit_outputs).chain(gate_inputs).chain(gate_outputs);
 
-    // TODO: overhaul this to deal with new connection system
-
     // draw connections first
+    // this draws every connection twice because this is an undirected graph
     for &cur_node in all_nodes.clone() {
         // cur node is guaranteed to be part of the current circuit and not a node in a subcircuit
         for adjacent in simulation.nodes[cur_node].logic.adjacent() {
