@@ -82,7 +82,7 @@ fn convert_circuit<'file, 'circuit>(
         gate_index_map.insert(old_gate_i, new_gate_i);
     }
 
-    for (producer, receiver) in circuit.connections.iter() {
+    for (producer, receiver) in &circuit.connections {
         connect(circuit_map, gate_map, node_map, type_context, new_circuit_idx, &mut gate_index_map, producer, receiver);
     }
 
@@ -131,7 +131,7 @@ fn connect(
     receiver: &ir::bundle::ReceiverBundle,
 ) {
     let producer_nodes: Vec<simulation::NodeKey> = convert_producer_bundle(circuits, gates, type_context, new_circuit, gate_index_map, producer);
-    let receiver_nodes: Vec<simulation::NodeKey> = convert_receiver_bundle(circuits, gates, type_context, new_circuit, gate_index_map, receiver).to_vec(); // TODO: figure out better solution than to clone
+    let receiver_nodes: Vec<simulation::NodeKey> = convert_receiver_bundle(circuits, gates, type_context, new_circuit, gate_index_map, receiver); // TODO: figure out better solution than to clone
 
     assert_eq!(producer_nodes.len(), receiver_nodes.len(), "connecting producer and receiver that have different size");
 

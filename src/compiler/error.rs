@@ -61,10 +61,10 @@ fn print_message(message: &str, span: Span, note: Option<&str>) {
     eprintln!("{}{}{}", &line_quote[..start_col - 1], LightGreen.bold().paint(&line_quote[start_col - 1..end_col - 1]), &line_quote[end_col - 1..]);
     eprint!("{}{}", " ".repeat(start_col - 1), LightGreen.bold().paint("^".repeat(std::cmp::max(1, end_col - start_col))));
     if start_line_nr != end_line_nr {
-        eprint!("...")
+        eprint!("...");
     }
     if let Some(note) = note {
         eprint!("{} {}", LightGreen.bold().paint("--"), LightGreen.bold().paint(note));
     }
-    eprintln!()
+    eprintln!();
 }
