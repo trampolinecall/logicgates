@@ -41,7 +41,7 @@ pub(crate) struct IR<'file> {
     pub(crate) type_context: ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
 }
 pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }: type_pats::IR) -> Option<IR> {
-    let circuit_table = circuit_table
+    let circuit_table: HashMap<_, _> = circuit_table
         .into_iter()
         .map(|(name, circuit_id)| {
             let circuit = circuits.get(circuit_id);
@@ -51,19 +51,34 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
 
     let circuits = circuits.transform(|circuit| match circuit {
         ast::PatTypedCircuitOrIntrinsic::Circuit(circuit) => {
-            let mut local_table = HashMap::new();
+            let mut local_gate_table: HashMap<&str, (_, _)> = HashMap::new();
 
-            put_pat_type(&mut local_table, &circuit.input);
+            // TODO: insert inputs and outputs
             for let_ in &circuit.lets {
-                put_pat_type(&mut local_table, &let_.pat);
+                if let Some((gate_input, gate_output, _)) = circuit_table.get(&let_.gate.name) {
+                    local_gate_table.insert(let_.name.name, (*gate_input, *gate_output));
+                    // TODO: report error for duplicate locals
+                } else {
+                    NoSuchCircuit(let_.gate).report();
+                    return None;
+                }
             }
 
             Some(ast::TypedCircuitOrIntrinsic::Circuit(ast::TypedCircuit {
                 name: circuit.name,
-                input: circuit.input,
+                input_type: circuit.input_type,
                 output_type: circuit.output_type,
-                lets: circuit.lets.into_iter().map(|ast::PatTypedLet { pat, val }| Some(ast::TypedLet { pat, val: type_expr(&mut type_context, &circuit_table, &local_table, val)? })).collect_all()?,
-                output: type_expr(&mut type_context, &circuit_table, &local_table, circuit.output)?,
+                lets: circuit.lets,
+                connects: circuit
+                    .connects
+                    .into_iter()
+                    .map(|ast::PatTypedConnect { start, end }| {
+                        Some(ast::TypedConnect {
+                            start: type_expr(&mut type_context, &circuit_table, &local_gate_table, start)?,
+                            end: type_expr(&mut type_context, &circuit_table, &local_gate_table, end)?,
+                        })
+                    })
+                    .collect::<Option<Vec<_>>>()?,
             }))
         }
         ast::PatTypedCircuitOrIntrinsic::Nand => Some(ast::TypedCircuitOrIntrinsic::Nand),
@@ -75,23 +90,10 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
     Some(IR { circuits, circuit_table, type_context })
 }
 
-fn put_pat_type<'file>(local_table: &mut HashMap<&'file str, ty::TypeSym>, pat: &ast::PatTypedPattern<'file>) {
-    match &pat.kind {
-        ast::PatTypedPatternKind::Identifier(name, ty) => {
-            local_table.insert(name.name, ty.1); // TODO: report error for duplicate locals
-        }
-        ast::PatTypedPatternKind::Product(subpats) => {
-            for subpat in subpats {
-                put_pat_type(local_table, &subpat.1);
-            }
-        }
-    }
-}
-
 fn type_expr<'file>(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
     circuit_table: &HashMap<&str, (ty::TypeSym, ty::TypeSym, ast::CircuitOrIntrinsicId)>,
-    local_types: &HashMap<&str, ty::TypeSym>,
+    local_types: &HashMap<&str, (ty::TypeSym, ty::TypeSym)>,
     expr: ast::UntypedExpr<'file>,
 ) -> Option<ast::TypedExpr<'file>> {
     let (kind, type_info) = match expr.kind {

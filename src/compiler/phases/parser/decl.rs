@@ -1,30 +1,40 @@
 use crate::compiler::{
     data::{ast, nominal_type, token::Token},
-    phases::parser::{expr, pattern, type_, ParseError, Parser},
+    phases::parser::{expr, type_, ParseError, Parser},
 };
 
 pub(super) fn circuit<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedCircuit<'file>, ParseError<'file>> {
     let name = parser.expect(/* "circuit name", */ Token::circuit_identifier_matcher())?;
-    let arguments = pattern::pattern(parser)?;
+    let input_type = type_::type_(parser)?;
     let output_type = type_::type_(parser)?;
+
     let mut lets = Vec::new();
     while Token::let_matcher().matches(parser.peek()) {
         lets.push(let_(parser)?);
     }
 
-    let ret = expr::expr(parser)?;
+    let mut connects = Vec::new();
+    while Token::connect_matcher().matches(parser.peek()) {
+        connects.push(connect(parser)?);
+    }
 
-    Ok(ast::UntypedCircuit { name, input: arguments, lets, output: ret, output_type })
+    Ok(ast::UntypedCircuit { name, input_type, output_type, lets, connects })
 }
 
 fn let_<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedLet<'file>, ParseError<'file>> {
     parser.expect(Token::let_matcher())?;
-    let pat = pattern::pattern(parser)?;
-
+    let name = parser.expect(Token::plain_identifier_matcher())?;
     parser.expect(Token::equals_matcher())?;
+    let gate = parser.expect(Token::circuit_identifier_matcher())?;
 
-    let val = expr::expr(parser)?;
-    Ok(ast::UntypedLet { pat, val })
+    Ok(ast::UntypedLet { name, gate })
+}
+
+fn connect<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedConnect<'file>, ParseError<'file>> {
+    parser.expect(Token::connect_matcher())?;
+    let start = expr::expr(parser)?;
+    let end = expr::expr(parser)?;
+    Ok(ast::Connect { start, end })
 }
 
 pub(super) fn struct_<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<nominal_type::PartiallyDefinedStruct<'file>, ParseError<'file>> {
