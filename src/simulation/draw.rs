@@ -13,6 +13,8 @@ const BG: Rgb = Rgb { red: 0.172, green: 0.243, blue: 0.313, standard: PhantomDa
 const GATE_COLOR: Rgb = Rgb { red: 0.584, green: 0.647, blue: 0.65, standard: PhantomData };
 const ON_COLOR: Rgb = Rgb { red: 0.18, green: 0.8, blue: 0.521, standard: PhantomData };
 const OFF_COLOR: Rgb = Rgb { red: 0.498, green: 0.549, blue: 0.552, standard: PhantomData };
+const HIGH_IMPEDANCE_COLOR: Rgb = Rgb { red: 52.0 / 255.0, green: 152.0 / 255.0, blue: 219.0 / 255.0, standard: PhantomData };
+const ERR_COLOR: Rgb = Rgb { red: 231.0 / 255.0, green: 76.0 / 255.0, blue: 60.0 / 255.0, standard: PhantomData };
 
 pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circuit: CircuitKey) {
     let main_circuit = &simulation.circuits[main_circuit];
@@ -20,16 +22,21 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
 
     let window_rect = app.window_rect();
 
+    // TODO: overhaul this to deal with new connection system
+
+    // TODO: only show connections in the current circuit
     // draw connections first
     // dont go through circuit inputs (the ones on the left edge of the screen) because those should not be drawn connected to anything
     // dont go through gate output indexes (the ones on the right edge of gates) because those are usually conteccted to some internal gates not part of the main circuit
+    let circuit_inputs = main_circuit.inputs.iter();
     let circuit_outputs = main_circuit.outputs.iter();
     let gate_inputs = main_circuit.gates.iter().flat_map(|gk| simulation::gate_inputs(&simulation.circuits, &simulation.gates, *gk));
-    for &cur_node in circuit_outputs.chain(gate_inputs) {
-        if let Some(producer) = simulation.nodes[cur_node].value.producer() {
-            let color = node_color(simulation, cur_node);
+    let gate_outputs = main_circuit.gates.iter().flat_map(|gk| simulation::gate_outputs(&simulation.circuits, &simulation.gates, *gk));
+    for &cur_node in circuit_inputs.chain(circuit_outputs).chain(gate_inputs).chain(gate_outputs) {
+        for adjacent in simulation.nodes[cur_node].logic.adjacent() {
+            let color = node_color(simulation, cur_node, false);
             let cur_pos = node_pos(window_rect, simulation, cur_node);
-            let producer_pos = node_pos(window_rect, simulation, producer);
+            let producer_pos = node_pos(window_rect, simulation, *adjacent);
             draw.line().start(producer_pos).end(cur_pos).color(color).weight(CONNECTION_RAD);
         }
     }
@@ -52,7 +59,7 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
     let gate_outputs = main_circuit.gates.iter().flat_map(|gk| simulation::gate_outputs(&simulation.circuits, &simulation.gates, *gk));
     for &node_key in circuit_inputs.chain(circuit_outputs).chain(gate_inputs).chain(gate_outputs) {
         let pos = node_pos(window_rect, simulation, node_key);
-        let color = node_color(simulation, node_key);
+        let color = node_color(simulation, node_key, true);
         draw.ellipse().color(color).x_y(pos[0], pos[1]).radius(CIRCLE_RAD);
     }
 }
@@ -132,10 +139,22 @@ fn node_pos(window_rect: Rect, simulation: &Simulation, node: NodeKey) -> Vec2 {
     }
 }
 
-fn node_color(simulation: &Simulation, node: NodeKey) -> Rgb {
-    if logic::get_node_value(&simulation.nodes, node) {
-        ON_COLOR
+fn node_color(simulation: &Simulation, node: NodeKey, use_production: bool) -> Rgb {
+    fn value_to_color(v: logic::Value) -> Rgb {
+        match v {
+            logic::Value::H => ON_COLOR,
+            logic::Value::L => OFF_COLOR,
+            logic::Value::Z => HIGH_IMPEDANCE_COLOR,
+            logic::Value::X => ERR_COLOR,
+        }
+    }
+    if use_production {
+        if let Some(v) = logic::get_node_production(&simulation.nodes, node) {
+            value_to_color(v)
+        } else {
+            value_to_color(logic::get_node_value(&simulation.nodes, node))
+        }
     } else {
-        OFF_COLOR
+        value_to_color(logic::get_node_value(&simulation.nodes, node))
     }
 }
