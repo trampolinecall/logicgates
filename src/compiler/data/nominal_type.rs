@@ -22,8 +22,5 @@ impl arena::ArenaId for StructId {
     }
 }
 
-impl arena::IsArenaIdFor<FullyDefinedStruct<'_>> for StructId {}
-impl arena::IsArenaIdFor<PartiallyDefinedStruct<'_>> for StructId {}
-
 pub(crate) type PartiallyDefinedStruct<'file> = Struct<'file, TypeExpr<'file>>;
 pub(crate) type FullyDefinedStruct<'file> = Struct<'file, ty::TypeSym>;

@@ -45,7 +45,6 @@ impl arena::ArenaId for CircuitOrIntrinsicId {
         self.0
     }
 }
-impl<'file, PatTypeInfo, ExprTypeInfo, TypeExpr> arena::IsArenaIdFor<CircuitOrIntrinsic<'file, PatTypeInfo, ExprTypeInfo, TypeExpr>> for CircuitOrIntrinsicId {}
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct Circuit<'file, Expr, PatTypeInfo, TypeExpr> {

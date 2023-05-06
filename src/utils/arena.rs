@@ -1,16 +1,14 @@
 use crate::utils::collect_all::CollectAll;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct Arena<T, Id: ArenaId + IsArenaIdFor<T>>(Vec<T>, std::marker::PhantomData<Id>);
+pub(crate) struct Arena<T, Id: ArenaId>(Vec<T>, std::marker::PhantomData<Id>);
 
 pub(crate) trait ArenaId: Copy {
     fn make(i: usize) -> Self;
     fn get(&self) -> usize;
 }
 
-pub(crate) trait IsArenaIdFor<T>: ArenaId {}
-
-impl<T, Id: ArenaId + IsArenaIdFor<T>> Arena<T, Id> {
+impl<T, Id: ArenaId> Arena<T, Id> {
     pub(crate) fn new() -> Arena<T, Id> {
         Arena(Vec::new(), std::marker::PhantomData)
     }
@@ -30,16 +28,10 @@ impl<T, Id: ArenaId + IsArenaIdFor<T>> Arena<T, Id> {
     }
     */
 
-    pub(crate) fn transform<U>(self, op: impl FnMut(T) -> Option<U>) -> Option<Arena<U, Id>>
-    where
-        Id: IsArenaIdFor<U>,
-    {
+    pub(crate) fn transform<U>(self, op: impl FnMut(T) -> Option<U>) -> Option<Arena<U, Id>> {
         Some(Arena(self.0.into_iter().map(op).collect_all()?, std::marker::PhantomData))
     }
-    pub(crate) fn transform_infallible<U>(self, op: impl FnMut(T) -> U) -> Arena<U, Id>
-    where
-        Id: IsArenaIdFor<U>,
-    {
+    pub(crate) fn transform_infallible<U>(self, op: impl FnMut(T) -> U) -> Arena<U, Id> {
         Arena(self.0.into_iter().map(op).collect(), std::marker::PhantomData)
     }
 
@@ -62,10 +54,7 @@ impl<T, Id: ArenaId + IsArenaIdFor<T>> Arena<T, Id> {
 // dependent transform things {{{1
 #[macro_use]
 mod dependent_transform {
-    use crate::utils::{
-        arena::{ArenaId, IsArenaIdFor},
-        collect_all::CanCollectAll,
-    };
+    use crate::utils::{arena::ArenaId, collect_all::CanCollectAll};
 
     pub(super) enum ItemState<Annotation, Id, Error> {
         Waiting,
@@ -88,7 +77,7 @@ mod dependent_transform {
             Self(self.0)
         }
     }
-    impl<'arena, Annotation, Original, Error, Id: ArenaId + IsArenaIdFor<Original>> DependancyGetter<'arena, Annotation, Original, Error, Id> {
+    impl<'arena, Annotation, Original, Error, Id: ArenaId> DependancyGetter<'arena, Annotation, Original, Error, Id> {
         pub(crate) fn get(self, id: Id) -> SingleTransformResult<(&'arena Original, &'arena Annotation), Id, Error> {
             match self.0.get(id.get()).expect("arena Id should not be invalid") {
                 (original, ItemState::Ok(item)) => SingleTransformResult::Ok((original, item)),
@@ -145,16 +134,13 @@ mod dependent_transform {
 pub(crate) use dependent_transform::DependancyGetter;
 pub(crate) use dependent_transform::SingleTransformResult;
 
-impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original, Id> {
+impl<Original, Id: ArenaId + PartialEq> Arena<Original, Id> {
     // TODO: write tests for this
     pub(crate) fn transform_dependent_with_id<Annotation, New, Error>(
         self,
         mut try_annotate: impl FnMut(Id, &Original, DependancyGetter<Annotation, Original, Error, Id>) -> SingleTransformResult<Annotation, Id, Error>,
         incorporate_annotation: impl Fn(Original, Annotation) -> New,
-    ) -> Result<Arena<New, Id>, (Vec<Vec<Original>>, Vec<Error>)>
-    where
-        Id: IsArenaIdFor<New>,
-    {
+    ) -> Result<Arena<New, Id>, (Vec<Vec<Original>>, Vec<Error>)> {
         use dependent_transform::*;
         // some transformations have operations that are dependent on the results of other transformations
         // for example in name resolution, the result of a single name might be dependent on the resolution of another name
@@ -307,10 +293,7 @@ impl<Original, Id: ArenaId + IsArenaIdFor<Original> + PartialEq> Arena<Original,
         self,
         mut try_convert: impl FnMut(&Original, DependancyGetter<Annotation, Original, Error, Id>) -> SingleTransformResult<Annotation, Id, Error>,
         incorporate_annotation: impl Fn(Original, Annotation) -> New,
-    ) -> Result<Arena<New, Id>, (Vec<Vec<Original>>, Vec<Error>)>
-    where
-        Id: IsArenaIdFor<New>,
-    {
+    ) -> Result<Arena<New, Id>, (Vec<Vec<Original>>, Vec<Error>)> {
         self.transform_dependent_with_id(|_, thing, dependency_getter| try_convert(thing, dependency_getter), incorporate_annotation)
     }
 }

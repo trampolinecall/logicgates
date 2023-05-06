@@ -76,8 +76,6 @@ impl arena::ArenaId for ExprId {
         self.0
     }
 }
-impl<'file> arena::IsArenaIdFor<ExprInArena<'file>> for ExprId {}
-impl<'file> arena::IsArenaIdFor<(ExprInArena<'file>, ir::bundle::ProducerBundle)> for ExprId {}
 #[derive(Debug)]
 struct ExprInArena<'file> {
     kind: ExprInArenaKind<'file>,

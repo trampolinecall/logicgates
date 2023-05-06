@@ -2,10 +2,7 @@ use symtern::prelude::*;
 
 use crate::{compiler::data::nominal_type, utils::arena};
 
-pub(crate) struct TypeContext<Struct>
-where
-    nominal_type::StructId: arena::IsArenaIdFor<Struct>,
-{
+pub(crate) struct TypeContext<Struct> {
     pool: symtern::Pool<Type>, // ideally, i would use a interner crate that doesnt use ids to access types but they dont handle cyclic references nicely
 
     // this stores all the nominal types, one for each nominal type definition ast
@@ -15,7 +12,6 @@ where
 }
 
 pub(crate) enum NeverNominalType {} // this is kind of a not ideal way of doing this but it works
-impl arena::IsArenaIdFor<NeverNominalType> for nominal_type::StructId {}
 
 pub(crate) type TypeSym = symtern::Sym<usize>;
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
@@ -25,10 +21,7 @@ pub(crate) enum Type {
     Nominal(nominal_type::StructId),
 }
 
-impl<NominalType> TypeContext<NominalType>
-where
-    nominal_type::StructId: arena::IsArenaIdFor<NominalType>,
-{
+impl<NominalType> TypeContext<NominalType> {
     pub(crate) fn new() -> Self {
         Self { pool: symtern::Pool::new(), structs: arena::Arena::new() }
     }
@@ -41,10 +34,7 @@ where
         self.pool.intern(&ty).expect("symtern interning error")
     }
 
-    pub(crate) fn transform_nominals<NewNominalType>(self, mut op: impl FnMut(&mut TypeContext<NeverNominalType>, NominalType) -> Option<NewNominalType>) -> Option<TypeContext<NewNominalType>>
-    where
-        nominal_type::StructId: arena::IsArenaIdFor<NewNominalType>,
-    {
+    pub(crate) fn transform_nominals<NewNominalType>(self, mut op: impl FnMut(&mut TypeContext<NeverNominalType>, NominalType) -> Option<NewNominalType>) -> Option<TypeContext<NewNominalType>> {
         let mut no_struct_context = TypeContext { pool: self.pool, structs: arena::Arena::new() };
         let structs = self.structs.transform(|struct_| op(&mut no_struct_context, struct_))?;
         Some(TypeContext { pool: no_struct_context.pool, structs })
@@ -52,8 +42,6 @@ where
 
     /* (unused)
     pub(crate) fn transform_named_infallible<NewNamedType>(self, mut op: impl FnMut(&TypeContext<NeverNamedType>, NamedType) -> NewNamedType) -> TypeContext<NewNamedType>
-    where
-        named_type::NamedTypeId: arena::IsArenaIdFor<NewNamedType>,
     {
         let mut no_named_context = TypeContext { pool: self.pool, named: arena::Arena::new() };
         let named = self.named.transform_infallible(|named| op(&mut no_named_context, named));
