@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
+// TODO: remove dependency on draw system
 use crate::simulation::{self, draw, CircuitKey, CircuitMap, GateKey, GateMap, NodeParent, Simulation};
 
 pub(crate) struct GateLocation {
@@ -107,10 +108,11 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
             let prev_gates = gate_inputs.iter().filter_map(|&cur_node| {
                 let producer_node = simulation.nodes[cur_node].value.producer()?;
                 match simulation.nodes[producer_node].parent {
-                    NodeParent::Gate(gk) => Some(Some(gk)),
-                    NodeParent::Circuit(ck) if ck == cur_circuit_key => Some(None),
-
-                    NodeParent::Circuit(ck) => Some(Some(*subcircuits_in_cur_circuit.get(&ck).expect("gate is connected to custom gate outside of current circuit"))), // TODO: handle if ck == circuit, if this is connected to the current circuit's input node
+                    NodeParent::GateIn(gk, _) | NodeParent::GateOut(gk, _) => Some(Some(gk)), // it should not be GateIn but
+                    NodeParent::CircuitIn(ck, _) | NodeParent::CircuitOut(ck, _) if ck == cur_circuit_key => Some(None),
+                    NodeParent::CircuitIn(ck, _) | NodeParent::CircuitOut(ck, _) => {
+                        Some(Some(*subcircuits_in_cur_circuit.get(&ck).expect("gate is connected to custom gate outside of current circuit")))
+                    }
                 }
             });
 
@@ -159,11 +161,21 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
 
             // set the y values
             const PADDING: f32 = 20.0;
-            let all_height: f32 = on_current_column.iter().map(|&gate| draw::gate_display_size(simulation, gate)[1]).sum::<f32>() + PADDING * (on_current_column.len() - 1) as f32; // TODO: remove dependency on draw system
+            let all_height: f32 = on_current_column
+                .iter()
+                .map(|&gate| {
+                    let num_inputs = simulation::gate_num_inputs(&simulation.circuits, &simulation.gates, gate);
+                    let num_outputs = simulation::gate_num_outputs(&simulation.circuits, &simulation.gates, gate);
+                    draw::gate_display_size(simulation, num_inputs, num_outputs)[1]
+                })
+                .sum::<f32>()
+                + PADDING * (on_current_column.len() - 1) as f32;
             let mut start_y = -all_height / 2.0;
             for &gate_i in &on_current_column {
                 ys.insert(gate_i, start_y);
-                start_y += draw::gate_display_size(simulation, gate_i)[1];
+                let num_inputs = simulation::gate_num_inputs(&simulation.circuits, &simulation.gates, gate_i);
+                let num_outputs = simulation::gate_num_outputs(&simulation.circuits, &simulation.gates, gate_i);
+                start_y += draw::gate_display_size(simulation, num_inputs, num_outputs)[1];
                 start_y += PADDING;
             }
         }

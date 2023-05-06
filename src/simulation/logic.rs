@@ -31,10 +31,10 @@ impl NandLogic {
     pub(crate) fn new(nodes: &mut NodeMap, gate_key: GateKey) -> NandLogic {
         NandLogic {
             inputs: [
-                nodes.insert(Node { value: { NodeLogic { value: Value::Manual(false) } }, parent: NodeParent::Gate(gate_key) }),
-                nodes.insert(Node { value: { NodeLogic { value: Value::Manual(false) } }, parent: NodeParent::Gate(gate_key) }),
+                nodes.insert(Node { value: { NodeLogic { value: Value::Manual(false) } }, parent: NodeParent::GateIn(gate_key, 0) }),
+                nodes.insert(Node { value: { NodeLogic { value: Value::Manual(false) } }, parent: NodeParent::GateIn(gate_key, 1) }),
             ],
-            outputs: [nodes.insert(Node { value: { NodeLogic { value: Value::Manual(true) } }, parent: NodeParent::Gate(gate_key) })],
+            outputs: [nodes.insert(Node { value: { NodeLogic { value: Value::Manual(true) } }, parent: NodeParent::GateOut(gate_key, 0) })],
         }
     }
     pub(crate) fn name(&self) -> &str {
@@ -46,7 +46,7 @@ impl ConstLogic {
     pub(crate) fn new(nodes: &mut NodeMap, gate_key: GateKey, value: bool) -> ConstLogic {
         ConstLogic {
             inputs: [],
-            outputs: [nodes.insert(Node { value: { NodeLogic { value: Value::Manual(value) } }, parent: NodeParent::Gate(gate_key) })],
+            outputs: [nodes.insert(Node { value: { NodeLogic { value: Value::Manual(value) } }, parent: NodeParent::GateOut(gate_key, 0) })],
             name: if value { "true" } else { "false" },
         }
     }
