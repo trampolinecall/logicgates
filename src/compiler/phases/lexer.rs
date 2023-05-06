@@ -86,6 +86,7 @@ impl<'file> Lexer<'file> {
                 let slice = self.slice(start_i);
                 match slice {
                     "let" => Ok(Some(Token::Let(span))),
+                    "connect" => Ok(Some(Token::Connect(span))),
                     "inline" => Ok(Some(Token::Inline(span))),
                     "struct" => Ok(Some(Token::Struct(span))),
                     name => Ok(Some(Token::PlainIdentifier(token::PlainIdentifier { span, name }))),
