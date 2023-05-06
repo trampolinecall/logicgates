@@ -87,7 +87,7 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
     // TODO: test this
 
     // gates in subcircuits just get processed based on the other gates they are connected to, meaning that their positions are independent of the positions of the gates in the supercircuits
-    // TODO: overhaul to work with new connection system
+    // TODO: overhaul to work with new connection system (especially loops)
 
     let mut locations = HashMap::new();
     for (cur_circuit_key, cur_circuit) in &simulation.circuits {
