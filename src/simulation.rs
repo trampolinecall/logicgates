@@ -29,8 +29,10 @@ pub(crate) struct Circuit {
 
 #[derive(Copy, Clone)]
 pub(crate) enum NodeParent {
-    Gate(GateKey),
-    Circuit(CircuitKey),
+    GateIn(GateKey, usize),
+    GateOut(GateKey, usize),
+    CircuitIn(CircuitKey, usize),
+    CircuitOut(CircuitKey, usize),
 }
 pub(crate) struct Node {
     pub(crate) value: logic::NodeLogic,
@@ -50,8 +52,8 @@ impl Circuit {
         Circuit {
             name,
             gates: Vec::new(),
-            inputs: std::iter::repeat_with(|| nodes.insert(Node { value: logic::NodeLogic::new(), parent: NodeParent::Circuit(circuit_key) })).take(num_inputs).collect(),
-            outputs: std::iter::repeat_with(|| nodes.insert(Node { value: logic::NodeLogic::new(), parent: NodeParent::Circuit(circuit_key) })).take(num_outputs).collect(),
+            inputs: (0..num_inputs).map(|i| nodes.insert(Node { value: logic::NodeLogic::new(), parent: NodeParent::CircuitIn(circuit_key, i) })).collect(),
+            outputs: (0..num_outputs).map(|i| nodes.insert(Node { value: logic::NodeLogic::new(), parent: NodeParent::CircuitOut(circuit_key, i) })).collect(),
             location: location::GateLocation::new(),
         }
     }
