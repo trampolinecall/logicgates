@@ -67,8 +67,9 @@ fn convert_circuit<'file, 'circuit>(
 
     expansion_stack.push(circuit);
 
-    let new_circuit_idx =
-        circuit_map.insert(simulation::Circuit::new(node_map, circuit.name.into(), type_context.get(circuit.input_type).size(type_context), type_context.get(circuit.output_type).size(type_context)));
+    let new_circuit_idx = circuit_map.insert_with_key(|ck| {
+        simulation::Circuit::new(ck, node_map, circuit.name.into(), type_context.get(circuit.input_type).size(type_context), type_context.get(circuit.output_type).size(type_context))
+    });
     let mut gate_index_map = HashMap::new();
 
     for (old_gate_i, gate) in circuit.gates.iter_with_ids() {
@@ -101,11 +102,16 @@ fn add_gate<'file, 'circuit>(
         ir::CircuitOrIntrinsic::Custom(subcircuit) => {
             let (expansion_stack, subcircuit_idx) = convert_circuit(circuit_map, gate_map, node_map, circuits, type_context, expansion_stack, subcircuit)?;
             // TODO: implement inlining
-            (expansion_stack, gate_map.insert(simulation::Gate { logic: logic::GateLogic::new_subcircuit(node_map, subcircuit_idx), location: simulation::location::GateLocation::new() }))
+            (
+                expansion_stack,
+                gate_map.insert_with_key(|gk| simulation::Gate { logic: logic::GateLogic::new_subcircuit(node_map, gk, subcircuit_idx), location: simulation::location::GateLocation::new() }),
+            )
         }
-        ir::CircuitOrIntrinsic::Nand => (expansion_stack, gate_map.insert(simulation::Gate { logic: logic::GateLogic::new_nand(node_map), location: simulation::location::GateLocation::new() })),
+        ir::CircuitOrIntrinsic::Nand => {
+            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate { logic: logic::GateLogic::new_nand(node_map, gk), location: simulation::location::GateLocation::new() }))
+        }
         ir::CircuitOrIntrinsic::Const(value) => {
-            (expansion_stack, gate_map.insert(simulation::Gate { logic: logic::GateLogic::new_const(node_map, *value), location: simulation::location::GateLocation::new() }))
+            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate { logic: logic::GateLogic::new_const(node_map, gk, *value), location: simulation::location::GateLocation::new() }))
         }
     };
 

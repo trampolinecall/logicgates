@@ -26,8 +26,14 @@ pub(crate) struct Circuit {
     outputs: Vec<NodeKey>,
 }
 
+#[derive(Copy, Clone)]
+pub(crate) enum NodeParent {
+    Gate(GateKey),
+    Circuit(CircuitKey),
+}
 pub(crate) struct Node {
     pub(crate) value: logic::NodeLogic,
+    pub(crate) parent: NodeParent, // TODO: move into NodeLocation component?
 }
 
 pub(crate) struct Gate {
@@ -36,14 +42,14 @@ pub(crate) struct Gate {
 }
 
 impl Circuit {
-    pub(crate) fn new(nodes: &mut NodeMap, name: String, num_inputs: usize, num_outputs: usize) -> Circuit {
+    pub(crate) fn new(circuit_key: CircuitKey, nodes: &mut NodeMap, name: String, num_inputs: usize, num_outputs: usize) -> Circuit {
         // even if this circuit is part of a subcircuit, these nodes dont have to update anything
         // instead, because the gates inside this circuit are connected to these nodes, updates to these nodes will propagate to the gates' nodes, properly updating those gates
         Circuit {
             name,
             gates: Vec::new(),
-            inputs: std::iter::repeat_with(|| nodes.insert(Node { value: logic::NodeLogic::new() })).take(num_inputs).collect(),
-            outputs: std::iter::repeat_with(|| nodes.insert(Node { value: logic::NodeLogic::new() })).take(num_outputs).collect(),
+            inputs: std::iter::repeat_with(|| nodes.insert(Node { value: logic::NodeLogic::new(), parent: NodeParent::Circuit(circuit_key) })).take(num_inputs).collect(),
+            outputs: std::iter::repeat_with(|| nodes.insert(Node { value: logic::NodeLogic::new(), parent: NodeParent::Circuit(circuit_key) })).take(num_outputs).collect(),
         }
     }
 
