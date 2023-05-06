@@ -1,4 +1,4 @@
-use crate::simulation::{CircuitKey, CircuitMap, GateKey, GateMap, Node, NodeKey, NodeMap};
+use crate::simulation::{CircuitKey, CircuitMap, GateKey, GateMap, Node, NodeKey, NodeMap, NodeParent};
 
 const SUBTICKS_PER_UPDATE: usize = 1; // TODO: make this adjustable at runtime
 
@@ -25,16 +25,19 @@ enum Value {
 
 impl GateLogic {
     // default value for the outputs is whatever value results from having all false inputs
-    pub(crate) fn new_nand(nodes: &mut NodeMap) -> GateLogic {
+    pub(crate) fn new_nand(nodes: &mut NodeMap, gate_key: GateKey) -> GateLogic {
         GateLogic(GateLogicKind::Nand(
-            [nodes.insert(Node { value: { NodeLogic { value: Value::Manual(false) } } }), nodes.insert(Node { value: { NodeLogic { value: Value::Manual(false) } } })],
-            [nodes.insert(Node { value: { NodeLogic { value: Value::Manual(true) } } })],
+            [
+                nodes.insert(Node { value: { NodeLogic { value: Value::Manual(false) } }, parent: NodeParent::Gate(gate_key) }),
+                nodes.insert(Node { value: { NodeLogic { value: Value::Manual(false) } }, parent: NodeParent::Gate(gate_key) }),
+            ],
+            [nodes.insert(Node { value: { NodeLogic { value: Value::Manual(true) } }, parent: NodeParent::Gate(gate_key) })],
         ))
     }
-    pub(crate) fn new_const(nodes: &mut NodeMap, value: bool) -> GateLogic {
-        GateLogic(GateLogicKind::Const([], [nodes.insert(Node { value: { NodeLogic { value: Value::Manual(value) } } })], if value { "true" } else { "false" }))
+    pub(crate) fn new_const(nodes: &mut NodeMap, gate_key: GateKey, value: bool) -> GateLogic {
+        GateLogic(GateLogicKind::Const([], [nodes.insert(Node { value: { NodeLogic { value: Value::Manual(value) } }, parent: NodeParent::Gate(gate_key) })], if value { "true" } else { "false" }))
     }
-    pub(crate) fn new_subcircuit(_: &mut NodeMap, subcircuit: CircuitKey) -> GateLogic {
+    pub(crate) fn new_subcircuit(_: &mut NodeMap, _: GateKey, subcircuit: CircuitKey) -> GateLogic {
         GateLogic(GateLogicKind::Custom(subcircuit))
     }
 
@@ -43,6 +46,13 @@ impl GateLogic {
             GateLogicKind::Nand(_, _) => "nand",
             GateLogicKind::Const(_, _, name) => name,
             GateLogicKind::Custom(ck) => &circuits[ck].name,
+        }
+    }
+
+    pub(crate) fn as_subcircuit(&self) -> Option<CircuitKey> {
+        match self.0 {
+            GateLogicKind::Nand(_, _) | GateLogicKind::Const(_, _, _) => None,
+            GateLogicKind::Custom(ck) => Some(ck),
         }
     }
 }
