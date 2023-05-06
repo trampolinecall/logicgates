@@ -1,4 +1,4 @@
-use crate::simulation::{CircuitKey, CircuitMap, GateKey, GateMap, Node, NodeKey, NodeMap, NodeParent};
+use crate::simulation::{CircuitKey, CircuitMap, Gate, GateKey, GateMap, Node, NodeKey, NodeMap, NodeParent};
 
 const SUBTICKS_PER_UPDATE: usize = 1; // TODO: make this adjustable at runtime
 
@@ -8,11 +8,14 @@ pub(crate) struct NodeLogic {
     value: Value,
 }
 
-pub(crate) struct GateLogic(GateLogicKind);
-enum GateLogicKind {
-    Nand([NodeKey; 2], [NodeKey; 1]),
-    Const([NodeKey; 0], [NodeKey; 1], &'static str),
-    Custom(CircuitKey),
+pub(crate) struct NandLogic {
+    pub(crate) inputs: [NodeKey; 2],
+    pub(crate) outputs: [NodeKey; 1],
+}
+pub(crate) struct ConstLogic {
+    pub(crate) inputs: [NodeKey; 0],
+    pub(crate) outputs: [NodeKey; 1],
+    name: &'static str,
 }
 
 #[derive(Clone, Copy)]
@@ -23,37 +26,32 @@ enum Value {
 
 // TODO: properly deal with removing gates so that it doesnt panic when gates are removed
 
-impl GateLogic {
+impl NandLogic {
     // default value for the outputs is whatever value results from having all false inputs
-    pub(crate) fn new_nand(nodes: &mut NodeMap, gate_key: GateKey) -> GateLogic {
-        GateLogic(GateLogicKind::Nand(
-            [
+    pub(crate) fn new(nodes: &mut NodeMap, gate_key: GateKey) -> NandLogic {
+        NandLogic {
+            inputs: [
                 nodes.insert(Node { value: { NodeLogic { value: Value::Manual(false) } }, parent: NodeParent::Gate(gate_key) }),
                 nodes.insert(Node { value: { NodeLogic { value: Value::Manual(false) } }, parent: NodeParent::Gate(gate_key) }),
             ],
-            [nodes.insert(Node { value: { NodeLogic { value: Value::Manual(true) } }, parent: NodeParent::Gate(gate_key) })],
-        ))
-    }
-    pub(crate) fn new_const(nodes: &mut NodeMap, gate_key: GateKey, value: bool) -> GateLogic {
-        GateLogic(GateLogicKind::Const([], [nodes.insert(Node { value: { NodeLogic { value: Value::Manual(value) } }, parent: NodeParent::Gate(gate_key) })], if value { "true" } else { "false" }))
-    }
-    pub(crate) fn new_subcircuit(_: &mut NodeMap, _: GateKey, subcircuit: CircuitKey) -> GateLogic {
-        GateLogic(GateLogicKind::Custom(subcircuit))
-    }
-
-    pub(crate) fn name<'c>(&self, circuits: &'c CircuitMap) -> &'c str {
-        match self.0 {
-            GateLogicKind::Nand(_, _) => "nand",
-            GateLogicKind::Const(_, _, name) => name,
-            GateLogicKind::Custom(ck) => &circuits[ck].name,
+            outputs: [nodes.insert(Node { value: { NodeLogic { value: Value::Manual(true) } }, parent: NodeParent::Gate(gate_key) })],
         }
     }
+    pub(crate) fn name(&self) -> &str {
+        "nand"
+    }
+}
 
-    pub(crate) fn as_subcircuit(&self) -> Option<CircuitKey> {
-        match self.0 {
-            GateLogicKind::Nand(_, _) | GateLogicKind::Const(_, _, _) => None,
-            GateLogicKind::Custom(ck) => Some(ck),
+impl ConstLogic {
+    pub(crate) fn new(nodes: &mut NodeMap, gate_key: GateKey, value: bool) -> ConstLogic {
+        ConstLogic {
+            inputs: [],
+            outputs: [nodes.insert(Node { value: { NodeLogic { value: Value::Manual(value) } }, parent: NodeParent::Gate(gate_key) })],
+            name: if value { "true" } else { "false" },
         }
+    }
+    pub(crate) fn name(&self) -> &str {
+        self.name
     }
 }
 
@@ -71,27 +69,6 @@ impl NodeLogic {
     }
 }
 
-// inputs and outputs {{{1
-pub(crate) fn gate_inputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r [NodeKey] {
-    match &gates[gate].logic.0 {
-        GateLogicKind::Nand(i, _) => i,
-        GateLogicKind::Const(i, _, _) => i,
-        GateLogicKind::Custom(circuit_idx) => &circuits[*circuit_idx].inputs,
-    }
-}
-pub(crate) fn gate_outputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r [NodeKey] {
-    match &gates[gate].logic.0 {
-        GateLogicKind::Nand(_, o) | GateLogicKind::Const(_, o, _) => o,
-        GateLogicKind::Custom(circuit_idx) => &circuits[*circuit_idx].outputs,
-    }
-}
-
-pub(crate) fn gate_num_inputs(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> usize {
-    gate_inputs(circuits, gates, gate).len()
-}
-pub(crate) fn gate_num_outputs(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> usize {
-    gate_outputs(circuits, gates, gate).len()
-}
 // node values {{{1
 // TODO: test connection, replacing old connection
 pub(crate) fn connect(nodes: &mut NodeMap, producer_idx: NodeKey, receiver_idx: NodeKey) {
@@ -135,11 +112,11 @@ pub(crate) fn update(gates: &mut GateMap, nodes: &mut NodeMap) {
         // all gates calculate their values based on the values of the nodes in the previous subtick and then all updates get applied all at once
         let node_values: Vec<(NodeKey, Value)> = gates
             .iter()
-            .filter_map(|(_, gate)| {
-                match &gate.logic.0 {
-                    GateLogicKind::Nand([a, b], [o]) => Some((*o, Value::Manual(!(get_node_value(nodes, *a) && get_node_value(nodes, *b))))),
-                    GateLogicKind::Const(_, _, _) => None, // const nodes do not need to update becuase they always output the value they were created with
-                    GateLogicKind::Custom(_) => None, // custom gates do not have to compute values because their nodes are connected to their inputs or are passthrough nodes and should automatically have the right values
+            .filter_map(|(_, gate)| -> Option<(NodeKey, Value)> {
+                match &gate {
+                    Gate::Nand { logic: NandLogic { inputs: [a, b], outputs: [o] }, location: _ } => Some((*o, Value::Manual(!(get_node_value(nodes, *a) && get_node_value(nodes, *b))))),
+                    Gate::Const { logic: ConstLogic { inputs: _, outputs: _, name: _ }, location: _ } => None, // const nodes do not need to update becuase they always output the value they were created with
+                    Gate::Custom(_) => None, // custom gates do not have to compute values because their nodes are connected to their inputs or are passthrough nodes and should automatically have the right values
                 }
             })
             .collect();
