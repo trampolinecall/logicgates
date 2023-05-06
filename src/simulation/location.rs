@@ -89,29 +89,37 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
     // TODO: it actually does not work properly as described in the line above so fix this
 
     let mut locations = HashMap::new();
-    for (_, circuit) in &simulation.circuits {
+    for (cur_circuit_key, cur_circuit) in &simulation.circuits {
         // process each circuit individually because each circuit positions each of its gates independently of each other
         // also this should cover every gate only once because a gate should never be part of 2 circuits at the same time
 
-        let subcircuits_in_cur_circuit: BTreeMap<CircuitKey, GateKey> = circuit.gates.iter().filter_map(|&gk| Some((simulation.gates[gk].logic.as_subcircuit()?, gk))).collect();
+        let subcircuits_in_cur_circuit: BTreeMap<CircuitKey, GateKey> = cur_circuit.gates.iter().filter_map(|&gk| Some((simulation.gates[gk].logic.as_subcircuit()?, gk))).collect();
         let get_prev_gates_excluding_self = |gate: GateKey| {
             let gate_inputs = logic::gate_inputs(&simulation.circuits, &simulation.gates, gate);
-            let prev_gates = gate_inputs.iter().map(|&node_k| match simulation.nodes[node_k].parent {
-                NodeParent::Gate(gk) => gk,
-                NodeParent::Circuit(ck) => *subcircuits_in_cur_circuit.get(&ck).expect("gate is connected to custom gate outside of current circuit"), // TODO: handle if ck == circuit, if this is connected to the current circuit's input node
+            let prev_gates = gate_inputs.iter().filter_map(|&cur_node| {
+                let producer_node = simulation.nodes[cur_node].value.producer()?;
+                match simulation.nodes[producer_node].parent {
+                    NodeParent::Gate(gk) => Some(Some(gk)),
+                    NodeParent::Circuit(ck) if ck == cur_circuit_key => Some(None),
+
+                    NodeParent::Circuit(ck) => Some(Some(*subcircuits_in_cur_circuit.get(&ck).expect("gate is connected to custom gate outside of current circuit"))), // TODO: handle if ck == circuit, if this is connected to the current circuit's input node
+                }
             });
-            prev_gates.filter(move |x| *x != gate)
+
+            prev_gates.filter(move |x| *x != Some(gate))
         };
 
         // group them into columns with each one going one column right of its rightmost dependency
         // if a gate is connected to itself, it will just ignore that it is its own dependency
-        let mut xs: BTreeMap<GateKey, Option<u32>> = circuit.gates.iter().copied().map(|g_i| (g_i, None)).collect();
+        let mut xs: BTreeMap<GateKey, Option<u32>> = cur_circuit.gates.iter().copied().map(|g_i| (g_i, None)).collect();
         while xs.values().any(Option::is_none) {
-            for &gate_i in &circuit.gates {
+            for &gate_i in &cur_circuit.gates {
                 let prev_gates_excluding_self = get_prev_gates_excluding_self(gate_i);
                 let max_prev_gate_x: Option<u32> = prev_gates_excluding_self
-                    .map(|prev| xs.get(&prev).expect("gate is connected to prev gate outisde of current circuit"))
-                    .copied()
+                    .map(|prev| match prev {
+                        Some(prev) => *xs.get(&prev).expect("gate is connected to prev gate outisde of current circuit"),
+                        None => Some(0), // is connected to current circuit input
+                    })
                     .try_fold(0, |last_max, cur_x| cur_x.map(|cur_x| std::cmp::max(last_max, cur_x)));
                 if let Some(max_prev_gate_x) = max_prev_gate_x {
                     xs.insert(gate_i, Some(max_prev_gate_x + 1));
@@ -122,18 +130,19 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
 
         // within each column sort them by the average of their input ys
         let mut ys: BTreeMap<GateKey, f32> = BTreeMap::new();
-        for cur_col in 0..=*xs.values().max().unwrap_or(&0) {
+        // start at 1 because 0 is current circuit inputs
+        for cur_col in 1..=*xs.values().max().unwrap_or(&0) {
             let get_gate_relative_y = |gate: GateKey| -> f32 {
                 let prev_gates_excluding_self = get_prev_gates_excluding_self(gate);
-                let prev_gate_ys = prev_gates_excluding_self.map(|prev| ys[&prev]);
+                let prev_gate_ys = prev_gates_excluding_self.map(|prev| match prev {
+                    Some(prev) => ys[&prev],
+                    None => 0.0, // prev is current circuit input
+                });
 
                 prev_gate_ys.sum() // sum can be used as average because they are only being compared to each other
             };
 
             let mut on_current_column: Vec<_> = xs.iter().filter_map(|(&gate_i, &gate_x)| if gate_x == cur_col { Some(gate_i) } else { None }).collect();
-            if on_current_column.is_empty() {
-                continue;
-            }
             on_current_column.sort_by(|&gate1_i, &gate2_i| {
                 let gate1_y = get_gate_relative_y(gate1_i);
                 let gate2_y = get_gate_relative_y(gate2_i);
