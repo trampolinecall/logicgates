@@ -60,11 +60,11 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
 fn gate_rect(window_rect: Rect, simulation: &Simulation, gate_location: &location::GateLocation, num_inputs: usize, num_outputs: usize) -> Rect {
     // TODO: gate_location should eventually be the center
     let (x, y) = (gate_location.x, gate_location.y);
-    let wh = gate_display_size(simulation, num_inputs, num_outputs);
+    let wh = gate_display_size(num_inputs, num_outputs);
     Rect::from_x_y_w_h(x as f32 * HORIZONTAL_GATE_SPACING - window_rect.x.len() / 2.0 + wh.x / 2.0, y + wh.y / 2.0, wh.x, wh.y)
 }
 
-pub(crate) fn gate_display_size(simulation: &Simulation, num_inputs: usize, num_outputs: usize) -> Vec2 {
+pub(crate) fn gate_display_size(num_inputs: usize, num_outputs: usize) -> Vec2 {
     const EXTRA_VERTICAL_HEIGHT: f32 = 40.0;
     const GATE_WIDTH: f32 = 50.0;
 
@@ -106,14 +106,14 @@ fn node_pos(window_rect: Rect, simulation: &Simulation, node: NodeKey) -> Vec2 {
             let location = &circuit.location;
             let num_inputs = circuit.inputs.len();
             let num_outputs = circuit.outputs.len();
-            gate_input_pos(window_rect, simulation, &location, num_inputs, num_outputs, i)
+            gate_input_pos(window_rect, simulation, location, num_inputs, num_outputs, i)
         }
         NodeParent::CircuitOut(c, i) => {
             let circuit = &simulation.circuits[c];
             let location = &circuit.location;
             let num_inputs = circuit.inputs.len();
             let num_outputs = circuit.outputs.len();
-            gate_output_pos(window_rect, simulation, &location, num_inputs, num_outputs, i)
+            gate_output_pos(window_rect, simulation, location, num_inputs, num_outputs, i)
         }
         NodeParent::GateIn(g, i) => {
             let gate = &simulation.gates[g];

@@ -166,7 +166,7 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
                 .map(|&gate| {
                     let num_inputs = simulation::gate_num_inputs(&simulation.circuits, &simulation.gates, gate);
                     let num_outputs = simulation::gate_num_outputs(&simulation.circuits, &simulation.gates, gate);
-                    draw::gate_display_size(simulation, num_inputs, num_outputs)[1]
+                    draw::gate_display_size(num_inputs, num_outputs)[1]
                 })
                 .sum::<f32>()
                 + PADDING * (on_current_column.len() - 1) as f32;
@@ -175,7 +175,7 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
                 ys.insert(gate_i, start_y);
                 let num_inputs = simulation::gate_num_inputs(&simulation.circuits, &simulation.gates, gate_i);
                 let num_outputs = simulation::gate_num_outputs(&simulation.circuits, &simulation.gates, gate_i);
-                start_y += draw::gate_display_size(simulation, num_inputs, num_outputs)[1];
+                start_y += draw::gate_display_size(num_inputs, num_outputs)[1];
                 start_y += PADDING;
             }
         }
