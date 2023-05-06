@@ -72,17 +72,11 @@ fn resolve_in_let<'file>(
     lets.into_iter().map(|let_| Some(ast::TypeResolvedLet { pat: resolve_in_pat(type_context, type_table, let_.pat)?, val: let_.val })).collect_all()
 }
 
-fn resolve_type_expr<'file, Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<&str, ty::TypeSym>, ty: type_expr::TypeExpr<'file>) -> Option<(Span<'file>, ty::TypeSym)>
-where
-    nominal_type::StructId: arena::IsArenaIdFor<Struct>,
-{
+fn resolve_type_expr<'file, Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<&str, ty::TypeSym>, ty: type_expr::TypeExpr<'file>) -> Option<(Span<'file>, ty::TypeSym)> {
     let sp = ty.span;
     Some((sp, resolve_type_expr_no_span(type_context, type_table, ty)?))
 }
-fn resolve_type_expr_no_span<Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<&str, ty::TypeSym>, ty: type_expr::TypeExpr) -> Option<ty::TypeSym>
-where
-    nominal_type::StructId: arena::IsArenaIdFor<Struct>,
-{
+fn resolve_type_expr_no_span<Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<&str, ty::TypeSym>, ty: type_expr::TypeExpr) -> Option<ty::TypeSym> {
     match ty.kind {
         type_expr::TypeExprKind::Product(subtypes) => {
             let ty = ty::Type::Product((subtypes.into_iter().map(|(field_name, subty_ast)| Some((field_name, resolve_type_expr_no_span(type_context, type_table, subty_ast)?))).collect_all())?); // TODO: report error if there are any duplicate fields, and also same in patterns and expressions

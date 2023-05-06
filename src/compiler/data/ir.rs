@@ -8,9 +8,6 @@ pub(crate) mod bundle;
 #[derive(Clone, Debug, Copy, Eq, Hash, PartialEq)]
 pub(crate) struct GateIdx(usize);
 
-impl arena::IsArenaIdFor<CircuitOrIntrinsic<'_>> for ast::CircuitOrIntrinsicId {}
-
-impl arena::IsArenaIdFor<(ast::CircuitOrIntrinsicId, Inline)> for GateIdx {}
 impl arena::ArenaId for GateIdx {
     fn make(i: usize) -> Self {
         GateIdx(i)
