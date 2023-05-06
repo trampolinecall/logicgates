@@ -102,16 +102,13 @@ fn add_gate<'file, 'circuit>(
         ir::CircuitOrIntrinsic::Custom(subcircuit) => {
             let (expansion_stack, subcircuit_idx) = convert_circuit(circuit_map, gate_map, node_map, circuits, type_context, expansion_stack, subcircuit)?;
             // TODO: implement inlining
-            (
-                expansion_stack,
-                gate_map.insert_with_key(|gk| simulation::Gate { logic: logic::GateLogic::new_subcircuit(node_map, gk, subcircuit_idx), location: simulation::location::GateLocation::new() }),
-            )
+            (expansion_stack, gate_map.insert(simulation::Gate::Custom(subcircuit_idx)))
         }
         ir::CircuitOrIntrinsic::Nand => {
-            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate { logic: logic::GateLogic::new_nand(node_map, gk), location: simulation::location::GateLocation::new() }))
+            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Nand { logic: logic::NandLogic::new(node_map, gk), location: simulation::location::GateLocation::new() }))
         }
         ir::CircuitOrIntrinsic::Const(value) => {
-            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate { logic: logic::GateLogic::new_const(node_map, gk, *value), location: simulation::location::GateLocation::new() }))
+            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Const { logic: logic::ConstLogic::new(node_map, gk, *value), location: simulation::location::GateLocation::new() }))
         }
     };
 
@@ -149,7 +146,7 @@ fn convert_producer_bundle(
 ) -> Vec<simulation::NodeKey> {
     match producer {
         ir::bundle::ProducerBundle::CurCircuitInput(_) => circuits[new_circuit].inputs().to_vec(),
-        ir::bundle::ProducerBundle::GateOutput(_, old_gate_index) => logic::gate_outputs(circuits, gates, gate_index_map[old_gate_index]).to_owned(),
+        ir::bundle::ProducerBundle::GateOutput(_, old_gate_index) => simulation::gate_outputs(circuits, gates, gate_index_map[old_gate_index]).to_owned(),
         ir::bundle::ProducerBundle::Get(b, field) => {
             fn field_indexes(type_context: &ty::TypeContext<nominal_type::FullyDefinedStruct>, fields: &[(&str, ty::TypeSym)], field: &str) -> Option<std::ops::Range<usize>> {
                 let mut cur_index = 0;
@@ -183,6 +180,6 @@ fn convert_receiver_bundle<'a>(
 ) -> Vec<simulation::NodeKey> {
     match receiver {
         ir::bundle::ReceiverBundle::CurCircuitOutput(_) => circuits[new_circuit].outputs().to_vec(),
-        ir::bundle::ReceiverBundle::GateInput(_, old_gate_index) => logic::gate_inputs(circuits, gates, gate_index_map[old_gate_index]).to_vec(),
+        ir::bundle::ReceiverBundle::GateInput(_, old_gate_index) => simulation::gate_inputs(circuits, gates, gate_index_map[old_gate_index]).to_vec(),
     }
 }

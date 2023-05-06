@@ -22,6 +22,7 @@ pub(crate) struct Simulation {
 pub(crate) struct Circuit {
     pub(crate) name: String,
     pub(crate) gates: Vec<GateKey>,
+    pub(crate) location: location::GateLocation,
     inputs: Vec<NodeKey>,
     outputs: Vec<NodeKey>,
 }
@@ -36,9 +37,10 @@ pub(crate) struct Node {
     pub(crate) parent: NodeParent, // TODO: move into NodeLocation component?
 }
 
-pub(crate) struct Gate {
-    pub(crate) logic: logic::GateLogic,
-    pub(crate) location: location::GateLocation,
+pub(crate) enum Gate {
+    Nand { logic: logic::NandLogic, location: location::GateLocation },
+    Const { logic: logic::ConstLogic, location: location::GateLocation },
+    Custom(CircuitKey),
 }
 
 impl Circuit {
@@ -50,6 +52,7 @@ impl Circuit {
             gates: Vec::new(),
             inputs: std::iter::repeat_with(|| nodes.insert(Node { value: logic::NodeLogic::new(), parent: NodeParent::Circuit(circuit_key) })).take(num_inputs).collect(),
             outputs: std::iter::repeat_with(|| nodes.insert(Node { value: logic::NodeLogic::new(), parent: NodeParent::Circuit(circuit_key) })).take(num_outputs).collect(),
+            location: location::GateLocation::new(),
         }
     }
 
@@ -76,4 +79,48 @@ impl Circuit {
     pub(crate) fn outputs(&self) -> &[NodeKey] {
         self.outputs.as_ref()
     }
+}
+impl Gate {
+    pub(crate) fn location<'s: 'r, 'c: 'r, 'r>(&'s self, circuits: &'c CircuitMap) -> &'r location::GateLocation {
+        match self {
+            Gate::Nand { logic: _, location } | Gate::Const { logic: _, location } => location,
+            Gate::Custom(sck) => &circuits[*sck].location,
+        }
+    }
+    pub(crate) fn location_mut<'s: 'r, 'c: 'r, 'r>(&'s mut self, circuits: &'c mut CircuitMap) -> &'r mut location::GateLocation {
+        match self {
+            Gate::Nand { logic: _, location } | Gate::Const { logic: _, location } => location,
+            Gate::Custom(sck) => &mut circuits[*sck].location,
+        }
+    }
+
+    fn name<'s: 'r, 'c: 'r, 'r>(&'s self, circuits: &'c slotmap::SlotMap<CircuitKey, Circuit>) -> &'r str {
+        match self {
+            Gate::Nand { logic, location: _ } => logic.name(),
+            Gate::Const { logic, location: _ } => logic.name(),
+            Gate::Custom(sck) => &circuits[*sck].name,
+        }
+    }
+}
+
+pub(crate) fn gate_inputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r [NodeKey] {
+    match &gates[gate] {
+        Gate::Nand { logic, location: _ } => &logic.inputs,
+        Gate::Const { logic, location: _ } => &logic.inputs,
+        Gate::Custom(circuit_idx) => &circuits[*circuit_idx].inputs,
+    }
+}
+pub(crate) fn gate_outputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r [NodeKey] {
+    match &gates[gate] {
+        Gate::Nand { logic, location: _ } => &logic.outputs,
+        Gate::Const { logic, location: _ } => &logic.outputs,
+        Gate::Custom(circuit_idx) => &circuits[*circuit_idx].outputs,
+    }
+}
+
+pub(crate) fn gate_num_inputs(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> usize {
+    gate_inputs(circuits, gates, gate).len()
+}
+pub(crate) fn gate_num_outputs(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> usize {
+    gate_outputs(circuits, gates, gate).len()
 }

@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use crate::simulation::{draw, logic, CircuitKey, GateKey, GateMap, NodeParent, Simulation};
+use crate::simulation::{self, draw, CircuitKey, CircuitMap, GateKey, GateMap, NodeParent, Simulation};
 
 pub(crate) struct GateLocation {
     pub(crate) x: u32,
@@ -15,7 +15,7 @@ impl GateLocation {
 
 pub(crate) fn calculate_locations(simulation: &mut Simulation) {
     let locations = calculate_locations_(simulation);
-    apply_locations(&mut simulation.gates, locations);
+    apply_locations(&mut simulation.circuits, &mut simulation.gates, locations);
 }
 
 fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocation> {
@@ -93,9 +93,17 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
         // process each circuit individually because each circuit positions each of its gates independently of each other
         // also this should cover every gate only once because a gate should never be part of 2 circuits at the same time
 
-        let subcircuits_in_cur_circuit: BTreeMap<CircuitKey, GateKey> = cur_circuit.gates.iter().filter_map(|&gk| Some((simulation.gates[gk].logic.as_subcircuit()?, gk))).collect();
+        let subcircuits_in_cur_circuit: BTreeMap<CircuitKey, GateKey> = cur_circuit
+            .gates
+            .iter()
+            .filter_map(|&gk| match &simulation.gates[gk] {
+                simulation::Gate::Nand { logic: _, location: _ } => None,
+                simulation::Gate::Const { logic: _, location: _ } => None,
+                simulation::Gate::Custom(sck) => Some((*sck, gk)),
+            })
+            .collect();
         let get_prev_gates_excluding_self = |gate: GateKey| {
-            let gate_inputs = logic::gate_inputs(&simulation.circuits, &simulation.gates, gate);
+            let gate_inputs = simulation::gate_inputs(&simulation.circuits, &simulation.gates, gate);
             let prev_gates = gate_inputs.iter().filter_map(|&cur_node| {
                 let producer_node = simulation.nodes[cur_node].value.producer()?;
                 match simulation.nodes[producer_node].parent {
@@ -168,8 +176,8 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
     locations
 }
 
-fn apply_locations(gates: &mut GateMap, locations: HashMap<GateKey, GateLocation>) {
+fn apply_locations(circuits: &mut CircuitMap, gates: &mut GateMap, locations: HashMap<GateKey, GateLocation>) {
     for (gate_i, location) in locations {
-        gates[gate_i].location = location;
+        *gates[gate_i].location_mut(circuits) = location;
     }
 }
