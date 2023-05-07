@@ -16,7 +16,7 @@ struct NoField<'file> {
     field_name: &'file str,
 }
 struct NoSuchLocal<'file>(token::PlainIdentifier<'file>);
-struct NoSuchCircuit<'file>(token::CircuitIdentifier<'file>);
+struct NoSuchCircuit<'file>(token::CircuitIdentifier<'file>); // TODO: decide what to do with this
 
 impl<'file> From<(&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, NoField<'file>)> for CompileError<'file> {
     fn from((types, NoField { ty, field_name_sp, field_name }): (&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, NoField<'file>)) -> Self {
@@ -118,16 +118,6 @@ fn type_expr<'file>(
             };
             // TODO: replace with a ref to the locals id
             (ast::TypedExprKind::Ref(name), local_type)
-        }
-        ast::UntypedExprKind::Call(name, inline, arg) => {
-            // this also does circuit name resolution
-            if let Some((_, ty, _)) = circuit_table.get(name.name) {
-                // TODO: replace with a call to the circuitid
-                (ast::TypedExprKind::Call(name, inline, Box::new(type_expr(type_context, circuit_table, local_types, *arg)?)), *ty)
-            } else {
-                NoSuchCircuit(name).report();
-                return None;
-            }
         }
         ast::UntypedExprKind::Const(sp, value) => (ast::TypedExprKind::Const(sp, value), type_context.intern(ty::Type::Bit)),
         ast::UntypedExprKind::Get(base, field) => {

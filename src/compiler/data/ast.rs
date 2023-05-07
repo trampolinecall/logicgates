@@ -99,7 +99,6 @@ pub(crate) struct Expr<'file, TypeInfo> {
 #[derive(PartialEq, Debug)]
 pub(crate) enum ExprKind<'file, TypeInfo> {
     Ref(token::PlainIdentifier<'file>),
-    Call(token::CircuitIdentifier<'file>, bool, Box<Expr<'file, TypeInfo>>), // TODO: remove?
     Const(Span<'file>, bool),
     Get(Box<Expr<'file, TypeInfo>>, (Span<'file>, &'file str)),
     Product(Vec<(String, Expr<'file, TypeInfo>)>),

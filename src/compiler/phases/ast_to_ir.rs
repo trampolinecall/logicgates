@@ -85,20 +85,19 @@ struct ExprInArena<'file> {
 #[derive(Debug)]
 enum ExprInArenaKind<'file> {
     Ref(token::PlainIdentifier<'file>),
-    Call(token::CircuitIdentifier<'file>, bool, ExprId),
-    Const(Span<'file>, bool),
+    Const(Span<'file>, bool, ir::GateIdx),
     Get(ExprId, (Span<'file>, &'file str)),
     MadeUpGet(ExprId, String), // used for gets in destructuring
     Product { values: Vec<(String, ExprId)> },
     CircuitInput,
     CircuitOutput,
-    GateInput(ir::GateIdx),
-    GateOutput(ir::GateIdx),
+    GateInput(ty::TypeSym, ir::GateIdx),
+    GateOutput(ty::TypeSym, ir::GateIdx),
     Poison,
 }
 
 fn convert_circuit<'file>(
-    (const_0, const_1): (ast::CircuitOrIntrinsicId, ast::CircuitOrIntrinsicId),
+    const_values: (ast::CircuitOrIntrinsicId, ast::CircuitOrIntrinsicId),
     circuit_table: &HashMap<&'file str, (ty::TypeSym, ty::TypeSym, ast::CircuitOrIntrinsicId)>,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
     circuit_ast: ast::TypedCircuit<'file>,
@@ -118,14 +117,14 @@ fn convert_circuit<'file>(
     for let_ in circuit_ast.lets {
         let (subc_input_type, subc_output_type, subc) = circuit_table[let_.gate.name]; // TODO: report error if the circuit does not exist
         let gate_idx = circuit.gates.add((subc, ir::Inline::NoInline)); // TODO: syntax for inlining
-        let input = values.add(ExprInArena { kind: ExprInArenaKind::GateInput(gate_idx), span: let_.gate.span, type_info: subc_input_type });
-        let output = values.add(ExprInArena { kind: ExprInArenaKind::GateOutput(gate_idx), span: let_.gate.span, type_info: subc_output_type });
+        let input = values.add(ExprInArena { kind: ExprInArenaKind::GateInput(subc_input_type, gate_idx), span: let_.gate.span, type_info: subc_input_type });
+        let output = values.add(ExprInArena { kind: ExprInArenaKind::GateOutput(subc_output_type, gate_idx), span: let_.gate.span, type_info: subc_output_type });
         assign_pattern(type_context, &mut values, &mut locals, &let_.inputs, input).ok()?;
         assign_pattern(type_context, &mut values, &mut locals, &let_.outputs, output).ok()?;
     }
 
     for alias in circuit_ast.aliases {
-        let expr = convert_expr_to_value(&mut values, alias.expr);
+        let expr = convert_expr_to_value(const_values, &mut circuit, &mut values, alias.expr);
         assign_pattern(type_context, &mut values, &mut locals, &alias.pat, expr).ok()?;
     }
 
@@ -133,16 +132,15 @@ fn convert_circuit<'file>(
     for connection in circuit_ast.connects {
         let start_span = connection.start.span;
         let end_span = connection.end.span;
-        let start = convert_expr_to_value(&mut values, connection.start);
-        let end = convert_expr_to_value(&mut values, connection.end);
+        let start = convert_expr_to_value(const_values, &mut circuit, &mut values, connection.start);
+        let end = convert_expr_to_value(const_values, &mut circuit, &mut values, connection.end);
 
         connections.push((start_span, start, end_span, end));
     }
 
-    let values = match values.transform_dependent_with_id(
-        |value_id, value, get_other_value_as_bundle| convert_value(type_context, get_other_value_as_bundle, &locals, todo!(), &circuit, value_id, value),
-        |original_value, bundle| (original_value, bundle),
-    ) {
+    let values = match values
+        .transform_dependent(|value, get_other_value_as_bundle| convert_value(type_context, get_other_value_as_bundle, &locals, &circuit, value), |original_value, bundle| (original_value, bundle))
+    {
         Ok(r) => r,
         Err((loop_errors, others)) => {
             for () in others {} // TODO: change this to Infallible or something
@@ -207,14 +205,23 @@ fn assign_pattern_poison<'file>(values: &mut arena::Arena<ExprInArena<'file>, Ex
     }
 }
 
-fn convert_expr_to_value<'file>(values: &mut arena::Arena<ExprInArena<'file>, ExprId>, expr: ast::TypedExpr<'file>) -> ExprId {
+fn convert_expr_to_value<'file>(
+    const_values @ (const_0, const_1): (ast::CircuitOrIntrinsicId, ast::CircuitOrIntrinsicId),
+    circuit: &mut ir::Circuit,
+    values: &mut arena::Arena<ExprInArena<'file>, ExprId>,
+    expr: ast::TypedExpr<'file>,
+) -> ExprId {
     let value = ExprInArena {
         kind: match expr.kind {
             ast::TypedExprKind::Ref(name) => ExprInArenaKind::Ref(name),
-            ast::TypedExprKind::Call(name, inline, arg) => ExprInArenaKind::Call(name, inline, convert_expr_to_value(values, *arg)),
-            ast::TypedExprKind::Const(sp, value) => ExprInArenaKind::Const(sp, value),
-            ast::TypedExprKind::Get(base, field) => ExprInArenaKind::Get(convert_expr_to_value(values, *base), field),
-            ast::TypedExprKind::Product(exprs) => ExprInArenaKind::Product { values: exprs.into_iter().map(|(field_name, e)| (field_name, convert_expr_to_value(values, e))).collect() },
+            ast::TypedExprKind::Const(sp, value) => {
+                let gate_idx = circuit.gates.add((if value { const_1 } else { const_0 }, ir::Inline::NoInline));
+                ExprInArenaKind::Const(sp, value, gate_idx)
+            }
+            ast::TypedExprKind::Get(base, field) => ExprInArenaKind::Get(convert_expr_to_value(const_values, circuit, values, *base), field),
+            ast::TypedExprKind::Product(exprs) => {
+                ExprInArenaKind::Product { values: exprs.into_iter().map(|(field_name, e)| (field_name, convert_expr_to_value(const_values, circuit, values, e))).collect() }
+            }
         },
         span: expr.span,
         type_info: expr.type_info,
@@ -226,9 +233,7 @@ fn convert_value(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     get_other_value_as_bundle: arena::DependancyGetter<ir::bundle::Bundle, ExprInArena, (), ExprId>,
     locals: &HashMap<&str, ExprId>,
-    gates: &HashMap<ExprId, ir::GateIdx>,
     circuit: &ir::Circuit,
-    value_id: ExprId,
     value: &ExprInArena,
 ) -> arena::SingleTransformResult<ir::bundle::Bundle, ExprId, ()> {
     let mut do_get = |expr, field_name| -> arena::SingleTransformResult<ir::bundle::Bundle, ExprId, ()> {
@@ -244,17 +249,7 @@ fn convert_value(
     match &value.kind {
         ExprInArenaKind::Ref(name) => arena::SingleTransformResult::Ok((try_transform_result!(get_other_value_as_bundle.get(locals[name.name]))).1.clone()),
 
-        ExprInArenaKind::Call(_, _, _) => { // TODO: remove this expr kind
-            let gate_i = gates[&value_id];
-            // the gate stays unconnected to its input because gates can be truend into a producer bundle with needing to be connected, which allows for loops
-            // for example 'let x = 'not x' will be allowed because x refers to the output of the 'not gate and the input to the 'not gate doesnt need to be connected for x to have a value
-            arena::SingleTransformResult::Ok(ir::bundle::Bundle::GateOutput(value.type_info, gate_i))
-        }
-
-        ExprInArenaKind::Const(_, _) => {
-            let gate_i = gates[&value_id];
-            arena::SingleTransformResult::Ok(ir::bundle::Bundle::GateOutput(type_context.intern(ty::Type::Bit), gate_i))
-        }
+        ExprInArenaKind::Const(_, _, gate_idx) => arena::SingleTransformResult::Ok(ir::bundle::Bundle::GateOutput(type_context.intern(ty::Type::Bit), *gate_idx)),
 
         ExprInArenaKind::Get(expr, (_, field_name)) => do_get(*expr, field_name),
         ExprInArenaKind::MadeUpGet(expr, field_name) => do_get(*expr, field_name),
@@ -281,8 +276,8 @@ fn convert_value(
         ExprInArenaKind::CircuitInput => arena::SingleTransformResult::Ok(ir::bundle::Bundle::CurCircuitInput(circuit.input_type)),
         ExprInArenaKind::CircuitOutput => arena::SingleTransformResult::Ok(ir::bundle::Bundle::CurCircuitOutput(circuit.output_type)),
 
-        ExprInArenaKind::GateInput(_) => todo!(),
-        ExprInArenaKind::GateOutput(_) => todo!(),
+        ExprInArenaKind::GateInput(ty, gate_idx) => arena::SingleTransformResult::Ok(ir::bundle::Bundle::GateInput(*ty, *gate_idx)),
+        ExprInArenaKind::GateOutput(ty, gate_idx) => arena::SingleTransformResult::Ok(ir::bundle::Bundle::GateOutput(*ty, *gate_idx)),
 
         ExprInArenaKind::Poison => arena::SingleTransformResult::Err(()),
     }
