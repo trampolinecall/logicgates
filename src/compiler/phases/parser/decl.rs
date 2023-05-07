@@ -28,11 +28,11 @@ pub(super) fn circuit<'file>(parser: &mut Parser<'file, impl Iterator<Item = Tok
 
 fn let_<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedLet<'file>, ParseError<'file>> {
     parser.expect(Token::let_matcher())?;
-    let name = parser.expect(Token::plain_identifier_matcher())?;
-    parser.expect(Token::equals_matcher())?;
     let gate = parser.expect(Token::circuit_identifier_matcher())?;
+    let inputs = pattern::pattern(parser)?;
+    let outputs = pattern::pattern(parser)?;
 
-    Ok(ast::UntypedLet { name, gate })
+    Ok(ast::UntypedLet { gate, inputs, outputs })
 }
 
 fn connect<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedConnect<'file>, ParseError<'file>> {

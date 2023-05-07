@@ -22,9 +22,13 @@ pub(crate) fn type_(resolve_type_expr::IR { circuits, circuit_table, mut type_co
                 name: circuit.name,
                 input_type: circuit.input_type,
                 output_type: circuit.output_type,
-                lets: circuit.lets,
+                lets: circuit
+                    .lets
+                    .into_iter()
+                    .map(|ast::TypeResolvedLet { inputs, outputs, gate }| ast::PatTypedLet { inputs: type_pat(&mut type_context, inputs), outputs: type_pat(&mut type_context, outputs), gate })
+                    .collect(),
                 connects: circuit.connects,
-                aliases: circuit.aliases.into_iter().map(|alias_| ast::PatTypedAlias { pat: type_pat(&mut type_context, alias_.pat), expr: alias_.expr }).collect(),
+                aliases: circuit.aliases.into_iter().map(|alias| ast::PatTypedAlias { pat: type_pat(&mut type_context, alias.pat), expr: alias.expr }).collect(),
             }),
             ast::TypeResolvedCircuitOrIntrinsic::Nand => ast::PatTypedCircuitOrIntrinsic::Nand,
             ast::TypeResolvedCircuitOrIntrinsic::Const(value) => ast::PatTypedCircuitOrIntrinsic::Const(value),

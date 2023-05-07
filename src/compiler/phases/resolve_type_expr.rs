@@ -29,7 +29,7 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
             name: circuit.name,
             input_type: resolve_type_expr(&mut type_context, &type_table, circuit.input_type)?,
             output_type: resolve_type_expr(&mut type_context, &type_table, circuit.output_type)?,
-            lets: circuit.lets,
+            lets: circuit.lets.into_iter().map(|let_| resolve_in_let(&mut type_context, &type_table, let_)).collect::<Option<Vec<_>>>()?,
             connects: circuit.connects,
             aliases: circuit.aliases.into_iter().map(|alias| resolve_in_alias(&mut type_context, &type_table, alias)).collect::<Option<Vec<_>>>()?,
         })),
@@ -46,6 +46,14 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
     // TODO: disallow recursive types / infinitely sized types
 
     Some(IR { circuits, circuit_table, type_context })
+}
+
+fn resolve_in_let<'file>(
+    type_context: &mut ty::TypeContext<nominal_type::Struct<type_expr::TypeExpr>>,
+    type_table: &HashMap<&str, symtern::Sym<usize>>,
+    ast::UntypedLet { inputs, outputs, gate }: ast::Let<(), type_expr::TypeExpr>,
+) -> Option<ast::TypeResolvedLet<'file>> {
+    Some(ast::TypeResolvedLet { inputs: resolve_in_pat(type_context, type_table, inputs)?, outputs: resolve_in_pat(type_context, type_table, outputs)?, gate })
 }
 
 fn resolve_in_alias<'file>(
