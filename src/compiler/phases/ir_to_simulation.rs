@@ -82,8 +82,8 @@ fn convert_circuit<'file, 'circuit>(
         gate_index_map.insert(old_gate_i, new_gate_i);
     }
 
-    for (producer, receiver) in &circuit.connections {
-        connect(circuit_map, gate_map, node_map, type_context, new_circuit_idx, &mut gate_index_map, producer, receiver);
+    for (start, end) in &circuit.connections {
+        connect(circuit_map, gate_map, node_map, type_context, new_circuit_idx, &mut gate_index_map, start, end);
     }
 
     assert!(std::ptr::eq(*expansion_stack.last().unwrap(), circuit), "expansion stack should be in the same state as at the start of the function");
@@ -127,31 +127,33 @@ fn connect(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     new_circuit: simulation::CircuitKey,
     gate_index_map: &mut HashMap<ir::GateIdx, simulation::GateKey>,
-    producer: &ir::bundle::ProducerBundle,
-    receiver: &ir::bundle::ReceiverBundle,
+    start: &ir::bundle::Bundle,
+    end: &ir::bundle::Bundle,
 ) {
-    let producer_nodes: Vec<simulation::NodeKey> = convert_producer_bundle(circuits, gates, type_context, new_circuit, gate_index_map, producer);
-    let receiver_nodes: Vec<simulation::NodeKey> = convert_receiver_bundle(circuits, gates, type_context, new_circuit, gate_index_map, receiver); // TODO: figure out better solution than to clone
+    let start_nodes: Vec<simulation::NodeKey> = convert_bundle(circuits, gates, type_context, new_circuit, gate_index_map, start);
+    let end_nodes: Vec<simulation::NodeKey> = convert_bundle(circuits, gates, type_context, new_circuit, gate_index_map, end); // TODO: figure out better solution than to clone
 
-    assert_eq!(producer_nodes.len(), receiver_nodes.len(), "connecting producer and receiver that have different size");
+    assert_eq!(start_nodes.len(), end_nodes.len(), "connecting bundles that have different size");
 
-    for (p, r) in producer_nodes.into_iter().zip(receiver_nodes) {
+    for (p, r) in start_nodes.into_iter().zip(end_nodes) {
         logic::connect(nodes, p, r);
     }
 }
 
-fn convert_producer_bundle(
+fn convert_bundle(
     circuits: &simulation::CircuitMap,
     gates: &simulation::GateMap,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     new_circuit: simulation::CircuitKey,
     gate_index_map: &HashMap<ir::GateIdx, simulation::GateKey>,
-    producer: &ir::bundle::ProducerBundle,
+    bundle: &ir::bundle::Bundle,
 ) -> Vec<simulation::NodeKey> {
-    match producer {
-        ir::bundle::ProducerBundle::CurCircuitInput(_) => circuits[new_circuit].inputs().to_vec(),
-        ir::bundle::ProducerBundle::GateOutput(_, old_gate_index) => simulation::gate_outputs(circuits, gates, gate_index_map[old_gate_index]).to_owned(),
-        ir::bundle::ProducerBundle::Get(b, field) => {
+    match bundle {
+        ir::bundle::Bundle::CurCircuitInput(_) => circuits[new_circuit].inputs().to_vec(),
+        ir::bundle::Bundle::CurCircuitOutput(_) => circuits[new_circuit].outputs().to_vec(),
+        ir::bundle::Bundle::GateInput(_, old_gate_index) => simulation::gate_inputs(circuits, gates, gate_index_map[old_gate_index]).to_vec(),
+        ir::bundle::Bundle::GateOutput(_, old_gate_index) => simulation::gate_outputs(circuits, gates, gate_index_map[old_gate_index]).to_owned(),
+        ir::bundle::Bundle::Get(b, field) => {
             fn field_indexes(type_context: &ty::TypeContext<nominal_type::FullyDefinedStruct>, fields: &[(&str, ty::TypeSym)], field: &str) -> Option<std::ops::Range<usize>> {
                 let mut cur_index = 0;
                 for (field_name, field_type) in fields {
@@ -164,26 +166,13 @@ fn convert_producer_bundle(
 
                 None
             }
-            let b_nodes = convert_producer_bundle(circuits, gates, type_context, new_circuit, gate_index_map, b);
+            let b_nodes = convert_bundle(circuits, gates, type_context, new_circuit, gate_index_map, b);
 
             let b_type = b.type_(type_context);
-            let field_indexes = field_indexes(type_context, &type_context.get(b_type).fields(type_context), field).expect("producer bundle should have field after type checking");
+            let field_indexes = field_indexes(type_context, &type_context.get(b_type).fields(type_context), field).expect("get bundle should not get nonexistent field after type checking");
 
             b_nodes[field_indexes].to_vec()
         }
-        ir::bundle::ProducerBundle::Product(subbundles) => subbundles.iter().flat_map(|(_, sb)| convert_producer_bundle(circuits, gates, type_context, new_circuit, gate_index_map, sb)).collect(),
-    }
-}
-fn convert_receiver_bundle<'a>(
-    circuits: &'a simulation::CircuitMap, // keep arguments for symmetry with convert_producer_bundle
-    gates: &'a simulation::GateMap,
-    _: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
-    new_circuit: simulation::CircuitKey,
-    gate_index_map: &HashMap<ir::GateIdx, simulation::GateKey>,
-    receiver: &ir::bundle::ReceiverBundle,
-) -> Vec<simulation::NodeKey> {
-    match receiver {
-        ir::bundle::ReceiverBundle::CurCircuitOutput(_) => circuits[new_circuit].outputs().to_vec(),
-        ir::bundle::ReceiverBundle::GateInput(_, old_gate_index) => simulation::gate_inputs(circuits, gates, gate_index_map[old_gate_index]).to_vec(),
+        ir::bundle::Bundle::Product(subbundles) => subbundles.iter().flat_map(|(_, sb)| convert_bundle(circuits, gates, type_context, new_circuit, gate_index_map, sb)).collect(),
     }
 }

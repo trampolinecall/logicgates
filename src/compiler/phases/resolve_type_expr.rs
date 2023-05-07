@@ -49,17 +49,17 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
 }
 
 fn resolve_in_let<'file>(
-    type_context: &mut ty::TypeContext<nominal_type::Struct<type_expr::TypeExpr>>,
+    type_context: &mut ty::TypeContext<nominal_type::Struct<'file, type_expr::TypeExpr<'file>>>,
     type_table: &HashMap<&str, symtern::Sym<usize>>,
-    ast::UntypedLet { inputs, outputs, gate }: ast::Let<(), type_expr::TypeExpr>,
+    ast::UntypedLet { inputs, outputs, gate }: ast::Let<'file, (), type_expr::TypeExpr<'file>>,
 ) -> Option<ast::TypeResolvedLet<'file>> {
     Some(ast::TypeResolvedLet { inputs: resolve_in_pat(type_context, type_table, inputs)?, outputs: resolve_in_pat(type_context, type_table, outputs)?, gate })
 }
 
 fn resolve_in_alias<'file>(
-    type_context: &mut ty::TypeContext<nominal_type::Struct<type_expr::TypeExpr>>,
+    type_context: &mut ty::TypeContext<nominal_type::Struct<'file, type_expr::TypeExpr<'file>>>,
     type_table: &HashMap<&str, symtern::Sym<usize>>,
-    alias: ast::Alias<ast::Expr<()>, (), type_expr::TypeExpr>,
+    alias: ast::Alias<'file, ast::Expr<'file, ()>, (), type_expr::TypeExpr<'file>>,
 ) -> Option<ast::TypeResolvedAlias<'file>> {
     Some(ast::TypeResolvedAlias { pat: resolve_in_pat(type_context, type_table, alias.pat)?, expr: alias.expr })
 }
