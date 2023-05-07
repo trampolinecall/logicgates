@@ -54,7 +54,8 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
             let mut local_table = HashMap::new();
 
             // TODO: insert inputs and outputs
-            // put_pat_type(&mut local_table, &circuit.input);
+            put_pat_type(&mut local_table, &circuit.input);
+            put_pat_type(&mut local_table, &circuit.output);
             for let_ in &circuit.lets {
                 put_pat_type(&mut local_table, &let_.inputs);
                 put_pat_type(&mut local_table, &let_.outputs);
