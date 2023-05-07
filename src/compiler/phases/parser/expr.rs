@@ -37,6 +37,7 @@ fn primary<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>
                 _ => Err(parser.expected_and_next("'0' or '1'")),
             }
         }
+        /* TODO: remove
         Token::CircuitIdentifier(_) => {
             let ci = Token::circuit_identifier_matcher().convert(parser.next());
 
@@ -48,6 +49,7 @@ fn primary<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>
 
             Ok(ast::UntypedExpr { kind: ast::UntypedExprKind::Call(ci, inline, Box::new(arg)), type_info: (), span: ci_span + arg_span })
         }
+        */
 
         Token::PlainIdentifier(_) => {
             let i = Token::plain_identifier_matcher().convert(parser.next());

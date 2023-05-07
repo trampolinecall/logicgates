@@ -28,9 +28,10 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
         ast::UntypedCircuitOrIntrinsic::Circuit(circuit) => Some(ast::TypeResolvedCircuitOrIntrinsic::Circuit(ast::TypeResolvedCircuit {
             name: circuit.name,
             input: resolve_in_pat(&mut type_context, &type_table, circuit.input)?,
-            output_type: resolve_type_expr(&mut type_context, &type_table, circuit.output_type)?,
-            lets: resolve_in_let(&mut type_context, &type_table, circuit.lets)?,
-            output: circuit.output,
+            output: resolve_in_pat(&mut type_context, &type_table, circuit.output)?,
+            lets: circuit.lets.into_iter().map(|let_| resolve_in_let(&mut type_context, &type_table, let_)).collect::<Option<Vec<_>>>()?,
+            connects: circuit.connects,
+            aliases: circuit.aliases.into_iter().map(|alias| resolve_in_alias(&mut type_context, &type_table, alias)).collect::<Option<Vec<_>>>()?,
         })),
         ast::UntypedCircuitOrIntrinsic::Nand => Some(ast::TypeResolvedCircuitOrIntrinsic::Nand),
         ast::UntypedCircuitOrIntrinsic::Const(value) => Some(ast::TypeResolvedCircuitOrIntrinsic::Const(value)),
@@ -45,6 +46,22 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
     // TODO: disallow recursive types / infinitely sized types
 
     Some(IR { circuits, circuit_table, type_context })
+}
+
+fn resolve_in_let<'file>(
+    type_context: &mut ty::TypeContext<nominal_type::Struct<'file, type_expr::TypeExpr<'file>>>,
+    type_table: &HashMap<&str, symtern::Sym<usize>>,
+    ast::UntypedLet { inputs, outputs, gate }: ast::Let<'file, (), type_expr::TypeExpr<'file>>,
+) -> Option<ast::TypeResolvedLet<'file>> {
+    Some(ast::TypeResolvedLet { inputs: resolve_in_pat(type_context, type_table, inputs)?, outputs: resolve_in_pat(type_context, type_table, outputs)?, gate })
+}
+
+fn resolve_in_alias<'file>(
+    type_context: &mut ty::TypeContext<nominal_type::Struct<'file, type_expr::TypeExpr<'file>>>,
+    type_table: &HashMap<&str, symtern::Sym<usize>>,
+    alias: ast::Alias<'file, ast::Expr<'file, ()>, (), type_expr::TypeExpr<'file>>,
+) -> Option<ast::TypeResolvedAlias<'file>> {
+    Some(ast::TypeResolvedAlias { pat: resolve_in_pat(type_context, type_table, alias.pat)?, expr: alias.expr })
 }
 
 fn resolve_in_pat<'file>(
@@ -62,14 +79,6 @@ fn resolve_in_pat<'file>(
         type_info: (),
         span: pat.span,
     })
-}
-
-fn resolve_in_let<'file>(
-    type_context: &mut ty::TypeContext<nominal_type::PartiallyDefinedStruct<'file>>,
-    type_table: &HashMap<&str, symtern::Sym<usize>>,
-    lets: Vec<ast::UntypedLet<'file>>,
-) -> Option<Vec<ast::TypeResolvedLet<'file>>> {
-    lets.into_iter().map(|let_| Some(ast::TypeResolvedLet { pat: resolve_in_pat(type_context, type_table, let_.pat)?, val: let_.val })).collect_all()
 }
 
 fn resolve_type_expr<'file, Struct>(type_context: &mut ty::TypeContext<Struct>, type_table: &HashMap<&str, ty::TypeSym>, ty: type_expr::TypeExpr<'file>) -> Option<(Span<'file>, ty::TypeSym)> {

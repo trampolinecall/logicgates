@@ -16,7 +16,7 @@ struct NoField<'file> {
     field_name: &'file str,
 }
 struct NoSuchLocal<'file>(token::PlainIdentifier<'file>);
-struct NoSuchCircuit<'file>(token::CircuitIdentifier<'file>);
+struct NoSuchCircuit<'file>(token::CircuitIdentifier<'file>); // TODO: decide what to do with this
 
 impl<'file> From<(&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, NoField<'file>)> for CompileError<'file> {
     fn from((types, NoField { ty, field_name_sp, field_name }): (&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, NoField<'file>)) -> Self {
@@ -41,6 +41,41 @@ pub(crate) struct IR<'file> {
     pub(crate) type_context: ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
 }
 pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }: type_pats::IR) -> Option<IR> {
+    let circuits = circuits.transform(|circuit| match circuit {
+        ast::PatTypedCircuitOrIntrinsic::Circuit(circuit) => {
+            let mut local_table = HashMap::new();
+
+            // TODO: insert inputs and outputs
+            put_pat_type(&mut local_table, &circuit.input);
+            put_pat_type(&mut local_table, &circuit.output);
+            for let_ in &circuit.lets {
+                put_pat_type(&mut local_table, &let_.inputs);
+                put_pat_type(&mut local_table, &let_.outputs);
+            }
+
+            Some(ast::TypedCircuitOrIntrinsic::Circuit(ast::TypedCircuit {
+                name: circuit.name,
+                input: circuit.input,
+                output: circuit.output,
+                lets: circuit.lets,
+                connects: circuit
+                    .connects
+                    .into_iter()
+                    .map(|ast::PatTypedConnect { start, end }| {
+                        Some(ast::TypedConnect { start: type_expr(&mut type_context, &local_table, start)?, end: type_expr(&mut type_context, &local_table, end)? })
+                    })
+                    .collect::<Option<Vec<_>>>()?,
+                aliases: circuit
+                    .aliases
+                    .into_iter()
+                    .map(|ast::PatTypedAlias { pat, expr }| Some(ast::TypedAlias { pat, expr: type_expr(&mut type_context, &local_table, expr)? }))
+                    .collect::<Option<Vec<_>>>()?,
+            }))
+        }
+        ast::PatTypedCircuitOrIntrinsic::Nand => Some(ast::TypedCircuitOrIntrinsic::Nand),
+        ast::PatTypedCircuitOrIntrinsic::Const(value) => Some(ast::TypedCircuitOrIntrinsic::Const(value)),
+    })?;
+
     let circuit_table = circuit_table
         .into_iter()
         .map(|(name, circuit_id)| {
@@ -48,29 +83,6 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
             (name, (circuit.input_type(&mut type_context), circuit.output_type(&mut type_context), circuit_id))
         })
         .collect();
-
-    let circuits = circuits.transform(|circuit| match circuit {
-        ast::PatTypedCircuitOrIntrinsic::Circuit(circuit) => {
-            let mut local_table = HashMap::new();
-
-            put_pat_type(&mut local_table, &circuit.input);
-            for let_ in &circuit.lets {
-                put_pat_type(&mut local_table, &let_.pat);
-            }
-
-            Some(ast::TypedCircuitOrIntrinsic::Circuit(ast::TypedCircuit {
-                name: circuit.name,
-                input: circuit.input,
-                output_type: circuit.output_type,
-                lets: circuit.lets.into_iter().map(|ast::PatTypedLet { pat, val }| Some(ast::TypedLet { pat, val: type_expr(&mut type_context, &circuit_table, &local_table, val)? })).collect_all()?,
-                output: type_expr(&mut type_context, &circuit_table, &local_table, circuit.output)?,
-            }))
-        }
-        ast::PatTypedCircuitOrIntrinsic::Nand => Some(ast::TypedCircuitOrIntrinsic::Nand),
-        ast::PatTypedCircuitOrIntrinsic::Const(value) => Some(ast::TypedCircuitOrIntrinsic::Const(value)),
-    })?;
-
-    let circuit_table = circuit_table.into_iter().map(|(name, old_id)| (name, old_id)).collect();
 
     Some(IR { circuits, circuit_table, type_context })
 }
@@ -90,7 +102,6 @@ fn put_pat_type<'file>(local_table: &mut HashMap<&'file str, ty::TypeSym>, pat: 
 
 fn type_expr<'file>(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
-    circuit_table: &HashMap<&str, (ty::TypeSym, ty::TypeSym, ast::CircuitOrIntrinsicId)>,
     local_types: &HashMap<&str, ty::TypeSym>,
     expr: ast::UntypedExpr<'file>,
 ) -> Option<ast::TypedExpr<'file>> {
@@ -105,19 +116,9 @@ fn type_expr<'file>(
             // TODO: replace with a ref to the locals id
             (ast::TypedExprKind::Ref(name), local_type)
         }
-        ast::UntypedExprKind::Call(name, inline, arg) => {
-            // this also does circuit name resolution
-            if let Some((_, ty, _)) = circuit_table.get(name.name) {
-                // TODO: replace with a call to the circuitid
-                (ast::TypedExprKind::Call(name, inline, Box::new(type_expr(type_context, circuit_table, local_types, *arg)?)), *ty)
-            } else {
-                NoSuchCircuit(name).report();
-                return None;
-            }
-        }
         ast::UntypedExprKind::Const(sp, value) => (ast::TypedExprKind::Const(sp, value), type_context.intern(ty::Type::Bit)),
         ast::UntypedExprKind::Get(base, field) => {
-            let base = type_expr(type_context, circuit_table, local_types, *base)?;
+            let base = type_expr(type_context, local_types, *base)?;
             let base_ty = base.type_info;
             let field_ty = ty::Type::get_field_type(&type_context.get(base_ty).fields(type_context), field.1);
             if let Some(field_ty) = field_ty {
@@ -128,7 +129,7 @@ fn type_expr<'file>(
             }
         }
         ast::UntypedExprKind::Product(exprs) => {
-            let exprs: Vec<_> = exprs.into_iter().map(|(subexpr_name, subexpr)| Some((subexpr_name, type_expr(type_context, circuit_table, local_types, subexpr)?))).collect_all()?;
+            let exprs: Vec<_> = exprs.into_iter().map(|(subexpr_name, subexpr)| Some((subexpr_name, type_expr(type_context, local_types, subexpr)?))).collect_all()?;
             let types = exprs.iter().map(|(field_name, subexpr)| (field_name.to_string(), subexpr.type_info)).collect();
             (ast::TypedExprKind::Product(exprs), type_context.intern(ty::Type::Product(types)))
         }

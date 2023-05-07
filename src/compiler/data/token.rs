@@ -36,6 +36,8 @@ pub(crate) enum Token<'file> {
 
     Let(Span<'file>),
     Inline(Span<'file>),
+    Connect(Span<'file>),
+    Alias(Span<'file>),
     Struct(Span<'file>),
 
     // TODO: variadic arguments / bundles
@@ -60,6 +62,8 @@ impl<'file> Token<'file> {
             | Token::Equals(sp)
             | Token::Let(sp)
             | Token::Inline(sp)
+            | Token::Connect(sp)
+            | Token::Alias(sp)
             | Token::Number(sp, _, _)
             | Token::Struct(sp)
             | Token::Backslash(sp)
@@ -113,6 +117,8 @@ mod names {
 
     pub(super) const LET: &str = "'let'";
     pub(super) const INLINE: &str = "'inline'";
+    pub(super) const CONNECT: &str = "'connect'";
+    pub(super) const ALIAS: &str = "'alias'";
     pub(super) const STRUCT: &str = "'struct'";
 
     pub(super) const BACKSLASH: &str = "'\\'";
@@ -174,6 +180,8 @@ define_matcher!(dash_matcher, 'file, Span<'file>, names::DASH, Token::Dash(sp) =
 
 define_matcher!(let_matcher, 'file, Span<'file>, names::LET, Token::Let(sp) => sp);
 define_matcher!(inline_matcher, 'file, Span<'file>, names::INLINE, Token::Inline(sp) => sp);
+define_matcher!(connect_matcher, 'file, Span<'file>, names::CONNECT, Token::Connect(sp) => sp);
+define_matcher!(alias_matcher, 'file, Span<'file>, names::ALIAS, Token::Alias(sp) => sp);
 define_matcher!(struct_matcher, 'file, Span<'file>, names::STRUCT, Token::Struct(sp) => sp);
 
 define_matcher!(number_matcher, 'file, (Span<'file>, &'file str, usize), names::NUMBER_DESC_NAME, Token::Number(sp, n_str, n) => (sp, n_str, n));
@@ -198,6 +206,8 @@ impl std::fmt::Display for Token<'_> {
 
             Token::Let(_) => write!(f, "{}", names::LET),
             Token::Inline(_) => write!(f, "{}", names::INLINE),
+            Token::Connect(_) => write!(f, "{}", names::CONNECT),
+            Token::Alias(_) => write!(f, "{}", names::ALIAS),
             Token::Struct(_) => write!(f, "{}", names::STRUCT),
 
             Token::Backslash(_) => write!(f, "{}", names::BACKSLASH),

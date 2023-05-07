@@ -54,8 +54,8 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
             if adjacent_in_current_circuit {
                 let color = node_color(simulation, cur_node, false);
                 let cur_pos = node_pos(window_rect, simulation, cur_node);
-                let producer_pos = node_pos(window_rect, simulation, *adjacent);
-                draw.line().start(producer_pos).end(cur_pos).color(color).weight(CONNECTION_RAD);
+                let adj_pos = node_pos(window_rect, simulation, *adjacent);
+                draw.line().start(adj_pos).end(cur_pos).color(color).weight(CONNECTION_RAD);
             }
         }
     }

@@ -27,7 +27,7 @@ pub(crate) enum Inline {
 pub(crate) struct Circuit<'file> {
     pub(crate) name: &'file str,
     pub(crate) gates: arena::Arena<(ast::CircuitOrIntrinsicId, Inline), GateIdx>,
-    pub(crate) connections: Vec<(bundle::ProducerBundle, bundle::ReceiverBundle)>,
+    pub(crate) connections: Vec<(bundle::Bundle, bundle::Bundle)>,
     pub(crate) input_type: ty::TypeSym,
     pub(crate) output_type: ty::TypeSym,
 }
