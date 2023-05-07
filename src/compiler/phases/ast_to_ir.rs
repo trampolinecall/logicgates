@@ -106,41 +106,42 @@ fn convert_circuit<'file>(
     let mut circuit = ir::Circuit::new(circuit_ast.name.name, circuit_ast.input.type_info, circuit_ast.output.type_info);
 
     let mut values = arena::Arena::new();
-    let mut gates = HashMap::new(); // only calls and consts are included in this map
     let mut locals = HashMap::new();
 
     {
         let circuit_input = values.add(ExprInArena { kind: ExprInArenaKind::CircuitInput, span: circuit_ast.input.span, type_info: circuit.input_type });
         let circuit_output = values.add(ExprInArena { kind: ExprInArenaKind::CircuitOutput, span: circuit_ast.output.span, type_info: circuit.output_type });
-        assign_pattern(&mut type_context, &mut values, &mut locals, &circuit_ast.input, circuit_input);
-        assign_pattern(&mut type_context, &mut values, &mut locals, &circuit_ast.output, circuit_output);
+        assign_pattern(type_context, &mut values, &mut locals, &circuit_ast.input, circuit_input);
+        assign_pattern(type_context, &mut values, &mut locals, &circuit_ast.output, circuit_output);
     }
 
     for let_ in circuit_ast.lets {
         let (subc_input_type, subc_output_type, subc) = circuit_table[let_.gate.name];
-        let gate_idx = circuit.gates.add((circuit_table[let_.gate.name].2, ir::Inline::NoInline)); // TODO: inlining in syntax
+        let gate_idx = circuit.gates.add((subc, ir::Inline::NoInline)); // TODO: syntax for inlining
         let input = values.add(ExprInArena { kind: ExprInArenaKind::GateInput(gate_idx), span: let_.gate.span, type_info: subc_input_type });
         let output = values.add(ExprInArena { kind: ExprInArenaKind::GateOutput(gate_idx), span: let_.gate.span, type_info: subc_output_type });
-        assign_pattern(&mut type_context, &mut values, &mut locals, &let_.inputs, input);
-        assign_pattern(&mut type_context, &mut values, &mut locals, &let_.outputs, output);
+        assign_pattern(type_context, &mut values, &mut locals, &let_.inputs, input);
+        assign_pattern(type_context, &mut values, &mut locals, &let_.outputs, output);
     }
 
     for alias in circuit_ast.aliases {
         let expr = convert_expr_to_value(&mut values, alias.expr);
-        assign_pattern(&mut type_context, &mut values, &mut locals, &alias.pat, expr);
+        assign_pattern(type_context, &mut values, &mut locals, &alias.pat, expr);
     }
 
-    let connections = Vec::new();
+    let mut connections = Vec::new();
     for connection in circuit_ast.connects {
+        let start_span = connection.start.span;
+        let end_span = connection.end.span;
         let start = convert_expr_to_value(&mut values, connection.start);
         let end = convert_expr_to_value(&mut values, connection.end);
 
-        connections.push((connection.start.span, start, connection.end.span, end));
+        connections.push((start_span, start, end_span, end));
     }
 
     let values = match values.transform_dependent_with_id(
-        |value_id, value, get_other_value_as_bundle| convert_value(type_context, get_other_value_as_bundle, &locals, &gates, &circuit, value_id, value),
-        |original_value, producer_bundle| (original_value, producer_bundle),
+        |value_id, value, get_other_value_as_bundle| convert_value(type_context, get_other_value_as_bundle, &locals, todo!(), &circuit, value_id, value),
+        |original_value, bundle| (original_value, bundle),
     ) {
         Ok(r) => r,
         Err((loop_errors, others)) => {
@@ -154,7 +155,7 @@ fn convert_circuit<'file>(
     };
 
     for (start_sp, start, end_sp, end) in connections {
-        connect_bundle(type_context, &mut circuit, start_sp, end_sp, values.get(start).1, values.get(end).1)?;
+        connect_bundle(type_context, &mut circuit, start_sp, end_sp, values.get(start).1.clone(), values.get(end).1.clone())?;
     }
 
     Some(circuit)
@@ -223,36 +224,36 @@ fn convert_expr_to_value<'file>(values: &mut arena::Arena<ExprInArena<'file>, Ex
 
 fn convert_value(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
-    get_other_value_as_bundle: arena::DependancyGetter<ir::bundle::ProducerBundle, ExprInArena, (), ExprId>,
+    get_other_value_as_bundle: arena::DependancyGetter<ir::bundle::Bundle, ExprInArena, (), ExprId>,
     locals: &HashMap<&str, ExprId>,
     gates: &HashMap<ExprId, ir::GateIdx>,
     circuit: &ir::Circuit,
     value_id: ExprId,
     value: &ExprInArena,
-) -> arena::SingleTransformResult<ir::bundle::ProducerBundle, ExprId, ()> {
-    let mut do_get = |expr, field_name| -> arena::SingleTransformResult<ir::bundle::ProducerBundle, ExprId, ()> {
+) -> arena::SingleTransformResult<ir::bundle::Bundle, ExprId, ()> {
+    let mut do_get = |expr, field_name| -> arena::SingleTransformResult<ir::bundle::Bundle, ExprId, ()> {
         let expr = try_transform_result!(get_other_value_as_bundle.get(expr)).1;
         let expr_type = expr.type_(type_context);
         assert!(
             ty::Type::get_field_type(&type_context.get(expr_type).fields(type_context), field_name).is_some(),
             "get field that does not exist after already checking that all gets are valid in previous phase"
         );
-        arena::SingleTransformResult::Ok(ir::bundle::ProducerBundle::Get(Box::new(expr.clone()), field_name.to_string()))
+        arena::SingleTransformResult::Ok(ir::bundle::Bundle::Get(Box::new(expr.clone()), field_name.to_string()))
     };
 
     match &value.kind {
         ExprInArenaKind::Ref(name) => arena::SingleTransformResult::Ok((try_transform_result!(get_other_value_as_bundle.get(locals[name.name]))).1.clone()),
 
-        ExprInArenaKind::Call(_, _, _) => {
+        ExprInArenaKind::Call(_, _, _) => { // TODO: remove this expr kind
             let gate_i = gates[&value_id];
-            // the gate stays unconnected to its input because gates can be truend into a producerb undle with needing to be connected, which allows for loops
+            // the gate stays unconnected to its input because gates can be truend into a producer bundle with needing to be connected, which allows for loops
             // for example 'let x = 'not x' will be allowed because x refers to the output of the 'not gate and the input to the 'not gate doesnt need to be connected for x to have a value
-            arena::SingleTransformResult::Ok(ir::bundle::ProducerBundle::GateOutput(value.type_info, gate_i))
+            arena::SingleTransformResult::Ok(ir::bundle::Bundle::GateOutput(value.type_info, gate_i))
         }
 
         ExprInArenaKind::Const(_, _) => {
             let gate_i = gates[&value_id];
-            arena::SingleTransformResult::Ok(ir::bundle::ProducerBundle::GateOutput(type_context.intern(ty::Type::Bit), gate_i))
+            arena::SingleTransformResult::Ok(ir::bundle::Bundle::GateOutput(type_context.intern(ty::Type::Bit), gate_i))
         }
 
         ExprInArenaKind::Get(expr, (_, field_name)) => do_get(*expr, field_name),
@@ -271,12 +272,18 @@ fn convert_value(
             }
 
             if !errored {
-                arena::SingleTransformResult::Ok(ir::bundle::ProducerBundle::Product(results))
+                arena::SingleTransformResult::Ok(ir::bundle::Bundle::Product(results))
             } else {
                 arena::SingleTransformResult::Err(())
             }
         }
-        ExprInArenaKind::CircuitInput => arena::SingleTransformResult::Ok(ir::bundle::ProducerBundle::CurCircuitInput(circuit.input_type)),
+
+        ExprInArenaKind::CircuitInput => arena::SingleTransformResult::Ok(ir::bundle::Bundle::CurCircuitInput(circuit.input_type)),
+        ExprInArenaKind::CircuitOutput => arena::SingleTransformResult::Ok(ir::bundle::Bundle::CurCircuitOutput(circuit.output_type)),
+
+        ExprInArenaKind::GateInput(_) => todo!(),
+        ExprInArenaKind::GateOutput(_) => todo!(),
+
         ExprInArenaKind::Poison => arena::SingleTransformResult::Err(()),
     }
 }
@@ -286,8 +293,8 @@ fn connect_bundle(
     circuit: &mut ir::Circuit,
     start_span: Span,
     end_span: Span,
-    start_bundle: ir::bundle::ProducerBundle,
-    end_bundle: ir::bundle::ReceiverBundle,
+    start_bundle: ir::bundle::Bundle,
+    end_bundle: ir::bundle::Bundle,
 ) -> Option<()> {
     let start_type = start_bundle.type_(type_context);
     let end_type = end_bundle.type_(type_context);
