@@ -116,7 +116,7 @@ fn convert_circuit<'file>(
     }
 
     for let_ in circuit_ast.lets {
-        let (subc_input_type, subc_output_type, subc) = circuit_table[let_.gate.name];
+        let (subc_input_type, subc_output_type, subc) = circuit_table[let_.gate.name]; // TODO: report error if the circuit does not exist
         let gate_idx = circuit.gates.add((subc, ir::Inline::NoInline)); // TODO: syntax for inlining
         let input = values.add(ExprInArena { kind: ExprInArenaKind::GateInput(gate_idx), span: let_.gate.span, type_info: subc_input_type });
         let output = values.add(ExprInArena { kind: ExprInArenaKind::GateOutput(gate_idx), span: let_.gate.span, type_info: subc_output_type });
