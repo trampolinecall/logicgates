@@ -90,7 +90,10 @@ enum ExprInArenaKind<'file> {
     Get(ExprId, (Span<'file>, &'file str)),
     MadeUpGet(ExprId, String), // used for gets in destructuring
     Product { values: Vec<(String, ExprId)> },
-    Input,
+    CircuitInput,
+    CircuitOutput,
+    GateInput(ir::GateIdx),
+    GateOutput(ir::GateIdx),
     Poison,
 }
 
@@ -103,49 +106,46 @@ fn convert_circuit<'file>(
     let mut circuit = ir::Circuit::new(circuit_ast.name.name, circuit_ast.input.type_info, circuit_ast.output.type_info);
 
     let mut values = arena::Arena::new();
-
-    let circuit_input_value = values.add(ExprInArena { kind: ExprInArenaKind::Input, type_info: circuit_ast.input.type_info, span: circuit_ast.input.span });
-    let lets: Vec<_> = circuit_ast.lets.into_iter().map(|ast::TypedLet { pat, val }| ast::Let { pat, val: convert_expr_to_value(&mut values, val) }).collect();
-    let circuit_output_value = convert_expr_to_value(&mut values, circuit_ast.output);
-
-    // steps for resolving locals
-
-    // step 1: add all gates
     let mut gates = HashMap::new(); // only calls and consts are included in this map
-    for (value_id, value) in values.iter_with_ids() {
-        match &value.kind {
-            ExprInArenaKind::Call(name, inline, _) => {
-                gates.insert(value_id, circuit.gates.add((circuit_table[name.name].2, if *inline { ir::Inline::Inline } else { ir::Inline::NoInline })));
-            }
-            ExprInArenaKind::Const(_, value) => {
-                gates.insert(value_id, circuit.gates.add((if *value { const_1 } else { const_0 }, ir::Inline::NoInline)));
-            }
-
-            _ => {}
-        }
-    }
-
-    // step 2: assign all patterns to values
     let mut locals = HashMap::new();
-    let mut errored = false;
-    if let Err(()) = assign_pattern(type_context, &mut values, &mut locals, &circuit_ast.input, circuit_input_value) {
-        errored = true;
+
+    {
+        let circuit_input = values.add(ExprInArena { kind: ExprInArenaKind::CircuitInput, span: circuit_ast.input.span, type_info: circuit.input_type });
+        let circuit_output = values.add(ExprInArena { kind: ExprInArenaKind::CircuitOutput, span: circuit_ast.output.span, type_info: circuit.output_type });
+        assign_pattern(&mut type_context, &mut values, &mut locals, &circuit_ast.input, circuit_input);
+        assign_pattern(&mut type_context, &mut values, &mut locals, &circuit_ast.output, circuit_output);
     }
 
-    for ast::Let { pat, val } in lets {
-        if let Err(()) = assign_pattern(type_context, &mut values, &mut locals, &pat, val) {
-            errored = true;
-        }
+    for let_ in circuit_ast.lets {
+        let (subc_input_type, subc_output_type, subc) = circuit_table[let_.gate.name];
+        let gate_idx = circuit.gates.add((circuit_table[let_.gate.name].2, ir::Inline::NoInline)); // TODO: inlining in syntax
+        let input = values.add(ExprInArena { kind: ExprInArenaKind::GateInput(gate_idx), span: let_.gate.span, type_info: subc_input_type });
+        let output = values.add(ExprInArena { kind: ExprInArenaKind::GateOutput(gate_idx), span: let_.gate.span, type_info: subc_output_type });
+        assign_pattern(&mut type_context, &mut values, &mut locals, &let_.inputs, input);
+        assign_pattern(&mut type_context, &mut values, &mut locals, &let_.outputs, output);
     }
 
-    // step 3: convert all values to producer bundles
+    for alias in circuit_ast.aliases {
+        let expr = convert_expr_to_value(&mut values, alias.expr);
+        assign_pattern(&mut type_context, &mut values, &mut locals, &alias.pat, expr);
+    }
+
+    let connections = Vec::new();
+    for connection in circuit_ast.connects {
+        let start = convert_expr_to_value(&mut values, connection.start);
+        let end = convert_expr_to_value(&mut values, connection.end);
+
+        connections.push((connection.start.span, start, connection.end.span, end));
+    }
+
     let values = match values.transform_dependent_with_id(
         |value_id, value, get_other_value_as_bundle| convert_value(type_context, get_other_value_as_bundle, &locals, &gates, &circuit, value_id, value),
         |original_value, producer_bundle| (original_value, producer_bundle),
     ) {
         Ok(r) => r,
-        Err((loop_errors, _)) => {
-            // never makes other errors
+        Err((loop_errors, others)) => {
+            for () in others {} // TODO: change this to Infallible or something
+                                // never makes other errors
             for loop_ in loop_errors {
                 LoopInLocalsError(loop_).report();
             }
@@ -153,25 +153,11 @@ fn convert_circuit<'file>(
         }
     };
 
-    // step 4: connect all receiver bundles
-    for (value_id, value) in values.iter_with_ids() {
-        if let ExprInArenaKind::Call(name, _, arg) = &value.0.kind {
-            let (input_type, _, _) = circuit_table[name.name];
-            let arg_span = values.get(*arg).0.span;
-            let gate_i = gates[&value_id];
-            let arg = values.get(*arg).1.clone();
-            // TODO: the second arg_span argument should really be the receiver span, but arg_span is the producer span
-            connect_bundle(type_context, &mut circuit, arg_span, arg_span, arg, ir::bundle::ReceiverBundle::GateInput(input_type, gate_i))?;
-        }
+    for (start_sp, start, end_sp, end) in connections {
+        connect_bundle(type_context, &mut circuit, start_sp, end_sp, values.get(start).1, values.get(end).1)?;
     }
-    let output_value = values.get(circuit_output_value);
-    connect_bundle(type_context, &mut circuit, output_value.0.span, circuit_ast.output.type_info, output_value.1.clone(), ir::bundle::ReceiverBundle::CurCircuitOutput(circuit_ast.output.type_info));
 
-    if errored {
-        None
-    } else {
-        Some(circuit)
-    }
+    Some(circuit)
 }
 
 fn assign_pattern<'file>(
@@ -290,7 +276,7 @@ fn convert_value(
                 arena::SingleTransformResult::Err(())
             }
         }
-        ExprInArenaKind::Input => arena::SingleTransformResult::Ok(ir::bundle::ProducerBundle::CurCircuitInput(circuit.input_type)),
+        ExprInArenaKind::CircuitInput => arena::SingleTransformResult::Ok(ir::bundle::ProducerBundle::CurCircuitInput(circuit.input_type)),
         ExprInArenaKind::Poison => arena::SingleTransformResult::Err(()),
     }
 }
@@ -298,19 +284,19 @@ fn convert_value(
 fn connect_bundle(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     circuit: &mut ir::Circuit,
-    producer_span: Span,
-    receiver_span: Span,
-    producer_bundle: ir::bundle::ProducerBundle,
-    receiver_bundle: ir::bundle::ReceiverBundle,
+    start_span: Span,
+    end_span: Span,
+    start_bundle: ir::bundle::ProducerBundle,
+    end_bundle: ir::bundle::ReceiverBundle,
 ) -> Option<()> {
-    let producer_type = producer_bundle.type_(type_context);
-    let receiver_type = receiver_bundle.type_(type_context);
-    if producer_type != receiver_type {
-        (&*type_context, TypeMismatch { got_type: producer_type, expected_type: receiver_type, expected_span: receiver_span, got_span: producer_span }).report();
+    let start_type = start_bundle.type_(type_context);
+    let end_type = end_bundle.type_(type_context);
+    if start_type != end_type {
+        (&*type_context, TypeMismatch { got_type: start_type, expected_type: end_type, expected_span: end_span, got_span: start_span }).report(); // TODO: redo type mismatch error
         None?;
     }
 
-    circuit.connections.push((producer_bundle, receiver_bundle));
+    circuit.connections.push((start_bundle, end_bundle));
 
     Some(())
 }
