@@ -20,8 +20,8 @@ pub(crate) fn type_(resolve_type_expr::IR { circuits, circuit_table, mut type_co
         circuits: circuits.transform_infallible(|circuit| match circuit {
             ast::TypeResolvedCircuitOrIntrinsic::Circuit(circuit) => ast::PatTypedCircuitOrIntrinsic::Circuit(ast::PatTypedCircuit {
                 name: circuit.name,
-                input_type: circuit.input_type,
-                output_type: circuit.output_type,
+                input: type_pat(&mut type_context, circuit.input),
+                output: type_pat(&mut type_context, circuit.output),
                 lets: circuit
                     .lets
                     .into_iter()
