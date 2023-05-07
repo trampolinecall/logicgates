@@ -37,19 +37,6 @@ fn primary<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>
                 _ => Err(parser.expected_and_next("'0' or '1'")),
             }
         }
-        /* TODO: remove
-        Token::CircuitIdentifier(_) => {
-            let ci = Token::circuit_identifier_matcher().convert(parser.next());
-
-            let inline = parser.maybe_consume(Token::inline_matcher()).is_some();
-
-            let arg = expr(parser)?;
-            let ci_span = ci.span;
-            let arg_span = arg.span;
-
-            Ok(ast::Expr { kind: ast::ExprKind::Call(ci, inline, Box::new(arg)), type_info: (), span: ci_span + arg_span })
-        }
-        */
 
         Token::PlainIdentifier(_) => {
             let i = Token::plain_identifier_matcher().convert(parser.next());
