@@ -9,8 +9,6 @@ use crate::{
 use std::fmt::Debug;
 
 pub(crate) trait Stage {
-    // TODO: have ExprTypeInfo instaed of Expr?
-    type Expr<'file>: Debug + PartialEq;
     type TypeExpr<'file>: Debug + PartialEq;
     type PatTypeInfo<'file>: Debug + PartialEq;
     type ExprTypeInfo<'file>: Debug + PartialEq;
@@ -19,7 +17,6 @@ pub(crate) trait Stage {
 #[derive(Debug, PartialEq)]
 pub(crate) enum Untyped {}
 impl Stage for Untyped {
-    type Expr<'file> = Expr<'file, Untyped>;
     type TypeExpr<'file> = type_expr::TypeExpr<'file>;
     type PatTypeInfo<'file> = ();
     type ExprTypeInfo<'file> = ();
@@ -28,7 +25,6 @@ impl Stage for Untyped {
 #[derive(Debug, PartialEq)]
 pub(crate) enum TypeResolved {}
 impl Stage for TypeResolved {
-    type Expr<'file> = Expr<'file, TypeResolved>;
     type TypeExpr<'file> = (Span<'file>, ty::TypeSym);
     type PatTypeInfo<'file> = ();
     type ExprTypeInfo<'file> = ();
@@ -37,7 +33,6 @@ impl Stage for TypeResolved {
 #[derive(Debug, PartialEq)]
 pub(crate) enum PatTyped {}
 impl Stage for PatTyped {
-    type Expr<'file> = Expr<'file, PatTyped>;
     type TypeExpr<'file> = (Span<'file>, ty::TypeSym);
     type PatTypeInfo<'file> = ty::TypeSym;
     type ExprTypeInfo<'file> = ();
@@ -46,7 +41,6 @@ impl Stage for PatTyped {
 #[derive(Debug, PartialEq)]
 pub(crate) enum Typed {}
 impl Stage for Typed {
-    type Expr<'file> = Expr<'file, Typed>;
     type TypeExpr<'file> = (Span<'file>, ty::TypeSym);
     type PatTypeInfo<'file> = ty::TypeSym;
     type ExprTypeInfo<'file> = ty::TypeSym;
@@ -92,12 +86,12 @@ pub(crate) struct Let<'file, CurStage: Stage> {
 #[derive(PartialEq, Debug)]
 pub(crate) struct Alias<'file, CurStage: Stage> {
     pub(crate) pat: Pattern<'file, CurStage>,
-    pub(crate) expr: CurStage::Expr<'file>,
+    pub(crate) expr: Expr<'file, CurStage>,
 }
 #[derive(PartialEq, Debug)]
 pub(crate) struct Connect<'file, CurStage: Stage> {
-    pub(crate) start: CurStage::Expr<'file>,
-    pub(crate) end: CurStage::Expr<'file>,
+    pub(crate) start: Expr<'file, CurStage>,
+    pub(crate) end: Expr<'file, CurStage>,
 }
 
 #[derive(PartialEq, Debug)]
