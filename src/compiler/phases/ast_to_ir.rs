@@ -111,8 +111,8 @@ fn convert_circuit<'file>(
     {
         let circuit_input = values.add(ExprInArena { kind: ExprInArenaKind::CircuitInput, span: circuit_ast.input.span, type_info: circuit.input_type });
         let circuit_output = values.add(ExprInArena { kind: ExprInArenaKind::CircuitOutput, span: circuit_ast.output.span, type_info: circuit.output_type });
-        assign_pattern(type_context, &mut values, &mut locals, &circuit_ast.input, circuit_input);
-        assign_pattern(type_context, &mut values, &mut locals, &circuit_ast.output, circuit_output);
+        assign_pattern(type_context, &mut values, &mut locals, &circuit_ast.input, circuit_input).ok()?;
+        assign_pattern(type_context, &mut values, &mut locals, &circuit_ast.output, circuit_output).ok()?;
     }
 
     for let_ in circuit_ast.lets {
@@ -120,13 +120,13 @@ fn convert_circuit<'file>(
         let gate_idx = circuit.gates.add((subc, ir::Inline::NoInline)); // TODO: syntax for inlining
         let input = values.add(ExprInArena { kind: ExprInArenaKind::GateInput(gate_idx), span: let_.gate.span, type_info: subc_input_type });
         let output = values.add(ExprInArena { kind: ExprInArenaKind::GateOutput(gate_idx), span: let_.gate.span, type_info: subc_output_type });
-        assign_pattern(type_context, &mut values, &mut locals, &let_.inputs, input);
-        assign_pattern(type_context, &mut values, &mut locals, &let_.outputs, output);
+        assign_pattern(type_context, &mut values, &mut locals, &let_.inputs, input).ok()?;
+        assign_pattern(type_context, &mut values, &mut locals, &let_.outputs, output).ok()?;
     }
 
     for alias in circuit_ast.aliases {
         let expr = convert_expr_to_value(&mut values, alias.expr);
-        assign_pattern(type_context, &mut values, &mut locals, &alias.pat, expr);
+        assign_pattern(type_context, &mut values, &mut locals, &alias.pat, expr).ok()?;
     }
 
     let mut connections = Vec::new();
