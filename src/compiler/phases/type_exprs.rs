@@ -62,8 +62,8 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
 
             Some(ast::TypedCircuitOrIntrinsic::Circuit(ast::TypedCircuit {
                 name: circuit.name,
-                input_type: circuit.input_type,
-                output_type: circuit.output_type,
+                input: circuit.input,
+                output: circuit.output,
                 lets: circuit.lets,
                 connects: circuit
                     .connects

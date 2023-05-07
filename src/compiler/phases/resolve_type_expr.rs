@@ -27,8 +27,8 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
     let circuits = circuits.transform(|circuit| match circuit {
         ast::UntypedCircuitOrIntrinsic::Circuit(circuit) => Some(ast::TypeResolvedCircuitOrIntrinsic::Circuit(ast::TypeResolvedCircuit {
             name: circuit.name,
-            input_type: resolve_type_expr(&mut type_context, &type_table, circuit.input_type)?,
-            output_type: resolve_type_expr(&mut type_context, &type_table, circuit.output_type)?,
+            input: resolve_in_pat(&mut type_context, &type_table, circuit.input)?,
+            output: resolve_in_pat(&mut type_context, &type_table, circuit.output)?,
             lets: circuit.lets.into_iter().map(|let_| resolve_in_let(&mut type_context, &type_table, let_)).collect::<Option<Vec<_>>>()?,
             connects: circuit.connects,
             aliases: circuit.aliases.into_iter().map(|alias| resolve_in_alias(&mut type_context, &type_table, alias)).collect::<Option<Vec<_>>>()?,

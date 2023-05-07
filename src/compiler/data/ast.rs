@@ -58,8 +58,8 @@ impl arena::ArenaId for CircuitOrIntrinsicId {
 pub(crate) struct Circuit<'file, Expr, PatTypeInfo, TypeExpr> {
     pub(crate) name: token::CircuitIdentifier<'file>,
 
-    pub(crate) input_type: TypeExpr,
-    pub(crate) output_type: TypeExpr,
+    pub(crate) input: Pattern<'file, PatTypeInfo, TypeExpr>,
+    pub(crate) output: Pattern<'file, PatTypeInfo, TypeExpr>,
 
     pub(crate) lets: Vec<Let<'file, PatTypeInfo, TypeExpr>>,
     pub(crate) aliases: Vec<Alias<'file, Expr, PatTypeInfo, TypeExpr>>,
@@ -118,10 +118,10 @@ pub(crate) enum PatternKind<'file, PatTypeInfo, TypeExpr> {
 }
 
 // TODO: this will probably be duplicated with the type code from the ir but i dont know how to fix that (although i think the solution might be a separate type checking phase so that the ir doesnt need to have type information)
-impl<'file, ExprTypeInfo, PatTypeInfo> CircuitOrIntrinsic<'file, ExprTypeInfo, PatTypeInfo, (Span<'file>, ty::TypeSym)> {
+impl<'file, ExprTypeInfo, TypeExpr> CircuitOrIntrinsic<'file, ExprTypeInfo, ty::TypeSym, TypeExpr> {
     pub(crate) fn input_type(&self, type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>) -> ty::TypeSym {
         match self {
-            CircuitOrIntrinsic::Circuit(circuit) => circuit.input_type.1,
+            CircuitOrIntrinsic::Circuit(circuit) => circuit.input.type_info,
             CircuitOrIntrinsic::Nand => {
                 let b = type_context.intern(ty::Type::Bit);
                 type_context.intern(ty::Type::Product(vec![("0".into(), b), ("1".into(), b)]))
@@ -131,7 +131,7 @@ impl<'file, ExprTypeInfo, PatTypeInfo> CircuitOrIntrinsic<'file, ExprTypeInfo, P
     }
     pub(crate) fn output_type(&self, type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>) -> ty::TypeSym {
         match self {
-            CircuitOrIntrinsic::Circuit(circuit) => circuit.output_type.1,
+            CircuitOrIntrinsic::Circuit(circuit) => circuit.output.type_info,
             CircuitOrIntrinsic::Nand | CircuitOrIntrinsic::Const(_) => type_context.intern(ty::Type::Bit),
         }
     }

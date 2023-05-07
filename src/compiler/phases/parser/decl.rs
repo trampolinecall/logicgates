@@ -5,8 +5,8 @@ use crate::compiler::{
 
 pub(super) fn circuit<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedCircuit<'file>, ParseError<'file>> {
     let name = parser.expect(/* "circuit name", */ Token::circuit_identifier_matcher())?;
-    let input_type = type_::type_(parser)?;
-    let output_type = type_::type_(parser)?;
+    let input = pattern::pattern(parser)?;
+    let output = pattern::pattern(parser)?;
 
     let mut lets = Vec::new();
     let mut connects = Vec::new();
@@ -23,7 +23,7 @@ pub(super) fn circuit<'file>(parser: &mut Parser<'file, impl Iterator<Item = Tok
         }
     }
 
-    Ok(ast::UntypedCircuit { name, input_type, output_type, lets, connects, aliases })
+    Ok(ast::UntypedCircuit { name, input, output, lets, connects, aliases })
 }
 
 fn let_<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedLet<'file>, ParseError<'file>> {
@@ -118,7 +118,7 @@ mod test {
             AST {
                 circuits: vec![ast::UntypedCircuit {
                     name: token::CircuitIdentifier { span: sp, name: "thingy", with_tag: "\\thingy".to_string() },
-                    input_type: ast::UntypedPattern {
+                    input: ast::UntypedPattern {
                         kind: ast::UntypedPatternKind::Identifier(
                             token::PlainIdentifier { span: sp, name: "arg" },
                             type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(token::TypeIdentifier { span: sp, name: "bit", with_tag: "-bit".to_string() }), span: sp }
@@ -153,7 +153,7 @@ mod test {
                         }
                     }],
                     output: ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "res" }), type_info: (), span: sp },
-                    output_type: type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(token::TypeIdentifier { span: sp, name: "bit", with_tag: "-bit".to_string() }), span: sp }
+                    output: type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(token::TypeIdentifier { span: sp, name: "bit", with_tag: "-bit".to_string() }), span: sp }
                 }],
                 type_decls: vec![]
             }
