@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use crate::simulation::{NodeKey, NodeMap};
 
-#[derive(Clone)] // TODO: is this needed
 pub(super) struct NodeConnections {
     adjacent: HashSet<NodeKey>,
 }

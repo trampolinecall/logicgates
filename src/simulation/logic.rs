@@ -7,7 +7,6 @@ mod connections;
 
 const SUBTICKS_PER_UPDATE: usize = 1; // TODO: make this adjustable at runtime
 
-#[derive(Clone)] // TODO: is this needed
 pub(crate) struct NodeLogic {
     production: Option<Value>,
     value: Value,
