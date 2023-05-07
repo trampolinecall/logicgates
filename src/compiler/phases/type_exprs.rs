@@ -70,13 +70,13 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
                     .connects
                     .into_iter()
                     .map(|ast::PatTypedConnect { start, end }| {
-                        Some(ast::TypedConnect { start: type_expr(&mut type_context, &circuit_table, &local_table, start)?, end: type_expr(&mut type_context, &circuit_table, &local_table, end)? })
+                        Some(ast::TypedConnect { start: type_expr(&mut type_context, &local_table, start)?, end: type_expr(&mut type_context, &local_table, end)? })
                     })
                     .collect::<Option<Vec<_>>>()?,
                 aliases: circuit
                     .aliases
                     .into_iter()
-                    .map(|ast::PatTypedAlias { pat, expr }| Some(ast::TypedAlias { pat, expr: type_expr(&mut type_context, &circuit_table, &local_table, expr)? }))
+                    .map(|ast::PatTypedAlias { pat, expr }| Some(ast::TypedAlias { pat, expr: type_expr(&mut type_context, &local_table, expr)? }))
                     .collect::<Option<Vec<_>>>()?,
             }))
         }
@@ -104,7 +104,6 @@ fn put_pat_type<'file>(local_table: &mut HashMap<&'file str, ty::TypeSym>, pat: 
 
 fn type_expr<'file>(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
-    circuit_table: &HashMap<&str, (ty::TypeSym, ty::TypeSym, ast::CircuitOrIntrinsicId)>,
     local_types: &HashMap<&str, ty::TypeSym>,
     expr: ast::UntypedExpr<'file>,
 ) -> Option<ast::TypedExpr<'file>> {
@@ -121,7 +120,7 @@ fn type_expr<'file>(
         }
         ast::UntypedExprKind::Const(sp, value) => (ast::TypedExprKind::Const(sp, value), type_context.intern(ty::Type::Bit)),
         ast::UntypedExprKind::Get(base, field) => {
-            let base = type_expr(type_context, circuit_table, local_types, *base)?;
+            let base = type_expr(type_context, local_types, *base)?;
             let base_ty = base.type_info;
             let field_ty = ty::Type::get_field_type(&type_context.get(base_ty).fields(type_context), field.1);
             if let Some(field_ty) = field_ty {
@@ -132,7 +131,7 @@ fn type_expr<'file>(
             }
         }
         ast::UntypedExprKind::Product(exprs) => {
-            let exprs: Vec<_> = exprs.into_iter().map(|(subexpr_name, subexpr)| Some((subexpr_name, type_expr(type_context, circuit_table, local_types, subexpr)?))).collect_all()?;
+            let exprs: Vec<_> = exprs.into_iter().map(|(subexpr_name, subexpr)| Some((subexpr_name, type_expr(type_context, local_types, subexpr)?))).collect_all()?;
             let types = exprs.iter().map(|(field_name, subexpr)| (field_name.to_string(), subexpr.type_info)).collect();
             (ast::TypedExprKind::Product(exprs), type_context.intern(ty::Type::Product(types)))
         }
