@@ -23,7 +23,7 @@ pub(super) fn circuit<'file>(parser: &mut Parser<'file, impl Iterator<Item = Tok
         }
     }
 
-    Ok(ast::UntypedCircuit { name, input, output, lets, connects, aliases })
+    Ok(ast::UntypedCircuit { name, input, output, lets, aliases, connects })
 }
 
 fn let_<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedLet<'file>, ParseError<'file>> {
@@ -32,7 +32,7 @@ fn let_<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -
     let inputs = pattern::pattern(parser)?;
     let outputs = pattern::pattern(parser)?;
 
-    Ok(ast::UntypedLet { gate, inputs, outputs })
+    Ok(ast::UntypedLet { inputs, outputs, gate })
 }
 
 fn connect<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedConnect<'file>, ParseError<'file>> {
