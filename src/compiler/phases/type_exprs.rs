@@ -41,14 +41,6 @@ pub(crate) struct IR<'file> {
     pub(crate) type_context: ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
 }
 pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }: type_pats::IR) -> Option<IR> {
-    let circuit_table: HashMap<_, _> = circuit_table
-        .into_iter()
-        .map(|(name, circuit_id)| {
-            let circuit = circuits.get(circuit_id);
-            (name, (circuit.input_type(&mut type_context), circuit.output_type(&mut type_context), circuit_id))
-        })
-        .collect();
-
     let circuits = circuits.transform(|circuit| match circuit {
         ast::PatTypedCircuitOrIntrinsic::Circuit(circuit) => {
             let mut local_table = HashMap::new();
@@ -84,7 +76,13 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
         ast::PatTypedCircuitOrIntrinsic::Const(value) => Some(ast::TypedCircuitOrIntrinsic::Const(value)),
     })?;
 
-    let circuit_table = circuit_table.into_iter().map(|(name, old_id)| (name, old_id)).collect();
+    let circuit_table = circuit_table
+        .into_iter()
+        .map(|(name, circuit_id)| {
+            let circuit = circuits.get(circuit_id);
+            (name, (circuit.input_type(&mut type_context), circuit.output_type(&mut type_context), circuit_id))
+        })
+        .collect();
 
     Some(IR { circuits, circuit_table, type_context })
 }
