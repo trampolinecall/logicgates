@@ -10,7 +10,7 @@ use crate::{
 use std::collections::HashMap;
 
 pub(crate) struct IR<'file> {
-    pub(crate) circuits: arena::Arena<ast::UntypedCircuitOrIntrinsic<'file>, ast::CircuitOrIntrinsicId>,
+    pub(crate) circuits: arena::Arena<ast::CircuitOrIntrinsic<'file, ast::Untyped>, ast::CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<&'file str, ast::CircuitOrIntrinsicId>,
 
     pub(crate) type_context: ty::TypeContext<nominal_type::PartiallyDefinedStruct<'file>>,
@@ -42,14 +42,14 @@ fn intrinsic<'a, T>(table: &mut HashMap<&'a str, T>, name: &'a str, thing: T) {
     let old_t = table.insert(name, thing);
     assert!(old_t.is_none(), "cannot have other item named '{}' in empty table", name);
 }
-fn circuit_intrinsics(arena: &mut arena::Arena<ast::UntypedCircuitOrIntrinsic, ast::CircuitOrIntrinsicId>, table: &mut HashMap<&str, ast::CircuitOrIntrinsicId>) {
-    intrinsic(table, "nand", arena.add(ast::UntypedCircuitOrIntrinsic::Nand));
+fn circuit_intrinsics(arena: &mut arena::Arena<ast::CircuitOrIntrinsic<ast::Untyped>, ast::CircuitOrIntrinsicId>, table: &mut HashMap<&str, ast::CircuitOrIntrinsicId>) {
+    intrinsic(table, "nand", arena.add(ast::CircuitOrIntrinsic::Nand));
 }
 fn type_intrinsics(context: &mut ty::TypeContext<nominal_type::PartiallyDefinedStruct>, table: &mut HashMap<&str, ty::TypeSym>) {
     intrinsic(table, "bit", context.intern(ty::Type::Bit));
 }
 
-fn make_circuit_table(circuits: Vec<ast::UntypedCircuit>) -> Option<(arena::Arena<ast::UntypedCircuitOrIntrinsic, ast::CircuitOrIntrinsicId>, HashMap<&str, ast::CircuitOrIntrinsicId>)> {
+fn make_circuit_table(circuits: Vec<ast::Circuit<ast::Untyped>>) -> Option<(arena::Arena<ast::CircuitOrIntrinsic<ast::Untyped>, ast::CircuitOrIntrinsicId>, HashMap<&str, ast::CircuitOrIntrinsicId>)> {
     let mut arena = arena::Arena::new();
     let mut table = HashMap::new();
 
@@ -61,7 +61,7 @@ fn make_circuit_table(circuits: Vec<ast::UntypedCircuit>) -> Option<(arena::Aren
             DuplicateCircuit(&circuit.name).report();
             errored = true;
         }
-        table.insert(circuit.name.name, arena.add(ast::UntypedCircuitOrIntrinsic::Circuit(circuit)));
+        table.insert(circuit.name.name, arena.add(ast::CircuitOrIntrinsic::Circuit(circuit)));
     }
 
     if errored {

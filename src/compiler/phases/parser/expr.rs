@@ -4,7 +4,7 @@ use crate::compiler::{
     phases::parser::{ParseError, Parser},
 };
 
-pub(super) fn expr<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedExpr<'file>, ParseError<'file>> {
+pub(super) fn expr<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::Expr<'file, ast::Untyped>, ParseError<'file>> {
     let mut left = primary(parser)?;
 
     while Token::dot_matcher().matches(parser.peek()) {
@@ -20,20 +20,20 @@ pub(super) fn expr<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<
         parser.next();
 
         let left_span = left.span;
-        left = ast::UntypedExpr { kind: ast::UntypedExprKind::Get(Box::new(left), field), type_info: (), span: left_span + field.0 };
+        left = ast::Expr { kind: ast::ExprKind::Get(Box::new(left), field), type_info: (), span: left_span + field.0 };
     }
 
     Ok(left)
 }
 
-fn primary<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedExpr<'file>, ParseError<'file>> {
+fn primary<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::Expr<'file, ast::Untyped>, ParseError<'file>> {
     match parser.peek() {
         Token::Number(_, _, _) => {
             let (n_sp, _, n) = Token::number_matcher().convert(parser.next());
 
             match n {
-                0 => Ok(ast::UntypedExpr { kind: ast::UntypedExprKind::Const(n_sp, false), type_info: (), span: n_sp }),
-                1 => Ok(ast::UntypedExpr { kind: ast::UntypedExprKind::Const(n_sp, true), type_info: (), span: n_sp }),
+                0 => Ok(ast::Expr { kind: ast::ExprKind::Const(n_sp, false), type_info: (), span: n_sp }),
+                1 => Ok(ast::Expr { kind: ast::ExprKind::Const(n_sp, true), type_info: (), span: n_sp }),
                 _ => Err(parser.expected_and_next("'0' or '1'")),
             }
         }
@@ -47,14 +47,14 @@ fn primary<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>
             let ci_span = ci.span;
             let arg_span = arg.span;
 
-            Ok(ast::UntypedExpr { kind: ast::UntypedExprKind::Call(ci, inline, Box::new(arg)), type_info: (), span: ci_span + arg_span })
+            Ok(ast::Expr { kind: ast::ExprKind::Call(ci, inline, Box::new(arg)), type_info: (), span: ci_span + arg_span })
         }
         */
 
         Token::PlainIdentifier(_) => {
             let i = Token::plain_identifier_matcher().convert(parser.next());
 
-            Ok(ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(i), type_info: (), span: i.span })
+            Ok(ast::Expr { kind: ast::ExprKind::Ref(i), type_info: (), span: i.span })
         }
 
         &Token::OBrack(obrack) => {
@@ -66,7 +66,7 @@ fn primary<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>
     }
 }
 
-fn product<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>, obrack: Span<'file>) -> Result<ast::UntypedExpr<'file>, ParseError<'file>> {
+fn product<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>, obrack: Span<'file>) -> Result<ast::Expr<'file, ast::Untyped>, ParseError<'file>> {
     match parser.peek() {
         Token::Semicolon(_) => {
             parser.next();
@@ -78,12 +78,12 @@ fn product<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>
                 Ok((iden.name.to_string(), ty))
             })?;
 
-            Ok(ast::UntypedExpr { kind: ast::UntypedExprKind::Product(exprs), type_info: (), span: obrack + cbrack })
+            Ok(ast::Expr { kind: ast::ExprKind::Product(exprs), type_info: (), span: obrack + cbrack })
         }
 
         _ => {
             let (exprs, cbrack) = parser.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), expr)?;
-            Ok(ast::UntypedExpr { kind: ast::UntypedExprKind::Product(exprs.into_iter().enumerate().map(|(i, e)| (i.to_string(), e)).collect()), type_info: (), span: obrack + cbrack })
+            Ok(ast::Expr { kind: ast::ExprKind::Product(exprs.into_iter().enumerate().map(|(i, e)| (i.to_string(), e)).collect()), type_info: (), span: obrack + cbrack })
         }
     }
 }
@@ -105,10 +105,10 @@ mod test {
         let sp = file.eof_span();
 
         let tokens_0 = make_token_stream([Token::Number(sp, "0", 0)], sp);
-        assert_eq!(expr(&mut Parser { tokens: tokens_0 }), Ok(ast::UntypedExpr { kind: ast::UntypedExprKind::Const(sp, false), type_info: (), span: sp }));
+        assert_eq!(expr(&mut Parser { tokens: tokens_0 }), Ok(ast::Expr { kind: ast::ExprKind::Const(sp, false), type_info: (), span: sp }));
 
         let tokens_1 = make_token_stream([Token::Number(sp, "1", 1)], sp);
-        assert_eq!(expr(&mut Parser { tokens: tokens_1 }), Ok(ast::UntypedExpr { kind: ast::UntypedExprKind::Const(sp, true), type_info: (), span: sp }));
+        assert_eq!(expr(&mut Parser { tokens: tokens_1 }), Ok(ast::Expr { kind: ast::ExprKind::Const(sp, true), type_info: (), span: sp }));
     }
 
     #[test]
@@ -122,11 +122,11 @@ mod test {
         );
         assert_eq!(
             expr(&mut Parser { tokens }),
-            Ok(ast::UntypedExpr {
-                kind: ast::UntypedExprKind::Call(
+            Ok(ast::Expr {
+                kind: ast::ExprKind::Call(
                     token::CircuitIdentifier { span: sp, name: "a", with_tag: "\\a".to_string() },
                     false,
-                    Box::new(ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "b" }), type_info: (), span: sp })
+                    Box::new(ast::Expr { kind: ast::ExprKind::Ref(token::PlainIdentifier { span: sp, name: "b" }), type_info: (), span: sp })
                 ),
                 type_info: (),
                 span: sp
@@ -140,7 +140,7 @@ mod test {
         let sp = file.eof_span();
 
         let tokens = make_token_stream([Token::PlainIdentifier(token::PlainIdentifier { span: sp, name: "a" })], sp);
-        assert_eq!(expr(&mut Parser { tokens }), Ok(ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "a" }), type_info: (), span: sp }));
+        assert_eq!(expr(&mut Parser { tokens }), Ok(ast::Expr { kind: ast::ExprKind::Ref(token::PlainIdentifier { span: sp, name: "a" }), type_info: (), span: sp }));
     }
 
     #[test]
@@ -164,12 +164,12 @@ mod test {
         );
         assert_eq!(
             expr(&mut Parser { tokens }),
-            Ok(ast::UntypedExpr {
-                kind: ast::UntypedExprKind::Product(vec![
-                    ("0".to_string(), ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "a" }), type_info: (), span: sp }),
-                    ("1".to_string(), ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "b" }), type_info: (), span: sp }),
-                    ("2".to_string(), ast::UntypedExpr { kind: ast::UntypedExprKind::Const(sp, false), type_info: (), span: sp }),
-                    ("3".to_string(), ast::UntypedExpr { kind: ast::UntypedExprKind::Const(sp, true), type_info: (), span: sp }),
+            Ok(ast::Expr {
+                kind: ast::ExprKind::Product(vec![
+                    ("0".to_string(), ast::Expr { kind: ast::ExprKind::Ref(token::PlainIdentifier { span: sp, name: "a" }), type_info: (), span: sp }),
+                    ("1".to_string(), ast::Expr { kind: ast::ExprKind::Ref(token::PlainIdentifier { span: sp, name: "b" }), type_info: (), span: sp }),
+                    ("2".to_string(), ast::Expr { kind: ast::ExprKind::Const(sp, false), type_info: (), span: sp }),
+                    ("3".to_string(), ast::Expr { kind: ast::ExprKind::Const(sp, true), type_info: (), span: sp }),
                 ]),
                 type_info: (),
                 span: sp
