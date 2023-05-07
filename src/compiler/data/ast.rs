@@ -6,41 +6,51 @@ use crate::{
     utils::arena,
 };
 
-pub(crate) type UntypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, UntypedExpr<'file>, (), type_expr::TypeExpr<'file>>;
-pub(crate) type UntypedCircuit<'file> = Circuit<'file, UntypedExpr<'file>, (), type_expr::TypeExpr<'file>>;
-pub(crate) type UntypedAlias<'file> = Alias<'file, UntypedExpr<'file>, (), type_expr::TypeExpr<'file>>;
-pub(crate) type UntypedConnect<'file> = Connect<UntypedExpr<'file>>;
-pub(crate) type UntypedLet<'file> = Let<'file, (), type_expr::TypeExpr<'file>>;
-pub(crate) type UntypedPattern<'file> = Pattern<'file, (), type_expr::TypeExpr<'file>>;
-pub(crate) type UntypedPatternKind<'file> = PatternKind<'file, (), type_expr::TypeExpr<'file>>;
-pub(crate) type UntypedExpr<'file> = Expr<'file, ()>;
-pub(crate) type UntypedExprKind<'file> = ExprKind<'file, ()>;
+use std::fmt::Debug;
 
-pub(crate) type TypeResolvedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, UntypedExpr<'file>, (), (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypeResolvedCircuit<'file> = Circuit<'file, UntypedExpr<'file>, (), (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypeResolvedAlias<'file> = Alias<'file, UntypedExpr<'file>, (), (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypeResolvedConnect<'file> = Connect<UntypedExpr<'file>>;
-pub(crate) type TypeResolvedLet<'file> = Let<'file, (), (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypeResolvedPattern<'file> = Pattern<'file, (), (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypeResolvedPatternKind<'file> = PatternKind<'file, (), (Span<'file>, ty::TypeSym)>;
+pub(crate) trait Stage {
+    // TODO: have ExprTypeInfo instaed of Expr?
+    type Expr<'file>: Debug + PartialEq;
+    type TypeExpr<'file>: Debug + PartialEq;
+    type PatTypeInfo<'file>: Debug + PartialEq;
+    type ExprTypeInfo<'file>: Debug + PartialEq;
+}
 
-pub(crate) type PatTypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, UntypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-pub(crate) type PatTypedCircuit<'file> = Circuit<'file, UntypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-pub(crate) type PatTypedAlias<'file> = Alias<'file, UntypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-pub(crate) type PatTypedConnect<'file> = Connect<UntypedExpr<'file>>;
-pub(crate) type PatTypedLet<'file> = Let<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-pub(crate) type PatTypedPattern<'file> = Pattern<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-pub(crate) type PatTypedPatternKind<'file> = PatternKind<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
+#[derive(Debug, PartialEq)]
+pub(crate) enum Untyped {}
+impl Stage for Untyped {
+    type Expr<'file> = Expr<'file, Untyped>;
+    type TypeExpr<'file> = type_expr::TypeExpr<'file>;
+    type PatTypeInfo<'file> = ();
+    type ExprTypeInfo<'file> = ();
+}
 
-pub(crate) type TypedCircuitOrIntrinsic<'file> = CircuitOrIntrinsic<'file, TypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypedCircuit<'file> = Circuit<'file, TypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypedAlias<'file> = Alias<'file, TypedExpr<'file>, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypedConnect<'file> = Connect<TypedExpr<'file>>;
-pub(crate) type TypedLet<'file> = Let<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypedPattern<'file> = Pattern<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypedPatternKind<'file> = PatternKind<'file, ty::TypeSym, (Span<'file>, ty::TypeSym)>;
-pub(crate) type TypedExpr<'file> = Expr<'file, ty::TypeSym>;
-pub(crate) type TypedExprKind<'file> = ExprKind<'file, ty::TypeSym>;
+#[derive(Debug, PartialEq)]
+pub(crate) enum TypeResolved {}
+impl Stage for TypeResolved {
+    type Expr<'file> = Expr<'file, TypeResolved>;
+    type TypeExpr<'file> = (Span<'file>, ty::TypeSym);
+    type PatTypeInfo<'file> = ();
+    type ExprTypeInfo<'file> = ();
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) enum PatTyped {}
+impl Stage for PatTyped {
+    type Expr<'file> = Expr<'file, PatTyped>;
+    type TypeExpr<'file> = (Span<'file>, ty::TypeSym);
+    type PatTypeInfo<'file> = ty::TypeSym;
+    type ExprTypeInfo<'file> = ();
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) enum Typed {}
+impl Stage for Typed {
+    type Expr<'file> = Expr<'file, Typed>;
+    type TypeExpr<'file> = (Span<'file>, ty::TypeSym);
+    type PatTypeInfo<'file> = ty::TypeSym;
+    type ExprTypeInfo<'file> = ty::TypeSym;
+}
 
 #[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
 pub(crate) struct CircuitOrIntrinsicId(usize); // not ideal because this is also the id for ir::CircuitOrIntrinsic but i dont know where else to put it
@@ -55,69 +65,69 @@ impl arena::ArenaId for CircuitOrIntrinsicId {
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct Circuit<'file, Expr, PatTypeInfo, TypeExpr> {
+pub(crate) struct Circuit<'file, CurStage: Stage> {
     pub(crate) name: token::CircuitIdentifier<'file>,
 
-    pub(crate) input: Pattern<'file, PatTypeInfo, TypeExpr>,
-    pub(crate) output: Pattern<'file, PatTypeInfo, TypeExpr>,
+    pub(crate) input: Pattern<'file, CurStage>,
+    pub(crate) output: Pattern<'file, CurStage>,
 
-    pub(crate) lets: Vec<Let<'file, PatTypeInfo, TypeExpr>>,
-    pub(crate) aliases: Vec<Alias<'file, Expr, PatTypeInfo, TypeExpr>>,
-    pub(crate) connects: Vec<Connect<Expr>>,
+    pub(crate) lets: Vec<Let<'file, CurStage>>,
+    pub(crate) aliases: Vec<Alias<'file, CurStage>>,
+    pub(crate) connects: Vec<Connect<'file, CurStage>>,
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) enum CircuitOrIntrinsic<'file, Expr, PatTypeInfo, TypeExpr> {
-    Circuit(Circuit<'file, Expr, PatTypeInfo, TypeExpr>),
+pub(crate) enum CircuitOrIntrinsic<'file, CurStage: Stage> {
+    Circuit(Circuit<'file, CurStage>),
     Nand,
     Const(bool), // never in circuit table
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct Let<'file, PatTypeInfo, TypeExpr> {
-    pub(crate) inputs: Pattern<'file, PatTypeInfo, TypeExpr>,
-    pub(crate) outputs: Pattern<'file, PatTypeInfo, TypeExpr>,
+pub(crate) struct Let<'file, CurStage: Stage> {
+    pub(crate) inputs: Pattern<'file, CurStage>,
+    pub(crate) outputs: Pattern<'file, CurStage>,
     pub(crate) gate: token::CircuitIdentifier<'file>,
 }
 #[derive(PartialEq, Debug)]
-pub(crate) struct Alias<'file, Expr, PatTypeInfo, TypeExpr> {
-    pub(crate) pat: Pattern<'file, PatTypeInfo, TypeExpr>,
-    pub(crate) expr: Expr,
+pub(crate) struct Alias<'file, CurStage: Stage> {
+    pub(crate) pat: Pattern<'file, CurStage>,
+    pub(crate) expr: CurStage::Expr<'file>,
 }
 #[derive(PartialEq, Debug)]
-pub(crate) struct Connect<Expr> {
-    pub(crate) start: Expr,
-    pub(crate) end: Expr,
+pub(crate) struct Connect<'file, CurStage: Stage> {
+    pub(crate) start: CurStage::Expr<'file>,
+    pub(crate) end: CurStage::Expr<'file>,
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct Expr<'file, TypeInfo> {
-    pub(crate) kind: ExprKind<'file, TypeInfo>,
-    pub(crate) type_info: TypeInfo,
+pub(crate) struct Expr<'file, CurStage: Stage> {
+    pub(crate) kind: ExprKind<'file, CurStage>,
+    pub(crate) type_info: CurStage::ExprTypeInfo<'file>,
     pub(crate) span: Span<'file>,
 }
 #[derive(PartialEq, Debug)]
-pub(crate) enum ExprKind<'file, TypeInfo> {
+pub(crate) enum ExprKind<'file, CurStage: Stage> {
     Ref(token::PlainIdentifier<'file>),
     Const(Span<'file>, bool),
-    Get(Box<Expr<'file, TypeInfo>>, (Span<'file>, &'file str)),
-    Product(Vec<(String, Expr<'file, TypeInfo>)>),
+    Get(Box<Expr<'file, CurStage>>, (Span<'file>, &'file str)),
+    Product(Vec<(String, Expr<'file, CurStage>)>),
 }
 
 #[derive(PartialEq, Debug)]
-pub(crate) struct Pattern<'file, PatTypeInfo, TypeExpr> {
-    pub(crate) kind: PatternKind<'file, PatTypeInfo, TypeExpr>,
-    pub(crate) type_info: PatTypeInfo,
+pub(crate) struct Pattern<'file, CurStage: Stage> {
+    pub(crate) kind: PatternKind<'file, CurStage>,
+    pub(crate) type_info: CurStage::PatTypeInfo<'file>,
     pub(crate) span: Span<'file>,
 }
 #[derive(PartialEq, Debug)]
-pub(crate) enum PatternKind<'file, PatTypeInfo, TypeExpr> {
-    Identifier(token::PlainIdentifier<'file>, TypeExpr),
-    Product(Vec<(String, Pattern<'file, PatTypeInfo, TypeExpr>)>),
+pub(crate) enum PatternKind<'file, CurStage: Stage> {
+    Identifier(token::PlainIdentifier<'file>, CurStage::TypeExpr<'file>),
+    Product(Vec<(String, Pattern<'file, CurStage>)>),
 }
 
 // TODO: this will probably be duplicated with the type code from the ir but i dont know how to fix that (although i think the solution might be a separate type checking phase so that the ir doesnt need to have type information)
-impl<'file, ExprTypeInfo, TypeExpr> CircuitOrIntrinsic<'file, ExprTypeInfo, ty::TypeSym, TypeExpr> {
+impl<'file, CurStage: Stage<PatTypeInfo<'file> = ty::TypeSym>> CircuitOrIntrinsic<'file, CurStage> {
     pub(crate) fn input_type(&self, type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>) -> ty::TypeSym {
         match self {
             CircuitOrIntrinsic::Circuit(circuit) => circuit.input.type_info,

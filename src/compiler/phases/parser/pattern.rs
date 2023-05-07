@@ -4,7 +4,7 @@ use crate::compiler::{
     phases::parser::{pattern, type_, ParseError, Parser},
 };
 
-pub(super) fn pattern<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedPattern<'file>, ParseError<'file>> {
+pub(super) fn pattern<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::Pattern<'file, ast::Untyped>, ParseError<'file>> {
     match parser.peek() {
         Token::PlainIdentifier(_) => {
             let iden = Token::plain_identifier_matcher().convert(parser.next());
@@ -13,7 +13,7 @@ pub(super) fn pattern<'file>(parser: &mut Parser<'file, impl Iterator<Item = Tok
             let type_ = type_::type_(parser)?;
             let type_span = type_.span;
 
-            Ok(ast::UntypedPattern { kind: ast::UntypedPatternKind::Identifier(iden, type_), type_info: (), span: iden.span + type_span })
+            Ok(ast::Pattern { kind: ast::PatternKind::Identifier(iden, type_), type_info: (), span: iden.span + type_span })
         }
 
         &Token::OBrack(obrack) => {
@@ -25,7 +25,7 @@ pub(super) fn pattern<'file>(parser: &mut Parser<'file, impl Iterator<Item = Tok
     }
 }
 
-fn product<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>, obrack: Span<'file>) -> Result<ast::UntypedPattern<'file>, ParseError<'file>> {
+fn product<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>, obrack: Span<'file>) -> Result<ast::Pattern<'file, ast::Untyped>, ParseError<'file>> {
     match parser.peek() {
         Token::Semicolon(_) => {
             parser.next();
@@ -37,12 +37,12 @@ fn product<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>
                 Ok((iden.name.to_string(), ty))
             })?;
 
-            Ok(ast::UntypedPattern { kind: ast::UntypedPatternKind::Product(patterns), type_info: (), span: obrack + cbrack })
+            Ok(ast::Pattern { kind: ast::PatternKind::Product(patterns), type_info: (), span: obrack + cbrack })
         }
 
         _ => {
             let (patterns, cbrack) = parser.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), pattern::pattern)?;
-            Ok(ast::UntypedPattern { kind: ast::UntypedPatternKind::Product(patterns.into_iter().enumerate().map(|(i, p)| (i.to_string(), p)).collect()), type_info: (), span: obrack + cbrack })
+            Ok(ast::Pattern { kind: ast::PatternKind::Product(patterns.into_iter().enumerate().map(|(i, p)| (i.to_string(), p)).collect()), type_info: (), span: obrack + cbrack })
         }
     }
 }
@@ -74,8 +74,8 @@ mod test {
         );
         assert_eq!(
             pattern(&mut Parser { tokens }),
-            Ok(ast::UntypedPattern {
-                kind: ast::UntypedPatternKind::Identifier(
+            Ok(ast::Pattern {
+                kind: ast::PatternKind::Identifier(
                     token::PlainIdentifier { span: sp, name: "iden" },
                     type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(token::TypeIdentifier { span: sp, name: "bit", with_tag: "-bit".to_string() }), span: sp }
                 ),

@@ -51,14 +51,14 @@ pub(crate) struct IR<'file> {
 }
 
 pub(crate) fn convert(type_exprs::IR { mut circuits, circuit_table, mut type_context }: type_exprs::IR) -> Option<IR> {
-    let const_0 = circuits.add(ast::TypedCircuitOrIntrinsic::Const(false));
-    let const_1 = circuits.add(ast::TypedCircuitOrIntrinsic::Const(true));
+    let const_0 = circuits.add(ast::CircuitOrIntrinsic::Const(false));
+    let const_1 = circuits.add(ast::CircuitOrIntrinsic::Const(true));
 
     let circuits = circuits.transform(|circuit| {
         Some(match circuit {
-            ast::TypedCircuitOrIntrinsic::Circuit(circuit) => ir::CircuitOrIntrinsic::Custom(convert_circuit((const_0, const_1), &circuit_table, &mut type_context, circuit)?),
-            ast::TypedCircuitOrIntrinsic::Nand => ir::CircuitOrIntrinsic::Nand,
-            ast::TypedCircuitOrIntrinsic::Const(value) => ir::CircuitOrIntrinsic::Const(value),
+            ast::CircuitOrIntrinsic::Circuit(circuit) => ir::CircuitOrIntrinsic::Custom(convert_circuit((const_0, const_1), &circuit_table, &mut type_context, circuit)?),
+            ast::CircuitOrIntrinsic::Nand => ir::CircuitOrIntrinsic::Nand,
+            ast::CircuitOrIntrinsic::Const(value) => ir::CircuitOrIntrinsic::Const(value),
         })
     })?;
 
@@ -100,7 +100,7 @@ fn convert_circuit<'file>(
     const_values: (ast::CircuitOrIntrinsicId, ast::CircuitOrIntrinsicId),
     circuit_table: &HashMap<&'file str, (ty::TypeSym, ty::TypeSym, ast::CircuitOrIntrinsicId)>,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
-    circuit_ast: ast::TypedCircuit<'file>,
+    circuit_ast: ast::Circuit<'file, ast::Typed>,
 ) -> Option<ir::Circuit<'file>> {
     let mut circuit = ir::Circuit::new(circuit_ast.name.name, circuit_ast.input.type_info, circuit_ast.output.type_info);
 
@@ -163,7 +163,7 @@ fn assign_pattern<'file>(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     values: &mut arena::Arena<ExprInArena<'file>, ExprId>,
     locals: &mut HashMap<&'file str, ExprId>,
-    pat: &ast::TypedPattern<'file>,
+    pat: &ast::Pattern<'file, ast::Typed>,
     value: ExprId,
 ) -> Result<(), ()> {
     if values.get(value).type_info != pat.type_info {
@@ -173,10 +173,10 @@ fn assign_pattern<'file>(
     }
 
     match &pat.kind {
-        ast::TypedPatternKind::Identifier(name, _) => {
+        ast::PatternKind::Identifier(name, _) => {
             locals.insert(name.name, value);
         }
-        ast::TypedPatternKind::Product(subpats) => {
+        ast::PatternKind::Product(subpats) => {
             for (field_name, subpat) in subpats.iter() {
                 // destructuring happens by setting each subpattern to a made up get
                 let field_name = field_name.to_string();
@@ -191,7 +191,7 @@ fn assign_pattern<'file>(
     Ok(())
 }
 
-fn assign_pattern_poison<'file>(values: &mut arena::Arena<ExprInArena<'file>, ExprId>, locals: &mut HashMap<&'file str, ExprId>, pat: &ast::TypedPattern<'file>, span: Span<'file>) {
+fn assign_pattern_poison<'file>(values: &mut arena::Arena<ExprInArena<'file>, ExprId>, locals: &mut HashMap<&'file str, ExprId>, pat: &ast::Pattern<'file, ast::Typed>, span: Span<'file>) {
     match &pat.kind {
         ast::PatternKind::Identifier(name, _) => {
             let value = values.add(ExprInArena { kind: ExprInArenaKind::Poison, type_info: pat.type_info, span });
@@ -209,17 +209,17 @@ fn convert_expr_to_value<'file>(
     const_values @ (const_0, const_1): (ast::CircuitOrIntrinsicId, ast::CircuitOrIntrinsicId),
     circuit: &mut ir::Circuit,
     values: &mut arena::Arena<ExprInArena<'file>, ExprId>,
-    expr: ast::TypedExpr<'file>,
+    expr: ast::Expr<'file, ast::Typed>,
 ) -> ExprId {
     let value = ExprInArena {
         kind: match expr.kind {
-            ast::TypedExprKind::Ref(name) => ExprInArenaKind::Ref(name),
-            ast::TypedExprKind::Const(sp, value) => {
+            ast::ExprKind::Ref(name) => ExprInArenaKind::Ref(name),
+            ast::ExprKind::Const(sp, value) => {
                 let gate_idx = circuit.gates.add((if value { const_1 } else { const_0 }, ir::Inline::NoInline));
                 ExprInArenaKind::Const(sp, value, gate_idx)
             }
-            ast::TypedExprKind::Get(base, field) => ExprInArenaKind::Get(convert_expr_to_value(const_values, circuit, values, *base), field),
-            ast::TypedExprKind::Product(exprs) => {
+            ast::ExprKind::Get(base, field) => ExprInArenaKind::Get(convert_expr_to_value(const_values, circuit, values, *base), field),
+            ast::ExprKind::Product(exprs) => {
                 ExprInArenaKind::Product { values: exprs.into_iter().map(|(field_name, e)| (field_name, convert_expr_to_value(const_values, circuit, values, e))).collect() }
             }
         },

@@ -10,7 +10,7 @@ use std::iter::Peekable;
 
 #[derive(PartialEq, Debug)]
 pub(crate) struct AST<'file> {
-    pub(crate) circuits: Vec<ast::UntypedCircuit<'file>>,
+    pub(crate) circuits: Vec<ast::Circuit<'file, ast::Untyped>>,
     pub(crate) type_decls: Vec<nominal_type::PartiallyDefinedStruct<'file>>,
 }
 
@@ -159,8 +159,8 @@ mod test {
             Parser { tokens }.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), expr::expr),
             Ok((
                 vec![
-                    ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "a" }), type_info: (), span: sp },
-                    ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "b" }), type_info: (), span: sp }
+                    ast::Expr { kind: ast::ExprKind::Ref(token::PlainIdentifier { span: sp, name: "a" }), type_info: (), span: sp },
+                    ast::Expr { kind: ast::ExprKind::Ref(token::PlainIdentifier { span: sp, name: "b" }), type_info: (), span: sp }
                 ],
                 sp
             ))
@@ -187,8 +187,8 @@ mod test {
             Parser { tokens }.finish_list(Token::comma_matcher(), Token::cbrack_matcher(), expr::expr),
             Ok((
                 vec![
-                    ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "a" }), type_info: (), span: sp },
-                    ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "b" }), type_info: (), span: sp }
+                    ast::Expr { kind: ast::ExprKind::Ref(token::PlainIdentifier { span: sp, name: "a" }), type_info: (), span: sp },
+                    ast::Expr { kind: ast::ExprKind::Ref(token::PlainIdentifier { span: sp, name: "b" }), type_info: (), span: sp }
                 ],
                 sp
             ))

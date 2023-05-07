@@ -10,7 +10,7 @@ use crate::{
 use std::collections::HashMap;
 
 pub(crate) struct IR<'file> {
-    pub(crate) circuits: arena::Arena<ast::TypeResolvedCircuitOrIntrinsic<'file>, ast::CircuitOrIntrinsicId>,
+    pub(crate) circuits: arena::Arena<ast::CircuitOrIntrinsic<'file, ast::TypeResolved>, ast::CircuitOrIntrinsicId>,
     pub(crate) circuit_table: HashMap<&'file str, ast::CircuitOrIntrinsicId>,
 
     pub(crate) type_context: ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
@@ -25,16 +25,16 @@ impl<'file> From<UndefinedType<'file, '_>> for CompileError<'file> {
 
 pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_context, type_table }: make_name_tables::IR) -> Option<IR> {
     let circuits = circuits.transform(|circuit| match circuit {
-        ast::UntypedCircuitOrIntrinsic::Circuit(circuit) => Some(ast::TypeResolvedCircuitOrIntrinsic::Circuit(ast::TypeResolvedCircuit {
+        ast::CircuitOrIntrinsic::Circuit(circuit) => Some(ast::CircuitOrIntrinsic::Circuit(ast::Circuit {
             name: circuit.name,
             input: resolve_in_pat(&mut type_context, &type_table, circuit.input)?,
             output: resolve_in_pat(&mut type_context, &type_table, circuit.output)?,
             lets: circuit.lets.into_iter().map(|let_| resolve_in_let(&mut type_context, &type_table, let_)).collect::<Option<Vec<_>>>()?,
-            connects: circuit.connects,
+            connects: circuit.connects.into_iter().map(|ast::Connect { start, end }| ast::Connect { start: resolve_in_expr(start), end: resolve_in_expr(end) }).collect(),
             aliases: circuit.aliases.into_iter().map(|alias| resolve_in_alias(&mut type_context, &type_table, alias)).collect::<Option<Vec<_>>>()?,
         })),
-        ast::UntypedCircuitOrIntrinsic::Nand => Some(ast::TypeResolvedCircuitOrIntrinsic::Nand),
-        ast::UntypedCircuitOrIntrinsic::Const(value) => Some(ast::TypeResolvedCircuitOrIntrinsic::Const(value)),
+        ast::CircuitOrIntrinsic::Nand => Some(ast::CircuitOrIntrinsic::Nand),
+        ast::CircuitOrIntrinsic::Const(value) => Some(ast::CircuitOrIntrinsic::Const(value)),
     })?;
 
     let type_context = type_context.transform_nominals(|type_context, struct_decl| {
@@ -51,29 +51,42 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
 fn resolve_in_let<'file>(
     type_context: &mut ty::TypeContext<nominal_type::Struct<'file, type_expr::TypeExpr<'file>>>,
     type_table: &HashMap<&str, symtern::Sym<usize>>,
-    ast::UntypedLet { inputs, outputs, gate }: ast::Let<'file, (), type_expr::TypeExpr<'file>>,
-) -> Option<ast::TypeResolvedLet<'file>> {
-    Some(ast::TypeResolvedLet { inputs: resolve_in_pat(type_context, type_table, inputs)?, outputs: resolve_in_pat(type_context, type_table, outputs)?, gate })
+    ast::Let { inputs, outputs, gate }: ast::Let<'file, ast::Untyped>,
+) -> Option<ast::Let<'file, ast::TypeResolved>> {
+    Some(ast::Let { inputs: resolve_in_pat(type_context, type_table, inputs)?, outputs: resolve_in_pat(type_context, type_table, outputs)?, gate })
 }
 
 fn resolve_in_alias<'file>(
     type_context: &mut ty::TypeContext<nominal_type::Struct<'file, type_expr::TypeExpr<'file>>>,
     type_table: &HashMap<&str, symtern::Sym<usize>>,
-    alias: ast::Alias<'file, ast::Expr<'file, ()>, (), type_expr::TypeExpr<'file>>,
-) -> Option<ast::TypeResolvedAlias<'file>> {
-    Some(ast::TypeResolvedAlias { pat: resolve_in_pat(type_context, type_table, alias.pat)?, expr: alias.expr })
+    alias: ast::Alias<'file, ast::Untyped>,
+) -> Option<ast::Alias<'file, ast::TypeResolved>> {
+    Some(ast::Alias { pat: resolve_in_pat(type_context, type_table, alias.pat)?, expr: resolve_in_expr(alias.expr) })
+}
+
+fn resolve_in_expr(ast::Expr { kind, type_info, span }: ast::Expr<ast::Untyped>) -> ast::Expr<ast::TypeResolved> {
+    ast::Expr {
+        kind: match kind {
+            ast::ExprKind::Ref(r) => ast::ExprKind::Ref(r),
+            ast::ExprKind::Const(s, v) => ast::ExprKind::Const(s, v),
+            ast::ExprKind::Get(s, f) => ast::ExprKind::Get(Box::new(resolve_in_expr(*s)), f),
+            ast::ExprKind::Product(cs) => ast::ExprKind::Product(cs.into_iter().map(|(name, c)| (name, resolve_in_expr(c))).collect()),
+        },
+        type_info,
+        span,
+    }
 }
 
 fn resolve_in_pat<'file>(
     type_context: &mut ty::TypeContext<nominal_type::PartiallyDefinedStruct<'file>>,
     type_table: &HashMap<&str, symtern::Sym<usize>>,
-    pat: ast::UntypedPattern<'file>,
-) -> Option<ast::TypeResolvedPattern<'file>> {
-    Some(ast::TypeResolvedPattern {
+    pat: ast::Pattern<'file, ast::Untyped>,
+) -> Option<ast::Pattern<'file, ast::TypeResolved>> {
+    Some(ast::Pattern {
         kind: match pat.kind {
-            ast::UntypedPatternKind::Identifier(name, type_expr) => ast::TypeResolvedPatternKind::Identifier(name, resolve_type_expr(type_context, type_table, type_expr)?),
-            ast::UntypedPatternKind::Product(subpats) => {
-                ast::TypeResolvedPatternKind::Product(subpats.into_iter().map(|(subpat_name, subpat)| Some((subpat_name, resolve_in_pat(type_context, type_table, subpat)?))).collect_all()?)
+            ast::PatternKind::Identifier(name, type_expr) => ast::PatternKind::Identifier(name, resolve_type_expr(type_context, type_table, type_expr)?),
+            ast::PatternKind::Product(subpats) => {
+                ast::PatternKind::Product(subpats.into_iter().map(|(subpat_name, subpat)| Some((subpat_name, resolve_in_pat(type_context, type_table, subpat)?))).collect_all()?)
             }
         },
         type_info: (),

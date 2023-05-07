@@ -3,7 +3,7 @@ use crate::compiler::{
     phases::parser::{expr, pattern, type_, ParseError, Parser},
 };
 
-pub(super) fn circuit<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedCircuit<'file>, ParseError<'file>> {
+pub(super) fn circuit<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::Circuit<'file, ast::Untyped>, ParseError<'file>> {
     let name = parser.expect(/* "circuit name", */ Token::circuit_identifier_matcher())?;
     let input = pattern::pattern(parser)?;
     let output = pattern::pattern(parser)?;
@@ -23,31 +23,31 @@ pub(super) fn circuit<'file>(parser: &mut Parser<'file, impl Iterator<Item = Tok
         }
     }
 
-    Ok(ast::UntypedCircuit { name, input, output, lets, aliases, connects })
+    Ok(ast::Circuit { name, input, output, lets, aliases, connects })
 }
 
-fn let_<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedLet<'file>, ParseError<'file>> {
+fn let_<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::Let<'file, ast::Untyped>, ParseError<'file>> {
     parser.expect(Token::let_matcher())?;
     let gate = parser.expect(Token::circuit_identifier_matcher())?;
     let inputs = pattern::pattern(parser)?;
     let outputs = pattern::pattern(parser)?;
 
-    Ok(ast::UntypedLet { inputs, outputs, gate })
+    Ok(ast::Let { inputs, outputs, gate })
 }
 
-fn connect<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedConnect<'file>, ParseError<'file>> {
+fn connect<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::Connect<'file, ast::Untyped>, ParseError<'file>> {
     parser.expect(Token::connect_matcher())?;
     let start = expr::expr(parser)?;
     let end = expr::expr(parser)?;
     Ok(ast::Connect { start, end })
 }
 
-fn alias<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::UntypedAlias<'file>, ParseError<'file>> {
+fn alias<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<ast::Alias<'file, ast::Untyped>, ParseError<'file>> {
     parser.expect(Token::alias_matcher())?;
     let pat = pattern::pattern(parser)?;
     parser.expect(Token::equals_matcher())?;
     let expr = expr::expr(parser)?;
-    Ok(ast::UntypedAlias { pat, expr })
+    Ok(ast::Alias { pat, expr })
 }
 
 pub(super) fn struct_<'file>(parser: &mut Parser<'file, impl Iterator<Item = Token<'file>>>) -> Result<nominal_type::PartiallyDefinedStruct<'file>, ParseError<'file>> {
@@ -116,33 +116,33 @@ mod test {
         assert_eq!(
             parse(tokens),
             AST {
-                circuits: vec![ast::UntypedCircuit {
+                circuits: vec![ast::Circuit {
                     name: token::CircuitIdentifier { span: sp, name: "thingy", with_tag: "\\thingy".to_string() },
-                    input: ast::UntypedPattern {
-                        kind: ast::UntypedPatternKind::Identifier(
+                    input: ast::Pattern {
+                        kind: ast::PatternKind::Identifier(
                             token::PlainIdentifier { span: sp, name: "arg" },
                             type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(token::TypeIdentifier { span: sp, name: "bit", with_tag: "-bit".to_string() }), span: sp }
                         ),
                         type_info: (),
                         span: sp
                     },
-                    lets: vec![ast::UntypedLet {
-                        pat: ast::UntypedPattern {
-                            kind: ast::UntypedPatternKind::Identifier(
+                    lets: vec![ast::Let {
+                        pat: ast::Pattern {
+                            kind: ast::PatternKind::Identifier(
                                 token::PlainIdentifier { span: sp, name: "res" },
                                 type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(token::TypeIdentifier { span: sp, name: "bit", with_tag: "-bit".to_string() }), span: sp }
                             ),
                             type_info: (),
                             span: sp
                         },
-                        val: ast::UntypedExpr {
-                            kind: ast::UntypedExprKind::Call(
+                        val: ast::Expr {
+                            kind: ast::ExprKind::Call(
                                 token::CircuitIdentifier { span: sp, name: "and", with_tag: "\\and".to_string() },
                                 false,
-                                Box::new(ast::UntypedExpr {
-                                    kind: ast::UntypedExprKind::Product(vec![
-                                        ("0".to_string(), ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "arg" }), type_info: (), span: sp }),
-                                        ("1".to_string(), ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "arg" }), type_info: (), span: sp }),
+                                Box::new(ast::Expr {
+                                    kind: ast::ExprKind::Product(vec![
+                                        ("0".to_string(), ast::Expr { kind: ast::ExprKind::Ref(token::PlainIdentifier { span: sp, name: "arg" }), type_info: (), span: sp }),
+                                        ("1".to_string(), ast::Expr { kind: ast::ExprKind::Ref(token::PlainIdentifier { span: sp, name: "arg" }), type_info: (), span: sp }),
                                     ]),
                                     type_info: (),
                                     span: sp
@@ -152,7 +152,7 @@ mod test {
                             span: sp
                         }
                     }],
-                    output: ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "res" }), type_info: (), span: sp },
+                    output: ast::Expr { kind: ast::ExprKind::Ref(token::PlainIdentifier { span: sp, name: "res" }), type_info: (), span: sp },
                     output: type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(token::TypeIdentifier { span: sp, name: "bit", with_tag: "-bit".to_string() }), span: sp }
                 }],
                 type_decls: vec![]
@@ -178,16 +178,16 @@ mod test {
         );
         assert_eq!(
             super::let_(&mut Parser { tokens }),
-            Ok(ast::UntypedLet {
-                pat: ast::UntypedPattern {
-                    kind: ast::UntypedPatternKind::Identifier(
+            Ok(ast::Let {
+                pat: ast::Pattern {
+                    kind: ast::PatternKind::Identifier(
                         token::PlainIdentifier { span: sp, name: "a" },
                         type_expr::TypeExpr { kind: type_expr::TypeExprKind::Nominal(token::TypeIdentifier { span: sp, name: "bit", with_tag: "-bit".to_string() }), span: sp }
                     ),
                     type_info: (),
                     span: sp
                 },
-                val: ast::UntypedExpr { kind: ast::UntypedExprKind::Ref(token::PlainIdentifier { span: sp, name: "b" }), type_info: (), span: sp }
+                val: ast::Expr { kind: ast::ExprKind::Ref(token::PlainIdentifier { span: sp, name: "b" }), type_info: (), span: sp }
             })
         );
     }
