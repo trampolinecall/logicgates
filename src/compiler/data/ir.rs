@@ -36,6 +36,7 @@ pub(crate) struct Circuit<'file> {
 pub(crate) enum CircuitOrIntrinsic<'file> {
     Custom(Circuit<'file>),
     Nand,
+    Unerror,
     Const(bool),
 }
 

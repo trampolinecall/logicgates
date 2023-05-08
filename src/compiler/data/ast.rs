@@ -74,6 +74,7 @@ pub(crate) struct Circuit<'file, CurStage: Stage> {
 pub(crate) enum CircuitOrIntrinsic<'file, CurStage: Stage> {
     Circuit(Circuit<'file, CurStage>),
     Nand,
+    Unerror,
     Const(bool), // never in circuit table
 }
 
@@ -130,12 +131,13 @@ impl<'file, CurStage: Stage<PatTypeInfo<'file> = ty::TypeSym>> CircuitOrIntrinsi
                 type_context.intern(ty::Type::Product(vec![("0".into(), b), ("1".into(), b)]))
             }
             CircuitOrIntrinsic::Const(_) => type_context.intern(ty::Type::Product(vec![])),
+            CircuitOrIntrinsic::Unerror => type_context.intern(ty::Type::Bit),
         }
     }
     pub(crate) fn output_type(&self, type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>) -> ty::TypeSym {
         match self {
             CircuitOrIntrinsic::Circuit(circuit) => circuit.output.type_info,
-            CircuitOrIntrinsic::Nand | CircuitOrIntrinsic::Const(_) => type_context.intern(ty::Type::Bit),
+            CircuitOrIntrinsic::Nand | CircuitOrIntrinsic::Const(_) | CircuitOrIntrinsic::Unerror => type_context.intern(ty::Type::Bit),
         }
     }
 }
