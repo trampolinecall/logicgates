@@ -72,6 +72,7 @@ pub(crate) fn type_(type_pats::IR { circuits, circuit_table, mut type_context }:
         }
         ast::CircuitOrIntrinsic::Nand => Some(ast::CircuitOrIntrinsic::Nand),
         ast::CircuitOrIntrinsic::Const(value) => Some(ast::CircuitOrIntrinsic::Const(value)),
+        ast::CircuitOrIntrinsic::Unerror => Some(ast::CircuitOrIntrinsic::Unerror),
     })?;
 
     let circuit_table = circuit_table

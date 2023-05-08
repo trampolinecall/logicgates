@@ -44,6 +44,7 @@ fn intrinsic<'a, T>(table: &mut HashMap<&'a str, T>, name: &'a str, thing: T) {
 }
 fn circuit_intrinsics(arena: &mut arena::Arena<ast::CircuitOrIntrinsic<ast::Untyped>, ast::CircuitOrIntrinsicId>, table: &mut HashMap<&str, ast::CircuitOrIntrinsicId>) {
     intrinsic(table, "nand", arena.add(ast::CircuitOrIntrinsic::Nand));
+    intrinsic(table, "unerror", arena.add(ast::CircuitOrIntrinsic::Unerror));
 }
 fn type_intrinsics(context: &mut ty::TypeContext<nominal_type::PartiallyDefinedStruct>, table: &mut HashMap<&str, ty::TypeSym>) {
     intrinsic(table, "bit", context.intern(ty::Type::Bit));

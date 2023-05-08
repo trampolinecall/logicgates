@@ -42,6 +42,7 @@ pub(crate) struct Node {
 pub(crate) enum Gate {
     Nand { logic: logic::NandLogic, location: location::GateLocation },
     Const { logic: logic::ConstLogic, location: location::GateLocation },
+    Unerror { logic: logic::UnerrorLogic, location: location::GateLocation },
     Custom(CircuitKey),
 }
 
@@ -87,11 +88,13 @@ impl Gate {
         match self {
             Gate::Nand { logic: _, location } | Gate::Const { logic: _, location } => location,
             Gate::Custom(sck) => &circuits[*sck].location,
+            Gate::Unerror { logic: _, location } => location,
         }
     }
     pub(crate) fn location_mut<'s: 'r, 'c: 'r, 'r>(&'s mut self, circuits: &'c mut CircuitMap) -> &'r mut location::GateLocation {
         match self {
             Gate::Nand { logic: _, location } | Gate::Const { logic: _, location } => location,
+            Gate::Unerror { logic: _, location } => location,
             Gate::Custom(sck) => &mut circuits[*sck].location,
         }
     }
@@ -100,6 +103,7 @@ impl Gate {
         match self {
             Gate::Nand { logic, location: _ } => logic.name(),
             Gate::Const { logic, location: _ } => logic.name(),
+            Gate::Unerror { logic, location: _ } => logic.name(),
             Gate::Custom(sck) => &circuits[*sck].name,
         }
     }
@@ -110,6 +114,7 @@ pub(crate) fn gate_inputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &
         Gate::Nand { logic, location: _ } => &logic.inputs,
         Gate::Const { logic, location: _ } => &logic.inputs,
         Gate::Custom(circuit_idx) => &circuits[*circuit_idx].inputs,
+        Gate::Unerror { logic, location: _ } => &logic.inputs,
     }
 }
 pub(crate) fn gate_outputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r [NodeKey] {
@@ -117,6 +122,7 @@ pub(crate) fn gate_outputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: 
         Gate::Nand { logic, location: _ } => &logic.outputs,
         Gate::Const { logic, location: _ } => &logic.outputs,
         Gate::Custom(circuit_idx) => &circuits[*circuit_idx].outputs,
+        Gate::Unerror { logic, location: _ } => &logic.outputs,
     }
 }
 

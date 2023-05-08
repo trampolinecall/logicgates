@@ -97,9 +97,11 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
         let subcircuits_in_cur_circuit: BTreeMap<CircuitKey, GateKey> = cur_circuit
             .gates
             .iter()
-            .filter_map(|&gk| match &simulation.gates[gk] {
-                simulation::Gate::Nand { logic: _, location: _ } | simulation::Gate::Const { logic: _, location: _ } => None,
-                simulation::Gate::Custom(sck) => Some((*sck, gk)),
+            .filter_map(|&gk| -> Option<(CircuitKey, GateKey)> {
+                match &simulation.gates[gk] {
+                    simulation::Gate::Nand { logic: _, location: _ } | simulation::Gate::Const { logic: _, location: _ } | simulation::Gate::Unerror { logic: _, location: _ } => None,
+                    simulation::Gate::Custom(sck) => Some((*sck, gk)),
+                }
             })
             .collect();
         let get_prev_gates_excluding_self = |gate: GateKey| {

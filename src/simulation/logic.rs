@@ -16,11 +16,17 @@ pub(crate) struct NodeLogic {
 pub(crate) struct NandLogic {
     pub(crate) inputs: [NodeKey; 2],
     pub(crate) outputs: [NodeKey; 1],
+    _dont_construct: ()
 }
 pub(crate) struct ConstLogic {
     pub(crate) inputs: [NodeKey; 0],
     pub(crate) outputs: [NodeKey; 1],
     name: &'static str,
+}
+pub(crate) struct UnerrorLogic {
+    pub(crate) inputs: [NodeKey; 1],
+    pub(crate) outputs: [NodeKey; 1],
+    _dont_construct: ()
 }
 
 #[derive(Clone, Copy)]
@@ -70,6 +76,7 @@ impl NandLogic {
                 nodes.insert(Node { logic: { NodeLogic { production: None, value: Value::Z, connections: connections::NodeConnections::new() } }, parent: NodeParent::GateIn(gate_key, 1) }),
             ],
             outputs: [nodes.insert(Node { logic: { NodeLogic { production: None, value: Value::Z, connections: connections::NodeConnections::new() } }, parent: NodeParent::GateOut(gate_key, 0) })],
+            _dont_construct: (),
         }
     }
     pub(crate) fn name(&self) -> &str {
@@ -90,6 +97,25 @@ impl ConstLogic {
     }
     pub(crate) fn name(&self) -> &str {
         self.name
+    }
+}
+
+impl UnerrorLogic {
+    pub(crate) fn new(nodes: &mut NodeMap, gate_key: GateKey) -> UnerrorLogic {
+        UnerrorLogic {
+            inputs: [nodes.insert(Node {
+                logic: { NodeLogic { production: None, value: Value::Z, connections: connections::NodeConnections::new() } },
+                parent: NodeParent::GateIn(gate_key, 0),
+            })],
+            outputs: [nodes.insert(Node {
+                logic: { NodeLogic { production: Some(Value::Z), value: Value::Z, connections: connections::NodeConnections::new() } },
+                parent: NodeParent::GateOut(gate_key, 0),
+            })],
+            _dont_construct: (),
+        }
+    }
+    pub(crate) fn name(&self) -> &str {
+        "unerror"
     }
 }
 
@@ -137,7 +163,7 @@ pub(crate) fn update(gates: &mut GateMap, nodes: &mut NodeMap) {
             .iter()
             .filter_map(|(_, gate)| -> Option<(NodeKey, Value)> {
                 match &gate {
-                    Gate::Nand { logic: NandLogic { inputs: [a, b], outputs: [o] }, location: _ } => {
+                    Gate::Nand { logic: NandLogic { inputs: [a, b], outputs: [o], _dont_construct: () }, location: _ } => {
                         let a_value = nodes[*a].logic.value;
                         let b_value = nodes[*b].logic.value;
 
@@ -153,6 +179,10 @@ pub(crate) fn update(gates: &mut GateMap, nodes: &mut NodeMap) {
                         ))
                     }
                     Gate::Const { logic: ConstLogic { inputs: _, outputs: _, name: _ }, location: _ } => None, // const nodes do not need to update becuase they always output the value they were created with
+                    Gate::Unerror { logic: UnerrorLogic { inputs: [in_], outputs: [out], _dont_construct: () }, location: _ } => {
+                        let in_value = nodes[*in_].logic.value;
+                        Some((*out, if let Value::X = in_value { Value::L } else { in_value }))
+                    }
                     Gate::Custom(_) => None, // custom gates do not have to compute values because their nodes are connected to their inputs or are passthrough nodes and should automatically have the right values
                 }
             })

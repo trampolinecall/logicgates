@@ -35,6 +35,7 @@ pub(crate) fn resolve(make_name_tables::IR { circuits, circuit_table, mut type_c
         })),
         ast::CircuitOrIntrinsic::Nand => Some(ast::CircuitOrIntrinsic::Nand),
         ast::CircuitOrIntrinsic::Const(value) => Some(ast::CircuitOrIntrinsic::Const(value)),
+        ast::CircuitOrIntrinsic::Unerror => Some(ast::CircuitOrIntrinsic::Unerror),
     })?;
 
     let type_context = type_context.transform_nominals(|type_context, struct_decl| {

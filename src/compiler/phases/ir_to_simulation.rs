@@ -114,6 +114,9 @@ fn add_gate<'file, 'circuit>(
         ir::CircuitOrIntrinsic::Const(value) => {
             (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Const { logic: logic::ConstLogic::new(node_map, gk, *value), location: simulation::location::GateLocation::new() }))
         }
+        ir::CircuitOrIntrinsic::Unerror => {
+            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Unerror { logic: logic::UnerrorLogic::new(node_map, gk), location: simulation::location::GateLocation::new() }))
+        }
     };
 
     circuit_map[new_circuit_idx].gates.push(gate_idx);

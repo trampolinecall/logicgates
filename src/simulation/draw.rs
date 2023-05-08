@@ -27,7 +27,9 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
         let mut gates_in_current = BTreeSet::new();
         for gate in &main_circuit.gates {
             match &simulation.gates[*gate] {
-                simulation::Gate::Nand { logic: _, location: _ } | simulation::Gate::Const { logic: _, location: _ } => gates_in_current.insert(gate),
+                simulation::Gate::Nand { logic: _, location: _ } | simulation::Gate::Const { logic: _, location: _ } | simulation::Gate::Unerror { logic: _, location: _ } => {
+                    gates_in_current.insert(gate)
+                }
                 simulation::Gate::Custom(subck) => custom_gates_in_current.insert(subck),
             };
         }

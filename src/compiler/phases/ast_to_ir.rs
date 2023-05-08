@@ -59,6 +59,7 @@ pub(crate) fn convert(type_exprs::IR { mut circuits, circuit_table, mut type_con
             ast::CircuitOrIntrinsic::Circuit(circuit) => ir::CircuitOrIntrinsic::Custom(convert_circuit((const_0, const_1), &circuit_table, &mut type_context, circuit)?),
             ast::CircuitOrIntrinsic::Nand => ir::CircuitOrIntrinsic::Nand,
             ast::CircuitOrIntrinsic::Const(value) => ir::CircuitOrIntrinsic::Const(value),
+            ast::CircuitOrIntrinsic::Unerror => ir::CircuitOrIntrinsic::Unerror,
         })
     })?;
 
