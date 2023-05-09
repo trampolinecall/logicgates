@@ -53,7 +53,7 @@ fn event(_: &App, simulation: &mut simulation::Simulation, event: Event) {
 
             _ => None,
         } {
-            if index < simulation.circuits[simulation.main_circuit].num_inputs() {
+            if index < simulation.circuits[simulation.main_circuit].nodes.inputs().len() {
                 simulation::logic::toggle_input(&mut simulation.circuits, &mut simulation.nodes, simulation.main_circuit, index);
             }
         }
