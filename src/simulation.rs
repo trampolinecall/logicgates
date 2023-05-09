@@ -1,4 +1,5 @@
 pub(crate) mod draw;
+pub(crate) mod hierarchy;
 pub(crate) mod location;
 pub(crate) mod logic;
 
@@ -21,22 +22,14 @@ pub(crate) struct Simulation {
 
 pub(crate) struct Circuit {
     pub(crate) name: String,
-    pub(crate) gates: Vec<GateKey>,
+    pub(crate) gates: hierarchy::GateChildren,
+    pub(crate) nodes: hierarchy::NodeChildren<Vec<NodeKey>, Vec<NodeKey>>,
     pub(crate) location: location::GateLocation,
-    inputs: Vec<NodeKey>,
-    outputs: Vec<NodeKey>,
 }
 
-#[derive(Copy, Clone)]
-pub(crate) enum NodeParent {
-    GateIn(GateKey, usize),
-    GateOut(GateKey, usize),
-    CircuitIn(CircuitKey, usize),
-    CircuitOut(CircuitKey, usize),
-}
 pub(crate) struct Node {
     pub(crate) logic: logic::NodeLogic,
-    pub(crate) parent: NodeParent, // TODO: move into NodeLocation component?
+    pub(crate) parent: hierarchy::NodeParent,
 }
 
 pub(crate) enum Gate {
@@ -48,39 +41,12 @@ pub(crate) enum Gate {
 
 impl Circuit {
     pub(crate) fn new(circuit_key: CircuitKey, nodes: &mut NodeMap, name: String, num_inputs: usize, num_outputs: usize) -> Circuit {
-        // even if this circuit is part of a subcircuit, these nodes dont have to update anything
-        // instead, because the gates inside this circuit are connected to these nodes, updates to these nodes will propagate to the gates' nodes, properly updating those gates
         Circuit {
             name,
-            gates: Vec::new(),
-            inputs: (0..num_inputs).map(|i| nodes.insert(Node { logic: logic::NodeLogic::new(), parent: NodeParent::CircuitIn(circuit_key, i) })).collect(),
-            outputs: (0..num_outputs).map(|i| nodes.insert(Node { logic: logic::NodeLogic::new(), parent: NodeParent::CircuitOut(circuit_key, i) })).collect(),
+            gates: hierarchy::GateChildren::new(),
+            nodes: hierarchy::NodeChildren::new(nodes, hierarchy::NodeParentType::Circuit(circuit_key), num_inputs, num_outputs),
             location: location::GateLocation::new(),
         }
-    }
-
-    pub(crate) fn num_inputs(&self) -> usize {
-        self.inputs.len()
-    }
-    /* (unused, but may be used in the future)
-    pub(crate) fn num_outputs(&self) -> usize {
-        self.outputs.len()
-    }
-
-    pub(crate) fn set_num_inputs(&mut self, num: usize) {
-        self.inputs.resize(num, connections::Node::new_disconnected(None));
-    }
-    pub(crate) fn set_num_outputs(&mut self, num: usize) {
-        self.outputs.resize(num, connections::Node::new_disconnected(None));
-    }
-    */
-
-    pub(crate) fn inputs(&self) -> &[NodeKey] {
-        self.inputs.as_ref()
-    }
-
-    pub(crate) fn outputs(&self) -> &[NodeKey] {
-        self.outputs.as_ref()
     }
 }
 impl Gate {
@@ -111,18 +77,18 @@ impl Gate {
 
 pub(crate) fn gate_inputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r [NodeKey] {
     match &gates[gate] {
-        Gate::Nand { logic, location: _ } => &logic.inputs,
-        Gate::Const { logic, location: _ } => &logic.inputs,
-        Gate::Custom(circuit_idx) => &circuits[*circuit_idx].inputs,
-        Gate::Unerror { logic, location: _ } => &logic.inputs,
+        Gate::Nand { logic, location: _ } => logic.nodes.inputs(),
+        Gate::Const { logic, location: _ } => logic.nodes.inputs(),
+        Gate::Custom(circuit_idx) => circuits[*circuit_idx].nodes.inputs(),
+        Gate::Unerror { logic, location: _ } => logic.nodes.inputs(),
     }
 }
 pub(crate) fn gate_outputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r [NodeKey] {
     match &gates[gate] {
-        Gate::Nand { logic, location: _ } => &logic.outputs,
-        Gate::Const { logic, location: _ } => &logic.outputs,
-        Gate::Custom(circuit_idx) => &circuits[*circuit_idx].outputs,
-        Gate::Unerror { logic, location: _ } => &logic.outputs,
+        Gate::Nand { logic, location: _ } => logic.nodes.outputs(),
+        Gate::Const { logic, location: _ } => logic.nodes.outputs(),
+        Gate::Custom(circuit_idx) => circuits[*circuit_idx].nodes.outputs(),
+        Gate::Unerror { logic, location: _ } => logic.nodes.outputs(),
     }
 }
 

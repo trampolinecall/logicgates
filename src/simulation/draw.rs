@@ -2,7 +2,7 @@ use std::{collections::BTreeSet, marker::PhantomData};
 
 use nannou::prelude::*;
 
-use crate::simulation::{self, location, logic, CircuitKey, NodeKey, NodeParent, Simulation};
+use crate::simulation::{self, hierarchy, location, logic, CircuitKey, NodeKey, Simulation};
 
 const CIRCLE_RAD: f32 = 5.0;
 const CONNECTION_RAD: f32 = CIRCLE_RAD / 2.0;
@@ -36,8 +36,8 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
         (custom_gates_in_current, gates_in_current)
     };
 
-    let circuit_inputs = main_circuit.inputs.iter();
-    let circuit_outputs = main_circuit.outputs.iter();
+    let circuit_inputs = main_circuit.nodes.inputs().iter();
+    let circuit_outputs = main_circuit.nodes.outputs().iter();
     let gate_inputs = main_circuit.gates.iter().flat_map(|gk| simulation::gate_inputs(&simulation.circuits, &simulation.gates, *gk));
     let gate_outputs = main_circuit.gates.iter().flat_map(|gk| simulation::gate_outputs(&simulation.circuits, &simulation.gates, *gk));
     let all_nodes = circuit_inputs.chain(circuit_outputs).chain(gate_inputs).chain(gate_outputs);
@@ -47,10 +47,10 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
     for &cur_node in all_nodes.clone() {
         // cur node is guaranteed to be part of the current circuit and not a node in a subcircuit
         for adjacent in simulation.nodes[cur_node].logic.adjacent() {
-            let adjacent_in_current_circuit = match simulation.nodes[*adjacent].parent {
-                NodeParent::GateIn(gk, _) | NodeParent::GateOut(gk, _) => gates_in_current.contains(&gk),
-                NodeParent::CircuitIn(ck, _) | NodeParent::CircuitOut(ck, _) if ck == simulation.main_circuit => true,
-                NodeParent::CircuitIn(ck, _) | NodeParent::CircuitOut(ck, _) => custom_gates_in_current.contains(&ck),
+            let adjacent_in_current_circuit = match simulation.nodes[*adjacent].parent.get_node_parent_type() {
+                hierarchy::NodeParentType::Gate(gk) => gates_in_current.contains(&gk),
+                hierarchy::NodeParentType::Circuit(ck) if ck == simulation.main_circuit => true,
+                hierarchy::NodeParentType::Circuit(ck) => custom_gates_in_current.contains(&ck),
             };
 
             if adjacent_in_current_circuit {
@@ -104,11 +104,11 @@ fn y_centered_around(center_y: f32, total: usize, index: usize) -> f32 {
 
 fn circuit_input_pos(window_rect: Rect, simulation: &Simulation, circuit: CircuitKey, index: usize) -> Vec2 {
     let circuit = &simulation.circuits[circuit];
-    pt2(window_rect.x.start, y_centered_around(0.0, circuit.inputs.len(), index))
+    pt2(window_rect.x.start, y_centered_around(0.0, circuit.nodes.inputs().len(), index))
 }
 fn circuit_output_pos(window_rect: Rect, simulation: &Simulation, circuit: CircuitKey, index: usize) -> Vec2 {
     let circuit = &simulation.circuits[circuit];
-    pt2(window_rect.x.end, y_centered_around(0.0, circuit.outputs.len(), index))
+    pt2(window_rect.x.end, y_centered_around(0.0, circuit.nodes.outputs().len(), index))
 }
 
 fn gate_input_pos(window_rect: Rect, gate_location: &location::GateLocation, num_inputs: usize, num_outputs: usize, idx: usize) -> Vec2 {
@@ -121,32 +121,32 @@ fn gate_output_pos(window_rect: Rect, gate_location: &location::GateLocation, nu
 }
 
 fn node_pos(window_rect: Rect, simulation: &Simulation, node: NodeKey) -> Vec2 {
-    match simulation.nodes[node].parent {
-        NodeParent::CircuitIn(c, i) if c == simulation.main_circuit => circuit_input_pos(window_rect, simulation, c, i),
-        NodeParent::CircuitOut(c, i) if c == simulation.main_circuit => circuit_output_pos(window_rect, simulation, c, i),
+    match simulation.nodes[node].parent.kind() {
+        hierarchy::NodeParentKind::CircuitIn(c, i) if c == simulation.main_circuit => circuit_input_pos(window_rect, simulation, c, i),
+        hierarchy::NodeParentKind::CircuitOut(c, i) if c == simulation.main_circuit => circuit_output_pos(window_rect, simulation, c, i),
 
-        NodeParent::CircuitIn(c, i) => {
+        hierarchy::NodeParentKind::CircuitIn(c, i) => {
             let circuit = &simulation.circuits[c];
             let location = &circuit.location;
-            let num_inputs = circuit.inputs.len();
-            let num_outputs = circuit.outputs.len();
+            let num_inputs = circuit.nodes.inputs().len();
+            let num_outputs = circuit.nodes.outputs().len();
             gate_input_pos(window_rect, location, num_inputs, num_outputs, i)
         }
-        NodeParent::CircuitOut(c, i) => {
+        hierarchy::NodeParentKind::CircuitOut(c, i) => {
             let circuit = &simulation.circuits[c];
             let location = &circuit.location;
-            let num_inputs = circuit.inputs.len();
-            let num_outputs = circuit.outputs.len();
+            let num_inputs = circuit.nodes.inputs().len();
+            let num_outputs = circuit.nodes.outputs().len();
             gate_output_pos(window_rect, location, num_inputs, num_outputs, i)
         }
-        NodeParent::GateIn(g, i) => {
+        hierarchy::NodeParentKind::GateIn(g, i) => {
             let gate = &simulation.gates[g];
             let location = gate.location(&simulation.circuits);
             let num_inputs = simulation::gate_num_inputs(&simulation.circuits, &simulation.gates, g);
             let num_outputs = simulation::gate_num_outputs(&simulation.circuits, &simulation.gates, g);
             gate_input_pos(window_rect, location, num_inputs, num_outputs, i)
         }
-        NodeParent::GateOut(g, i) => {
+        hierarchy::NodeParentKind::GateOut(g, i) => {
             let gate = &simulation.gates[g];
             let location = gate.location(&simulation.circuits);
             let num_inputs = simulation::gate_num_inputs(&simulation.circuits, &simulation.gates, g);

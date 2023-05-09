@@ -40,7 +40,7 @@ pub(crate) fn convert(file: &File, ast_to_ir::IR { circuits, circuit_table, mut 
                 }
             };
 
-            for input_node_i in 0..circuit_map[main_circuit].inputs().len() {
+            for input_node_i in 0..circuit_map[main_circuit].nodes.inputs().len() {
                 logic::set_input(&mut circuit_map, &mut node_map, main_circuit, input_node_i, logic::Value::L);
             }
 
@@ -119,7 +119,7 @@ fn add_gate<'file, 'circuit>(
         }
     };
 
-    circuit_map[new_circuit_idx].gates.push(gate_idx);
+    circuit_map[new_circuit_idx].gates.add_gate(gate_idx);
     Ok((expansion_stack, gate_idx))
 }
 
@@ -152,8 +152,8 @@ fn convert_bundle(
     bundle: &ir::bundle::Bundle,
 ) -> Vec<simulation::NodeKey> {
     match bundle {
-        ir::bundle::Bundle::CurCircuitInput(_) => circuits[new_circuit].inputs().to_vec(),
-        ir::bundle::Bundle::CurCircuitOutput(_) => circuits[new_circuit].outputs().to_vec(),
+        ir::bundle::Bundle::CurCircuitInput(_) => circuits[new_circuit].nodes.inputs().to_vec(),
+        ir::bundle::Bundle::CurCircuitOutput(_) => circuits[new_circuit].nodes.outputs().to_vec(),
         ir::bundle::Bundle::GateInput(_, old_gate_index) => simulation::gate_inputs(circuits, gates, gate_index_map[old_gate_index]).to_vec(),
         ir::bundle::Bundle::GateOutput(_, old_gate_index) => simulation::gate_outputs(circuits, gates, gate_index_map[old_gate_index]).to_owned(),
         ir::bundle::Bundle::Get(b, field) => {

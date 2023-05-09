@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 // TODO: remove dependency on draw system
-use crate::simulation::{self, draw, CircuitKey, CircuitMap, GateKey, GateMap, NodeParent, Simulation};
+use crate::simulation::{self, draw, hierarchy, CircuitKey, CircuitMap, GateKey, GateMap, Simulation};
 
 pub(crate) struct GateLocation {
     pub(crate) x: u32,
@@ -111,16 +111,16 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
                 let mut adj_nodes = simulation.nodes[cur_node].logic.adjacent().iter();
                 loop {
                     let adj = adj_nodes.next()?;
-                    match simulation.nodes[*adj].parent {
+                    match simulation.nodes[*adj].parent.get_node_parent_type() {
                         // GateIn should not be possible
-                        NodeParent::GateIn(gk, _) | NodeParent::GateOut(gk, _) => {
-                            if cur_circuit.gates.contains(&gk) {
+                        hierarchy::NodeParentType::Gate(gk) => {
+                            if cur_circuit.gates.contains(gk) {
                                 // TODO: do something better than linear search
                                 break Some(Some(gk));
                             }
                         }
-                        NodeParent::CircuitIn(ck, _) | NodeParent::CircuitOut(ck, _) if ck == cur_circuit_key => break Some(None),
-                        NodeParent::CircuitIn(ck, _) | NodeParent::CircuitOut(ck, _) => {
+                        hierarchy::NodeParentType::Circuit(ck) if ck == cur_circuit_key => break Some(None),
+                        hierarchy::NodeParentType::Circuit(ck) => {
                             if let Some(gk) = subcircuits_in_cur_circuit.get(&ck) {
                                 break Some(Some(*gk));
                             }
