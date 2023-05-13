@@ -52,15 +52,13 @@ impl Circuit {
 impl Gate {
     pub(crate) fn location<'s: 'r, 'c: 'r, 'r>(&'s self, circuits: &'c CircuitMap) -> &'r location::GateLocation {
         match self {
-            Gate::Nand { logic: _, location } | Gate::Const { logic: _, location } => location,
+            Gate::Nand { logic: _, location } | Gate::Const { logic: _, location } | Gate::Unerror { logic: _, location } => location,
             Gate::Custom(sck) => &circuits[*sck].location,
-            Gate::Unerror { logic: _, location } => location,
         }
     }
     pub(crate) fn location_mut<'s: 'r, 'c: 'r, 'r>(&'s mut self, circuits: &'c mut CircuitMap) -> &'r mut location::GateLocation {
         match self {
-            Gate::Nand { logic: _, location } | Gate::Const { logic: _, location } => location,
-            Gate::Unerror { logic: _, location } => location,
+            Gate::Nand { logic: _, location } | Gate::Const { logic: _, location } | Gate::Unerror { logic: _, location } => location,
             Gate::Custom(sck) => &mut circuits[*sck].location,
         }
     }
