@@ -52,11 +52,6 @@ impl Value {
 impl NodeLogic {
     pub(crate) fn new() -> Self {
         NodeLogic { production: None, value: Value::Z, connections: connections::NodeConnections::new() }
-        // TODO: reconsider whether this default is actually correct
-    }
-
-    pub(crate) fn value(&self) -> Value {
-        self.value
     }
 
     pub(crate) fn adjacent(&self) -> &HashSet<NodeKey> {
@@ -76,7 +71,9 @@ impl NandLogic {
 
 impl ConstLogic {
     pub(crate) fn new(nodes: &mut NodeMap, gate_key: GateKey, value: bool) -> ConstLogic {
-        ConstLogic { nodes: hierarchy::NodeChildren::new(nodes, hierarchy::NodeParentType::Gate(gate_key), (), ()), name: if value { "true" } else { "false" } }
+        let gate_nodes: hierarchy::NodeChildren<[NodeKey; 0], [NodeKey; 1]> = hierarchy::NodeChildren::new(nodes, hierarchy::NodeParentType::Gate(gate_key), (), ());
+        set_node_production(nodes, gate_nodes.outputs()[0], if value { Value::H } else { Value::L });
+        ConstLogic { nodes: gate_nodes, name: if value { "true" } else { "false" } }
     }
     pub(crate) fn name(&self) -> &str {
         self.name
