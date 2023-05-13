@@ -11,9 +11,9 @@ use crate::{
 
 struct TypeMismatch<'file> {
     got_span: Span<'file>,
-    pub(super) expected_span: Span<'file>,
-    pub(super) got_type: ty::TypeSym,
-    pub(super) expected_type: ty::TypeSym,
+    expected_span: Span<'file>,
+    got_type: ty::TypeSym,
+    expected_type: ty::TypeSym,
 }
 
 struct LoopInLocalsError<'file>(Vec<ExprInArena<'file>>);
@@ -83,6 +83,7 @@ struct ExprInArena<'file> {
     span: Span<'file>,
     type_info: ty::TypeSym,
 }
+// TODO: remove spans from this?
 #[derive(Debug)]
 enum ExprInArenaKind<'file> {
     Ref(token::PlainIdentifier<'file>),
