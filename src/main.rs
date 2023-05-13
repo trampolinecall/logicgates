@@ -12,6 +12,7 @@ fn main() {
 }
 
 fn event(_: &App, simulation: &mut simulation::Simulation, event: Event) {
+    /*
     if let Event::WindowEvent { simple: Some(KeyPressed(key)), .. } = event {
         if let Some(index) = match key {
             Key::Key1 => Some(0),
@@ -58,6 +59,8 @@ fn event(_: &App, simulation: &mut simulation::Simulation, event: Event) {
             }
         }
     }
+    */
+    // TODO: remove?
 }
 
 fn model(_: &App) -> simulation::Simulation {
@@ -70,6 +73,6 @@ fn update(_: &App, simulation: &mut simulation::Simulation, _: Update) {
 
 fn view(app: &App, simulation: &simulation::Simulation, frame: Frame) {
     let draw = app.draw();
-    simulation::draw::render(app, &draw, simulation, simulation.main_circuit);
+    simulation::draw::render(app, &draw, simulation);
     draw.to_frame(app, &frame).unwrap();
 }

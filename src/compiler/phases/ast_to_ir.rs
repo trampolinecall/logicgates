@@ -104,6 +104,29 @@ fn convert_circuit<'file>(
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>,
     circuit_ast: ast::Circuit<'file, ast::Typed>,
 ) -> Option<ir::Circuit<'file>> {
+    if circuit_ast.name.name == "main" {
+        if circuit_ast.input.type_info != type_context.intern(ty::Type::Product(vec![])) {
+            let err = TypeMismatch {
+                got_span: circuit_ast.input.span,
+                expected_span: circuit_ast.input.span,
+                got_type: circuit_ast.input.type_info,
+                expected_type: type_context.intern(ty::Type::Product(vec![])),
+            };
+            (&*type_context, err).report();
+            return None;
+        }
+        if circuit_ast.output.type_info != type_context.intern(ty::Type::Product(vec![])) {
+            let err = TypeMismatch {
+                got_span: circuit_ast.output.span,
+                expected_span: circuit_ast.output.span,
+                got_type: circuit_ast.output.type_info,
+                expected_type: type_context.intern(ty::Type::Product(vec![])),
+            };
+            (&*type_context, err).report();
+            return None;
+        }
+    }
+
     let mut circuit = ir::Circuit::new(circuit_ast.name.name, circuit_ast.input.type_info, circuit_ast.output.type_info);
 
     let mut values = arena::Arena::new();

@@ -112,7 +112,6 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
                 loop {
                     let adj = adj_nodes.next()?;
                     match simulation.nodes[*adj].parent.get_node_parent_type() {
-                        // GateIn should not be possible
                         hierarchy::NodeParentType::Gate(gk) => {
                             if cur_circuit.gates.contains(gk) {
                                 // TODO: do something better than linear search
@@ -129,6 +128,7 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
                 }
             });
 
+            // TODO: dedup?
             prev_gates.filter(move |x| *x != Some(gate))
         };
 
