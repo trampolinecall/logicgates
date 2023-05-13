@@ -11,15 +11,16 @@ use crate::{
 
 struct TypeMismatch<'file> {
     got_span: Span<'file>,
-    expected_span: Span<'file>,
     got_type: ty::TypeSym,
+
+    expected_span: Span<'file>,
     expected_type: ty::TypeSym,
 }
 
 struct LoopInLocalsError<'file>(Vec<ExprInArena<'file>>);
 
 impl<'file> From<(&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, TypeMismatch<'file>)> for CompileError<'file> {
-    fn from((types, TypeMismatch { expected_span, got_type, expected_type, got_span }): (&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, TypeMismatch<'file>)) -> Self {
+    fn from((types, TypeMismatch { got_span, got_type, expected_span, expected_type }): (&ty::TypeContext<nominal_type::FullyDefinedStruct<'file>>, TypeMismatch<'file>)) -> Self {
         let expected_type = types.get(expected_type).fmt(types);
         let got_type = types.get(got_type).fmt(types);
         CompileError::new_with_note(expected_span, format!("type mismatch: expected {}, got {}", expected_type, got_type), format!("expected {}", expected_type))
@@ -108,8 +109,8 @@ fn convert_circuit<'file>(
         if circuit_ast.input.type_info != type_context.intern(ty::Type::Product(vec![])) {
             let err = TypeMismatch {
                 got_span: circuit_ast.input.span,
-                expected_span: circuit_ast.input.span,
                 got_type: circuit_ast.input.type_info,
+                expected_span: circuit_ast.input.span,
                 expected_type: type_context.intern(ty::Type::Product(vec![])),
             };
             (&*type_context, err).report();
@@ -118,8 +119,8 @@ fn convert_circuit<'file>(
         if circuit_ast.output.type_info != type_context.intern(ty::Type::Product(vec![])) {
             let err = TypeMismatch {
                 got_span: circuit_ast.output.span,
-                expected_span: circuit_ast.output.span,
                 got_type: circuit_ast.output.type_info,
+                expected_span: circuit_ast.output.span,
                 expected_type: type_context.intern(ty::Type::Product(vec![])),
             };
             (&*type_context, err).report();
@@ -192,7 +193,7 @@ fn assign_pattern<'file>(
     value: ExprId,
 ) -> Result<(), ()> {
     if values.get(value).type_info != pat.type_info {
-        (&*type_context, TypeMismatch { expected_span: pat.span, got_type: values.get(value).type_info, expected_type: pat.type_info, got_span: values.get(value).span }).report();
+        (&*type_context, TypeMismatch { got_span: values.get(value).span, got_type: values.get(value).type_info, expected_span: pat.span, expected_type: pat.type_info }).report();
         assign_pattern_poison(values, locals, pat, values.get(value).span);
         return Err(());
     }
@@ -319,7 +320,7 @@ fn connect_bundle(
     let start_type = start_bundle.type_(type_context);
     let end_type = end_bundle.type_(type_context);
     if start_type != end_type {
-        (&*type_context, TypeMismatch { got_type: start_type, expected_type: end_type, expected_span: end_span, got_span: start_span }).report(); // TODO: redo type mismatch error
+        (&*type_context, TypeMismatch { got_span: start_span, got_type: start_type, expected_span: end_span, expected_type: end_type }).report(); // TODO: redo type mismatch error
         None?;
     }
 
