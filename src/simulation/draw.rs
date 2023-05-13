@@ -16,8 +16,8 @@ const OFF_COLOR: Rgb = Rgb { red: 0.498, green: 0.549, blue: 0.552, standard: Ph
 const HIGH_IMPEDANCE_COLOR: Rgb = Rgb { red: 52.0 / 255.0, green: 152.0 / 255.0, blue: 219.0 / 255.0, standard: PhantomData };
 const ERR_COLOR: Rgb = Rgb { red: 231.0 / 255.0, green: 76.0 / 255.0, blue: 60.0 / 255.0, standard: PhantomData };
 
-pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circuit: CircuitKey) {
-    let main_circuit = &simulation.circuits[main_circuit];
+pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation) {
+    let toplevel_gates = &simulation.toplevel_gates; // TODO: ability to switch between viewing toplevel and circuit
     draw.background().color(BG);
 
     let window_rect = app.window_rect();
@@ -25,7 +25,7 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
     let (custom_gates_in_current, gates_in_current) = {
         let mut custom_gates_in_current = BTreeSet::new();
         let mut gates_in_current = BTreeSet::new();
-        for gate in &main_circuit.gates {
+        for gate in toplevel_gates {
             match &simulation.gates[*gate] {
                 simulation::Gate::Nand { logic: _, location: _ } | simulation::Gate::Const { logic: _, location: _ } | simulation::Gate::Unerror { logic: _, location: _ } => {
                     gates_in_current.insert(gate)
@@ -36,10 +36,10 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
         (custom_gates_in_current, gates_in_current)
     };
 
-    let circuit_inputs = main_circuit.nodes.inputs().iter();
-    let circuit_outputs = main_circuit.nodes.outputs().iter();
-    let gate_inputs = main_circuit.gates.iter().flat_map(|gk| simulation::gate_inputs(&simulation.circuits, &simulation.gates, *gk));
-    let gate_outputs = main_circuit.gates.iter().flat_map(|gk| simulation::gate_outputs(&simulation.circuits, &simulation.gates, *gk));
+    let circuit_inputs = std::iter::empty(); // main_circuit.nodes.inputs().iter(); // TODO: put back when adding switching between different views
+    let circuit_outputs = std::iter::empty(); // main_circuit.nodes.outputs().iter();
+    let gate_inputs = toplevel_gates.iter().flat_map(|gk| simulation::gate_inputs(&simulation.circuits, &simulation.gates, *gk));
+    let gate_outputs = toplevel_gates.iter().flat_map(|gk| simulation::gate_outputs(&simulation.circuits, &simulation.gates, *gk));
     let all_nodes = circuit_inputs.chain(circuit_outputs).chain(gate_inputs).chain(gate_outputs);
 
     // draw connections first
@@ -49,7 +49,7 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
         for adjacent in simulation.nodes[cur_node].logic.adjacent() {
             let adjacent_in_current_circuit = match simulation.nodes[*adjacent].parent.get_node_parent_type() {
                 hierarchy::NodeParentType::Gate(gk) => gates_in_current.contains(&gk),
-                hierarchy::NodeParentType::Circuit(ck) if ck == simulation.main_circuit => true,
+                // hierarchy::NodeParentType::Circuit(ck) if ck == simulation.main_circuit => true, TODO: switching between different views
                 hierarchy::NodeParentType::Circuit(ck) => custom_gates_in_current.contains(&ck),
             };
 
@@ -63,7 +63,7 @@ pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation, main_circu
     }
 
     // draw gate rectangles
-    for &gate_k in &main_circuit.gates {
+    for &gate_k in toplevel_gates {
         let gate = &simulation.gates[gate_k];
         let location = gate.location(&simulation.circuits);
         let num_inputs = simulation::gate_num_inputs(&simulation.circuits, &simulation.gates, gate_k);
@@ -122,9 +122,8 @@ fn gate_output_pos(window_rect: Rect, gate_location: &location::GateLocation, nu
 
 fn node_pos(window_rect: Rect, simulation: &Simulation, node: NodeKey) -> Vec2 {
     match simulation.nodes[node].parent.kind() {
-        hierarchy::NodeParentKind::CircuitIn(c, i) if c == simulation.main_circuit => circuit_input_pos(window_rect, simulation, c, i),
-        hierarchy::NodeParentKind::CircuitOut(c, i) if c == simulation.main_circuit => circuit_output_pos(window_rect, simulation, c, i),
-
+        // hierarchy::NodeParentKind::CircuitIn(c, i) if c == simulation.main_circuit => circuit_input_pos(window_rect, simulation, c, i), TODO: switching between different views
+        // hierarchy::NodeParentKind::CircuitOut(c, i) if c == simulation.main_circuit => circuit_output_pos(window_rect, simulation, c, i), TODO: switching between different views
         hierarchy::NodeParentKind::CircuitIn(c, i) => {
             let circuit = &simulation.circuits[c];
             let location = &circuit.location;

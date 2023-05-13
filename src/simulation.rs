@@ -17,7 +17,7 @@ pub(crate) struct Simulation {
     pub(crate) gates: GateMap,
     pub(crate) nodes: NodeMap,
 
-    pub(crate) main_circuit: CircuitKey,
+    pub(crate) toplevel_gates: hierarchy::GateChildren,
 }
 
 pub(crate) struct Circuit {
