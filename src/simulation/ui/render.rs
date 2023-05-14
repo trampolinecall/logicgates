@@ -2,15 +2,20 @@ use std::{collections::BTreeSet, marker::PhantomData};
 
 use nannou::prelude::*;
 
-use crate::simulation::{self, hierarchy, logic, ui::DrawShape, CircuitKey, Gate, NodeKey, Simulation};
+use crate::simulation::{
+    self, hierarchy, logic,
+    ui::{location, DrawShape},
+    CircuitKey, CircuitMap, Gate, GateMap, NodeKey, NodeMap, Simulation,
+};
 
-const CIRCLE_RAD: f32 = 5.0;
-const CONNECTION_RAD: f32 = CIRCLE_RAD / 2.0;
+// TODO: figure out a better place to put all of these constants
+pub(super) const CIRCLE_RAD: f32 = 5.0;
+pub(super) const CONNECTION_RAD: f32 = CIRCLE_RAD / 2.0;
 const VERTICAL_VALUE_SPACING: f32 = 20.0;
 const HORIZONTAL_GATE_SPACING: f32 = 100.0;
 
 const BG: Rgb = Rgb { red: 0.172, green: 0.243, blue: 0.313, standard: PhantomData };
-const GATE_COLOR: Rgb = Rgb { red: 0.584, green: 0.647, blue: 0.65, standard: PhantomData };
+pub(super) const GATE_COLOR: Rgb = Rgb { red: 0.584, green: 0.647, blue: 0.65, standard: PhantomData };
 const ON_COLOR: Rgb = Rgb { red: 0.18, green: 0.8, blue: 0.521, standard: PhantomData };
 const OFF_COLOR: Rgb = Rgb { red: 0.498, green: 0.549, blue: 0.552, standard: PhantomData };
 const HIGH_IMPEDANCE_COLOR: Rgb = Rgb { red: 52.0 / 255.0, green: 152.0 / 255.0, blue: 219.0 / 255.0, standard: PhantomData };
@@ -20,7 +25,7 @@ const ERR_COLOR: Rgb = Rgb { red: 231.0 / 255.0, green: 76.0 / 255.0, blue: 60.0
 
 pub(crate) fn render(app: &App, draw: &Draw, simulation: &Simulation) {
     draw.background().color(BG);
-    all_widgets(app, simulation).for_each(|wid| wid.render(app, draw))
+    all_widgets(app, simulation).for_each(|wid| wid.render(draw))
 }
 
 fn all_widgets<'a>(app: &'a App, simulation: &'a Simulation) -> impl Iterator<Item = DrawShape> + 'a {
@@ -54,50 +59,30 @@ fn all_widgets<'a>(app: &'a App, simulation: &'a Simulation) -> impl Iterator<It
                 simulation.nodes[cur_node].logic.adjacent().iter().map(move |adj| (cur_node, adj))
             }
         })
-        .filter_map(move |(cur, adjacent)| {
-            let adjacent_in_current_circuit = match simulation.nodes[*adjacent].parent.get_node_parent_type() {
+        .filter_map(move |(cur_node, adj_node)| {
+            let adjacent_in_current_circuit = match simulation.nodes[*adj_node].parent.get_node_parent_type() {
                 hierarchy::NodeParentType::Gate(gk) => gates_in_current.contains(&gk),
                 // hierarchy::NodeParentType::Circuit(ck) if ck == simulation.main_circuit => true, TODO: switching between different views
                 hierarchy::NodeParentType::Circuit(ck) => custom_gates_in_current.contains(&ck),
             };
 
             if adjacent_in_current_circuit {
-                // let color = node_color(simulation, cur_node, false);
-                let cur_pos = todo!(); // TODO: node_pos(window_rect, simulation, cur_node);
-                let adj_pos = todo!(); // TODO: node_pos(window_rect, simulation, *adjacent);
-                Some(DrawShape::new_for_connection(adj_pos, cur_pos))
+                let color = node_color(&simulation.nodes, cur_node, false);
+                let cur_pos = node_pos(window_rect, &simulation.circuits, &simulation.gates, &simulation.nodes, cur_node);
+                let adj_pos = node_pos(window_rect, &simulation.circuits, &simulation.gates, &simulation.nodes, *adj_node);
+                Some(DrawShape::new_for_connection(cur_pos, adj_pos, color))
             } else {
                 None
             }
         });
 
-    let gate_widgets = toplevel_gates.into_iter().map(|&gate_k| {
-        let gate = &simulation.gates[gate_k];
-        simulation::Gate::widget(&simulation.circuits, &simulation.gates, gate_k).draw()
-        /* TODO: move this to the actual drawing code
-        let location = gate.location(&simulation.circuits);
-        let num_inputs = simulation::gate_num_inputs(&simulation.circuits, &simulation.gates, gate_k);
-        let num_outputs = simulation::gate_num_outputs(&simulation.circuits, &simulation.gates, gate_k);
-        let rect = gate_rect(window_rect, location, num_inputs, num_outputs);
-        draw.rect().color(GATE_COLOR).xy(rect.xy()).wh(rect.wh());
-        draw.text(simulation.gates[gate_k].name(&simulation.circuits)).xy(rect.xy()).wh(rect.wh()).center_justify().align_text_middle_y();
-        */
-    });
-    let node_widgets = all_nodes.map(|&node_key| {
-        /* TODO: actual drawing code
-        let pos = node_pos(window_rect, simulation, node_key);
-        let color = node_color(simulation, node_key, true);
-
-        draw.ellipse().color(color).x_y(pos[0], pos[1]).radius(CIRCLE_RAD);
-        */
-        simulation.nodes[node_key].widget.draw()
-    });
+    let gate_widgets = toplevel_gates.into_iter().map(move |&gate_k| DrawShape::new_for_gate(window_rect, &simulation.circuits, &simulation.gates, gate_k));
+    let node_widgets = all_nodes.map(move |&node_key| DrawShape::new_for_node(window_rect, &simulation.circuits, &simulation.gates, &simulation.nodes, node_key));
 
     connection_widgets.chain(gate_widgets).chain(node_widgets)
 }
 
-/*
-fn gate_rect(window_rect: Rect, gate_location: &location::GateLocation, num_inputs: usize, num_outputs: usize) -> Rect {
+pub(super) fn gate_rect(window_rect: Rect, gate_location: &location::GateLocation, num_inputs: usize, num_outputs: usize) -> Rect {
     // TODO: gate_location should eventually be the center
     let (x, y) = (gate_location.x, gate_location.y);
     let wh = gate_display_size(num_inputs, num_outputs);
@@ -136,42 +121,40 @@ fn gate_output_pos(window_rect: Rect, gate_location: &location::GateLocation, nu
     pt2(rect.right(), y_centered_around(rect.y(), num_outputs, idx))
 }
 
-fn node_pos(window_rect: Rect, simulation: &Simulation, node: NodeKey) -> Vec2 {
-    match simulation.nodes[node].parent.kind() {
+pub(super) fn node_pos(window_rect: Rect, circuits: &CircuitMap, gates: &GateMap, nodes: &NodeMap, node: NodeKey) -> Vec2 {
+    match nodes[node].parent.kind() {
         // hierarchy::NodeParentKind::CircuitIn(c, i) if c == simulation.main_circuit => circuit_input_pos(window_rect, simulation, c, i), TODO: switching between different views
         // hierarchy::NodeParentKind::CircuitOut(c, i) if c == simulation.main_circuit => circuit_output_pos(window_rect, simulation, c, i), TODO: switching between different views
         hierarchy::NodeParentKind::CircuitIn(c, i) => {
-            let circuit = &simulation.circuits[c];
-            let location = &circuit.location;
+            let circuit = &circuits[c];
+            let location = &circuit.widget.location;
             let num_inputs = circuit.nodes.inputs().len();
             let num_outputs = circuit.nodes.outputs().len();
             gate_input_pos(window_rect, location, num_inputs, num_outputs, i)
         }
         hierarchy::NodeParentKind::CircuitOut(c, i) => {
-            let circuit = &simulation.circuits[c];
-            let location = &circuit.location;
+            let circuit = &circuits[c];
+            let location = &circuit.widget.location;
             let num_inputs = circuit.nodes.inputs().len();
             let num_outputs = circuit.nodes.outputs().len();
             gate_output_pos(window_rect, location, num_inputs, num_outputs, i)
         }
         hierarchy::NodeParentKind::GateIn(g, i) => {
-            let gate = &simulation.gates[g];
-            let location = gate.location(&simulation.circuits);
-            let num_inputs = simulation::gate_num_inputs(&simulation.circuits, &simulation.gates, g);
-            let num_outputs = simulation::gate_num_outputs(&simulation.circuits, &simulation.gates, g);
+            let location = &simulation::Gate::widget(circuits, gates, g).location;
+            let num_inputs = simulation::Gate::num_inputs(circuits, gates, g);
+            let num_outputs = simulation::Gate::num_outputs(circuits, gates, g);
             gate_input_pos(window_rect, location, num_inputs, num_outputs, i)
         }
         hierarchy::NodeParentKind::GateOut(g, i) => {
-            let gate = &simulation.gates[g];
-            let location = gate.location(&simulation.circuits);
-            let num_inputs = simulation::gate_num_inputs(&simulation.circuits, &simulation.gates, g);
-            let num_outputs = simulation::gate_num_outputs(&simulation.circuits, &simulation.gates, g);
+            let location = &simulation::Gate::widget(circuits, gates, g).location;
+            let num_inputs = simulation::Gate::num_inputs(circuits, gates, g);
+            let num_outputs = simulation::Gate::num_outputs(circuits, gates, g);
             gate_output_pos(window_rect, location, num_inputs, num_outputs, i)
         }
     }
 }
 
-fn node_color(simulation: &Simulation, node: NodeKey, use_production: bool) -> Rgb {
+pub(super) fn node_color(nodes: &NodeMap, node: NodeKey, use_production: bool) -> Rgb {
     fn value_to_color(v: logic::Value) -> Rgb {
         match v {
             logic::Value::H => ON_COLOR,
@@ -181,13 +164,12 @@ fn node_color(simulation: &Simulation, node: NodeKey, use_production: bool) -> R
         }
     }
     if use_production {
-        if let Some(v) = logic::get_node_production(&simulation.nodes, node) {
+        if let Some(v) = logic::get_node_production(nodes, node) {
             value_to_color(v)
         } else {
-            value_to_color(logic::get_node_value(&simulation.nodes, node))
+            value_to_color(logic::get_node_value(nodes, node))
         }
     } else {
-        value_to_color(logic::get_node_value(&simulation.nodes, node))
+        value_to_color(logic::get_node_value(nodes, node))
     }
 }
-*/
