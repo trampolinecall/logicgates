@@ -73,6 +73,6 @@ fn update(_: &App, simulation: &mut simulation::Simulation, _: Update) {
 
 fn view(app: &App, simulation: &simulation::Simulation, frame: Frame) {
     let draw = app.draw();
-    simulation::draw::render(app, &draw, simulation);
+    simulation::ui::render(app, &draw, simulation);
     draw.to_frame(app, &frame).unwrap();
 }

@@ -1,7 +1,6 @@
-pub(crate) mod draw;
 pub(crate) mod hierarchy;
-pub(crate) mod location;
 pub(crate) mod logic;
+pub(crate) mod ui;
 
 slotmap::new_key_type! {
     pub(crate) struct CircuitKey;
@@ -24,18 +23,19 @@ pub(crate) struct Circuit {
     pub(crate) name: String,
     pub(crate) gates: hierarchy::GateChildren,
     pub(crate) nodes: hierarchy::NodeChildren<Vec<NodeKey>, Vec<NodeKey>>,
-    pub(crate) location: location::GateLocation,
+    pub(crate) widget: ui::GateWidget,
 }
 
 pub(crate) struct Node {
     pub(crate) logic: logic::NodeLogic,
     pub(crate) parent: hierarchy::NodeParent,
+    pub(crate) widget: ui::NodeWidget,
 }
 
 pub(crate) enum Gate {
-    Nand { logic: logic::NandLogic, location: location::GateLocation },
-    Const { logic: logic::ConstLogic, location: location::GateLocation },
-    Unerror { logic: logic::UnerrorLogic, location: location::GateLocation },
+    Nand { logic: logic::NandLogic, widget: ui::GateWidget },
+    Const { logic: logic::ConstLogic, widget: ui::GateWidget },
+    Unerror { logic: logic::UnerrorLogic, widget: ui::GateWidget },
     Custom(CircuitKey),
 }
 
@@ -45,54 +45,56 @@ impl Circuit {
             name,
             gates: hierarchy::GateChildren::new(),
             nodes: hierarchy::NodeChildren::new(nodes, hierarchy::NodeParentType::Circuit(circuit_key), num_inputs, num_outputs),
-            location: location::GateLocation::new(),
+            widget: ui::GateWidget::new(),
         }
     }
 }
 impl Gate {
-    pub(crate) fn location<'s: 'r, 'c: 'r, 'r>(&'s self, circuits: &'c CircuitMap) -> &'r location::GateLocation {
+    fn name<'s: 'r, 'c: 'r, 'r>(&'s self, circuits: &'c CircuitMap) -> &'r str {
         match self {
-            Gate::Nand { logic: _, location } | Gate::Const { logic: _, location } | Gate::Unerror { logic: _, location } => location,
-            Gate::Custom(sck) => &circuits[*sck].location,
-        }
-    }
-    pub(crate) fn location_mut<'s: 'r, 'c: 'r, 'r>(&'s mut self, circuits: &'c mut CircuitMap) -> &'r mut location::GateLocation {
-        match self {
-            Gate::Nand { logic: _, location } | Gate::Const { logic: _, location } | Gate::Unerror { logic: _, location } => location,
-            Gate::Custom(sck) => &mut circuits[*sck].location,
-        }
-    }
-
-    fn name<'s: 'r, 'c: 'r, 'r>(&'s self, circuits: &'c slotmap::SlotMap<CircuitKey, Circuit>) -> &'r str {
-        match self {
-            Gate::Nand { logic, location: _ } => logic.name(),
-            Gate::Const { logic, location: _ } => logic.name(),
-            Gate::Unerror { logic, location: _ } => logic.name(),
+            Gate::Nand { logic, widget: _ } => logic.name(),
+            Gate::Const { logic, widget: _ } => logic.name(),
+            Gate::Unerror { logic, widget: _ } => logic.name(),
             Gate::Custom(sck) => &circuits[*sck].name,
         }
     }
-}
 
-pub(crate) fn gate_inputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r [NodeKey] {
-    match &gates[gate] {
-        Gate::Nand { logic, location: _ } => logic.nodes.inputs(),
-        Gate::Const { logic, location: _ } => logic.nodes.inputs(),
-        Gate::Custom(circuit_idx) => circuits[*circuit_idx].nodes.inputs(),
-        Gate::Unerror { logic, location: _ } => logic.nodes.inputs(),
+    pub(crate) fn inputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r [NodeKey] {
+        match &gates[gate] {
+            Gate::Nand { logic, widget: _ } => logic.nodes.inputs(),
+            Gate::Const { logic, widget: _ } => logic.nodes.inputs(),
+            Gate::Custom(circuit_idx) => circuits[*circuit_idx].nodes.inputs(),
+            Gate::Unerror { logic, widget: _ } => logic.nodes.inputs(),
+        }
     }
-}
-pub(crate) fn gate_outputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r [NodeKey] {
-    match &gates[gate] {
-        Gate::Nand { logic, location: _ } => logic.nodes.outputs(),
-        Gate::Const { logic, location: _ } => logic.nodes.outputs(),
-        Gate::Custom(circuit_idx) => circuits[*circuit_idx].nodes.outputs(),
-        Gate::Unerror { logic, location: _ } => logic.nodes.outputs(),
+    pub(crate) fn outputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r [NodeKey] {
+        match &gates[gate] {
+            Gate::Nand { logic, widget: _ } => logic.nodes.outputs(),
+            Gate::Const { logic, widget: _ } => logic.nodes.outputs(),
+            Gate::Custom(circuit_idx) => circuits[*circuit_idx].nodes.outputs(),
+            Gate::Unerror { logic, widget: _ } => logic.nodes.outputs(),
+        }
     }
-}
 
-pub(crate) fn gate_num_inputs(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> usize {
-    gate_inputs(circuits, gates, gate).len()
-}
-pub(crate) fn gate_num_outputs(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> usize {
-    gate_outputs(circuits, gates, gate).len()
+    pub(crate) fn gate_num_inputs(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> usize {
+        Gate::inputs(circuits, gates, gate).len()
+    }
+    pub(crate) fn gate_num_outputs(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> usize {
+        Gate::outputs(circuits, gates, gate).len()
+    }
+
+    pub(crate) fn widget<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r ui::GateWidget {
+        match &gates[gate] {
+            Gate::Nand { logic: _, widget } | Gate::Const { logic: _, widget } | Gate::Unerror { logic: _, widget } => widget,
+            Gate::Custom(sck) => &circuits[*sck].widget,
+        }
+    }
+    /* TODO: remove?
+    pub(crate) fn widget_mut<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r mut widget::GateLocation {
+        match &gates[gate] {
+            Gate::Nand { logic: _, widget } | Gate::Const { logic: _, widget } | Gate::Unerror { logic: _, widget } => widget,
+            Gate::Custom(sck) => &mut circuits[*sck].widget,
+        }
+    }
+    */
 }
