@@ -76,10 +76,10 @@ impl Gate {
         }
     }
 
-    pub(crate) fn gate_num_inputs(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> usize {
+    pub(crate) fn num_inputs(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> usize {
         Gate::inputs(circuits, gates, gate).len()
     }
-    pub(crate) fn gate_num_outputs(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> usize {
+    pub(crate) fn num_outputs(circuits: &CircuitMap, gates: &GateMap, gate: GateKey) -> usize {
         Gate::outputs(circuits, gates, gate).len()
     }
 
