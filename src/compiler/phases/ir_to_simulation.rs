@@ -56,7 +56,7 @@ pub(crate) fn convert(file: &File, ast_to_ir::IR { circuits, circuit_table, mut 
             };
 
             let mut simulation = simulation::Simulation { circuits: circuit_map, gates: gate_map, nodes: node_map, toplevel_gates: main_children };
-            simulation::location::calculate_locations(&mut simulation);
+            // simulation::location::calculate_locations(&mut simulation); TODO: figure out what to do with this
 
             Some(simulation)
         } else {
@@ -155,13 +155,13 @@ fn lower_gate<'file, 'circuit>(
             (expansion_stack, gate_map.insert(simulation::Gate::Custom(subcircuit_idx)))
         }
         ir::CircuitOrIntrinsic::Nand => {
-            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Nand { logic: logic::NandLogic::new(node_map, gk), location: simulation::location::GateLocation::new() }))
+            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Nand { logic: logic::NandLogic::new(node_map, gk), widget: simulation::ui::GateWidget::new() }))
         }
         ir::CircuitOrIntrinsic::Const(value) => {
-            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Const { logic: logic::ConstLogic::new(node_map, gk, *value), location: simulation::location::GateLocation::new() }))
+            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Const { logic: logic::ConstLogic::new(node_map, gk, *value), widget: simulation::ui::GateWidget::new() }))
         }
         ir::CircuitOrIntrinsic::Unerror => {
-            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Unerror { logic: logic::UnerrorLogic::new(node_map, gk), location: simulation::location::GateLocation::new() }))
+            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Unerror { logic: logic::UnerrorLogic::new(node_map, gk), widget: simulation::ui::GateWidget::new() }))
         }
     };
 
@@ -213,8 +213,8 @@ fn convert_bundle(
                 vec![] // correct anyways because the outputs always have type [] in main
             }
         }
-        ir::bundle::Bundle::GateInput(_, old_gate_index) => simulation::gate_inputs(circuits, gates, gate_index_map[old_gate_index]).to_vec(),
-        ir::bundle::Bundle::GateOutput(_, old_gate_index) => simulation::gate_outputs(circuits, gates, gate_index_map[old_gate_index]).to_owned(),
+        ir::bundle::Bundle::GateInput(_, old_gate_index) => simulation::Gate::inputs(circuits, gates, gate_index_map[old_gate_index]).to_vec(),
+        ir::bundle::Bundle::GateOutput(_, old_gate_index) => simulation::Gate::outputs(circuits, gates, gate_index_map[old_gate_index]).to_owned(),
         ir::bundle::Bundle::Get(b, field) => {
             fn field_indexes(type_context: &ty::TypeContext<nominal_type::FullyDefinedStruct>, fields: &[(&str, ty::TypeSym)], field: &str) -> Option<std::ops::Range<usize>> {
                 let mut cur_index = 0;
