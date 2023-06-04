@@ -1,4 +1,4 @@
-use crate::simulation::{logic, ui, CircuitKey, GateKey, Node, NodeKey, NodeMap, connections};
+use crate::simulation::{connections, logic, ui, CircuitKey, GateKey, Node, NodeKey, NodeMap};
 
 pub(crate) struct NodeChildren<I: private::NodeVec, O: private::NodeVec> {
     inputs: I,
@@ -54,7 +54,7 @@ impl<I: private::NodeVec, O: private::NodeVec> NodeChildren<I, O> {
                     let mut i = 0;
                     let nodes = &mut *nodes;
                     move || {
-                        let nk = nodes.insert(Node {
+                        let nk = nodes.insert_with_key(|nk| Node {
                             logic: logic::NodeLogic::new(),
                             parent: NodeParent {
                                 kind: match parent_type {
@@ -62,7 +62,7 @@ impl<I: private::NodeVec, O: private::NodeVec> NodeChildren<I, O> {
                                     NodeParentType::Circuit(ck) => NodeParentKind::CircuitIn(ck, i),
                                 },
                             },
-                            widget: ui::NodeWidget::new(),
+                            widget: ui::node::NodeWidget::new(nk),
                             connections: connections::NodeConnections::new(),
                         });
                         i += 1;
@@ -76,7 +76,7 @@ impl<I: private::NodeVec, O: private::NodeVec> NodeChildren<I, O> {
                     let mut i = 0;
                     let nodes = &mut *nodes;
                     move || {
-                        let nk = nodes.insert(Node {
+                        let nk = nodes.insert_with_key(|nk| Node {
                             logic: logic::NodeLogic::new(),
                             parent: NodeParent {
                                 kind: match parent_type {
@@ -84,7 +84,7 @@ impl<I: private::NodeVec, O: private::NodeVec> NodeChildren<I, O> {
                                     NodeParentType::Circuit(ck) => NodeParentKind::CircuitOut(ck, i),
                                 },
                             },
-                            widget: ui::NodeWidget::new(),
+                            widget: ui::node::NodeWidget::new(nk),
                             connections: connections::NodeConnections::new(),
                         });
                         i += 1;

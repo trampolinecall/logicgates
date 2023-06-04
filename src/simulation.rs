@@ -29,20 +29,20 @@ pub(crate) struct Circuit {
     pub(crate) gates: hierarchy::GateChildren,
     pub(crate) nodes: hierarchy::NodeChildren<Vec<NodeKey>, Vec<NodeKey>>,
     pub(crate) location: location::GateLocation,
-    pub(crate) widget: ui::GateWidget,
+    pub(crate) widget: ui::gate::GateWidget,
 }
 
 pub(crate) struct Node {
     pub(crate) logic: logic::NodeLogic,
     pub(crate) parent: hierarchy::NodeParent,
-    pub(crate) widget: ui::NodeWidget,
+    pub(crate) widget: ui::node::NodeWidget,
     pub(crate) connections: connections::NodeConnections,
 }
 
 pub(crate) enum Gate {
-    Nand { logic: logic::NandLogic, widget: ui::GateWidget, location: location::GateLocation },
-    Const { logic: logic::ConstLogic, widget: ui::GateWidget, location: location::GateLocation },
-    Unerror { logic: logic::UnerrorLogic, widget: ui::GateWidget, location: location::GateLocation },
+    Nand { logic: logic::NandLogic, widget: ui::gate::GateWidget, location: location::GateLocation },
+    Const { logic: logic::ConstLogic, widget: ui::gate::GateWidget, location: location::GateLocation },
+    Unerror { logic: logic::UnerrorLogic, widget: ui::gate::GateWidget, location: location::GateLocation },
     Custom(CircuitKey),
 }
 
@@ -52,7 +52,7 @@ impl Circuit {
             name,
             gates: hierarchy::GateChildren::new(),
             nodes: hierarchy::NodeChildren::new(nodes, hierarchy::NodeParentType::Circuit(circuit_key), num_inputs, num_outputs),
-            widget: ui::GateWidget::new(),
+            widget: ui::gate::GateWidget::new(),
             location: location::GateLocation::new(),
         }
     }
@@ -91,7 +91,7 @@ impl Gate {
         Gate::outputs(circuits, gates, gate).len()
     }
 
-    pub(crate) fn widget<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r ui::GateWidget {
+    pub(crate) fn widget<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r ui::gate::GateWidget {
         match &gates[gate] {
             Gate::Nand { logic: _, widget, location } | Gate::Const { logic: _, widget, location } | Gate::Unerror { logic: _, widget, location } => widget,
             Gate::Custom(sck) => &circuits[*sck].widget,
