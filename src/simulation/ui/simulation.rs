@@ -1,7 +1,23 @@
-use crate::simulation::{self, ui::Widget, GateKey, Simulation};
+use std::{collections::HashMap, marker::PhantomData};
+
+use nannou::prelude::*;
+
+use crate::simulation::{self, hierarchy, location, logic, ui::Widget, Gate, GateKey, NodeKey, Simulation};
+
+// TODO: figure out a better place to put all of these constants
+pub(super) const CIRCLE_RAD: f32 = 5.0;
+pub(super) const CONNECTION_RAD: f32 = CIRCLE_RAD / 2.0;
+const VERTICAL_VALUE_SPACING: f32 = 20.0;
+const HORIZONTAL_GATE_SPACING: f32 = 100.0;
+
+const BG: Rgb = Rgb { red: 0.172, green: 0.243, blue: 0.313, standard: PhantomData };
+pub(super) const GATE_COLOR: Rgb = Rgb { red: 0.584, green: 0.647, blue: 0.65, standard: PhantomData };
+const ON_COLOR: Rgb = Rgb { red: 0.18, green: 0.8, blue: 0.521, standard: PhantomData };
+const OFF_COLOR: Rgb = Rgb { red: 0.498, green: 0.549, blue: 0.552, standard: PhantomData };
+const HIGH_IMPEDANCE_COLOR: Rgb = Rgb { red: 52.0 / 255.0, green: 152.0 / 255.0, blue: 219.0 / 255.0, standard: PhantomData };
+const ERR_COLOR: Rgb = Rgb { red: 231.0 / 255.0, green: 76.0 / 255.0, blue: 60.0 / 255.0, standard: PhantomData };
 
 pub(crate) struct SimulationWidget {}
-
 impl SimulationWidget {
     pub(crate) fn new() -> SimulationWidget {
         SimulationWidget {}
@@ -65,13 +81,135 @@ impl Widget for SimulationWidget {
         connection_widgets.chain(gate_widgets).chain(node_widgets)
         */
 
-        let gate_positions = layout(&simulation.toplevel_gates);
-        for (gate, position) in gate_positions {
+        let (/* connection_positions, TODO */ gate_positions, node_positions) = layout(&simulation.circuits, &simulation.gates, &simulation.nodes, &simulation.toplevel_gates, rect);
+        /* TODO
+        for (connection, position) in connection_positions {
             todo!()
+        }
+        */
+        for (gate, position) in gate_positions {
+            simulation::Gate::widget(&simulation.circuits, &simulation.gates, gate).draw(simulation, draw, position);
+        }
+        for (node, position) in node_positions {
+            simulation.nodes[node].widget.draw(simulation, draw, position);
         }
     }
 }
 
-fn layout(gates: &simulation::hierarchy::GateChildren) -> Vec<(GateKey, nannou::geom::Rect)> {
-    todo!()
+fn layout(
+    circuits: &simulation::CircuitMap,
+    gates: &simulation::GateMap,
+    nodes: &simulation::NodeMap,
+    gate_children: &simulation::hierarchy::GateChildren,
+    rect: nannou::geom::Rect,
+) -> (HashMap<GateKey, nannou::geom::Rect>, HashMap<NodeKey, nannou::geom::Rect>) {
+    let gate_positions = gate_children
+        .iter()
+        .map(|gate| {
+            let gate_location = Gate::location(circuits, gates, *gate);
+            let num_inputs = Gate::num_inputs(circuits, gates, *gate);
+            let num_outputs = Gate::num_outputs(circuits, gates, *gate);
+
+            (*gate, gate_rect(rect, gate_location, num_inputs, num_outputs))
+        })
+        .collect();
+    let node_positions = gate_children
+        .iter()
+        .flat_map(|gate| simulation::Gate::inputs(circuits, gates, *gate).iter().chain(simulation::Gate::outputs(circuits, gates, *gate)).map(|n| (*gate, n)))
+        .map(|(gate, node)| (*node, nannou::geom::Rect::from_xy_wh(node_pos(rect, circuits, gates, nodes, *node), vec2(CIRCLE_RAD, CIRCLE_RAD))))
+        .collect();
+    (gate_positions, node_positions)
+}
+
+// TODO: reorganize all of these functions
+fn gate_rect(window_rect: Rect, gate_location: &location::GateLocation, num_inputs: usize, num_outputs: usize) -> Rect {
+    // TODO: gate_location should eventually be the center
+    let (x, y) = (gate_location.x, gate_location.y);
+    let wh = gate_display_size(num_inputs, num_outputs);
+    Rect::from_x_y_w_h(x as f32 * HORIZONTAL_GATE_SPACING - window_rect.x.len() / 2.0 + wh.x / 2.0, y + wh.y / 2.0, wh.x, wh.y)
+}
+
+pub(crate) fn gate_display_size(num_inputs: usize, num_outputs: usize) -> Vec2 {
+    const EXTRA_VERTICAL_HEIGHT: f32 = 40.0;
+    const GATE_WIDTH: f32 = 50.0;
+
+    let gate_height = (std::cmp::max(num_inputs, num_outputs) - 1) as f32 * VERTICAL_VALUE_SPACING + EXTRA_VERTICAL_HEIGHT;
+    pt2(GATE_WIDTH, gate_height)
+}
+
+fn y_centered_around(center_y: f32, total: usize, index: usize) -> f32 {
+    let box_height: f32 = ((total - 1) as f32) * VERTICAL_VALUE_SPACING;
+    let box_start_y = center_y + (box_height / 2.0);
+    box_start_y - (index as f32) * VERTICAL_VALUE_SPACING
+}
+
+fn circuit_input_pos(window_rect: Rect, simulation: &Simulation, circuit: simulation::CircuitKey, index: usize) -> Vec2 {
+    let circuit = &simulation.circuits[circuit];
+    pt2(window_rect.x.start, y_centered_around(0.0, circuit.nodes.inputs().len(), index))
+}
+fn circuit_output_pos(window_rect: Rect, simulation: &Simulation, circuit: simulation::CircuitKey, index: usize) -> Vec2 {
+    let circuit = &simulation.circuits[circuit];
+    pt2(window_rect.x.end, y_centered_around(0.0, circuit.nodes.outputs().len(), index))
+}
+
+fn gate_input_pos(window_rect: Rect, gate_location: &location::GateLocation, num_inputs: usize, num_outputs: usize, idx: usize) -> Vec2 {
+    let rect = gate_rect(window_rect, gate_location, num_inputs, num_outputs);
+    pt2(rect.left(), y_centered_around(rect.y(), num_inputs, idx))
+}
+fn gate_output_pos(window_rect: Rect, gate_location: &location::GateLocation, num_inputs: usize, num_outputs: usize, idx: usize) -> Vec2 {
+    let rect = gate_rect(window_rect, gate_location, num_inputs, num_outputs);
+    pt2(rect.right(), y_centered_around(rect.y(), num_outputs, idx))
+}
+
+fn node_pos(window_rect: Rect, circuits: &simulation::CircuitMap, gates: &simulation::GateMap, nodes: &simulation::NodeMap, node: NodeKey) -> Vec2 {
+    match nodes[node].parent.kind() {
+        // hierarchy::NodeParentKind::CircuitIn(c, i) if c == simulation.main_circuit => circuit_input_pos(window_rect, simulation, c, i), TODO: switching between different views
+        // hierarchy::NodeParentKind::CircuitOut(c, i) if c == simulation.main_circuit => circuit_output_pos(window_rect, simulation, c, i), TODO: switching between different views
+        hierarchy::NodeParentKind::CircuitIn(c, i) => {
+            let circuit = &circuits[c];
+            let location = &circuit.location;
+            let num_inputs = circuit.nodes.inputs().len();
+            let num_outputs = circuit.nodes.outputs().len();
+            gate_input_pos(window_rect, location, num_inputs, num_outputs, i)
+        }
+        hierarchy::NodeParentKind::CircuitOut(c, i) => {
+            let circuit = &circuits[c];
+            let location = &circuit.location;
+            let num_inputs = circuit.nodes.inputs().len();
+            let num_outputs = circuit.nodes.outputs().len();
+            gate_output_pos(window_rect, location, num_inputs, num_outputs, i)
+        }
+        hierarchy::NodeParentKind::GateIn(g, i) => {
+            let location = &simulation::Gate::location(circuits, gates, g);
+            let num_inputs = simulation::Gate::num_inputs(circuits, gates, g);
+            let num_outputs = simulation::Gate::num_outputs(circuits, gates, g);
+            gate_input_pos(window_rect, location, num_inputs, num_outputs, i)
+        }
+        hierarchy::NodeParentKind::GateOut(g, i) => {
+            let location = &simulation::Gate::location(circuits, gates, g);
+            let num_inputs = simulation::Gate::num_inputs(circuits, gates, g);
+            let num_outputs = simulation::Gate::num_outputs(circuits, gates, g);
+            gate_output_pos(window_rect, location, num_inputs, num_outputs, i)
+        }
+    }
+}
+
+fn node_color(nodes: &simulation::NodeMap, node: NodeKey, use_production: bool) -> Rgb {
+    fn value_to_color(v: logic::Value) -> Rgb {
+        match v {
+            logic::Value::H => ON_COLOR,
+            logic::Value::L => OFF_COLOR,
+            logic::Value::Z => HIGH_IMPEDANCE_COLOR,
+            logic::Value::X => ERR_COLOR,
+        }
+    }
+    if use_production {
+        if let Some(v) = logic::get_node_production(nodes, node) {
+            value_to_color(v)
+        } else {
+            value_to_color(logic::get_node_value(nodes, node))
+        }
+    } else {
+        value_to_color(logic::get_node_value(nodes, node))
+    }
 }
