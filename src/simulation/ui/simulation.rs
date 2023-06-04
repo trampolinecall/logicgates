@@ -2,11 +2,10 @@ use std::{collections::HashMap, marker::PhantomData};
 
 use nannou::prelude::*;
 
-use crate::simulation::{self, hierarchy, location, logic, ui::Widget, Gate, GateKey, NodeKey, Simulation};
+use crate::simulation::{self, hierarchy, location, ui::Widget, Gate, GateKey, NodeKey, Simulation};
 
-// TODO: figure out a better place to put all of these constants
-pub(super) const CIRCLE_RAD: f32 = 5.0;
-pub(super) const CONNECTION_RAD: f32 = CIRCLE_RAD / 2.0;
+const CIRCLE_RAD: f32 = 5.0;
+const CONNECTION_RAD: f32 = CIRCLE_RAD / 2.0;
 const VERTICAL_VALUE_SPACING: f32 = 20.0;
 const HORIZONTAL_GATE_SPACING: f32 = 100.0;
 

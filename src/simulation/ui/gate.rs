@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use nannou::prelude::*;
 
-use crate::simulation::{ui::Widget, Simulation, GateKey};
+use crate::simulation::{ui::Widget, Simulation};
 
 pub(crate) struct GateWidget {
 }
