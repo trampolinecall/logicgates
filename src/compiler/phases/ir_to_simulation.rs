@@ -55,7 +55,7 @@ pub(crate) fn convert(file: &File, ast_to_ir::IR { circuits, circuit_table, mut 
                 }
             };
 
-            let mut simulation = simulation::Simulation { circuits: circuit_map, gates: gate_map, nodes: node_map, toplevel_gates: main_children };
+            let mut simulation = simulation::Simulation { circuits: circuit_map, gates: gate_map, nodes: node_map, toplevel_gates: main_children, widget: simulation::ui::simulation::SimulationWidget::new(), connections: simulation::connections::Connections::new() };
             // simulation::location::calculate_locations(&mut simulation); TODO: figure out what to do with this
 
             Some(simulation)
@@ -184,7 +184,7 @@ fn connect(
     assert_eq!(start_nodes.len(), end_nodes.len(), "connecting bundles that have different size");
 
     for (p, r) in start_nodes.into_iter().zip(end_nodes) {
-        logic::connect(nodes, p, r);
+        simulation::connections::connect(nodes, p, r);
     }
 }
 

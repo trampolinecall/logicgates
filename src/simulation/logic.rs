@@ -1,16 +1,12 @@
 use std::collections::HashSet;
 
 use crate::simulation::{hierarchy, CircuitKey, CircuitMap, Gate, GateKey, GateMap, Node, NodeKey, NodeMap};
-pub(crate) use connections::{connect, disconnect};
-
-mod connections;
 
 const SUBTICKS_PER_UPDATE: usize = 1; // TODO: make this adjustable at runtime
 
 pub(crate) struct NodeLogic {
     production: Option<Value>,
     value: Value,
-    connections: connections::NodeConnections,
 }
 
 pub(crate) struct NandLogic {
@@ -51,11 +47,7 @@ impl Value {
 
 impl NodeLogic {
     pub(crate) fn new() -> Self {
-        NodeLogic { production: None, value: Value::Z, connections: connections::NodeConnections::new() }
-    }
-
-    pub(crate) fn adjacent(&self) -> &HashSet<NodeKey> {
-        self.connections.adjacent()
+        NodeLogic { production: None, value: Value::Z }
     }
 }
 
@@ -171,7 +163,7 @@ pub(crate) fn update(gates: &mut GateMap, node_map: &mut NodeMap) {
         for (cur_node, node) in &*node_map {
             if let Some(production) = node.logic.production {
                 let mut already: HashSet<_> = HashSet::new();
-                let mut queue: Vec<_> = node.logic.adjacent().iter().copied().chain(std::iter::once(cur_node)).collect();
+                let mut queue: Vec<_> = node.connections.adjacent().iter().copied().chain(std::iter::once(cur_node)).collect();
                 while let Some(adj) = queue.pop() {
                     if already.contains(&adj) {
                         continue;
@@ -181,7 +173,7 @@ pub(crate) fn update(gates: &mut GateMap, node_map: &mut NodeMap) {
                     let result = Value::join(node_values[&adj], production);
                     *node_values.get_mut(&adj).unwrap() = result;
 
-                    queue.extend(node_map[adj].logic.adjacent());
+                    queue.extend(node_map[adj].connections.adjacent());
                 }
             }
         }
