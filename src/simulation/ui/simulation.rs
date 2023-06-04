@@ -10,12 +10,7 @@ pub(super) const CONNECTION_RAD: f32 = CIRCLE_RAD / 2.0;
 const VERTICAL_VALUE_SPACING: f32 = 20.0;
 const HORIZONTAL_GATE_SPACING: f32 = 100.0;
 
-const BG: Rgb = Rgb { red: 0.172, green: 0.243, blue: 0.313, standard: PhantomData };
-pub(super) const GATE_COLOR: Rgb = Rgb { red: 0.584, green: 0.647, blue: 0.65, standard: PhantomData };
-const ON_COLOR: Rgb = Rgb { red: 0.18, green: 0.8, blue: 0.521, standard: PhantomData };
-const OFF_COLOR: Rgb = Rgb { red: 0.498, green: 0.549, blue: 0.552, standard: PhantomData };
-const HIGH_IMPEDANCE_COLOR: Rgb = Rgb { red: 52.0 / 255.0, green: 152.0 / 255.0, blue: 219.0 / 255.0, standard: PhantomData };
-const ERR_COLOR: Rgb = Rgb { red: 231.0 / 255.0, green: 76.0 / 255.0, blue: 60.0 / 255.0, standard: PhantomData };
+const BG_COLOR: Rgb = Rgb { red: 0.172, green: 0.243, blue: 0.313, standard: PhantomData };
 
 pub(crate) struct SimulationWidget {}
 impl SimulationWidget {
@@ -82,6 +77,7 @@ impl Widget for SimulationWidget {
         */
 
         let (/* connection_positions, TODO */ gate_positions, node_positions) = layout(&simulation.circuits, &simulation.gates, &simulation.nodes, &simulation.toplevel_gates, rect);
+        draw.background().color(BG_COLOR);
         /* TODO
         for (connection, position) in connection_positions {
             todo!()
@@ -115,8 +111,8 @@ fn layout(
         .collect();
     let node_positions = gate_children
         .iter()
-        .flat_map(|gate| simulation::Gate::inputs(circuits, gates, *gate).iter().chain(simulation::Gate::outputs(circuits, gates, *gate)).map(|n| (*gate, n)))
-        .map(|(gate, node)| (*node, nannou::geom::Rect::from_xy_wh(node_pos(rect, circuits, gates, nodes, *node), vec2(CIRCLE_RAD, CIRCLE_RAD))))
+        .flat_map(|gate| simulation::Gate::inputs(circuits, gates, *gate).iter().chain(simulation::Gate::outputs(circuits, gates, *gate)))
+        .map(|node| (*node, nannou::geom::Rect::from_xy_wh(node_pos(rect, circuits, gates, nodes, *node), vec2(CIRCLE_RAD * 2.0, CIRCLE_RAD * 2.0))))
         .collect();
     (gate_positions, node_positions)
 }
@@ -194,22 +190,3 @@ fn node_pos(window_rect: Rect, circuits: &simulation::CircuitMap, gates: &simula
     }
 }
 
-fn node_color(nodes: &simulation::NodeMap, node: NodeKey, use_production: bool) -> Rgb {
-    fn value_to_color(v: logic::Value) -> Rgb {
-        match v {
-            logic::Value::H => ON_COLOR,
-            logic::Value::L => OFF_COLOR,
-            logic::Value::Z => HIGH_IMPEDANCE_COLOR,
-            logic::Value::X => ERR_COLOR,
-        }
-    }
-    if use_production {
-        if let Some(v) = logic::get_node_production(nodes, node) {
-            value_to_color(v)
-        } else {
-            value_to_color(logic::get_node_value(nodes, node))
-        }
-    } else {
-        value_to_color(logic::get_node_value(nodes, node))
-    }
-}
