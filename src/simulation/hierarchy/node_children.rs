@@ -1,4 +1,4 @@
-use crate::simulation::{logic, ui, CircuitKey, GateKey, Node, NodeKey, NodeMap};
+use crate::simulation::{logic, ui, CircuitKey, GateKey, Node, NodeKey, NodeMap, connections};
 
 pub(crate) struct NodeChildren<I: private::NodeVec, O: private::NodeVec> {
     inputs: I,
@@ -63,6 +63,7 @@ impl<I: private::NodeVec, O: private::NodeVec> NodeChildren<I, O> {
                                 },
                             },
                             widget: ui::NodeWidget::new(),
+                            connections: connections::NodeConnections::new(),
                         });
                         i += 1;
                         nk
@@ -84,6 +85,7 @@ impl<I: private::NodeVec, O: private::NodeVec> NodeChildren<I, O> {
                                 },
                             },
                             widget: ui::NodeWidget::new(),
+                            connections: connections::NodeConnections::new(),
                         });
                         i += 1;
                         nk

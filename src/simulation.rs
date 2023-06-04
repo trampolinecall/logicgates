@@ -1,6 +1,7 @@
 pub(crate) mod hierarchy;
 pub(crate) mod logic;
 pub(crate) mod ui;
+pub(crate) mod connections;
 
 slotmap::new_key_type! {
     pub(crate) struct CircuitKey;
@@ -15,8 +16,11 @@ pub(crate) struct Simulation {
     pub(crate) circuits: CircuitMap,
     pub(crate) gates: GateMap,
     pub(crate) nodes: NodeMap,
+    pub(crate) connections: connections::Connections,
 
     pub(crate) toplevel_gates: hierarchy::GateChildren,
+
+    pub(crate) widget: ui::simulation::SimulationWidget,
 }
 
 pub(crate) struct Circuit {
@@ -30,6 +34,7 @@ pub(crate) struct Node {
     pub(crate) logic: logic::NodeLogic,
     pub(crate) parent: hierarchy::NodeParent,
     pub(crate) widget: ui::NodeWidget,
+    pub(crate) connections: connections::NodeConnections,
 }
 
 pub(crate) enum Gate {
