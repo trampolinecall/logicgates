@@ -23,8 +23,8 @@ impl Widget for SimulationWidget {
     // TODO: figure out a more elegant way to draw the simulation because this relies on the simulation being passed to be the same simulation that this widget belongs to
     fn draw(&self, simulation: &Simulation, draw: &nannou::Draw, rect: nannou::geom::Rect) {
         let toplevel_gates = &simulation.toplevel_gates; // TODO: ability to switch between viewing toplevel and circuit
-        /*
 
+        /*
         let circuit_inputs = std::iter::empty(); // main_circuit.nodes.inputs().iter(); // TODO: put back when adding switching between different views
         let circuit_outputs = std::iter::empty(); // main_circuit.nodes.outputs().iter();
         let gate_inputs = toplevel_gates.iter().flat_map(|gk| Gate::inputs(&simulation.circuits, &simulation.gates, *gk));
@@ -120,7 +120,7 @@ fn gate_rect(window_rect: Rect, gate_location: &location::GateLocation, num_inpu
     // TODO: gate_location should eventually be the center
     let (x, y) = (gate_location.x, gate_location.y);
     let wh = gate_display_size(num_inputs, num_outputs);
-    Rect::from_x_y_w_h(x as f32 * HORIZONTAL_GATE_SPACING - window_rect.x.len() / 2.0 + wh.x / 2.0, y + wh.y / 2.0, wh.x, wh.y)
+    Rect::from_x_y_w_h(window_rect.left() + x as f32 * HORIZONTAL_GATE_SPACING + wh.x / 2.0, window_rect.y() + y + wh.y / 2.0, wh.x, wh.y)
 }
 
 pub(crate) fn gate_display_size(num_inputs: usize, num_outputs: usize) -> Vec2 {
@@ -187,4 +187,3 @@ fn node_pos(window_rect: Rect, circuits: &simulation::CircuitMap, gates: &simula
         }
     }
 }
-
