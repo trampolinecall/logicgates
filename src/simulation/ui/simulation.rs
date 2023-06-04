@@ -22,10 +22,8 @@ impl SimulationWidget {
 impl Widget for SimulationWidget {
     // TODO: figure out a more elegant way to draw the simulation because this relies on the simulation being passed to be the same simulation that this widget belongs to
     fn draw(&self, simulation: &Simulation, draw: &nannou::Draw, rect: nannou::geom::Rect) {
-        /*
         let toplevel_gates = &simulation.toplevel_gates; // TODO: ability to switch between viewing toplevel and circuit
-
-        let window_rect = app.window_rect(); // TODO: probably remove this when the different coordinate system is implemented
+        /*
 
         let circuit_inputs = std::iter::empty(); // main_circuit.nodes.inputs().iter(); // TODO: put back when adding switching between different views
         let circuit_outputs = std::iter::empty(); // main_circuit.nodes.outputs().iter();
@@ -76,8 +74,8 @@ impl Widget for SimulationWidget {
         connection_widgets.chain(gate_widgets).chain(node_widgets)
         */
 
-        let (/* connection_positions, TODO */ gate_positions, node_positions) = layout(&simulation.circuits, &simulation.gates, &simulation.nodes, &simulation.toplevel_gates, rect);
-        draw.background().color(BG_COLOR);
+        let (/* connection_positions, TODO */ gate_positions, node_positions) = layout(&simulation.circuits, &simulation.gates, &simulation.nodes, toplevel_gates, rect);
+        draw.rect().xy(rect.xy()).wh(rect.wh()).color(BG_COLOR);
         /* TODO
         for (connection, position) in connection_positions {
             todo!()
