@@ -125,7 +125,7 @@ pub(crate) fn update(gates: &mut GateMap, node_map: &mut NodeMap) {
             .iter()
             .filter_map(|(_, gate)| -> Option<(NodeKey, Value)> {
                 match &gate {
-                    Gate::Nand { logic: NandLogic { nodes: logic_nodes, _dont_construct: () }, widget: _ } => {
+                    Gate::Nand { logic: NandLogic { nodes: logic_nodes, _dont_construct: () }, widget: _, location } => {
                         let [a, b] = logic_nodes.inputs();
                         let [o] = logic_nodes.outputs();
                         let a_value = node_map[*a].logic.value;
@@ -142,8 +142,8 @@ pub(crate) fn update(gates: &mut GateMap, node_map: &mut NodeMap) {
                             },
                         ))
                     }
-                    Gate::Const { logic: ConstLogic { nodes: _, name: _ }, widget: _ } => None, // const nodes do not need to update becuase they always output the value they were created with
-                    Gate::Unerror { logic: UnerrorLogic { nodes: logic_nodes, _dont_construct: () }, widget: _ } => {
+                    Gate::Const { logic: ConstLogic { nodes: _, name: _ }, widget: _, location } => None, // const nodes do not need to update becuase they always output the value they were created with
+                    Gate::Unerror { logic: UnerrorLogic { nodes: logic_nodes, _dont_construct: () }, widget: _, location } => {
                         let [in_] = logic_nodes.inputs();
                         let [out] = logic_nodes.outputs();
                         let in_value = node_map[*in_].logic.value;

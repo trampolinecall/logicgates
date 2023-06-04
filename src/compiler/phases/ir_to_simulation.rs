@@ -159,13 +159,13 @@ fn lower_gate<'file, 'circuit>(
             (expansion_stack, gate_map.insert(simulation::Gate::Custom(subcircuit_idx)))
         }
         ir::CircuitOrIntrinsic::Nand => {
-            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Nand { logic: logic::NandLogic::new(node_map, gk), widget: simulation::ui::GateWidget::new() }))
+            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Nand { logic: logic::NandLogic::new(node_map, gk), widget: simulation::ui::GateWidget::new(), location: simulation::location::GateLocation::new() }))
         }
         ir::CircuitOrIntrinsic::Const(value) => {
-            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Const { logic: logic::ConstLogic::new(node_map, gk, *value), widget: simulation::ui::GateWidget::new() }))
+            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Const { logic: logic::ConstLogic::new(node_map, gk, *value), widget: simulation::ui::GateWidget::new(), location: simulation::location::GateLocation::new() }))
         }
         ir::CircuitOrIntrinsic::Unerror => {
-            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Unerror { logic: logic::UnerrorLogic::new(node_map, gk), widget: simulation::ui::GateWidget::new() }))
+            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Unerror { logic: logic::UnerrorLogic::new(node_map, gk), widget: simulation::ui::GateWidget::new(), location: simulation::location::GateLocation::new() }))
         }
     };
 
