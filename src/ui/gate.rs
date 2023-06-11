@@ -2,10 +2,9 @@ use std::marker::PhantomData;
 
 use nannou::prelude::*;
 
-use crate::simulation::{ui::Widget, Simulation};
+use crate::{simulation::Simulation, ui::Widget};
 
-pub(crate) struct GateWidget {
-}
+pub(crate) struct GateWidget {}
 
 const GATE_COLOR: Rgb = Rgb { red: 0.584, green: 0.647, blue: 0.65, standard: PhantomData };
 

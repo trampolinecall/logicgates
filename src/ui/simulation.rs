@@ -2,7 +2,7 @@ use std::{collections::HashMap, marker::PhantomData};
 
 use nannou::prelude::*;
 
-use crate::simulation::{self, hierarchy, location, ui::Widget, Gate, GateKey, NodeKey, Simulation};
+use crate::{simulation::{self, hierarchy, location, Gate, GateKey, NodeKey, Simulation}, ui::Widget};
 
 const CIRCLE_RAD: f32 = 5.0;
 const CONNECTION_RAD: f32 = CIRCLE_RAD / 2.0;
@@ -81,10 +81,12 @@ impl Widget for SimulationWidget {
         }
         */
         for (gate, position) in gate_positions {
-            simulation::Gate::widget(&simulation.circuits, &simulation.gates, gate).draw(simulation, draw, position);
+            // simulation::Gate::widget(&simulation.circuits, &simulation.gates, gate).draw(simulation, draw, position);
+            // TODO
         }
         for (node, position) in node_positions {
-            simulation.nodes[node].widget.draw(simulation, draw, position);
+            // simulation.nodes[node].widget.draw(simulation, draw, position);
+            // TODO
         }
     }
 }

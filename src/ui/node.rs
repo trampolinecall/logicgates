@@ -2,7 +2,10 @@ use std::marker::PhantomData;
 
 use nannou::prelude::*;
 
-use crate::simulation::{logic, ui::Widget, NodeKey, NodeMap, Simulation};
+use crate::{
+    simulation::{logic, NodeKey, NodeMap, Simulation},
+    ui::Widget,
+};
 
 pub(crate) struct NodeWidget {
     node_key: NodeKey,

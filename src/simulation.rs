@@ -2,7 +2,8 @@ pub(crate) mod connections;
 pub(crate) mod hierarchy;
 pub(crate) mod location;
 pub(crate) mod logic;
-pub(crate) mod ui;
+
+use crate::ui;
 
 slotmap::new_key_type! {
     pub(crate) struct CircuitKey;
@@ -20,8 +21,6 @@ pub(crate) struct Simulation {
     pub(crate) connections: connections::Connections,
 
     pub(crate) toplevel_gates: hierarchy::GateChildren,
-
-    pub(crate) widget: ui::simulation::SimulationWidget,
 }
 
 pub(crate) struct Circuit {
@@ -29,13 +28,11 @@ pub(crate) struct Circuit {
     pub(crate) gates: hierarchy::GateChildren,
     pub(crate) nodes: hierarchy::NodeChildren<Vec<NodeKey>, Vec<NodeKey>>,
     pub(crate) location: location::GateLocation,
-    pub(crate) widget: ui::gate::GateWidget,
 }
 
 pub(crate) struct Node {
     pub(crate) logic: logic::NodeLogic,
     pub(crate) parent: hierarchy::NodeParent,
-    pub(crate) widget: ui::node::NodeWidget,
     pub(crate) connections: connections::NodeConnections,
 }
 
@@ -52,7 +49,6 @@ impl Circuit {
             name,
             gates: hierarchy::GateChildren::new(),
             nodes: hierarchy::NodeChildren::new(nodes, hierarchy::NodeParentType::Circuit(circuit_key), num_inputs, num_outputs),
-            widget: ui::gate::GateWidget::new(),
             location: location::GateLocation::new(),
         }
     }
@@ -91,12 +87,6 @@ impl Gate {
         Gate::outputs(circuits, gates, gate).len()
     }
 
-    pub(crate) fn widget<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r ui::gate::GateWidget {
-        match &gates[gate] {
-            Gate::Nand { logic: _, widget, location: _ } | Gate::Const { logic: _, widget, location: _ } | Gate::Unerror { logic: _, widget, location: _ } => widget,
-            Gate::Custom(sck) => &circuits[*sck].widget,
-        }
-    }
     pub(crate) fn location<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r location::GateLocation {
         match &gates[gate] {
             Gate::Nand { logic: _, widget: _, location } | Gate::Const { logic: _, widget: _, location } | Gate::Unerror { logic: _, widget: _, location } => location,
