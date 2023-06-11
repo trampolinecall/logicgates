@@ -9,5 +9,5 @@ trait Widget {
 }
 
 pub(crate) fn render(app: &nannou::App, draw: &nannou::Draw, simulation: &Simulation) {
-    simulation.widget.draw(simulation, draw, app.window_rect())
+    // simulation.widget.draw(simulation, draw, app.window_rect())
 }

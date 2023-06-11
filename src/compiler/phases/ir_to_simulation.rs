@@ -7,7 +7,7 @@ use crate::{
         phases::ast_to_ir,
     },
     simulation::{self, logic},
-    utils::arena,
+    utils::arena, ui,
 };
 
 struct NoMain<'file>(&'file File);
@@ -56,7 +56,7 @@ pub(crate) fn convert(file: &File, ast_to_ir::IR { circuits, circuit_table, mut 
                 }
             };
 
-            let mut simulation = simulation::Simulation { circuits: circuit_map, gates: gate_map, nodes: node_map, toplevel_gates: main_children, widget: simulation::ui::simulation::SimulationWidget::new(), connections: simulation::connections::Connections::new() };
+            let mut simulation = simulation::Simulation { circuits: circuit_map, gates: gate_map, nodes: node_map, toplevel_gates: main_children, connections: simulation::connections::Connections::new() };
             // simulation::location::calculate_locations(&mut simulation); TODO: figure out what to do with this
 
             Some(simulation)
@@ -159,13 +159,13 @@ fn lower_gate<'file, 'circuit>(
             (expansion_stack, gate_map.insert(simulation::Gate::Custom(subcircuit_idx)))
         }
         ir::CircuitOrIntrinsic::Nand => {
-            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Nand { logic: logic::NandLogic::new(node_map, gk), widget: simulation::ui::gate::GateWidget::new(), location: simulation::location::GateLocation::new() }))
+            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Nand { logic: logic::NandLogic::new(node_map, gk), widget: ui::gate::GateWidget::new(), location: simulation::location::GateLocation::new() }))
         }
         ir::CircuitOrIntrinsic::Const(value) => {
-            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Const { logic: logic::ConstLogic::new(node_map, gk, *value), widget: simulation::ui::gate::GateWidget::new(), location: simulation::location::GateLocation::new() }))
+            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Const { logic: logic::ConstLogic::new(node_map, gk, *value), widget: ui::gate::GateWidget::new(), location: simulation::location::GateLocation::new() }))
         }
         ir::CircuitOrIntrinsic::Unerror => {
-            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Unerror { logic: logic::UnerrorLogic::new(node_map, gk), widget: simulation::ui::gate::GateWidget::new(), location: simulation::location::GateLocation::new() }))
+            (expansion_stack, gate_map.insert_with_key(|gk| simulation::Gate::Unerror { logic: logic::UnerrorLogic::new(node_map, gk), widget: ui::gate::GateWidget::new(), location: simulation::location::GateLocation::new() }))
         }
     };
 
