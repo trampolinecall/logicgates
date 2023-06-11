@@ -8,11 +8,21 @@ pub(crate) mod ui;
 
 use nannou::prelude::*;
 
+struct LogicGates {
+    simulation: simulation::Simulation, // model in the mvc pattern terminology
+    view: ui::View,
+}
+impl LogicGates {
+    fn update_view(&mut self) {
+        self.view = ui::view(&self.simulation);
+    }
+}
+
 fn main() {
     nannou::app(model).event(event).update(update).simple_window(view).run();
 }
 
-fn event(_: &App, simulation: &mut simulation::Simulation, event: Event) {
+fn event(_: &App, simulation: &mut LogicGates, event: Event) {
     /*
     if let Event::WindowEvent { simple: Some(KeyPressed(key)), .. } = event {
         if let Some(index) = match key {
@@ -62,18 +72,22 @@ fn event(_: &App, simulation: &mut simulation::Simulation, event: Event) {
     }
     */
     // TODO: remove?
+    // logicgates.update_view(); // TODO: add this when adding event handling
 }
 
-fn model(_: &App) -> simulation::Simulation {
-    compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap()
+fn model(_: &App) -> LogicGates {
+    let simulation = compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap();
+    let view = ui::view(&simulation);
+    LogicGates { simulation, view }
 }
 
-fn update(_: &App, simulation: &mut simulation::Simulation, _: Update) {
-    simulation::logic::update(&mut simulation.gates, &mut simulation.nodes);
+fn update(_: &App, logicgates: &mut LogicGates, _: Update) {
+    simulation::logic::update(&mut logicgates.simulation.gates, &mut logicgates.simulation.nodes);
+    logicgates.update_view()
 }
 
-fn view(app: &App, simulation: &simulation::Simulation, frame: Frame) {
+fn view(app: &App, logicgates: &LogicGates, frame: Frame) {
     let draw = app.draw();
-    ui::render(app, &draw, simulation);
+    ui::render(app, &draw, &logicgates.view);
     draw.to_frame(app, &frame).unwrap();
 }
