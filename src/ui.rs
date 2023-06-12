@@ -1,7 +1,4 @@
-use crate::{
-    simulation::{Gate, Simulation},
-    ui::{gate::GateWidget, node::NodeWidget, simulation::SimulationWidget},
-};
+use crate::{simulation::Simulation, ui::simulation::SimulationWidget};
 
 mod gate;
 mod node;
@@ -13,25 +10,13 @@ pub(crate) struct View {
 }
 
 trait Widget {
-    fn draw(&self, simulation: &Simulation, draw: &nannou::Draw, rect: nannou::geom::Rect);
+    fn draw(&self, simulation: &Simulation, draw: &nannou::Draw);
 }
 
 pub(crate) fn render(app: &nannou::App, draw: &nannou::Draw, simulation: &Simulation) {
-    let view = view(simulation);
-    view.sim.draw(simulation, draw, app.window_rect());
+    view(app, simulation).sim.draw(simulation, draw);
 }
 
-fn view(simulation: &Simulation) -> View {
-    let toplevel_gates = &simulation.toplevel_gates; // TODO: ability to switch between viewing toplevel and circuit
-    View {
-        sim: SimulationWidget {
-            gates: toplevel_gates.iter().map(|gate| GateWidget { key: *gate }).collect(),
-            nodes: toplevel_gates
-                .iter()
-                .flat_map(|gate| Gate::inputs(&simulation.circuits, &simulation.gates, *gate).iter().chain(Gate::outputs(&simulation.circuits, &simulation.gates, *gate)))
-                .map(|node| NodeWidget { key: *node })
-                .collect(),
-        },
-    }
+fn view(app: &nannou::App, simulation: &Simulation) -> View {
+    View { sim: SimulationWidget::new(app.window_rect(), simulation) }
 }
-
