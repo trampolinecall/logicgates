@@ -4,13 +4,13 @@ use std::collections::HashMap;
 use crate::simulation::{CircuitMap, GateKey, GateMap, Simulation};
 
 pub(crate) struct GateLocation {
-    pub(crate) x: u32,
+    pub(crate) x: f32,
     pub(crate) y: f32,
 }
 
 impl GateLocation {
     pub(crate) fn new() -> Self {
-        Self { x: 0, y: 0.0 }
+        Self { x: 0.0, y: 0.0 }
     }
 }
 
