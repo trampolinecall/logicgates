@@ -21,9 +21,25 @@ const HIGH_IMPEDANCE_COLOR: Rgb = Rgb { red: 52.0 / 255.0, green: 152.0 / 255.0,
 const ERR_COLOR: Rgb = Rgb { red: 231.0 / 255.0, green: 76.0 / 255.0, blue: 60.0 / 255.0, standard: PhantomData };
 
 impl Widget for NodeWidget {
-    fn draw(&self, simulation: &Simulation, draw: &nannou::Draw) {
+    fn draw(&self, simulation: &Simulation, draw: &nannou::Draw, hovered: Option<&dyn Widget>) {
         let color = node_color(&simulation.nodes, self.key, true);
-        draw.ellipse().color(color).xy(self.location).radius(CIRCLE_RAD);
+        let mut ell = draw.ellipse().color(color).xy(self.location).radius(CIRCLE_RAD);
+        if let Some(hovered) = hovered {
+            if std::ptr::eq(hovered, self) {
+                // TODO: fix clippy lint about this
+                ell = ell.stroke(Rgba { color: Rgb::from_components((1.0, 1.0, 1.0)), alpha: 0.5 }).stroke_weight(5.0);
+                // TODO: use constant for stoke weight, hover color
+            }
+        }
+        ell.finish();
+    }
+
+    fn find_hover(&self, mouse_pos: nannou::geom::Vec2) -> Option<&dyn Widget> {
+        if self.location.distance(mouse_pos) < CIRCLE_RAD + 2.0 {
+            // TODO: move 2 to a constant "HOVER_DISTANCE"
+            return Some(self);
+        }
+        None
     }
 }
 
