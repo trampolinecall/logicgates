@@ -103,7 +103,7 @@ impl Widget for SimulationWidget {
     }
 }
 
-fn layout<'gate_widgets, 'node_widgets>(
+fn layout(
     circuit_map: &simulation::CircuitMap,
     gate_map: &simulation::GateMap,
     node_map: &simulation::NodeMap,
