@@ -56,8 +56,7 @@ pub(crate) fn convert(file: &File, ast_to_ir::IR { circuits, circuit_table, mut 
                 }
             };
 
-            let mut simulation =
-                simulation::Simulation { circuits: circuit_map, gates: gate_map, nodes: node_map, toplevel_gates: main_children, connections: simulation::connections::Connections::new() };
+            let mut simulation = simulation::Simulation { circuits: circuit_map, gates: gate_map, nodes: node_map, toplevel_gates: main_children, connections };
             // simulation::location::calculate_locations(&mut simulation); TODO: figure out what to do with this
 
             Some(simulation)
