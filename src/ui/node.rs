@@ -11,12 +11,6 @@ pub(crate) struct NodeWidget {
     pub(crate) key: NodeKey,
 }
 
-impl NodeWidget {
-    pub(crate) fn new(key: NodeKey) -> NodeWidget {
-        NodeWidget { key }
-    }
-}
-
 const ON_COLOR: Rgb = Rgb { red: 0.18, green: 0.8, blue: 0.521, standard: PhantomData };
 const OFF_COLOR: Rgb = Rgb { red: 0.498, green: 0.549, blue: 0.552, standard: PhantomData };
 const HIGH_IMPEDANCE_COLOR: Rgb = Rgb { red: 52.0 / 255.0, green: 152.0 / 255.0, blue: 219.0 / 255.0, standard: PhantomData };

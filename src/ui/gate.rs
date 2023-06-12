@@ -13,12 +13,6 @@ pub(crate) struct GateWidget {
 
 const GATE_COLOR: Rgb = Rgb { red: 0.584, green: 0.647, blue: 0.65, standard: PhantomData };
 
-impl GateWidget {
-    pub(crate) fn new(key: GateKey) -> GateWidget {
-        GateWidget { key }
-    }
-}
-
 impl Widget for GateWidget {
     fn draw(&self, simulation: &Simulation, draw: &nannou::Draw, rect: nannou::geom::Rect) {
         draw.rect().color(GATE_COLOR).xy(rect.xy()).wh(rect.wh());
