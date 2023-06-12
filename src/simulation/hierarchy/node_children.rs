@@ -1,4 +1,4 @@
-use crate::{simulation::{connections, logic, CircuitKey, GateKey, Node, NodeKey, NodeMap}, ui};
+use crate::simulation::{connections, logic, CircuitKey, GateKey, Node, NodeKey, NodeMap};
 
 pub(crate) struct NodeChildren<I: private::NodeVec, O: private::NodeVec> {
     inputs: I,
@@ -54,7 +54,7 @@ impl<I: private::NodeVec, O: private::NodeVec> NodeChildren<I, O> {
                     let mut i = 0;
                     let nodes = &mut *nodes;
                     move || {
-                        let nk = nodes.insert_with_key(|nk| Node {
+                        let nk = nodes.insert(Node {
                             logic: logic::NodeLogic::new(),
                             parent: NodeParent {
                                 kind: match parent_type {
@@ -75,7 +75,7 @@ impl<I: private::NodeVec, O: private::NodeVec> NodeChildren<I, O> {
                     let mut i = 0;
                     let nodes = &mut *nodes;
                     move || {
-                        let nk = nodes.insert_with_key(|nk| Node {
+                        let nk = nodes.insert(Node {
                             logic: logic::NodeLogic::new(),
                             parent: NodeParent {
                                 kind: match parent_type {

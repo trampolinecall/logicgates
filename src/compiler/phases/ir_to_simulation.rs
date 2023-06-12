@@ -7,7 +7,7 @@ use crate::{
         phases::ast_to_ir,
     },
     simulation::{self, logic},
-    utils::arena, ui,
+    utils::arena,
 };
 
 struct NoMain<'file>(&'file File);
