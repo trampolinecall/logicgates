@@ -4,8 +4,7 @@ use nannou::prelude::*;
 
 use crate::{
     simulation::{self, hierarchy, location, Gate, GateKey, NodeKey, Simulation},
-    ui::{connection::ConnectionWidget, Widget},
-    ui::{gate::GateWidget, node::NodeWidget},
+    view::{connection::ConnectionWidget, gate::GateWidget, node::NodeWidget, Widget},
 };
 
 const VERTICAL_VALUE_SPACING: f32 = 20.0;

@@ -1,4 +1,4 @@
-use crate::{simulation::Simulation, ui::simulation::SimulationWidget};
+use crate::{simulation::Simulation, view::simulation::SimulationWidget};
 
 mod connection;
 mod gate;

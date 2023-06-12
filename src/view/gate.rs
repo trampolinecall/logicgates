@@ -4,7 +4,7 @@ use nannou::prelude::*;
 
 use crate::{
     simulation::{GateKey, Simulation},
-    ui::Widget,
+    view::Widget,
 };
 
 pub(crate) struct GateWidget {
