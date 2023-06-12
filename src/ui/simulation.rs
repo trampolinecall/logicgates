@@ -12,6 +12,8 @@ const CIRCLE_RAD: f32 = 5.0;
 const CONNECTION_RAD: f32 = CIRCLE_RAD / 2.0;
 const VERTICAL_VALUE_SPACING: f32 = 20.0;
 const HORIZONTAL_GATE_SPACING: f32 = 100.0;
+const GATE_EXTRA_VERTICAL_HEIGHT: f32 = 40.0;
+const GATE_WIDTH: f32 = 50.0;
 
 const BG_COLOR: Rgb = Rgb { red: 0.172, green: 0.243, blue: 0.313, standard: PhantomData };
 
@@ -120,10 +122,7 @@ fn gate_rect(window_rect: Rect, gate_location: &location::GateLocation, num_inpu
 }
 
 pub(crate) fn gate_display_size(num_inputs: usize, num_outputs: usize) -> Vec2 {
-    const EXTRA_VERTICAL_HEIGHT: f32 = 40.0;
-    const GATE_WIDTH: f32 = 50.0;
-
-    let gate_height = (std::cmp::max(num_inputs, num_outputs) - 1) as f32 * VERTICAL_VALUE_SPACING + EXTRA_VERTICAL_HEIGHT;
+    let gate_height = (std::cmp::max(num_inputs, num_outputs) - 1) as f32 * VERTICAL_VALUE_SPACING + GATE_EXTRA_VERTICAL_HEIGHT;
     pt2(GATE_WIDTH, gate_height)
 }
 
