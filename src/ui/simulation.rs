@@ -16,21 +16,8 @@ const HORIZONTAL_GATE_SPACING: f32 = 100.0;
 const BG_COLOR: Rgb = Rgb { red: 0.172, green: 0.243, blue: 0.313, standard: PhantomData };
 
 pub(crate) struct SimulationWidget {
-    gates: Vec<GateWidget>,
-    nodes: Vec<NodeWidget>,
-}
-impl SimulationWidget {
-    pub(crate) fn new(simulation: &Simulation) -> SimulationWidget {
-        let toplevel_gates = &simulation.toplevel_gates; // TODO: ability to switch between viewing toplevel and circuit
-        SimulationWidget {
-            gates: toplevel_gates.iter().map(|gate| GateWidget::new(*gate)).collect(),
-            nodes: toplevel_gates
-                .iter()
-                .flat_map(|gate| simulation::Gate::inputs(&simulation.circuits, &simulation.gates, *gate).iter().chain(simulation::Gate::outputs(&simulation.circuits, &simulation.gates, *gate)))
-                .map(|node| NodeWidget::new(*node))
-                .collect(),
-        }
-    }
+    pub(crate) gates: Vec<GateWidget>,
+    pub(crate) nodes: Vec<NodeWidget>,
 }
 
 impl Widget for SimulationWidget {
