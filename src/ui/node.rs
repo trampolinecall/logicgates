@@ -8,12 +8,12 @@ use crate::{
 };
 
 pub(crate) struct NodeWidget {
-    node_key: NodeKey,
+    pub(crate) key: NodeKey,
 }
 
 impl NodeWidget {
-    pub(crate) fn new(node_key: NodeKey) -> NodeWidget {
-        NodeWidget { node_key }
+    pub(crate) fn new(key: NodeKey) -> NodeWidget {
+        NodeWidget { key }
     }
 }
 
@@ -24,7 +24,7 @@ const ERR_COLOR: Rgb = Rgb { red: 231.0 / 255.0, green: 76.0 / 255.0, blue: 60.0
 
 impl Widget for NodeWidget {
     fn draw(&self, simulation: &Simulation, draw: &nannou::Draw, rect: nannou::geom::Rect) {
-        let color = node_color(&simulation.nodes, self.node_key, true);
+        let color = node_color(&simulation.nodes, self.key, true);
         draw.ellipse().color(color).xy(rect.xy()).radius(rect.w() / 2.0);
     }
 }

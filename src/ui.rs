@@ -14,10 +14,9 @@ trait Widget {
 }
 
 pub(crate) fn view(simulation: &Simulation) -> View {
-    todo!()
+    View { sim: simulation::SimulationWidget::new(simulation) }
 }
 
-pub(crate) fn render(app: &nannou::App, draw: &nannou::Draw, view: &View) {
-    todo!()
-    // view.sim.draw(view, draw, app.window_rect());
+pub(crate) fn render(app: &nannou::App, draw: &nannou::Draw, simulation: &Simulation, view: &View) {
+    view.sim.draw(simulation, draw, app.window_rect());
 }

@@ -2,7 +2,11 @@ use std::{collections::HashMap, marker::PhantomData};
 
 use nannou::prelude::*;
 
-use crate::{simulation::{self, hierarchy, location, Gate, GateKey, NodeKey, Simulation}, ui::Widget};
+use crate::{
+    simulation::{self, hierarchy, location, Gate, NodeKey, Simulation},
+    ui::Widget,
+    ui::{gate::GateWidget, node::NodeWidget},
+};
 
 const CIRCLE_RAD: f32 = 5.0;
 const CONNECTION_RAD: f32 = CIRCLE_RAD / 2.0;
@@ -11,18 +15,27 @@ const HORIZONTAL_GATE_SPACING: f32 = 100.0;
 
 const BG_COLOR: Rgb = Rgb { red: 0.172, green: 0.243, blue: 0.313, standard: PhantomData };
 
-pub(crate) struct SimulationWidget {}
+pub(crate) struct SimulationWidget {
+    gates: Vec<GateWidget>,
+    nodes: Vec<NodeWidget>,
+}
 impl SimulationWidget {
-    pub(crate) fn new() -> SimulationWidget {
-        SimulationWidget {}
+    pub(crate) fn new(simulation: &Simulation) -> SimulationWidget {
+        let toplevel_gates = &simulation.toplevel_gates; // TODO: ability to switch between viewing toplevel and circuit
+        SimulationWidget {
+            gates: toplevel_gates.iter().map(|gate| GateWidget::new(*gate)).collect(),
+            nodes: toplevel_gates
+                .iter()
+                .flat_map(|gate| simulation::Gate::inputs(&simulation.circuits, &simulation.gates, *gate).iter().chain(simulation::Gate::outputs(&simulation.circuits, &simulation.gates, *gate)))
+                .map(|node| NodeWidget::new(*node))
+                .collect(),
+        }
     }
 }
 
 impl Widget for SimulationWidget {
     // TODO: figure out a more elegant way to draw the simulation because this relies on the simulation being passed to be the same simulation that this widget belongs to
     fn draw(&self, simulation: &Simulation, draw: &nannou::Draw, rect: nannou::geom::Rect) {
-        let toplevel_gates = &simulation.toplevel_gates; // TODO: ability to switch between viewing toplevel and circuit
-
         /*
         let circuit_inputs = std::iter::empty(); // main_circuit.nodes.inputs().iter(); // TODO: put back when adding switching between different views
         let circuit_outputs = std::iter::empty(); // main_circuit.nodes.outputs().iter();
@@ -73,7 +86,7 @@ impl Widget for SimulationWidget {
         connection_widgets.chain(gate_widgets).chain(node_widgets)
         */
 
-        let (/* connection_positions, TODO */ gate_positions, node_positions) = layout(&simulation.circuits, &simulation.gates, &simulation.nodes, toplevel_gates, rect);
+        let (/* connection_positions, TODO */ gate_positions, node_positions) = layout(&simulation.circuits, &simulation.gates, &simulation.nodes, &self.gates, &self.nodes, rect);
         draw.rect().xy(rect.xy()).wh(rect.wh()).color(BG_COLOR);
         /* TODO
         for (connection, position) in connection_positions {
@@ -81,38 +94,33 @@ impl Widget for SimulationWidget {
         }
         */
         for (gate, position) in gate_positions {
-            // simulation::Gate::widget(&simulation.circuits, &simulation.gates, gate).draw(simulation, draw, position);
-            // TODO
+            gate.draw(simulation, draw, position);
         }
         for (node, position) in node_positions {
-            // simulation.nodes[node].widget.draw(simulation, draw, position);
-            // TODO
+            node.draw(simulation, draw, position);
         }
     }
 }
 
-fn layout(
+fn layout<'gate_widgets, 'node_widgets>(
     circuits: &simulation::CircuitMap,
     gates: &simulation::GateMap,
     nodes: &simulation::NodeMap,
-    gate_children: &simulation::hierarchy::GateChildren,
+    gate_widgets: &'gate_widgets [GateWidget],
+    node_widgets: &'node_widgets [NodeWidget],
     rect: nannou::geom::Rect,
-) -> (HashMap<GateKey, nannou::geom::Rect>, HashMap<NodeKey, nannou::geom::Rect>) {
-    let gate_positions = gate_children
+) -> (Vec<(&'gate_widgets GateWidget, nannou::geom::Rect)>, Vec<(&'node_widgets NodeWidget, nannou::geom::Rect)>) {
+    let gate_positions = gate_widgets
         .iter()
-        .map(|gate| {
-            let gate_location = Gate::location(circuits, gates, *gate);
-            let num_inputs = Gate::num_inputs(circuits, gates, *gate);
-            let num_outputs = Gate::num_outputs(circuits, gates, *gate);
+        .map(|gate_w| {
+            let gate_location = Gate::location(circuits, gates, gate_w.key);
+            let num_inputs = Gate::num_inputs(circuits, gates, gate_w.key);
+            let num_outputs = Gate::num_outputs(circuits, gates, gate_w.key);
 
-            (*gate, gate_rect(rect, gate_location, num_inputs, num_outputs))
+            (gate_w, gate_rect(rect, gate_location, num_inputs, num_outputs))
         })
         .collect();
-    let node_positions = gate_children
-        .iter()
-        .flat_map(|gate| simulation::Gate::inputs(circuits, gates, *gate).iter().chain(simulation::Gate::outputs(circuits, gates, *gate)))
-        .map(|node| (*node, nannou::geom::Rect::from_xy_wh(node_pos(rect, circuits, gates, nodes, *node), vec2(CIRCLE_RAD * 2.0, CIRCLE_RAD * 2.0))))
-        .collect();
+    let node_positions = node_widgets.iter().map(|node| (node, nannou::geom::Rect::from_xy_wh(node_pos(rect, circuits, gates, nodes, node.key), vec2(CIRCLE_RAD * 2.0, CIRCLE_RAD * 2.0)))).collect();
     (gate_positions, node_positions)
 }
 

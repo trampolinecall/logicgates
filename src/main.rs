@@ -88,6 +88,6 @@ fn update(_: &App, logicgates: &mut LogicGates, _: Update) {
 
 fn view(app: &App, logicgates: &LogicGates, frame: Frame) {
     let draw = app.draw();
-    ui::render(app, &draw, &logicgates.view);
+    ui::render(app, &draw, &logicgates.simulation, &logicgates.view);
     draw.to_frame(app, &frame).unwrap();
 }
