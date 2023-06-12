@@ -3,8 +3,6 @@ pub(crate) mod hierarchy;
 pub(crate) mod location;
 pub(crate) mod logic;
 
-use crate::ui;
-
 slotmap::new_key_type! {
     pub(crate) struct CircuitKey;
     pub(crate) struct GateKey;

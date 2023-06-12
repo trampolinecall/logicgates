@@ -1,7 +1,7 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 // TODO: remove dependency on draw system
-use crate::simulation::{self, hierarchy, CircuitKey, CircuitMap, GateKey, GateMap, Simulation};
+use crate::simulation::{CircuitMap, GateKey, GateMap, Simulation};
 
 pub(crate) struct GateLocation {
     pub(crate) x: u32,

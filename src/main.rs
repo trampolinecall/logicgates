@@ -28,7 +28,7 @@ fn model(_: &App) -> LogicGates {
     LogicGates { simulation, view }
 }
 
-fn event(_: &App, simulation: &mut LogicGates, event: Event) {
+fn event(_: &App, _: &mut LogicGates, _: Event) {
     // logicgates.update_view(); // TODO: add this when adding event handling
 }
 
