@@ -106,7 +106,7 @@ fn gate_rect(window_rect: Rect, gate_location: &location::GateLocation, num_inpu
     // TODO: gate_location should eventually be the center
     let (x, y) = (gate_location.x, gate_location.y);
     let wh = gate_display_size(num_inputs, num_outputs);
-    Rect::from_x_y_w_h(window_rect.left() + x as f32 * HORIZONTAL_GATE_SPACING + wh.x / 2.0, window_rect.y() + y + wh.y / 2.0, wh.x, wh.y)
+    Rect::from_x_y_w_h(window_rect.x() + x, window_rect.y() + y, wh.x, wh.y)
 }
 
 pub(crate) fn gate_display_size(num_inputs: usize, num_outputs: usize) -> Vec2 {
