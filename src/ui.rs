@@ -16,7 +16,12 @@ trait Widget {
     fn draw(&self, simulation: &Simulation, draw: &nannou::Draw, rect: nannou::geom::Rect);
 }
 
-pub(crate) fn view(simulation: &Simulation) -> View {
+pub(crate) fn render(app: &nannou::App, draw: &nannou::Draw, simulation: &Simulation) {
+    let view = view(simulation);
+    view.sim.draw(simulation, draw, app.window_rect());
+}
+
+fn view(simulation: &Simulation) -> View {
     let toplevel_gates = &simulation.toplevel_gates; // TODO: ability to switch between viewing toplevel and circuit
     View {
         sim: SimulationWidget {
@@ -30,6 +35,3 @@ pub(crate) fn view(simulation: &Simulation) -> View {
     }
 }
 
-pub(crate) fn render(app: &nannou::App, draw: &nannou::Draw, simulation: &Simulation, view: &View) {
-    view.sim.draw(simulation, draw, app.window_rect());
-}
