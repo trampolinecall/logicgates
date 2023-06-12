@@ -1,4 +1,7 @@
-use crate::{simulation::{NodeKey, Simulation}, view::Widget};
+use crate::{
+    simulation::{NodeKey, Simulation},
+    view::Widget,
+};
 
 pub(crate) struct ConnectionWidget {
     pub(crate) node1: NodeKey,

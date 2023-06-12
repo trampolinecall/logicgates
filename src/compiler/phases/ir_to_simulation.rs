@@ -56,7 +56,8 @@ pub(crate) fn convert(file: &File, ast_to_ir::IR { circuits, circuit_table, mut 
                 }
             };
 
-            let mut simulation = simulation::Simulation { circuits: circuit_map, gates: gate_map, nodes: node_map, toplevel_gates: main_children, connections: simulation::connections::Connections::new() };
+            let mut simulation =
+                simulation::Simulation { circuits: circuit_map, gates: gate_map, nodes: node_map, toplevel_gates: main_children, connections: simulation::connections::Connections::new() };
             // simulation::location::calculate_locations(&mut simulation); TODO: figure out what to do with this
 
             Some(simulation)
@@ -152,7 +153,6 @@ fn lower_gate<'file, 'circuit>(
     (circuit_id, _): (ast::CircuitOrIntrinsicId, ir::Inline),
 ) -> Result<(ExpansionStack<'file, 'circuit>, simulation::GateKey), InfiniteRecursion<'file, 'circuit>> {
     let (expansion_stack, gate_key) = match circuits.get(circuit_id) {
-
         ir::CircuitOrIntrinsic::Custom(subcircuit) => {
             let (expansion_stack, subcircuit_idx) = convert_circuit(circuit_map, gate_map, node_map, connections, circuits, type_context, expansion_stack, subcircuit)?;
             // TODO: implement inlining
