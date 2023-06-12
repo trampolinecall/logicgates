@@ -4,7 +4,7 @@
 pub(crate) mod utils;
 pub(crate) mod compiler;
 pub(crate) mod simulation;
-pub(crate) mod ui;
+pub(crate) mod view;
 
 use nannou::prelude::*;
 
@@ -25,6 +25,6 @@ fn update(_: &App, simulation: &mut simulation::Simulation, _: Update) {
 
 fn view(app: &App, simulation: &simulation::Simulation, frame: Frame) {
     let draw = app.draw();
-    ui::render(app, &draw, simulation);
+    view::render(app, &draw, simulation);
     draw.to_frame(app, &frame).unwrap();
 }

@@ -4,7 +4,7 @@ use nannou::prelude::*;
 
 use crate::{
     simulation::{logic, NodeKey, NodeMap, Simulation},
-    ui::Widget,
+    view::Widget,
 };
 
 pub(crate) struct NodeWidget {
