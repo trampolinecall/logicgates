@@ -19,6 +19,7 @@ fn model(_: &App) -> simulation::Simulation {
 fn event(_: &App, _: &mut simulation::Simulation, _: Event) {}
 
 fn update(_: &App, simulation: &mut simulation::Simulation, _: Update) {
+    // TODO: adjust number of ticks for time since last update
     simulation::logic::update(&mut simulation.gates, &mut simulation.nodes);
 }
 

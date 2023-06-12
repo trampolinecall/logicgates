@@ -37,18 +37,42 @@ impl SimulationWidget {
 
 impl Widget for SimulationWidget {
     // TODO: figure out a more elegant way to draw the simulation because this relies on the simulation being passed to be the same simulation that this widget belongs to
-    fn draw(&self, simulation: &Simulation, draw: &nannou::Draw) {
+    fn draw(&self, simulation: &Simulation, draw: &nannou::Draw, hovered: Option<&dyn Widget>) {
         draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(BG_COLOR);
 
         for connection in &self.connections {
-            connection.draw(simulation, draw);
+            connection.draw(simulation, draw, hovered);
         }
         for gate in &self.gates {
-            gate.draw(simulation, draw);
+            gate.draw(simulation, draw, hovered);
         }
         for node in &self.nodes {
-            node.draw(simulation, draw);
+            node.draw(simulation, draw, hovered);
         }
+    }
+
+    fn find_hover(&self, mouse_pos: nannou::geom::Vec2) -> Option<&dyn Widget> {
+        // reverse to go in z order from highest to lowest
+        for node in self.nodes.iter().rev() {
+            if let hover @ Some(_) = node.find_hover(mouse_pos) {
+                return hover;
+            }
+        }
+        for gate in self.gates.iter().rev() {
+            if let hover @ Some(_) = gate.find_hover(mouse_pos) {
+                return hover;
+            }
+        }
+        for connection in self.connections.iter().rev() {
+            if let hover @ Some(_) = connection.find_hover(mouse_pos) {
+                return hover;
+            }
+        }
+        if self.rect.contains(mouse_pos) {
+            return Some(self);
+        }
+
+        None
     }
 }
 
