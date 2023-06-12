@@ -1,5 +1,6 @@
 use crate::{simulation::Simulation, ui::simulation::SimulationWidget};
 
+mod connection;
 mod gate;
 mod node;
 mod simulation;

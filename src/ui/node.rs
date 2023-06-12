@@ -27,7 +27,8 @@ impl Widget for NodeWidget {
     }
 }
 
-fn node_color(nodes: &NodeMap, node: NodeKey, use_production: bool) -> Rgb {
+// TODO: also refactor so that this does not need to be pub(crate)
+pub(crate) fn node_color(nodes: &NodeMap, node: NodeKey, use_production: bool) -> Rgb {
     fn value_to_color(v: logic::Value) -> Rgb {
         match v {
             logic::Value::H => ON_COLOR,
