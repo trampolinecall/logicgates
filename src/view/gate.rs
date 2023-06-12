@@ -36,4 +36,8 @@ impl Widget for GateWidget {
         }
         None
     }
+
+    fn mouse_dragged(&self, mouse_loc: Vec2) -> Option<crate::Message> {
+        Some(crate::Message::GateDragged(self.key, mouse_loc))
+    }
 }

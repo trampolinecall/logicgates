@@ -95,7 +95,7 @@ fn layout(
         })
         .collect();
     let node_positions: HashMap<_, _> = nodes.into_iter().map(|node| (node, node_pos(rect, circuit_map, gate_map, node_map, node))).collect();
-    let connections = connections.iter().filter_map(|(a, b)| Some(ConnectionWidget { node1: *a, node2: *b, pos1: *node_positions.get(a)?, pos2: *node_positions.get(b)? })).collect();
+    let connections: Vec<_> = connections.iter().filter_map(|(a, b)| Some(ConnectionWidget { node1: *a, node2: *b, pos1: *node_positions.get(a)?, pos2: *node_positions.get(b)? })).collect();
     let node_widgets = node_positions.into_iter().map(|(node, location)| NodeWidget { key: node, location }).collect();
 
     (gate_widgets, node_widgets, connections)
