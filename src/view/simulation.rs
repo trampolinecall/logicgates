@@ -4,7 +4,8 @@ use nannou::prelude::*;
 
 use crate::{
     simulation::{self, hierarchy, location, Gate, GateKey, NodeKey, Simulation},
-    view::{connection::ConnectionWidget, gate::GateWidget, node::NodeWidget, Widget},
+    view::{connection::ConnectionDrawing, gate::GateDrawing, node::NodeDrawing, Drawing},
+    LogicGates,
 };
 
 const VERTICAL_VALUE_SPACING: f32 = 20.0;
@@ -14,14 +15,14 @@ const GATE_WIDTH: f32 = 50.0;
 
 const BG_COLOR: Rgb = Rgb { red: 0.172, green: 0.243, blue: 0.313, standard: PhantomData };
 
-pub(crate) struct SimulationWidget {
-    pub(crate) gates: Vec<GateWidget>,
-    pub(crate) nodes: Vec<NodeWidget>,
-    pub(crate) connections: Vec<ConnectionWidget>,
+pub(crate) struct SimulationDrawing {
+    pub(crate) gates: Vec<GateDrawing>,
+    pub(crate) nodes: Vec<NodeDrawing>,
+    pub(crate) connections: Vec<ConnectionDrawing>,
     pub(crate) rect: nannou::geom::Rect,
 }
-impl SimulationWidget {
-    pub(crate) fn new(rect: nannou::geom::Rect, simulation: &Simulation) -> SimulationWidget {
+impl SimulationDrawing {
+    pub(crate) fn new(rect: nannou::geom::Rect, simulation: &Simulation) -> SimulationDrawing {
         let toplevel_gates = &simulation.toplevel_gates; // TODO: ability to switch between viewing toplevel and circuit
 
         let gates = toplevel_gates.iter().copied();
@@ -30,13 +31,13 @@ impl SimulationWidget {
 
         let (gate_widgets, node_widgets, connection_widgets) = layout(&simulation.circuits, &simulation.gates, &simulation.nodes, &simulation.connections, gates, nodes, rect);
 
-        SimulationWidget { gates: gate_widgets, nodes: node_widgets, connections: connection_widgets, rect }
+        SimulationDrawing { gates: gate_widgets, nodes: node_widgets, connections: connection_widgets, rect }
     }
 }
 
-impl Widget for SimulationWidget {
+impl Drawing for SimulationDrawing {
     // TODO: figure out a more elegant way to draw the simulation because this relies on the simulation being passed to be the same simulation that this widget belongs to
-    fn draw(&self, simulation: &Simulation, draw: &nannou::Draw, hovered: Option<&dyn Widget>) {
+    fn draw(&self, simulation: &LogicGates, draw: &nannou::Draw, hovered: Option<&dyn Drawing>) {
         draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(BG_COLOR);
 
         for connection in &self.connections {
@@ -50,7 +51,7 @@ impl Widget for SimulationWidget {
         }
     }
 
-    fn find_hover(&self, mouse_pos: nannou::geom::Vec2) -> Option<&dyn Widget> {
+    fn find_hover(&self, mouse_pos: nannou::geom::Vec2) -> Option<&dyn Drawing> {
         // reverse to go in z order from highest to lowest
         for node in self.nodes.iter().rev() {
             if let hover @ Some(_) = node.find_hover(mouse_pos) {
@@ -83,7 +84,7 @@ fn layout(
     gates: impl IntoIterator<Item = GateKey>,
     nodes: impl IntoIterator<Item = NodeKey>,
     rect: nannou::geom::Rect,
-) -> (Vec<GateWidget>, Vec<NodeWidget>, Vec<ConnectionWidget>) {
+) -> (Vec<GateDrawing>, Vec<NodeDrawing>, Vec<ConnectionDrawing>) {
     let gate_widgets = gates
         .into_iter()
         .map(|gate| {
@@ -91,12 +92,12 @@ fn layout(
             let num_inputs = Gate::num_inputs(circuit_map, gate_map, gate);
             let num_outputs = Gate::num_outputs(circuit_map, gate_map, gate);
 
-            GateWidget { key: gate, rect: gate_rect(rect, gate_location, num_inputs, num_outputs) }
+            GateDrawing { key: gate, rect: gate_rect(rect, gate_location, num_inputs, num_outputs) }
         })
         .collect();
     let node_positions: HashMap<_, _> = nodes.into_iter().map(|node| (node, node_pos(rect, circuit_map, gate_map, node_map, node))).collect();
-    let connections: Vec<_> = connections.iter().filter_map(|(a, b)| Some(ConnectionWidget { node1: *a, node2: *b, pos1: *node_positions.get(a)?, pos2: *node_positions.get(b)? })).collect();
-    let node_widgets = node_positions.into_iter().map(|(node, location)| NodeWidget { key: node, location }).collect();
+    let connections: Vec<_> = connections.iter().filter_map(|(a, b)| Some(ConnectionDrawing { node1: *a, node2: *b, pos1: *node_positions.get(a)?, pos2: *node_positions.get(b)? })).collect();
+    let node_widgets = node_positions.into_iter().map(|(node, location)| NodeDrawing { key: node, location }).collect();
 
     (gate_widgets, node_widgets, connections)
 }

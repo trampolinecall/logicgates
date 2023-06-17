@@ -3,11 +3,12 @@ use std::marker::PhantomData;
 use nannou::prelude::*;
 
 use crate::{
-    simulation::{logic, NodeKey, NodeMap, Simulation},
-    view::Widget,
+    simulation::{logic, NodeKey, NodeMap},
+    view::Drawing,
+    LogicGates,
 };
 
-pub(crate) struct NodeWidget {
+pub(crate) struct NodeDrawing {
     pub(crate) key: NodeKey,
     pub(crate) location: nannou::geom::Vec2,
 }
@@ -20,9 +21,9 @@ const OFF_COLOR: Rgb = Rgb { red: 0.498, green: 0.549, blue: 0.552, standard: Ph
 const HIGH_IMPEDANCE_COLOR: Rgb = Rgb { red: 52.0 / 255.0, green: 152.0 / 255.0, blue: 219.0 / 255.0, standard: PhantomData };
 const ERR_COLOR: Rgb = Rgb { red: 231.0 / 255.0, green: 76.0 / 255.0, blue: 60.0 / 255.0, standard: PhantomData };
 
-impl Widget for NodeWidget {
-    fn draw(&self, simulation: &Simulation, draw: &nannou::Draw, hovered: Option<&dyn Widget>) {
-        let color = node_color(&simulation.nodes, self.key, true);
+impl Drawing for NodeDrawing {
+    fn draw(&self, simulation: &LogicGates, draw: &nannou::Draw, hovered: Option<&dyn Drawing>) {
+        let color = node_color(&simulation.simulation.nodes, self.key, true);
         let mut ell = draw.ellipse().color(color).xy(self.location).radius(CIRCLE_RAD);
         if let Some(hovered) = hovered {
             if std::ptr::eq(hovered, self) {
@@ -34,7 +35,7 @@ impl Widget for NodeWidget {
         ell.finish();
     }
 
-    fn find_hover(&self, mouse_pos: nannou::geom::Vec2) -> Option<&dyn Widget> {
+    fn find_hover(&self, mouse_pos: nannou::geom::Vec2) -> Option<&dyn Drawing> {
         if self.location.distance(mouse_pos) < CIRCLE_RAD + 2.0 {
             // TODO: move 2 to a constant "HOVER_DISTANCE"
             return Some(self);

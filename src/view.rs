@@ -1,4 +1,4 @@
-use crate::{simulation::Simulation, view::simulation::SimulationWidget};
+use crate::LogicGates;
 
 use nannou::prelude::*;
 
@@ -8,61 +8,70 @@ mod node;
 mod simulation;
 
 // mvc pattern inspired by elm architecture
-pub(crate) struct View {
-    sim: simulation::SimulationWidget,
+pub(crate) struct View<MouseMovedCallback: Fn(Vec2) -> Option<crate::Message>> {
+    simulation_drawing: simulation::SimulationDrawing,
+    subscriptions: Subscriptions<MouseMovedCallback>,
 }
 
-trait Widget {
-    fn draw(&self, simulation: &Simulation, draw: &nannou::Draw, hovered: Option<&dyn Widget>);
+struct Subscriptions<MouseMovedCallback: Fn(Vec2) -> Option<crate::Message>> {
+    mouse_moved: Option<MouseMovedCallback>,
+    left_mouse_up: Option<crate::Message>,
+}
+
+trait Drawing {
+    fn draw(&self, logic_gates: &LogicGates, draw: &nannou::Draw, hovered: Option<&dyn Drawing>);
     // iterate through this and child widgets in z order to check which one the mouse is currently over
-    fn find_hover(&self, mouse: Vec2) -> Option<&dyn Widget>;
+    fn find_hover(&self, mouse: Vec2) -> Option<&dyn Drawing>;
 
     // TODO: reconsider whether or not to use listeners
-    /* TODO: figure out how this is supposed to work (mostly figure out how mouse up and mouse dragged is supposed to work, because they in theory should be global events and not specific to a widget)
-    fn mouse_down(&self, mouse_loc: Vec2) -> Option<crate::Message> {
+    fn left_mouse_down(&self) -> Option<crate::Message> {
         None
     }
-    fn mouse_click(&self, mouse_loc: Vec2) -> Option<crate::Message> {
-        None
-    }
-    */
 }
 
-pub(crate) fn render(app: &nannou::App, draw: &nannou::Draw, simulation: &Simulation) {
-    let view = view(app, simulation);
-    let hover = view.sim.find_hover(app.mouse.position());
-    view.sim.draw(simulation, draw, hover);
+pub(crate) fn render(app: &nannou::App, draw: &nannou::Draw, logic_gates: &LogicGates) {
+    let view = view(app, logic_gates);
+    let hover = view.simulation_drawing.find_hover(app.mouse.position());
+    view.simulation_drawing.draw(logic_gates, draw, hover);
 }
 
-pub(crate) fn event(app: &nannou::App, simulation: &Simulation, event: nannou::Event) -> Option<crate::Message> {
-    let view = view(app, simulation);
+pub(crate) fn event(app: &nannou::App, logic_gates: &LogicGates, event: nannou::Event) -> Option<crate::Message> {
+    let view = view(app, logic_gates);
     if let nannou::Event::WindowEvent { id: _, simple: Some(event) } = event {
-        None
-        /* TODO
         match event {
-            WindowEvent::MouseMoved(mouse_loc) => {
-                if let nannou::state::mouse::ButtonPosition::Down(_) = app.mouse.buttons.left() {
-                    let hovered = view.sim.find_hover(app.mouse.position());
-                    if let Some(hovered) = hovered {
-                        // TODO: better way of dispatching these because the same widget should get the events throughout the entire mouse drag, not the one currently being hovered over
-                        // so for example if you drag a gate over another one that happens to have a higher z the other gate will steal the drag
-                        hovered.mouse_dragged(mouse_loc)
-                    } else {
-                        None
-                    }
+            WindowEvent::MousePressed(MouseButton::Left) => {
+                let hovered = view.simulation_drawing.find_hover(app.mouse.position());
+                if let Some(hovered) = hovered {
+                    hovered.left_mouse_down()
                 } else {
                     None
                 }
             }
 
-            _ => None, // TODO: handle other events
+            WindowEvent::MouseMoved(mouse_pos) => {
+                if let Some(mouse_moved_callback) = view.subscriptions.mouse_moved {
+                    mouse_moved_callback(mouse_pos)
+                } else {
+                    None
+                }
+            }
+
+            WindowEvent::MouseReleased(MouseButton::Left) => view.subscriptions.left_mouse_up,
+
+            _ => None,
         }
-        */
     } else {
         None
     }
 }
 
-fn view(app: &nannou::App, simulation: &Simulation) -> View {
-    View { sim: SimulationWidget::new(app.window_rect(), simulation) }
+fn view(app: &nannou::App, logic_gates: &LogicGates) -> View<impl Fn(Vec2) -> Option<crate::Message>> {
+    let simulation_drawing = simulation::SimulationDrawing::new(app.window_rect(), &logic_gates.simulation);
+
+    let subscriptions = Subscriptions {
+        mouse_moved: if logic_gates.ui.simulation_widget.cur_gate_drag.is_some() { Some(|mouse_pos| Some(crate::Message::MouseMoved(mouse_pos))) } else { None },
+        left_mouse_up: if logic_gates.ui.simulation_widget.cur_gate_drag.is_some() { Some(crate::Message::MouseUp) } else { None },
+    };
+
+    View { simulation_drawing, subscriptions }
 }
