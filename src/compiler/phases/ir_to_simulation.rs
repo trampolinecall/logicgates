@@ -47,7 +47,8 @@ pub(crate) fn convert(file: &File, ast_to_ir::IR { circuits, circuit_table, mut 
             let mut gate_map = simulation::GateMap::with_key();
             let mut circuit_map = simulation::CircuitMap::with_key();
             let mut node_map = simulation::NodeMap::with_key();
-            let main_children = match convert_circuit_as_toplevel(&mut circuit_map, &mut gate_map, &mut node_map, &circuits, &mut type_context, Vec::new(), circuit) {
+            let mut connections = simulation::connections::Connections::new();
+            let main_children = match convert_circuit_as_toplevel(&mut circuit_map, &mut gate_map, &mut node_map, &mut connections, &circuits, &mut type_context, Vec::new(), circuit) {
                 Ok((_, r)) => r,
                 Err(e) => {
                     e.report();
@@ -55,8 +56,8 @@ pub(crate) fn convert(file: &File, ast_to_ir::IR { circuits, circuit_table, mut 
                 }
             };
 
-            let mut simulation = simulation::Simulation { circuits: circuit_map, gates: gate_map, nodes: node_map, toplevel_gates: main_children };
-            simulation::location::calculate_locations(&mut simulation);
+            let mut simulation = simulation::Simulation { circuits: circuit_map, gates: gate_map, nodes: node_map, toplevel_gates: main_children, connections };
+            // simulation::location::calculate_locations(&mut simulation); TODO: figure out what to do with this
 
             Some(simulation)
         } else {
@@ -71,6 +72,7 @@ fn convert_circuit_as_toplevel<'file, 'circuit>(
     circuit_map: &mut simulation::CircuitMap,
     gate_map: &mut simulation::GateMap,
     node_map: &mut simulation::NodeMap,
+    connections: &mut simulation::connections::Connections,
     circuits: &'circuit arena::Arena<ir::CircuitOrIntrinsic<'file>, ast::CircuitOrIntrinsicId>,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     mut expansion_stack: ExpansionStack<'file, 'circuit>,
@@ -86,14 +88,14 @@ fn convert_circuit_as_toplevel<'file, 'circuit>(
     let mut gate_index_map = HashMap::new();
 
     for (old_gate_i, gate) in circuit.gates.iter_with_ids() {
-        let (expansion_stack_2, new_gate_i) = lower_gate(circuit_map, gate_map, node_map, circuits, type_context, expansion_stack, *gate)?;
+        let (expansion_stack_2, new_gate_i) = lower_gate(circuit_map, gate_map, node_map, connections, circuits, type_context, expansion_stack, *gate)?;
         main_gates.add_gate(new_gate_i);
         expansion_stack = expansion_stack_2;
         gate_index_map.insert(old_gate_i, new_gate_i);
     }
 
     for (start, end) in &circuit.connections {
-        connect(circuit_map, gate_map, node_map, type_context, None, &mut gate_index_map, start, end);
+        connect(circuit_map, gate_map, node_map, connections, type_context, None, &mut gate_index_map, start, end);
     }
 
     assert!(std::ptr::eq(*expansion_stack.last().unwrap(), circuit), "expansion stack should be in the same state as at the start of the function");
@@ -105,6 +107,7 @@ fn convert_circuit<'file, 'circuit>(
     circuit_map: &mut simulation::CircuitMap,
     gate_map: &mut simulation::GateMap,
     node_map: &mut simulation::NodeMap,
+    connections: &mut simulation::connections::Connections,
     circuits: &'circuit arena::Arena<ir::CircuitOrIntrinsic<'file>, ast::CircuitOrIntrinsicId>,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     mut expansion_stack: ExpansionStack<'file, 'circuit>,
@@ -122,14 +125,14 @@ fn convert_circuit<'file, 'circuit>(
     let mut gate_index_map = HashMap::new();
 
     for (old_gate_i, gate) in circuit.gates.iter_with_ids() {
-        let (expansion_stack_2, new_gate_i) = lower_gate(circuit_map, gate_map, node_map, circuits, type_context, expansion_stack, *gate)?;
+        let (expansion_stack_2, new_gate_i) = lower_gate(circuit_map, gate_map, node_map, connections, circuits, type_context, expansion_stack, *gate)?;
         circuit_map[new_circuit_idx].gates.add_gate(new_gate_i);
         expansion_stack = expansion_stack_2;
         gate_index_map.insert(old_gate_i, new_gate_i);
     }
 
     for (start, end) in &circuit.connections {
-        connect(circuit_map, gate_map, node_map, type_context, Some(new_circuit_idx), &mut gate_index_map, start, end);
+        connect(circuit_map, gate_map, node_map, connections, type_context, Some(new_circuit_idx), &mut gate_index_map, start, end);
     }
 
     assert!(std::ptr::eq(*expansion_stack.last().unwrap(), circuit), "expansion stack should be in the same state as at the start of the function");
@@ -142,15 +145,15 @@ fn lower_gate<'file, 'circuit>(
     circuit_map: &mut simulation::CircuitMap,
     gate_map: &mut simulation::GateMap,
     node_map: &mut simulation::NodeMap,
+    connections: &mut simulation::connections::Connections,
     circuits: &'circuit arena::Arena<ir::CircuitOrIntrinsic<'file>, ast::CircuitOrIntrinsicId>,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     expansion_stack: ExpansionStack<'file, 'circuit>,
     (circuit_id, _): (ast::CircuitOrIntrinsicId, ir::Inline),
 ) -> Result<(ExpansionStack<'file, 'circuit>, simulation::GateKey), InfiniteRecursion<'file, 'circuit>> {
     let (expansion_stack, gate_key) = match circuits.get(circuit_id) {
-
         ir::CircuitOrIntrinsic::Custom(subcircuit) => {
-            let (expansion_stack, subcircuit_idx) = convert_circuit(circuit_map, gate_map, node_map, circuits, type_context, expansion_stack, subcircuit)?;
+            let (expansion_stack, subcircuit_idx) = convert_circuit(circuit_map, gate_map, node_map, connections, circuits, type_context, expansion_stack, subcircuit)?;
             // TODO: implement inlining
             (expansion_stack, gate_map.insert(simulation::Gate::Custom(subcircuit_idx)))
         }
@@ -172,6 +175,7 @@ fn connect(
     circuits: &mut simulation::CircuitMap,
     gates: &mut simulation::GateMap,
     nodes: &mut simulation::NodeMap,
+    connections: &mut simulation::connections::Connections,
     type_context: &mut ty::TypeContext<nominal_type::FullyDefinedStruct>,
     new_circuit: Option<simulation::CircuitKey>,
     gate_index_map: &mut HashMap<ir::GateIdx, simulation::GateKey>,
@@ -184,7 +188,7 @@ fn connect(
     assert_eq!(start_nodes.len(), end_nodes.len(), "connecting bundles that have different size");
 
     for (p, r) in start_nodes.into_iter().zip(end_nodes) {
-        logic::connect(nodes, p, r);
+        simulation::connections::connect(connections, nodes, p, r);
     }
 }
 
@@ -213,8 +217,8 @@ fn convert_bundle(
                 vec![] // correct anyways because the outputs always have type [] in main
             }
         }
-        ir::bundle::Bundle::GateInput(_, old_gate_index) => simulation::gate_inputs(circuits, gates, gate_index_map[old_gate_index]).to_vec(),
-        ir::bundle::Bundle::GateOutput(_, old_gate_index) => simulation::gate_outputs(circuits, gates, gate_index_map[old_gate_index]).to_owned(),
+        ir::bundle::Bundle::GateInput(_, old_gate_index) => simulation::Gate::inputs(circuits, gates, gate_index_map[old_gate_index]).to_vec(),
+        ir::bundle::Bundle::GateOutput(_, old_gate_index) => simulation::Gate::outputs(circuits, gates, gate_index_map[old_gate_index]).to_owned(),
         ir::bundle::Bundle::Get(b, field) => {
             fn field_indexes(type_context: &ty::TypeContext<nominal_type::FullyDefinedStruct>, fields: &[(&str, ty::TypeSym)], field: &str) -> Option<std::ops::Range<usize>> {
                 let mut cur_index = 0;

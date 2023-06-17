@@ -30,4 +30,3 @@ impl<'a> IntoIterator for &'a GateChildren {
         self.iter()
     }
 }
-
