@@ -41,18 +41,6 @@ pub(crate) enum Gate {
     Custom(CircuitKey),
 }
 
-impl Simulation {
-    pub(crate) fn message(&mut self, message: crate::Message) {
-        match message {
-            crate::Message::GateDragged(gate, mouse_loc) => {
-                let loc = Gate::location_mut(&mut self.circuits, &mut self.gates, gate);
-                loc.x = mouse_loc.x; // TODO: zooming
-                loc.y = mouse_loc.y;
-            }
-        }
-    }
-}
-
 impl Circuit {
     pub(crate) fn new(circuit_key: CircuitKey, nodes: &mut NodeMap, name: String, num_inputs: usize, num_outputs: usize) -> Circuit {
         Circuit {
