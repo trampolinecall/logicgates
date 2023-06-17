@@ -13,15 +13,16 @@ const GATE_COLOR: Rgb = Rgb { red: 0.584, green: 0.647, blue: 0.65, standard: Ph
 
 impl Drawing for GateDrawing {
     fn draw(&self, simulation: &LogicGates, draw: &nannou::Draw, hovered: Option<&dyn Drawing>) {
-        let mut rect = draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(GATE_COLOR);
         if let Some(hovered) = hovered {
             if std::ptr::eq(hovered, self) {
                 // TODO: fix clippy lint about this
-                rect = rect.stroke(Rgba { color: Rgb::from_components((1.0, 1.0, 1.0)), alpha: 0.5 }).stroke_weight(5.0);
+                let hover_rect = self.rect.pad_left(-5.0).pad_top(-5.0).pad_right(-5.0).pad_bottom(-5.0); // expand by 5, this is the "stroke weight"
+                draw.rect().xy(hover_rect.xy()).wh(hover_rect.wh()).color(Rgba { color: Rgb::from_components((1.0, 1.0, 1.0)), alpha: 0.2 });
                 // TODO: use constant for stoke weight, hover color
             }
         }
-        rect.finish();
+
+        draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(GATE_COLOR);
 
         draw.text(simulation.simulation.gates[self.key].name(&simulation.simulation.circuits)).xy(self.rect.xy()).wh(self.rect.wh()).center_justify().align_text_middle_y();
     }
