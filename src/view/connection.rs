@@ -1,7 +1,5 @@
 use crate::{simulation::NodeKey, view::Drawing, LogicGates};
 
-use nannou::prelude::*;
-
 pub(crate) struct ConnectionDrawing {
     pub(crate) node1: NodeKey,
     pub(crate) node2: NodeKey,
