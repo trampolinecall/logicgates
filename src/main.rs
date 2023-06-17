@@ -31,7 +31,6 @@ impl LogicGates {
         match message {
             Message::MouseDownOnGate(gate) => {
                 self.ui.simulation_widget.cur_gate_drag = Some(gate);
-                println!("mouse down on gate, {:?}, {:?}", gate, self.ui.simulation_widget.cur_gate_drag);
             }
             Message::MouseMoved(mouse_pos) => {
                 if let Some(cur_gate_drag) = self.ui.simulation_widget.cur_gate_drag {
@@ -39,11 +38,9 @@ impl LogicGates {
                     loc.x = mouse_pos.x; // TODO: zooming
                     loc.y = mouse_pos.y;
                 }
-                println!("mouse mvoed");
             }
             Message::MouseUp => {
                 self.ui.simulation_widget.cur_gate_drag = None;
-                println!("mouse up");
             }
         }
     }
