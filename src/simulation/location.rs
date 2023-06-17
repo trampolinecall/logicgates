@@ -1,16 +1,16 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 // TODO: remove dependency on draw system
-use crate::simulation::{self, draw, hierarchy, CircuitKey, CircuitMap, GateKey, GateMap, Simulation};
+use crate::simulation::{CircuitMap, GateKey, GateMap, Simulation};
 
 pub(crate) struct GateLocation {
-    pub(crate) x: u32,
+    pub(crate) x: f32,
     pub(crate) y: f32,
 }
 
 impl GateLocation {
     pub(crate) fn new() -> Self {
-        Self { x: 0, y: 0.0 }
+        Self { x: 0.0, y: 0.0 }
     }
 }
 
@@ -90,6 +90,7 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
     // TODO: overhaul to work with new connection system (especially loops)
 
     let mut locations = HashMap::new();
+    /* TODO
     for (cur_circuit_key, cur_circuit) in &simulation.circuits {
         // process each circuit individually because each circuit positions each of its gates independently of each other
         // also this should cover every gate only once because a gate should never be part of 2 circuits at the same time
@@ -198,11 +199,12 @@ fn calculate_locations_(simulation: &Simulation) -> HashMap<GateKey, GateLocatio
             (x_gate_index, GateLocation { x, y })
         }));
     }
+    */
     locations
 }
 
 fn apply_locations(circuits: &mut CircuitMap, gates: &mut GateMap, locations: HashMap<GateKey, GateLocation>) {
     for (gate_i, location) in locations {
-        *gates[gate_i].location_mut(circuits) = location;
+        // *gates[gate_i].location_mut(circuits) = location; TODO
     }
 }
