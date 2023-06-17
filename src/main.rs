@@ -13,28 +13,45 @@ enum Message {
     GateDragged(simulation::GateKey, Vec2),
 }
 
-fn main() {
-    nannou::app(model).event(event).update(update).simple_window(view).run();
+struct LogicGates {
+    simulation: simulation::Simulation,
+    // ui: ui::UI, TODO
 }
 
-fn model(_: &App) -> simulation::Simulation {
-    compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap()
-}
+impl LogicGates {
+    fn new(_: &App) -> LogicGates {
+        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap() }
+    }
 
-fn event(app: &App, simulation: &mut simulation::Simulation, event: Event) {
-    let message = view::event(app, simulation, event);
-    if let Some(message) = message {
-        simulation.message(message);
+    fn message(&mut self, message: crate::Message) {
+        match message {
+            Message::GateDragged(gate, mouse_loc) => {
+                let loc = simulation::Gate::location_mut(&mut self.simulation.circuits, &mut self.simulation.gates, gate);
+                loc.x = mouse_loc.x; // TODO: zooming
+                loc.y = mouse_loc.y;
+            }
+        }
     }
 }
 
-fn update(_: &App, simulation: &mut simulation::Simulation, _: Update) {
-    // TODO: adjust number of ticks for time since last update
-    simulation::logic::update(&mut simulation.gates, &mut simulation.nodes);
+fn main() {
+    nannou::app(LogicGates::new).event(event).update(update).simple_window(view).run();
 }
 
-fn view(app: &App, simulation: &simulation::Simulation, frame: Frame) {
+fn event(app: &App, logic_gates: &mut LogicGates, event: Event) {
+    let message = view::event(app, &logic_gates.simulation, event);
+    if let Some(message) = message {
+        logic_gates.message(message);
+    }
+}
+
+fn update(_: &App, logic_gates: &mut LogicGates, _: Update) {
+    // TODO: adjust number of ticks for time since last update
+    simulation::logic::update(&mut logic_gates.simulation.gates, &mut logic_gates.simulation.nodes);
+}
+
+fn view(app: &App, logic_gates: &LogicGates, frame: Frame) {
     let draw = app.draw();
-    view::render(app, &draw, simulation);
+    view::render(app, &draw, &logic_gates.simulation);
     draw.to_frame(app, &frame).unwrap();
 }
