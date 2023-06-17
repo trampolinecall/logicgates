@@ -4,39 +4,47 @@
 pub(crate) mod utils;
 pub(crate) mod compiler;
 pub(crate) mod simulation;
+pub(crate) mod ui;
 pub(crate) mod view;
 
 use nannou::prelude::*;
 
-// TODO: find a better place to put this and reorganize everything (possibly make LogicGates struct instead of using simulation as model)
+// TODO: find a better place to put this and reorganize everything
+struct LogicGates {
+    simulation: simulation::Simulation,
+    ui: ui::UI,
+}
+
+// TODO: find a better place to put this too
 enum Message {
-    MouseDownOnGate(simulation::GateKey, Vec2),
+    MouseDownOnGate(simulation::GateKey),
     MouseMoved(Vec2),
     MouseUp,
 }
 
-struct LogicGates {
-    simulation: simulation::Simulation,
-    // ui: ui::UI, TODO
-}
-
 impl LogicGates {
     fn new(_: &App) -> LogicGates {
-        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap() }
+        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), ui: ui::UI::new() }
     }
 
     fn message(&mut self, message: crate::Message) {
         match message {
-            /*
-            Message::GateDragged(gate, mouse_loc) => {
-                let loc = simulation::Gate::location_mut(&mut self.simulation.circuits, &mut self.simulation.gates, gate);
-                loc.x = mouse_loc.x; // TODO: zooming
-                loc.y = mouse_loc.y;
+            Message::MouseDownOnGate(gate) => {
+                self.ui.simulation_widget.cur_gate_drag = Some(gate);
+                println!("mouse down on gate, {:?}, {:?}", gate, self.ui.simulation_widget.cur_gate_drag);
             }
-            */
-            Message::MouseDownOnGate(_, _) => {}, // TODO
-            Message::MouseMoved(_) => {}, // TODO
-            Message::MouseUp => {}, // TODO
+            Message::MouseMoved(mouse_pos) => {
+                if let Some(cur_gate_drag) = self.ui.simulation_widget.cur_gate_drag {
+                    let loc = simulation::Gate::location_mut(&mut self.simulation.circuits, &mut self.simulation.gates, cur_gate_drag);
+                    loc.x = mouse_pos.x; // TODO: zooming
+                    loc.y = mouse_pos.y;
+                }
+                println!("mouse mvoed");
+            }
+            Message::MouseUp => {
+                self.ui.simulation_widget.cur_gate_drag = None;
+                println!("mouse up");
+            }
         }
     }
 }
@@ -46,7 +54,7 @@ fn main() {
 }
 
 fn event(app: &App, logic_gates: &mut LogicGates, event: Event) {
-    let message = view::event(app, &logic_gates.simulation, event);
+    let message = view::event(app, logic_gates, event);
     if let Some(message) = message {
         logic_gates.message(message);
     }
@@ -59,6 +67,6 @@ fn update(_: &App, logic_gates: &mut LogicGates, _: Update) {
 
 fn view(app: &App, logic_gates: &LogicGates, frame: Frame) {
     let draw = app.draw();
-    view::render(app, &draw, &logic_gates.simulation);
+    view::render(app, &draw, logic_gates);
     draw.to_frame(app, &frame).unwrap();
 }
