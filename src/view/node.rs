@@ -23,13 +23,14 @@ const ERR_COLOR: Rgb = Rgb { red: 231.0 / 255.0, green: 76.0 / 255.0, blue: 60.0
 
 impl Drawing for NodeDrawing {
     fn draw(&self, simulation: &LogicGates, draw: &nannou::Draw, hovered: Option<&dyn Drawing>) {
-        let color = node_color(&simulation.simulation.nodes, self.key, true);
         if let Some(hovered) = hovered {
             if std::ptr::eq(hovered, self) {
                 // TODO: fix clippy lint about this
                 draw.ellipse().xy(self.location).radius(CIRCLE_RAD + 5.0).color(Rgba { color: Rgb::from_components((1.0, 1.0, 1.0)), alpha: 0.2 });
             }
         }
+
+        let color = node_color(&simulation.simulation.nodes, self.key, true);
         draw.ellipse().xy(self.location).radius(CIRCLE_RAD).color(color);
     }
 
