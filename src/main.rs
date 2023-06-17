@@ -10,7 +10,9 @@ use nannou::prelude::*;
 
 // TODO: find a better place to put this and reorganize everything (possibly make LogicGates struct instead of using simulation as model)
 enum Message {
-    GateDragged(simulation::GateKey, Vec2),
+    MouseDownOnGate(simulation::GateKey, Vec2),
+    MouseMoved(Vec2),
+    MouseUp,
 }
 
 struct LogicGates {
@@ -25,11 +27,16 @@ impl LogicGates {
 
     fn message(&mut self, message: crate::Message) {
         match message {
+            /*
             Message::GateDragged(gate, mouse_loc) => {
                 let loc = simulation::Gate::location_mut(&mut self.simulation.circuits, &mut self.simulation.gates, gate);
                 loc.x = mouse_loc.x; // TODO: zooming
                 loc.y = mouse_loc.y;
             }
+            */
+            Message::MouseDownOnGate(_, _) => {}, // TODO
+            Message::MouseMoved(_) => {}, // TODO
+            Message::MouseUp => {}, // TODO
         }
     }
 }
