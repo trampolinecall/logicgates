@@ -17,10 +17,15 @@ trait Widget {
     // iterate through this and child widgets in z order to check which one the mouse is currently over
     fn find_hover(&self, mouse: Vec2) -> Option<&dyn Widget>;
 
-    fn mouse_dragged(&self, mouse_loc: Vec2) -> Option<crate::Message> {
-        // TODO: reconsider whether or not to use listeners
+    // TODO: reconsider whether or not to use listeners
+    /* TODO: figure out how this is supposed to work (mostly figure out how mouse up and mouse dragged is supposed to work, because they in theory should be global events and not specific to a widget)
+    fn mouse_down(&self, mouse_loc: Vec2) -> Option<crate::Message> {
         None
     }
+    fn mouse_click(&self, mouse_loc: Vec2) -> Option<crate::Message> {
+        None
+    }
+    */
 }
 
 pub(crate) fn render(app: &nannou::App, draw: &nannou::Draw, simulation: &Simulation) {
@@ -32,6 +37,8 @@ pub(crate) fn render(app: &nannou::App, draw: &nannou::Draw, simulation: &Simula
 pub(crate) fn event(app: &nannou::App, simulation: &Simulation, event: nannou::Event) -> Option<crate::Message> {
     let view = view(app, simulation);
     if let nannou::Event::WindowEvent { id: _, simple: Some(event) } = event {
+        None
+        /* TODO
         match event {
             WindowEvent::MouseMoved(mouse_loc) => {
                 if let nannou::state::mouse::ButtonPosition::Down(_) = app.mouse.buttons.left() {
@@ -50,6 +57,7 @@ pub(crate) fn event(app: &nannou::App, simulation: &Simulation, event: nannou::E
 
             _ => None, // TODO: handle other events
         }
+        */
     } else {
         None
     }
