@@ -1,11 +1,14 @@
+mod connection;
+mod gate;
+mod node;
+
 use std::{collections::HashMap, marker::PhantomData};
 
 use nannou::prelude::*;
 
 use crate::{
     simulation::{self, hierarchy, location, Gate, GateKey, NodeKey, Simulation},
-    view::{connection::ConnectionDrawing, gate::GateDrawing, node::NodeDrawing, Drawing},
-    LogicGates,
+    LogicGates, view::Drawing,
 };
 
 const VERTICAL_VALUE_SPACING: f32 = 20.0;
@@ -16,9 +19,9 @@ const GATE_WIDTH: f32 = 50.0;
 const BG_COLOR: Rgb = Rgb { red: 0.172, green: 0.243, blue: 0.313, standard: PhantomData };
 
 pub(crate) struct SimulationDrawing {
-    pub(crate) gates: Vec<GateDrawing>,
-    pub(crate) nodes: Vec<NodeDrawing>,
-    pub(crate) connections: Vec<ConnectionDrawing>,
+    pub(crate) gates: Vec<gate::GateDrawing>,
+    pub(crate) nodes: Vec<node::NodeDrawing>,
+    pub(crate) connections: Vec<connection::ConnectionDrawing>,
     pub(crate) rect: nannou::geom::Rect,
 }
 impl SimulationDrawing {
@@ -74,6 +77,10 @@ impl Drawing for SimulationDrawing {
 
         None
     }
+
+    fn left_mouse_down(&self) -> Option<crate::Message> {
+        None
+    }
 }
 
 fn layout(
@@ -84,7 +91,7 @@ fn layout(
     gates: impl IntoIterator<Item = GateKey>,
     nodes: impl IntoIterator<Item = NodeKey>,
     rect: nannou::geom::Rect,
-) -> (Vec<GateDrawing>, Vec<NodeDrawing>, Vec<ConnectionDrawing>) {
+) -> (Vec<gate::GateDrawing>, Vec<node::NodeDrawing>, Vec<connection::ConnectionDrawing>) {
     let gate_widgets = gates
         .into_iter()
         .map(|gate| {
@@ -92,12 +99,12 @@ fn layout(
             let num_inputs = Gate::num_inputs(circuit_map, gate_map, gate);
             let num_outputs = Gate::num_outputs(circuit_map, gate_map, gate);
 
-            GateDrawing { key: gate, rect: gate_rect(rect, gate_location, num_inputs, num_outputs) }
+            gate::GateDrawing { key: gate, rect: gate_rect(rect, gate_location, num_inputs, num_outputs) }
         })
         .collect();
     let node_positions: HashMap<_, _> = nodes.into_iter().map(|node| (node, node_pos(rect, circuit_map, gate_map, node_map, node))).collect();
-    let connections: Vec<_> = connections.iter().filter_map(|(a, b)| Some(ConnectionDrawing { node1: *a, node2: *b, pos1: *node_positions.get(a)?, pos2: *node_positions.get(b)? })).collect();
-    let node_widgets = node_positions.into_iter().map(|(node, location)| NodeDrawing { key: node, location }).collect();
+    let connections: Vec<_> = connections.iter().filter_map(|(a, b)| Some(connection::ConnectionDrawing { node1: *a, node2: *b, pos1: *node_positions.get(a)?, pos2: *node_positions.get(b)? })).collect();
+    let node_widgets = node_positions.into_iter().map(|(node, location)| node::NodeDrawing { key: node, location }).collect();
 
     (gate_widgets, node_widgets, connections)
 }

@@ -1,15 +1,17 @@
-use crate::simulation;
+use crate::{ui::widgets::Widget, view};
+
+pub(crate) mod widgets;
 
 pub(crate) struct UI {
-    pub(crate) simulation_widget: SimulationWidget,
-}
-
-pub(crate) struct SimulationWidget {
-    pub(crate) cur_gate_drag: Option<simulation::GateKey>,
+    pub(crate) main_widget: widgets::simulation::SimulationWidget,
 }
 
 impl UI {
     pub(crate) fn new() -> UI {
-        UI { simulation_widget: SimulationWidget { cur_gate_drag: None } }
+        UI { main_widget: widgets::simulation::SimulationWidget::new() }
+    }
+
+    pub(crate) fn view(&self, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> impl view::Drawing {
+        self.main_widget.view(logic_gates, rect)
     }
 }
