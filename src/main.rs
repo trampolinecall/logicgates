@@ -7,6 +7,8 @@ pub(crate) mod simulation;
 pub(crate) mod ui;
 pub(crate) mod view;
 
+use crate::ui::widgets::Widget;
+
 use nannou::prelude::*;
 
 // TODO: find a better place to put this and reorganize everything
@@ -45,6 +47,10 @@ impl LogicGates {
             }
         }
         */
+    }
+
+    fn view(&self, rect: nannou::geom::Rect) -> impl view::Drawing {
+        self.ui.main_widget.view(self, rect)
     }
 }
 

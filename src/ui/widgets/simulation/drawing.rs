@@ -8,7 +8,8 @@ use nannou::prelude::*;
 
 use crate::{
     simulation::{self, hierarchy, location, Gate, GateKey, NodeKey, Simulation},
-    LogicGates, view::Drawing,
+    view::Drawing,
+    LogicGates,
 };
 
 const VERTICAL_VALUE_SPACING: f32 = 20.0;
@@ -32,14 +33,13 @@ impl SimulationDrawing {
         let nodes =
             toplevel_gates.iter().flat_map(|gate| Gate::inputs(&simulation.circuits, &simulation.gates, *gate).iter().chain(Gate::outputs(&simulation.circuits, &simulation.gates, *gate))).copied();
 
-        let (gate_widgets, node_widgets, connection_widgets) = layout(&simulation.circuits, &simulation.gates, &simulation.nodes, &simulation.connections, gates, nodes, rect);
+        let (gate_drawings, node_drawings, connection_drawings) = layout(&simulation.circuits, &simulation.gates, &simulation.nodes, &simulation.connections, gates, nodes, rect);
 
-        SimulationDrawing { gates: gate_widgets, nodes: node_widgets, connections: connection_widgets, rect }
+        SimulationDrawing { gates: gate_drawings, nodes: node_drawings, connections: connection_drawings, rect }
     }
 }
 
 impl Drawing for SimulationDrawing {
-    // TODO: figure out a more elegant way to draw the simulation because this relies on the simulation being passed to be the same simulation that this widget belongs to
     fn draw(&self, simulation: &LogicGates, draw: &nannou::Draw, hovered: Option<&dyn Drawing>) {
         draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(BG_COLOR);
 
@@ -92,7 +92,7 @@ fn layout(
     nodes: impl IntoIterator<Item = NodeKey>,
     rect: nannou::geom::Rect,
 ) -> (Vec<gate::GateDrawing>, Vec<node::NodeDrawing>, Vec<connection::ConnectionDrawing>) {
-    let gate_widgets = gates
+    let gate_drawings = gates
         .into_iter()
         .map(|gate| {
             let gate_location = Gate::location(circuit_map, gate_map, gate);
@@ -103,10 +103,11 @@ fn layout(
         })
         .collect();
     let node_positions: HashMap<_, _> = nodes.into_iter().map(|node| (node, node_pos(rect, circuit_map, gate_map, node_map, node))).collect();
-    let connections: Vec<_> = connections.iter().filter_map(|(a, b)| Some(connection::ConnectionDrawing { node1: *a, node2: *b, pos1: *node_positions.get(a)?, pos2: *node_positions.get(b)? })).collect();
-    let node_widgets = node_positions.into_iter().map(|(node, location)| node::NodeDrawing { key: node, location }).collect();
+    let connections: Vec<_> =
+        connections.iter().filter_map(|(a, b)| Some(connection::ConnectionDrawing { node1: *a, node2: *b, pos1: *node_positions.get(a)?, pos2: *node_positions.get(b)? })).collect();
+    let node_drawings = node_positions.into_iter().map(|(node, location)| node::NodeDrawing { key: node, location }).collect();
 
-    (gate_widgets, node_widgets, connections)
+    (gate_drawings, node_drawings, connections)
 }
 
 // TODO: reorganize all of these functions
