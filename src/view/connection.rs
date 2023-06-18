@@ -45,7 +45,7 @@ fn min_dist_squared(line_segment: (nannou::geom::Vec2, nannou::geom::Vec2), poin
         // project point onto line segment and return distance to that projected point
         let t = (point - a).dot(b - a) / len_squared;
         let t_clamped = t.clamp(0.0, 1.0);
-        let projected = line_segment.0.lerp(line_segment.1, t_clamped);
+        let projected = a.lerp(b, t_clamped);
         point.distance_squared(projected)
     }
 }
