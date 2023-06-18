@@ -1,15 +1,10 @@
-use crate::LogicGates;
+use crate::{ui::widgets::Widget, LogicGates};
 
 use nannou::prelude::*;
 
-mod connection;
-mod gate;
-mod node;
-mod simulation;
-
 // mvc pattern inspired by elm architecture
-pub(crate) struct View<MouseMovedCallback: Fn(Vec2) -> Option<crate::Message>> {
-    simulation_drawing: simulation::SimulationDrawing,
+pub(crate) struct View<D: Drawing, MouseMovedCallback: Fn(Vec2) -> Option<crate::Message>> {
+    main_drawing: D,
     subscriptions: Subscriptions<MouseMovedCallback>,
 }
 
@@ -18,7 +13,7 @@ struct Subscriptions<MouseMovedCallback: Fn(Vec2) -> Option<crate::Message>> {
     left_mouse_up: Option<crate::Message>,
 }
 
-trait Drawing {
+pub(crate) trait Drawing {
     fn draw(&self, logic_gates: &LogicGates, draw: &nannou::Draw, hovered: Option<&dyn Drawing>);
     // iterate through this and child widgets in z order to check which one the mouse is currently over
     fn find_hover(&self, mouse: Vec2) -> Option<&dyn Drawing>;
@@ -31,8 +26,8 @@ trait Drawing {
 
 pub(crate) fn render(app: &nannou::App, draw: &nannou::Draw, logic_gates: &LogicGates) {
     let view = view(app, logic_gates);
-    let hover = view.simulation_drawing.find_hover(app.mouse.position());
-    view.simulation_drawing.draw(logic_gates, draw, hover);
+    let hover = view.main_drawing.find_hover(app.mouse.position());
+    view.main_drawing.draw(logic_gates, draw, hover);
 }
 
 pub(crate) fn event(app: &nannou::App, logic_gates: &LogicGates, event: nannou::Event) -> Option<crate::Message> {
@@ -40,7 +35,7 @@ pub(crate) fn event(app: &nannou::App, logic_gates: &LogicGates, event: nannou::
     if let nannou::Event::WindowEvent { id: _, simple: Some(event) } = event {
         match event {
             WindowEvent::MousePressed(MouseButton::Left) => {
-                let hovered = view.simulation_drawing.find_hover(app.mouse.position());
+                let hovered = view.main_drawing.find_hover(app.mouse.position());
                 if let Some(hovered) = hovered {
                     hovered.left_mouse_down()
                 } else {
@@ -65,13 +60,16 @@ pub(crate) fn event(app: &nannou::App, logic_gates: &LogicGates, event: nannou::
     }
 }
 
-fn view(app: &nannou::App, logic_gates: &LogicGates) -> View<impl Fn(Vec2) -> Option<crate::Message>> {
-    let simulation_drawing = simulation::SimulationDrawing::new(app.window_rect(), &logic_gates.simulation);
+fn view(app: &nannou::App, logic_gates: &LogicGates) -> View<impl Drawing, impl Fn(Vec2) -> Option<crate::Message>> {
+    let main_drawing = logic_gates.ui.view(logic_gates, app.window_rect());
 
+    /* TODO
     let subscriptions = Subscriptions {
-        mouse_moved: if logic_gates.ui.simulation_widget.cur_gate_drag.is_some() { Some(|mouse_pos| Some(crate::Message::MouseMoved(mouse_pos))) } else { None },
-        left_mouse_up: if logic_gates.ui.simulation_widget.cur_gate_drag.is_some() { Some(crate::Message::MouseUp) } else { None },
+        mouse_moved: if logic_gates.ui.main_widget.cur_gate_drag.is_some() { Some(|mouse_pos| Some(crate::Message::MouseMoved(mouse_pos))) } else { None },
+        left_mouse_up: if logic_gates.ui.main_widget.cur_gate_drag.is_some() { Some(crate::Message::MouseUp) } else { None },
     };
+    */
+    let subscriptions = Subscriptions { mouse_moved: None::<fn(_) -> _>, left_mouse_up: None };
 
-    View { simulation_drawing, subscriptions }
+    View { main_drawing, subscriptions }
 }

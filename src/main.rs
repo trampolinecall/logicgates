@@ -28,21 +28,23 @@ impl LogicGates {
     }
 
     fn message(&mut self, message: crate::Message) {
+        /* TODO
         match message {
             Message::MouseDownOnGate(gate) => {
-                self.ui.simulation_widget.cur_gate_drag = Some(gate);
+                self.ui.main_widget.cur_gate_drag = Some(gate);
             }
             Message::MouseMoved(mouse_pos) => {
-                if let Some(cur_gate_drag) = self.ui.simulation_widget.cur_gate_drag {
+                if let Some(cur_gate_drag) = self.ui.main_widget.cur_gate_drag {
                     let loc = simulation::Gate::location_mut(&mut self.simulation.circuits, &mut self.simulation.gates, cur_gate_drag);
                     loc.x = mouse_pos.x; // TODO: zooming
                     loc.y = mouse_pos.y;
                 }
             }
             Message::MouseUp => {
-                self.ui.simulation_widget.cur_gate_drag = None;
+                self.ui.main_widget.cur_gate_drag = None;
             }
         }
+        */
     }
 }
 
