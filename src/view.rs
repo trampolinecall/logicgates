@@ -1,8 +1,7 @@
-use crate::{ui::widgets::Widget, LogicGates};
+use crate::LogicGates;
 
 use nannou::prelude::*;
 
-// mvc pattern inspired by elm architecture
 pub(crate) struct View<D: Drawing, MouseMovedCallback: Fn(Vec2) -> Option<crate::Message>> {
     main_drawing: D,
     subscriptions: Subscriptions<MouseMovedCallback>,
@@ -61,7 +60,7 @@ pub(crate) fn event(app: &nannou::App, logic_gates: &LogicGates, event: nannou::
 }
 
 fn view(app: &nannou::App, logic_gates: &LogicGates) -> View<impl Drawing, impl Fn(Vec2) -> Option<crate::Message>> {
-    let main_drawing = logic_gates.ui.view(logic_gates, app.window_rect());
+    let main_drawing = logic_gates.view(app.window_rect());
 
     /* TODO
     let subscriptions = Subscriptions {
