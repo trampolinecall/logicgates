@@ -15,17 +15,19 @@ use nannou::prelude::*;
 // TODO: find a better place to put this and reorganize everything
 struct LogicGates {
     simulation: simulation::Simulation,
+    subtick_per_update: f32, // TODO: chagen this to usize after fixing slider widget
     ui: ui::UI,
 }
 
 // TODO: find a better place to put this too
 enum Message {
     GateMoved(simulation::GateKey, Vec2),
+    NumberOfSubticksPerUpdateChanged(f32),
 }
 
 impl LogicGates {
     fn new(_: &App) -> LogicGates {
-        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), ui: ui::UI::new() }
+        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), ui: ui::UI::new(), subtick_per_update: 1.0 }
     }
 
     fn message(&mut self, message: crate::Message) {
@@ -35,6 +37,7 @@ impl LogicGates {
                 loc.x = pos.x;
                 loc.y = pos.y;
             }
+            Message::NumberOfSubticksPerUpdateChanged(t) => self.subtick_per_update = t,
         }
     }
 
@@ -59,7 +62,7 @@ fn event(app: &App, logic_gates: &mut LogicGates, event: Event) {
 
 fn update(_: &App, logic_gates: &mut LogicGates, _: Update) {
     // TODO: adjust number of ticks for time since last update
-    simulation::logic::update(&mut logic_gates.simulation.gates, &mut logic_gates.simulation.nodes);
+    simulation::logic::update(&mut logic_gates.simulation.gates, &mut logic_gates.simulation.nodes, logic_gates.subtick_per_update as usize);
 }
 
 fn view(app: &App, logic_gates: &LogicGates, frame: Frame) {

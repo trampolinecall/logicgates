@@ -99,6 +99,7 @@ impl<Base: Widget, Over: Widget> Widget for SlideOver<Base, Over> {
                 self.toggle_pressed = true;
                 None
             }
+            UIMessage::MouseDownOnSlider(_, _) => None,
         }
     }
 }

@@ -57,6 +57,7 @@ impl Widget for SimulationWidget {
                 None
             }
             UIMessage::MouseDownOnSlideOverToggleButton => None,
+            UIMessage::MouseDownOnSlider(_, _) => None,
         }
     }
 }
