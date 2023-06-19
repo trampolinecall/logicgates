@@ -54,14 +54,16 @@ impl Widget for Flow {
         }
 
         // TODO: stay within bounds of rect
-        let cur_y = rect.top();
+        let mut cur_y = rect.top();
 
         let (children_drawings, all_subscriptions): (Vec<_>, Vec<_>) = self
             .children
             .iter()
             .map(|child| {
                 let child_size = child.size(rect.w_h());
-                child.view(logic_gates, nannou::geom::Rect::from_x_y_w_h(rect.x(), cur_y + child_size.1 / 2.0, child_size.0, child_size.1))
+                let child_drawing = child.view(logic_gates, nannou::geom::Rect::from_x_y_w_h(rect.x(), cur_y - child_size.1 / 2.0, child_size.0, child_size.1));
+                cur_y -= child_size.1;
+                child_drawing
             })
             .unzip();
         (Box::new(FlowDrawing { children: children_drawings }), all_subscriptions.into_iter().flatten().collect())
