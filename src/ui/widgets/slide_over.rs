@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::{
     ui::{
         message::{TargetedUIMessage, UIMessage},
@@ -13,12 +15,13 @@ pub(crate) struct SlideOver<Base: Widget, Over: Widget> {
     over: Over,
 
     slide_over_out: bool,
+    last_switch_time: Duration,
     toggle_pressed: bool,
 }
 
 impl<Base: Widget, Over: Widget> SlideOver<Base, Over> {
     pub(crate) fn new(id_maker: &mut WidgetIdMaker, base: Base, over: Over) -> Self {
-        Self { id: id_maker.next_id(), base, over, slide_over_out: false, toggle_pressed: false }
+        Self { id: id_maker.next_id(), base, over, slide_over_out: false, toggle_pressed: false, last_switch_time: Duration::ZERO }
     }
 }
 
@@ -31,7 +34,7 @@ impl<Base: Widget, Over: Widget> Widget for SlideOver<Base, Over> {
         self.base.size(given)
     }
 
-    fn view(&self, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
+    fn view(&self, app: &nannou::App, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
         struct ToggleButtonDrawing {
             slide_over_id: WidgetId,
             rect: nannou::geom::Rect,
@@ -83,21 +86,21 @@ impl<Base: Widget, Over: Widget> Widget for SlideOver<Base, Over> {
                 }
             }
 
-            fn left_mouse_down(&self) -> Option<TargetedUIMessage> {
+            fn left_mouse_down(&self, time: &nannou::App) -> Option<TargetedUIMessage> {
                 Some(TargetedUIMessage { target: self.slide_over_id, message: UIMessage::MouseDownOnSlideOverToggleButton })
             }
         }
 
-        let (base_drawing, mut base_subscriptions) = self.base.view(logic_gates, rect);
+        let (base_drawing, mut base_subscriptions) = self.base.view(app, logic_gates, rect);
         if self.toggle_pressed {
             base_subscriptions.push(view::Subscription::LeftMouseUp(Box::new({
                 let slide_over_id = self.id;
-                move || TargetedUIMessage { target: slide_over_id, message: UIMessage::LeftMouseUp }
+                move |_| TargetedUIMessage { target: slide_over_id, message: UIMessage::LeftMouseUp }
             })));
         }
         let (over_drawing, over_subscriptions, toggle_button_left_x) = if self.slide_over_out {
             let over_size = self.over.size(rect.w_h());
-            let (over_drawing, over_subscriptions) = self.over.view(logic_gates, nannou::geom::Rect::from_x_y_w_h(rect.left() + over_size.0 / 2.0, rect.y(), over_size.0, over_size.1));
+            let (over_drawing, over_subscriptions) = self.over.view(app, logic_gates, nannou::geom::Rect::from_x_y_w_h(rect.left() + over_size.0 / 2.0, rect.y(), over_size.0, over_size.1));
             (Some(over_drawing), over_subscriptions, rect.left() + over_size.0)
         } else {
             (None, Vec::new(), rect.left())
@@ -119,25 +122,26 @@ impl<Base: Widget, Over: Widget> Widget for SlideOver<Base, Over> {
         )
     }
 
-    fn targeted_message(&mut self, targeted_message: TargetedUIMessage) -> Option<crate::Message> {
+    fn targeted_message(&mut self, app: &nannou::App, targeted_message: TargetedUIMessage) -> Option<crate::Message> {
         if targeted_message.target == self.id {
-            self.message(targeted_message.message)
-        } else if let Some(base_response) = self.base.targeted_message(targeted_message) {
+            self.message(app, targeted_message.message)
+        } else if let Some(base_response) = self.base.targeted_message(app, targeted_message) {
             Some(base_response)
-        } else if let Some(over_response) = self.over.targeted_message(targeted_message) {
+        } else if let Some(over_response) = self.over.targeted_message(app, targeted_message) {
             Some(over_response)
         } else {
             None
         }
     }
 
-    fn message(&mut self, message: UIMessage) -> Option<crate::Message> {
+    fn message(&mut self, app: &nannou::App, message: UIMessage) -> Option<crate::Message> {
         match message {
             UIMessage::MouseDownOnGate(_) => None,
             UIMessage::MouseMoved(_) => None,
             UIMessage::LeftMouseUp => {
                 if self.toggle_pressed {
                     self.toggle_pressed = false;
+                    self.last_switch_time = app.duration.since_start;
                     self.slide_over_out = !self.slide_over_out;
                     None
                 } else {

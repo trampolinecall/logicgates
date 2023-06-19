@@ -38,8 +38,8 @@ impl LogicGates {
         }
     }
 
-    fn view(&self, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
-        self.ui.main_widget.view(self, rect)
+    fn view(&self, app: &App, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
+        self.ui.main_widget.view(app, self, rect)
     }
 }
 
@@ -50,7 +50,7 @@ fn main() {
 fn event(app: &App, logic_gates: &mut LogicGates, event: Event) {
     let ui_message = view::event(app, logic_gates, event);
     for ui_message in ui_message {
-        let logic_gate_message = logic_gates.ui.targeted_message(ui_message);
+        let logic_gate_message = logic_gates.ui.targeted_message(app, ui_message);
         if let Some(logic_gate_message) = logic_gate_message {
             logic_gates.message(logic_gate_message);
         }

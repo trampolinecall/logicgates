@@ -44,7 +44,7 @@ impl Drawing for GateDrawing {
         None
     }
 
-    fn left_mouse_down(&self) -> Option<TargetedUIMessage> {
+    fn left_mouse_down(&self, _: &nannou::App) -> Option<TargetedUIMessage> {
         Some(TargetedUIMessage { target: self.simulation_widget_id, message: UIMessage::MouseDownOnGate(self.key) })
     }
 }

@@ -32,7 +32,7 @@ impl Widget for Flow {
         })
     }
 
-    fn view(&self, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
+    fn view(&self, app: &nannou::App, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
         struct FlowDrawing {
             children: Vec<Box<dyn view::Drawing>>,
         }
@@ -61,7 +61,7 @@ impl Widget for Flow {
             .iter()
             .map(|child| {
                 let child_size = child.size(rect.w_h());
-                let child_drawing = child.view(logic_gates, nannou::geom::Rect::from_x_y_w_h(rect.x(), cur_y - child_size.1 / 2.0, child_size.0, child_size.1));
+                let child_drawing = child.view(app, logic_gates, nannou::geom::Rect::from_x_y_w_h(rect.x(), cur_y - child_size.1 / 2.0, child_size.0, child_size.1));
                 cur_y -= child_size.1;
                 child_drawing
             })
@@ -69,12 +69,12 @@ impl Widget for Flow {
         (Box::new(FlowDrawing { children: children_drawings }), all_subscriptions.into_iter().flatten().collect())
     }
 
-    fn targeted_message(&mut self, targeted_message: TargetedUIMessage) -> Option<crate::Message> {
+    fn targeted_message(&mut self, app: &nannou::App, targeted_message: TargetedUIMessage) -> Option<crate::Message> {
         if targeted_message.target == self.id {
-            self.message(targeted_message.message)
+            self.message(app, targeted_message.message)
         } else {
             for child in &mut self.children {
-                if let Some(child_response) = child.targeted_message(targeted_message) {
+                if let Some(child_response) = child.targeted_message(app, targeted_message) {
                     return Some(child_response);
                 }
             }
@@ -83,7 +83,7 @@ impl Widget for Flow {
         }
     }
 
-    fn message(&mut self, message: UIMessage) -> Option<crate::Message> {
+    fn message(&mut self, _: &nannou::App, message: UIMessage) -> Option<crate::Message> {
         match message {
             UIMessage::MouseDownOnGate(_) => None,
             UIMessage::MouseMoved(_) => None,
