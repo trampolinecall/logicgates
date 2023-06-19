@@ -1,7 +1,10 @@
-use crate::{ui::{
-    message::{TargetedUIMessage, UIMessage},
-    widgets::{Widget, WidgetId, WidgetIdMaker},
-}, view};
+use crate::{
+    ui::{
+        message::{TargetedUIMessage, UIMessage},
+        widgets::{Widget, WidgetId, WidgetIdMaker},
+    },
+    view,
+};
 
 pub(crate) struct SlideOver<Base: Widget, Over: Widget> {
     id: WidgetId,

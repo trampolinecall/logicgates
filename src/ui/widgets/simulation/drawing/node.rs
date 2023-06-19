@@ -2,8 +2,9 @@ use nannou::prelude::*;
 
 use crate::{
     simulation::{logic, NodeKey, NodeMap},
+    theme::Theme,
     view::Drawing,
-    LogicGates, theme::Theme,
+    LogicGates,
 };
 
 pub(crate) struct NodeDrawing {

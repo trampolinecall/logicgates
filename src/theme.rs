@@ -29,24 +29,23 @@ pub(crate) struct Theme {
 }
 
 impl Theme {
-pub(crate) const DEFAULT: Theme = Theme {
-    simulation_bg_color: rgb(180, 180, 180),
+    pub(crate) const DEFAULT: Theme = Theme {
+        simulation_bg_color: rgb(180, 180, 180),
 
-    gate_color: rgb(100, 100, 100),
-    gate_hover_color: rgba(255, 255, 255, 50),
-    gate_text_color: rgb(255, 255, 255),
+        gate_color: rgb(100, 100, 100),
+        gate_hover_color: rgba(255, 255, 255, 50),
+        gate_text_color: rgb(255, 255, 255),
 
-    gate_hover_dist: 5.0,
-    on_color: rgb(0, 255, 0),
-    off_color: rgb(50, 50, 50),
-    high_impedance_color: rgb(0, 0, 255),
-    err_color: rgb(255, 0, 0),
-    node_hover_color: rgba(255, 255, 255, 50),
-    node_rad: 5.0,
+        gate_hover_dist: 5.0,
+        on_color: rgb(0, 255, 0),
+        off_color: rgb(50, 50, 50),
+        high_impedance_color: rgb(0, 0, 255),
+        err_color: rgb(255, 0, 0),
+        node_hover_color: rgba(255, 255, 255, 50),
+        node_rad: 5.0,
 
-    node_hover_dist: 4.0,
-    connection_width: 2.5,
-    connection_hover_dist: 4.0,
-};
-
+        node_hover_dist: 4.0,
+        connection_width: 2.5,
+        connection_hover_dist: 4.0,
+    };
 }

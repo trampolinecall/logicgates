@@ -9,5 +9,5 @@ pub(crate) struct TargetedUIMessage {
 pub(crate) enum UIMessage {
     MouseDownOnGate(GateKey),
     MouseMoved(nannou::geom::Vec2),
-    LeftMouseUp
+    LeftMouseUp,
 }
