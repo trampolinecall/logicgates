@@ -71,6 +71,11 @@ impl<Base: Widget, Over: Widget> Widget for SlideOver<Base, Over> {
                 if let x @ Some(_) = self.toggle_button_drawing.find_hover(mouse) {
                     return x;
                 }
+                if let Some(over_drawing) = &self.over_drawing {
+                    if let x @ Some(_) = over_drawing.find_hover(mouse) {
+                        return x;
+                    }
+                }
 
                 self.base_drawing.find_hover(mouse)
             }
