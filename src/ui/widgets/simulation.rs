@@ -46,11 +46,8 @@ impl Widget for SimulationWidget {
                 None
             }
             UIMessage::MouseMoved(mouse_pos) => {
-                if let Some(cur_gate_drag) = self.cur_gate_drag {
-                    Some(Message::GateMoved(cur_gate_drag, mouse_pos)) // TODO: zooming and panning
-                } else {
-                    None
-                }
+                // TODO: zooming and panning
+                self.cur_gate_drag.map(|cur_gate_drag| Message::GateMoved(cur_gate_drag, mouse_pos))
             }
             UIMessage::LeftMouseUp => {
                 self.cur_gate_drag = None;
