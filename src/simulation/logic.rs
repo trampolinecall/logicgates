@@ -2,8 +2,6 @@ use std::collections::HashSet;
 
 use crate::simulation::{hierarchy, CircuitKey, CircuitMap, Gate, GateKey, GateMap, Node, NodeKey, NodeMap};
 
-const SUBTICKS_PER_UPDATE: usize = 1; // TODO: make this adjustable at runtime
-
 pub(crate) struct NodeLogic {
     production: Option<Value>,
     value: Value,
@@ -117,9 +115,9 @@ pub(crate) fn set_input(circuits: &mut CircuitMap, nodes: &mut NodeMap, circuit:
     set_node_production(nodes, node_key, value);
 }
 // update {{{1
-pub(crate) fn update(gates: &mut GateMap, node_map: &mut NodeMap) {
+pub(crate) fn update(gates: &mut GateMap, node_map: &mut NodeMap, subticks: usize) {
     use std::collections::BTreeMap;
-    for _ in 0..SUBTICKS_PER_UPDATE {
+    for _ in 0..subticks {
         // all gates calculate their values based on the values of the nodes in the previous subtick and then all updates get applied all at once
         let gate_outputs: Vec<(NodeKey, Value)> = gates
             .iter()

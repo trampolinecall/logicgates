@@ -16,8 +16,11 @@ pub(crate) struct Theme {
     pub(crate) slide_out_size: (f32, f32),
 
     pub(crate) button_normal_bg: Rgb,
+    pub(crate) button_normal_fg: Rgb,
     pub(crate) button_hover_bg: Rgb,
+    pub(crate) button_hover_fg: Rgb,
     pub(crate) button_pressed_bg: Rgb,
+    pub(crate) button_pressed_fg: Rgb,
 
     pub(crate) simulation_bg_color: Rgb,
 
@@ -47,14 +50,17 @@ impl Theme {
         slide_out_size: (10.0, 30.0),
 
         button_normal_bg: rgb(200, 200, 200),
+        button_normal_fg: rgb(0, 0, 0),
         button_hover_bg: rgb(255, 255, 255),
+        button_hover_fg: rgb(0, 0, 0),
         button_pressed_bg: rgb(100, 100, 100),
+        button_pressed_fg: rgb(0, 0, 0),
 
         simulation_bg_color: rgb(180, 180, 180),
+
         gate_color: rgb(100, 100, 100),
         gate_hover_color: rgba(255, 255, 255, 50),
         gate_text_color: rgb(255, 255, 255),
-
         gate_hover_dist: 5.0,
         on_color: rgb(0, 255, 0),
         off_color: rgb(50, 50, 50),
