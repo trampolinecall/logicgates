@@ -1,4 +1,4 @@
-use crate::{simulation::NodeKey, view::Drawing, LogicGates, theme::THEME};
+use crate::{simulation::NodeKey, theme::Theme, view::Drawing, LogicGates};
 
 pub(crate) struct ConnectionDrawing {
     pub(crate) node1: NodeKey,
@@ -10,12 +10,12 @@ pub(crate) struct ConnectionDrawing {
 impl Drawing for ConnectionDrawing {
     fn draw(&self, simulation: &LogicGates, draw: &nannou::Draw, hovered: Option<&dyn Drawing>) {
         let color = super::node::node_color(&simulation.simulation.nodes, self.node1, false);
-        let mut line = draw.line().start(self.pos1).end(self.pos2).weight(THEME.connection_width).color(color);
+        let mut line = draw.line().start(self.pos1).end(self.pos2).weight(Theme::DEFAULT.connection_width).color(color);
 
         if let Some(hovered) = hovered {
             if std::ptr::eq(hovered, self) {
                 // TODO: fix clippy lint about this
-                line = line.weight(THEME.connection_width + THEME.connection_hover_dist);
+                line = line.weight(Theme::DEFAULT.connection_width + Theme::DEFAULT.connection_hover_dist);
             }
         }
 
@@ -23,7 +23,7 @@ impl Drawing for ConnectionDrawing {
     }
 
     fn find_hover(&self, mouse_pos: nannou::geom::Vec2) -> Option<&dyn Drawing> {
-        if min_dist_squared((self.pos1, self.pos2), mouse_pos) < THEME.connection_hover_dist.powf(2.0) {
+        if min_dist_squared((self.pos1, self.pos2), mouse_pos) < Theme::DEFAULT.connection_hover_dist.powf(2.0) {
             Some(self)
         } else {
             None

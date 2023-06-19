@@ -1,6 +1,6 @@
 use crate::{
     simulation::GateKey,
-    theme::THEME,
+    theme::Theme,
     ui::{
         message::{TargetedUIMessage, UIMessage},
         widgets::WidgetId,
@@ -20,19 +20,19 @@ impl Drawing for GateDrawing {
         if let Some(hovered) = hovered {
             if std::ptr::eq(hovered, self) {
                 // TODO: fix clippy lint about this
-                let hover_rect = self.rect.pad_left(-THEME.gate_hover_dist).pad_top(-THEME.gate_hover_dist).pad_right(-THEME.gate_hover_dist).pad_bottom(-THEME.gate_hover_dist); // expand by hover distance, this is the "stroke weight"
-                draw.rect().xy(hover_rect.xy()).wh(hover_rect.wh()).color(THEME.gate_hover_color);
+                let hover_rect = self.rect.pad_left(-Theme::DEFAULT.gate_hover_dist).pad_top(-Theme::DEFAULT.gate_hover_dist).pad_right(-Theme::DEFAULT.gate_hover_dist).pad_bottom(-Theme::DEFAULT.gate_hover_dist); // expand by hover distance, this is the "stroke weight"
+                draw.rect().xy(hover_rect.xy()).wh(hover_rect.wh()).color(Theme::DEFAULT.gate_hover_color);
             }
         }
 
-        draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(THEME.gate_color);
+        draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(Theme::DEFAULT.gate_color);
 
         draw.text(simulation.simulation.gates[self.key].name(&simulation.simulation.circuits))
             .xy(self.rect.xy())
             .wh(self.rect.wh())
             .center_justify()
             .align_text_middle_y()
-            .color(THEME.gate_text_color);
+            .color(Theme::DEFAULT.gate_text_color);
     }
 
     fn find_hover(&self, mouse_pos: nannou::geom::Vec2) -> Option<&dyn Drawing> {

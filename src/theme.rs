@@ -28,7 +28,8 @@ pub(crate) struct Theme {
     pub(crate) connection_hover_dist: f32,
 }
 
-pub(crate) const THEME: Theme = Theme {
+impl Theme {
+pub(crate) const DEFAULT: Theme = Theme {
     simulation_bg_color: rgb(180, 180, 180),
 
     gate_color: rgb(100, 100, 100),
@@ -47,3 +48,5 @@ pub(crate) const THEME: Theme = Theme {
     connection_width: 2.5,
     connection_hover_dist: 4.0,
 };
+
+}
