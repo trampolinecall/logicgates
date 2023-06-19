@@ -61,6 +61,7 @@ impl Widget for TestRect {
             UIMessage::MouseDownOnGate(_) => None,
             UIMessage::MouseMoved(_) => None,
             UIMessage::LeftMouseUp => None,
+            UIMessage::MouseDownOnSlideOverToggleButton => None,
         }
     }
 }

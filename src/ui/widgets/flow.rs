@@ -88,6 +88,7 @@ impl Widget for Flow {
             UIMessage::MouseDownOnGate(_) => None,
             UIMessage::MouseMoved(_) => None,
             UIMessage::LeftMouseUp => None,
+            UIMessage::MouseDownOnSlideOverToggleButton => None,
         }
     }
 }
