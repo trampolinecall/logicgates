@@ -29,17 +29,17 @@ pub(crate) struct Theme {
 }
 
 pub(crate) const THEME: Theme = Theme {
-    simulation_bg_color: rgb(0, 0, 0),
+    simulation_bg_color: rgb(180, 180, 180),
 
-    gate_color: rgb(255, 255, 255),
+    gate_color: rgb(100, 100, 100),
     gate_hover_color: rgba(255, 255, 255, 50),
-    gate_text_color: rgb(0, 0, 0),
+    gate_text_color: rgb(255, 255, 255),
 
     gate_hover_dist: 5.0,
-    on_color: rgb(46, 204, 133),
-    off_color: rgb(127, 140, 141),
-    high_impedance_color: rgb(52, 152, 219),
-    err_color: rgb(231, 76, 60),
+    on_color: rgb(0, 255, 0),
+    off_color: rgb(50, 50, 50),
+    high_impedance_color: rgb(0, 0, 255),
+    err_color: rgb(255, 0, 0),
     node_hover_color: rgba(255, 255, 255, 50),
     node_rad: 5.0,
 
