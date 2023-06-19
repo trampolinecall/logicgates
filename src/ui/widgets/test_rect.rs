@@ -28,7 +28,7 @@ impl Widget for TestRect {
         self.size
     }
 
-    fn view(&self, _: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
+    fn view(&self, app: &nannou::App, _: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
         struct TestRectDrawing(nannou::geom::Rect, nannou::color::Srgb);
         impl view::Drawing for TestRectDrawing {
             fn draw(&self, _: &crate::LogicGates, draw: &nannou::Draw, _: Option<&dyn view::Drawing>) {
@@ -48,15 +48,15 @@ impl Widget for TestRect {
         (Box::new(TestRectDrawing(nannou::geom::Rect::from_x_y_w_h(rect.x(), rect.y(), self.size.0, self.size.1), self.color)), Vec::new())
     }
 
-    fn targeted_message(&mut self, targeted_message: TargetedUIMessage) -> Option<crate::Message> {
+    fn targeted_message(&mut self, app: &nannou::App, targeted_message: TargetedUIMessage) -> Option<crate::Message> {
         if targeted_message.target == self.id {
-            self.message(targeted_message.message)
+            self.message(app, targeted_message.message)
         } else {
             None
         }
     }
 
-    fn message(&mut self, message: UIMessage) -> Option<crate::Message> {
+    fn message(&mut self, _: &nannou::App, message: UIMessage) -> Option<crate::Message> {
         match message {
             UIMessage::MouseDownOnGate(_) => None,
             UIMessage::MouseMoved(_) => None,

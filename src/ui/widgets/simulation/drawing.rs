@@ -41,11 +41,11 @@ impl SimulationDrawing {
             vec![
                 view::Subscription::MouseMoved({
                     let swid_id = simulation_widget.id;
-                    Box::new(move |mouse_pos| TargetedUIMessage { target: swid_id, message: UIMessage::MouseMoved(mouse_pos) })
+                    Box::new(move |_, mouse_pos| TargetedUIMessage { target: swid_id, message: UIMessage::MouseMoved(mouse_pos) })
                 }),
                 view::Subscription::LeftMouseUp({
                     let swid_id = simulation_widget.id;
-                    Box::new(move || TargetedUIMessage { target: swid_id, message: UIMessage::LeftMouseUp })
+                    Box::new(move |_| TargetedUIMessage { target: swid_id, message: UIMessage::LeftMouseUp })
                 }),
             ]
         } else {
@@ -92,10 +92,6 @@ impl Drawing for SimulationDrawing {
             return Some(self);
         }
 
-        None
-    }
-
-    fn left_mouse_down(&self) -> Option<TargetedUIMessage> {
         None
     }
 }

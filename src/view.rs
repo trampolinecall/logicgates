@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::{ui::message::TargetedUIMessage, LogicGates};
 
 use nannou::prelude::*;
@@ -8,8 +10,8 @@ pub(crate) struct View {
 }
 
 pub(crate) enum Subscription {
-    MouseMoved(Box<dyn Fn(Vec2) -> TargetedUIMessage>),
-    LeftMouseUp(Box<dyn Fn() -> TargetedUIMessage>),
+    MouseMoved(Box<dyn Fn(&nannou::App, Vec2) -> TargetedUIMessage>),
+    LeftMouseUp(Box<dyn Fn(&nannou::App) -> TargetedUIMessage>),
 }
 
 pub(crate) trait Drawing {
@@ -17,7 +19,7 @@ pub(crate) trait Drawing {
     // iterate through this and child widgets in z order to check which one the mouse is currently over
     fn find_hover(&self, mouse: Vec2) -> Option<&dyn Drawing>;
 
-    fn left_mouse_down(&self) -> Option<TargetedUIMessage> {
+    fn left_mouse_down(&self, _: &nannou::App) -> Option<TargetedUIMessage> {
         None
     }
 }
@@ -35,7 +37,7 @@ pub(crate) fn event(app: &nannou::App, logic_gates: &LogicGates, event: nannou::
             WindowEvent::MousePressed(MouseButton::Left) => {
                 let hovered = view.main_drawing.find_hover(app.mouse.position());
                 if let Some(hovered) = hovered {
-                    hovered.left_mouse_down().into_iter().collect()
+                    hovered.left_mouse_down(app).into_iter().collect()
                 } else {
                     Vec::new()
                 }
@@ -45,7 +47,7 @@ pub(crate) fn event(app: &nannou::App, logic_gates: &LogicGates, event: nannou::
                 .subscriptions
                 .iter()
                 .filter_map(|sub| match sub {
-                    Subscription::MouseMoved(callback) => Some(callback(mouse_pos)),
+                    Subscription::MouseMoved(callback) => Some(callback(app, mouse_pos)),
                     Subscription::LeftMouseUp(_) => None,
                 })
                 .collect(),
@@ -55,7 +57,7 @@ pub(crate) fn event(app: &nannou::App, logic_gates: &LogicGates, event: nannou::
                 .iter()
                 .filter_map(|sub| match sub {
                     Subscription::MouseMoved(_) => None,
-                    Subscription::LeftMouseUp(callback) => Some(callback()),
+                    Subscription::LeftMouseUp(callback) => Some(callback(app)),
                 })
                 .collect(),
 
@@ -67,6 +69,6 @@ pub(crate) fn event(app: &nannou::App, logic_gates: &LogicGates, event: nannou::
 }
 
 fn view(app: &nannou::App, logic_gates: &LogicGates) -> View {
-    let (main_drawing, subscriptions) = logic_gates.view(app.window_rect());
+    let (main_drawing, subscriptions) = logic_gates.view(app, app.window_rect());
     View { main_drawing, subscriptions }
 }

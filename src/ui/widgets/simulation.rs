@@ -29,20 +29,20 @@ impl Widget for SimulationWidget {
         given // always fills given space
     }
 
-    fn view(&self, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
+    fn view(&self, app: &nannou::App, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
         let (drawing, subscriptions) = drawing::SimulationDrawing::new(&logic_gates.simulation, self, rect);
         (drawing, subscriptions)
     }
 
-    fn targeted_message(&mut self, message: TargetedUIMessage) -> Option<Message> {
+    fn targeted_message(&mut self, app: &nannou::App, message: TargetedUIMessage) -> Option<Message> {
         if message.target == self.id() {
-            self.message(message.message)
+            self.message(app, message.message)
         } else {
             None
         }
     }
 
-    fn message(&mut self, message: UIMessage) -> Option<Message> {
+    fn message(&mut self, _: &nannou::App, message: UIMessage) -> Option<Message> {
         match message {
             UIMessage::MouseDownOnGate(gate_key) => {
                 self.cur_gate_drag = Some(gate_key);
