@@ -28,7 +28,7 @@ impl Widget for TestRect {
         self.size
     }
 
-    fn view(&self, app: &nannou::App, _: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
+    fn view(&self, _: &nannou::App, _: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
         struct TestRectDrawing(nannou::geom::Rect, nannou::color::Srgb);
         impl view::Drawing for TestRectDrawing {
             fn draw(&self, _: &crate::LogicGates, draw: &nannou::Draw, _: Option<&dyn view::Drawing>) {
