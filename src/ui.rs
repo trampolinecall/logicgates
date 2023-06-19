@@ -18,6 +18,7 @@ impl UI {
         let slide_over = widgets::slide_over::SlideOver::new(&mut id_maker, simulation_widget, flow);
         UI { main_widget: slide_over }
     }
+
     pub(crate) fn targeted_message(&mut self, app: &nannou::App, tm: message::TargetedUIMessage) -> Option<crate::Message> {
         self.main_widget.targeted_message(app, tm)
     }
