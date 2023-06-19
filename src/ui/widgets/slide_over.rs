@@ -23,6 +23,18 @@ impl<Base: Widget, Over: Widget> SlideOver<Base, Over> {
     pub(crate) fn new(id_maker: &mut WidgetIdMaker, base: Base, over: Over) -> Self {
         Self { id: id_maker.next_id(), base, over, slide_over_out: false, toggle_pressed: false, last_switch_time: Duration::ZERO }
     }
+
+    fn calculate_slide_over_rects(&self, app: &nannou::App, rect: nannou::geom::Rect) -> (Option<nannou::geom::Rect>, nannou::geom::Rect) {
+        let time_since_switch = app.duration.since_start - self.last_switch_time;
+        let time_interp = (time_since_switch.as_secs_f32() / 0.1).clamp(0.0, 1.0); // TODO: put this in theme as animation time, also TODO: easing
+        let x_interp = if self.slide_over_out { time_interp } else { 1.0 - time_interp };
+
+        let over_size = self.over.size(rect.w_h());
+        let over_rect = nannou::geom::Rect::from_wh(over_size.into()).align_y_of(nannou::geom::Align::Middle, rect).left_of(rect).shift_x(over_size.0 * x_interp);
+        let toggle_button_rect = nannou::geom::Rect::from_w_h(10.0, 30.0).right_of(over_rect).align_top_of(rect).shift_y(10.0); // TODO: make constants for these
+        let over_rect_needed = self.slide_over_out || time_interp != 1.0; // drawer is out or we are in the middle of an animation
+        (if over_rect_needed { Some(over_rect) } else { None }, toggle_button_rect)
+    }
 }
 
 impl<Base: Widget, Over: Widget> Widget for SlideOver<Base, Over> {
@@ -86,39 +98,29 @@ impl<Base: Widget, Over: Widget> Widget for SlideOver<Base, Over> {
                 }
             }
 
-            fn left_mouse_down(&self, time: &nannou::App) -> Option<TargetedUIMessage> {
+            fn left_mouse_down(&self, _: &nannou::App) -> Option<TargetedUIMessage> {
                 Some(TargetedUIMessage { target: self.slide_over_id, message: UIMessage::MouseDownOnSlideOverToggleButton })
             }
         }
 
-        let (base_drawing, mut base_subscriptions) = self.base.view(app, logic_gates, rect);
+        let (base_drawing, mut subscriptions) = self.base.view(app, logic_gates, rect);
+
+        let (over_rect, toggle_button_rect) = self.calculate_slide_over_rects(app, rect);
+        let over_drawing = over_rect.map(|over_rect| {
+            let (over_drawing, over_subscriptions) = self.over.view(app, logic_gates, over_rect);
+            subscriptions.extend(over_subscriptions);
+            over_drawing
+        });
         if self.toggle_pressed {
-            base_subscriptions.push(view::Subscription::LeftMouseUp(Box::new({
+            subscriptions.push(view::Subscription::LeftMouseUp(Box::new({
                 let slide_over_id = self.id;
                 move |_| TargetedUIMessage { target: slide_over_id, message: UIMessage::LeftMouseUp }
             })));
         }
-        let (over_drawing, over_subscriptions, toggle_button_left_x) = if self.slide_over_out {
-            let over_size = self.over.size(rect.w_h());
-            let (over_drawing, over_subscriptions) = self.over.view(app, logic_gates, nannou::geom::Rect::from_x_y_w_h(rect.left() + over_size.0 / 2.0, rect.y(), over_size.0, over_size.1));
-            (Some(over_drawing), over_subscriptions, rect.left() + over_size.0)
-        } else {
-            (None, Vec::new(), rect.left())
-        };
-
-        base_subscriptions.extend(over_subscriptions);
 
         (
-            Box::new(SlideOverDrawing {
-                base_drawing,
-                toggle_button_drawing: ToggleButtonDrawing {
-                    rect: nannou::geom::Rect::from_x_y_w_h(toggle_button_left_x + 5.0, rect.top() - 50.0, 10.0, 30.0), // TODO: make constants for toggle button rect, also TODO: make a constant for y offset
-                    slide_over_id: self.id,
-                    pressed: self.toggle_pressed,
-                },
-                over_drawing,
-            }),
-            base_subscriptions,
+            Box::new(SlideOverDrawing { base_drawing, toggle_button_drawing: ToggleButtonDrawing { rect: toggle_button_rect, slide_over_id: self.id, pressed: self.toggle_pressed }, over_drawing }),
+            subscriptions,
         )
     }
 
