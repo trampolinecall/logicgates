@@ -11,5 +11,5 @@ pub(crate) enum UIMessage {
     MouseMoved(nannou::geom::Vec2),
     LeftMouseUp,
     MouseDownOnSlideOverToggleButton,
-    MouseDownOnSlider(nannou::geom::Vec2, f32),
+    MouseDownOnSlider(nannou::geom::Vec2, f32), // TODO: figure out a way to remove the f32 from this
 }
