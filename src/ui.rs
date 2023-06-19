@@ -12,8 +12,8 @@ impl UI {
         let mut id_maker = widgets::WidgetIdMaker::new();
         let simulation_widget = widgets::simulation::SimulationWidget::new(&mut id_maker);
         let rects =
-            (0..20).map(|i| Box::new(widgets::test_rect::TestRect::new(&mut id_maker, nannou::color::srgb(i as f32 / 20.0, (20 - i) as f32 / 20.0, 0.0), (100.0, 10.0))) as Box<dyn Widget>).collect();
-        let flow = widgets::flow::Flow::new(&mut id_maker, rects);
+            (0..20).map(|i| Box::new(widgets::test_rect::TestRect::new(&mut id_maker, nannou::color::srgb(i as f32 / 20.0, (20 - i) as f32 / 20.0, 0.0), ((i * 5 + 20) as f32, 10.0))) as Box<dyn Widget>).collect();
+        let flow = widgets::flow::Flow::new(&mut id_maker, widgets::flow::FlowDirection::Vertical, rects);
         let slide_over = widgets::slide_over::SlideOver::new(&mut id_maker, simulation_widget, flow);
         UI { main_widget: slide_over }
     }
