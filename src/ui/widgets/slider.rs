@@ -35,7 +35,7 @@ impl<Getter: Fn(&crate::LogicGates) -> f32, Changer: Fn(f32) -> crate::Message> 
 
     fn view(&self, _: &nannou::App, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
         // TODO: show as progressbar if both min and max
-        let drawing = SliderDrawing { slider_id: self.id, rect, value: (self.getter)(logic_gates) };
+        let drawing = SliderDrawing { slider_id: self.id, rect, value: (self.getter)(logic_gates), pressed: self.drag_start.is_some() };
 
         (
             Box::new(drawing),
@@ -64,7 +64,7 @@ impl<Getter: Fn(&crate::LogicGates) -> f32, Changer: Fn(f32) -> crate::Message> 
         }
     }
 
-    fn message(&mut self, app: &nannou::App, message: UIMessage) -> Option<crate::Message> {
+    fn message(&mut self, _: &nannou::App, message: UIMessage) -> Option<crate::Message> {
         match message {
             UIMessage::MouseDownOnGate(_) => None,
             UIMessage::MouseMoved(new_mouse_pos) => {
@@ -103,6 +103,7 @@ struct SliderDrawing {
     slider_id: WidgetId,
     rect: nannou::geom::Rect,
     value: f32,
+    pressed: bool,
 }
 
 impl view::Drawing for SliderDrawing {
@@ -115,6 +116,10 @@ impl view::Drawing for SliderDrawing {
                 background_rect = background_rect.color(Theme::DEFAULT.button_hover_bg);
                 text = text.color(Theme::DEFAULT.button_hover_fg);
             }
+        }
+        if self.pressed {
+            background_rect = background_rect.color(Theme::DEFAULT.button_pressed_bg);
+            text = text.color(Theme::DEFAULT.button_pressed_fg);
         }
 
         background_rect.finish();
