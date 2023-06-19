@@ -8,7 +8,7 @@ use nannou::prelude::*;
 
 use crate::{
     simulation::{self, hierarchy, location, Gate, GateKey, NodeKey, Simulation},
-    theme::THEME,
+    theme::Theme,
     ui::{
         message::{TargetedUIMessage, UIMessage},
         widgets::WidgetId,
@@ -58,7 +58,7 @@ impl SimulationDrawing {
 
 impl Drawing for SimulationDrawing {
     fn draw(&self, simulation: &LogicGates, draw: &nannou::Draw, hovered: Option<&dyn Drawing>) {
-        draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(THEME.simulation_bg_color);
+        draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(Theme::DEFAULT.simulation_bg_color);
 
         for connection in &self.connections {
             connection.draw(simulation, draw, hovered);
