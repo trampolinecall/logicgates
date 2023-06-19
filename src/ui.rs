@@ -14,7 +14,7 @@ impl UI {
         let mut rects: Vec<_> = (0..20)
             .map(|i| Box::new(widgets::test_rect::TestRect::new(&mut id_maker, nannou::color::srgb(i as f32 / 20.0, (20 - i) as f32 / 20.0, 0.0), ((i * 5 + 20) as f32, 10.0))) as Box<dyn Widget>)
             .collect();
-        rects.push(Box::new(widgets::slider::Slider::new(&mut id_maker, Some(1.0), None, |logic_gates| logic_gates.subtick_per_update, |val| crate::Message::NumberOfSubticksPerUpdateChanged(val))));
+        rects.push(Box::new(widgets::slider::Slider::new(&mut id_maker, Some(1.0), None, |logic_gates| logic_gates.subtick_per_update, crate::Message::NumberOfSubticksPerUpdateChanged)));
         let flow = widgets::flow::Flow::new(&mut id_maker, widgets::flow::FlowDirection::Vertical, rects);
         let slide_over = widgets::slide_over::SlideOver::new(&mut id_maker, simulation_widget, flow);
         UI { main_widget: slide_over }

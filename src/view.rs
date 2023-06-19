@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use crate::{ui::message::TargetedUIMessage, LogicGates};
 
 use nannou::prelude::*;
