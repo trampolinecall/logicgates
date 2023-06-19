@@ -31,7 +31,7 @@ impl<Base: Widget, Over: Widget> SlideOver<Base, Over> {
         let x_interp = if self.drawer_out { time_interp } else { 1.0 - time_interp };
 
         let over_size = self.over.size(rect.w_h());
-        let over_rect = nannou::geom::Rect::from_wh(over_size.into()).align_y_of(nannou::geom::Align::Middle, rect).left_of(rect).shift_x(over_size.0 * x_interp);
+        let over_rect = nannou::geom::Rect::from_wh(over_size.into()).align_y_of(nannou::geom::Align::End, rect).left_of(rect).shift_x(over_size.0 * x_interp);
         let toggle_button_rect = nannou::geom::Rect::from_wh(Theme::DEFAULT.slide_out_size.into()).right_of(over_rect).align_top_of(rect).shift_y(-Theme::DEFAULT.slide_out_toggle_y_offset);
         let over_rect_needed = self.drawer_out || time_interp != 1.0; // drawer is out or we are in the middle of an animation
         (if over_rect_needed { Some(over_rect) } else { None }, toggle_button_rect)
