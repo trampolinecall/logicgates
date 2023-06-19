@@ -47,67 +47,6 @@ impl<Base: Widget, Over: Widget> Widget for SlideOver<Base, Over> {
     }
 
     fn view(&self, app: &nannou::App, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
-        struct ToggleButtonDrawing {
-            slide_over_id: WidgetId,
-            rect: nannou::geom::Rect,
-            pressed: bool,
-        }
-
-        struct SlideOverDrawing {
-            base_drawing: Box<dyn view::Drawing>,
-            over_drawing: Option<Box<dyn view::Drawing>>,
-            toggle_button_drawing: ToggleButtonDrawing,
-        }
-        impl view::Drawing for SlideOverDrawing {
-            fn draw(&self, logic_gates: &crate::LogicGates, draw: &nannou::Draw, hovered: Option<&dyn view::Drawing>) {
-                self.base_drawing.draw(logic_gates, draw, hovered);
-                if let Some(over_drawing) = &self.over_drawing {
-                    over_drawing.draw(logic_gates, draw, hovered)
-                }
-                self.toggle_button_drawing.draw(logic_gates, draw, hovered);
-            }
-
-            fn find_hover(&self, mouse: nannou::prelude::Vec2) -> Option<&dyn view::Drawing> {
-                if let x @ Some(_) = self.toggle_button_drawing.find_hover(mouse) {
-                    return x;
-                }
-                if let Some(over_drawing) = &self.over_drawing {
-                    if let x @ Some(_) = over_drawing.find_hover(mouse) {
-                        return x;
-                    }
-                }
-
-                self.base_drawing.find_hover(mouse)
-            }
-        }
-        impl view::Drawing for ToggleButtonDrawing {
-            fn draw(&self, _: &crate::LogicGates, draw: &nannou::Draw, hovered: Option<&dyn view::Drawing>) {
-                let mut rect = draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(nannou::color::srgb(1.0, 1.0, 1.0)); // TODO: put this in theme
-                if let Some(hovered) = hovered {
-                    if std::ptr::eq(hovered, self) {
-                        // TODO: fix clippy lint about this
-                        rect = rect.color(nannou::color::srgb(0.6, 0.6, 0.6));
-                    }
-                }
-                if self.pressed {
-                    rect = rect.color(nannou::color::srgb(0.3, 0.3, 0.3));
-                }
-                rect.finish()
-            }
-
-            fn find_hover(&self, mouse: nannou::prelude::Vec2) -> Option<&dyn view::Drawing> {
-                if self.rect.contains(mouse) {
-                    Some(self)
-                } else {
-                    None
-                }
-            }
-
-            fn left_mouse_down(&self, _: &nannou::App) -> Option<TargetedUIMessage> {
-                Some(TargetedUIMessage { target: self.slide_over_id, message: UIMessage::MouseDownOnSlideOverToggleButton })
-            }
-        }
-
         let (base_drawing, mut subscriptions) = self.base.view(app, logic_gates, rect);
 
         let (over_rect, toggle_button_rect) = self.calculate_slide_over_rects(app, rect);
@@ -160,5 +99,66 @@ impl<Base: Widget, Over: Widget> Widget for SlideOver<Base, Over> {
                 None
             }
         }
+    }
+}
+
+struct ToggleButtonDrawing {
+    slide_over_id: WidgetId,
+    rect: nannou::geom::Rect,
+    pressed: bool,
+}
+
+struct SlideOverDrawing {
+    base_drawing: Box<dyn view::Drawing>,
+    over_drawing: Option<Box<dyn view::Drawing>>,
+    toggle_button_drawing: ToggleButtonDrawing,
+}
+impl view::Drawing for SlideOverDrawing {
+    fn draw(&self, logic_gates: &crate::LogicGates, draw: &nannou::Draw, hovered: Option<&dyn view::Drawing>) {
+        self.base_drawing.draw(logic_gates, draw, hovered);
+        if let Some(over_drawing) = &self.over_drawing {
+            over_drawing.draw(logic_gates, draw, hovered)
+        }
+        self.toggle_button_drawing.draw(logic_gates, draw, hovered);
+    }
+
+    fn find_hover(&self, mouse: nannou::prelude::Vec2) -> Option<&dyn view::Drawing> {
+        if let x @ Some(_) = self.toggle_button_drawing.find_hover(mouse) {
+            return x;
+        }
+        if let Some(over_drawing) = &self.over_drawing {
+            if let x @ Some(_) = over_drawing.find_hover(mouse) {
+                return x;
+            }
+        }
+
+        self.base_drawing.find_hover(mouse)
+    }
+}
+impl view::Drawing for ToggleButtonDrawing {
+    fn draw(&self, _: &crate::LogicGates, draw: &nannou::Draw, hovered: Option<&dyn view::Drawing>) {
+        let mut rect = draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(nannou::color::srgb(1.0, 1.0, 1.0)); // TODO: put this in theme
+        if let Some(hovered) = hovered {
+            if std::ptr::eq(hovered, self) {
+                // TODO: fix clippy lint about this
+                rect = rect.color(nannou::color::srgb(0.6, 0.6, 0.6));
+            }
+        }
+        if self.pressed {
+            rect = rect.color(nannou::color::srgb(0.3, 0.3, 0.3));
+        }
+        rect.finish()
+    }
+
+    fn find_hover(&self, mouse: nannou::prelude::Vec2) -> Option<&dyn view::Drawing> {
+        if self.rect.contains(mouse) {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
+    fn left_mouse_down(&self, _: &nannou::App) -> Option<TargetedUIMessage> {
+        Some(TargetedUIMessage { target: self.slide_over_id, message: UIMessage::MouseDownOnSlideOverToggleButton })
     }
 }
