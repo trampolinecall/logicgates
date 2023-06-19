@@ -12,11 +12,12 @@ use crate::{
 pub(crate) struct SimulationWidget {
     id: WidgetId,
     cur_gate_drag: Option<simulation::GateKey>,
+    view: Option<simulation::CircuitKey>,
 }
 
 impl SimulationWidget {
     pub(crate) fn new(id_maker: &mut WidgetIdMaker) -> Self {
-        Self { cur_gate_drag: None, id: id_maker.next_id() }
+        Self { cur_gate_drag: None, id: id_maker.next_id(), view: None }
     }
 }
 
@@ -29,9 +30,53 @@ impl Widget for SimulationWidget {
         given // always fills given space
     }
 
-    fn view(&self, app: &nannou::App, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
-        let (drawing, subscriptions) = drawing::SimulationDrawing::new(&logic_gates.simulation, self, rect);
-        (drawing, subscriptions)
+    fn view(&self, _: &nannou::App, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
+        // TODO: show currently viewing at top of widget
+        let gates_viewing = match self.view {
+            Some(ck) => &logic_gates.simulation.circuits[ck].gates,
+            None => &logic_gates.simulation.toplevel_gates,
+        };
+
+        let gates = gates_viewing.iter().copied();
+        let nodes = gates_viewing
+            .iter()
+            .flat_map(|gate| {
+                simulation::Gate::inputs(&logic_gates.simulation.circuits, &logic_gates.simulation.gates, *gate).iter().chain(simulation::Gate::outputs(
+                    &logic_gates.simulation.circuits,
+                    &logic_gates.simulation.gates,
+                    *gate,
+                ))
+            })
+            .copied();
+
+        let (gate_drawings, node_drawings, connection_drawings) = drawing::layout(
+            &logic_gates.simulation.circuits,
+            &logic_gates.simulation.gates,
+            &logic_gates.simulation.nodes,
+            &logic_gates.simulation.connections,
+            self.id,
+            self.view,
+            gates,
+            nodes,
+            rect,
+        );
+
+        let subscriptions = if self.cur_gate_drag.is_some() {
+            vec![
+                view::Subscription::MouseMoved({
+                    let swid_id = self.id;
+                    Box::new(move |_, mouse_pos| TargetedUIMessage { target: swid_id, message: UIMessage::MouseMoved(mouse_pos) })
+                }),
+                view::Subscription::LeftMouseUp({
+                    let swid_id = self.id;
+                    Box::new(move |_| TargetedUIMessage { target: swid_id, message: UIMessage::LeftMouseUp })
+                }),
+            ]
+        } else {
+            Vec::new()
+        };
+
+        (Box::new(drawing::SimulationDrawing { gates: gate_drawings, nodes: node_drawings, connections: connection_drawings, rect }), subscriptions)
     }
 
     fn targeted_message(&mut self, app: &nannou::App, message: TargetedUIMessage) -> Option<Message> {
