@@ -6,6 +6,7 @@ pub(crate) mod compiler;
 pub(crate) mod simulation;
 pub(crate) mod ui;
 pub(crate) mod view;
+pub(crate) mod theme;
 
 use crate::ui::widgets::Widget;
 

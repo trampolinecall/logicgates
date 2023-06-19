@@ -2,12 +2,13 @@ mod connection;
 mod gate;
 mod node;
 
-use std::{collections::HashMap, marker::PhantomData};
+use std::collections::HashMap;
 
 use nannou::prelude::*;
 
 use crate::{
     simulation::{self, hierarchy, location, Gate, GateKey, NodeKey, Simulation},
+    theme::THEME,
     ui::{
         message::{TargetedUIMessage, UIMessage},
         widgets::WidgetId,
@@ -17,11 +18,8 @@ use crate::{
 };
 
 const VERTICAL_VALUE_SPACING: f32 = 20.0;
-const HORIZONTAL_GATE_SPACING: f32 = 100.0;
 const GATE_EXTRA_VERTICAL_HEIGHT: f32 = 40.0;
 const GATE_WIDTH: f32 = 50.0;
-
-const BG_COLOR: Rgb = Rgb { red: 0.172, green: 0.243, blue: 0.313, standard: PhantomData };
 
 pub(crate) struct SimulationDrawing {
     pub(crate) gates: Vec<gate::GateDrawing>,
@@ -60,7 +58,7 @@ impl SimulationDrawing {
 
 impl Drawing for SimulationDrawing {
     fn draw(&self, simulation: &LogicGates, draw: &nannou::Draw, hovered: Option<&dyn Drawing>) {
-        draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(BG_COLOR);
+        draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(THEME.simulation_bg_color);
 
         for connection in &self.connections {
             connection.draw(simulation, draw, hovered);
