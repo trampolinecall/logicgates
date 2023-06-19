@@ -56,6 +56,7 @@ impl Widget for SimulationWidget {
                 self.cur_gate_drag = None;
                 None
             }
+            UIMessage::MouseDownOnSlideOverToggleButton => None,
         }
     }
 }
