@@ -7,13 +7,10 @@ use std::collections::HashMap;
 use nannou::prelude::*;
 
 use crate::{
-    simulation::{self, hierarchy, location, Gate, GateKey, NodeKey, Simulation},
+    simulation::{self, hierarchy, location, Gate, GateKey, NodeKey},
     theme::Theme,
-    ui::{
-        message::{TargetedUIMessage, UIMessage},
-        widgets::WidgetId,
-    },
-    view::{self, Drawing},
+    ui::widgets::WidgetId,
+    view::Drawing,
     LogicGates,
 };
 
@@ -26,34 +23,6 @@ pub(crate) struct SimulationDrawing {
     pub(crate) nodes: Vec<node::NodeDrawing>,
     pub(crate) connections: Vec<connection::ConnectionDrawing>,
     pub(crate) rect: nannou::geom::Rect,
-}
-impl SimulationDrawing {
-    pub(crate) fn new(simulation: &Simulation, simulation_widget: &super::SimulationWidget, rect: nannou::geom::Rect) -> (Box<SimulationDrawing>, Vec<view::Subscription>) {
-        let toplevel_gates = &simulation.toplevel_gates; // TODO: ability to switch between viewing toplevel and circuit
-
-        let gates = toplevel_gates.iter().copied();
-        let nodes =
-            toplevel_gates.iter().flat_map(|gate| Gate::inputs(&simulation.circuits, &simulation.gates, *gate).iter().chain(Gate::outputs(&simulation.circuits, &simulation.gates, *gate))).copied();
-
-        let (gate_drawings, node_drawings, connection_drawings) = layout(&simulation.circuits, &simulation.gates, &simulation.nodes, &simulation.connections, simulation_widget.id, gates, nodes, rect);
-
-        let subscriptions = if simulation_widget.cur_gate_drag.is_some() {
-            vec![
-                view::Subscription::MouseMoved({
-                    let swid_id = simulation_widget.id;
-                    Box::new(move |_, mouse_pos| TargetedUIMessage { target: swid_id, message: UIMessage::MouseMoved(mouse_pos) })
-                }),
-                view::Subscription::LeftMouseUp({
-                    let swid_id = simulation_widget.id;
-                    Box::new(move |_| TargetedUIMessage { target: swid_id, message: UIMessage::LeftMouseUp })
-                }),
-            ]
-        } else {
-            Vec::new()
-        };
-
-        (Box::new(SimulationDrawing { gates: gate_drawings, nodes: node_drawings, connections: connection_drawings, rect }), subscriptions)
-    }
 }
 
 impl Drawing for SimulationDrawing {
@@ -96,12 +65,13 @@ impl Drawing for SimulationDrawing {
     }
 }
 
-fn layout(
+pub(super) fn layout(
     circuit_map: &simulation::CircuitMap,
     gate_map: &simulation::GateMap,
     node_map: &simulation::NodeMap,
     connections: &simulation::connections::Connections,
     simulation_widget_id: WidgetId,
+    currently_viewing: Option<simulation::CircuitKey>,
     gates: impl IntoIterator<Item = GateKey>,
     nodes: impl IntoIterator<Item = NodeKey>,
     rect: nannou::geom::Rect,
@@ -116,7 +86,7 @@ fn layout(
             gate::GateDrawing { key: gate, rect: gate_rect(rect, gate_location, num_inputs, num_outputs), simulation_widget_id }
         })
         .collect();
-    let node_positions: HashMap<_, _> = nodes.into_iter().map(|node| (node, node_pos(rect, circuit_map, gate_map, node_map, node))).collect();
+    let node_positions: HashMap<_, _> = nodes.into_iter().map(|node| (node, node_pos(rect, circuit_map, gate_map, node_map, currently_viewing, node))).collect();
     let connections: Vec<_> =
         connections.iter().filter_map(|(a, b)| Some(connection::ConnectionDrawing { node1: *a, node2: *b, pos1: *node_positions.get(a)?, pos2: *node_positions.get(b)? })).collect();
     let node_drawings = node_positions.into_iter().map(|(node, location)| node::NodeDrawing { key: node, location }).collect();
@@ -143,13 +113,11 @@ fn y_centered_around(center_y: f32, total: usize, index: usize) -> f32 {
     box_start_y - (index as f32) * VERTICAL_VALUE_SPACING
 }
 
-fn circuit_input_pos(window_rect: Rect, simulation: &Simulation, circuit: simulation::CircuitKey, index: usize) -> Vec2 {
-    let circuit = &simulation.circuits[circuit];
-    pt2(window_rect.x.start, y_centered_around(0.0, circuit.nodes.inputs().len(), index))
+fn circuit_input_pos(window_rect: Rect, num_inputs: usize, num_outputs: usize, index: usize) -> Vec2 {
+    pt2(window_rect.x.start, y_centered_around(0.0, num_inputs, index))
 }
-fn circuit_output_pos(window_rect: Rect, simulation: &Simulation, circuit: simulation::CircuitKey, index: usize) -> Vec2 {
-    let circuit = &simulation.circuits[circuit];
-    pt2(window_rect.x.end, y_centered_around(0.0, circuit.nodes.outputs().len(), index))
+fn circuit_output_pos(window_rect: Rect, num_inputs: usize, num_outputs: usize, index: usize) -> Vec2 {
+    pt2(window_rect.x.end, y_centered_around(0.0, num_outputs, index))
 }
 
 fn gate_input_pos(window_rect: Rect, gate_location: &location::GateLocation, num_inputs: usize, num_outputs: usize, idx: usize) -> Vec2 {
@@ -161,10 +129,20 @@ fn gate_output_pos(window_rect: Rect, gate_location: &location::GateLocation, nu
     pt2(rect.right(), y_centered_around(rect.y(), num_outputs, idx))
 }
 
-fn node_pos(window_rect: Rect, circuits: &simulation::CircuitMap, gates: &simulation::GateMap, nodes: &simulation::NodeMap, node: NodeKey) -> Vec2 {
+fn node_pos(window_rect: Rect, circuits: &simulation::CircuitMap, gates: &simulation::GateMap, nodes: &simulation::NodeMap, currently_viewing: Option<simulation::CircuitKey>, node: NodeKey) -> Vec2 {
     match nodes[node].parent.kind() {
-        // hierarchy::NodeParentKind::CircuitIn(c, i) if c == simulation.main_circuit => circuit_input_pos(window_rect, simulation, c, i), TODO: switching between different views
-        // hierarchy::NodeParentKind::CircuitOut(c, i) if c == simulation.main_circuit => circuit_output_pos(window_rect, simulation, c, i), TODO: switching between different views
+        hierarchy::NodeParentKind::CircuitIn(c, i) if Some(c) == currently_viewing => {
+            let circuit = &circuits[c];
+            let num_inputs = circuit.nodes.inputs().len();
+            let num_outputs = circuit.nodes.outputs().len();
+            circuit_input_pos(window_rect, num_inputs, num_outputs, i)
+        }
+        hierarchy::NodeParentKind::CircuitOut(c, i) if Some(c) == currently_viewing => {
+            let circuit = &circuits[c];
+            let num_inputs = circuit.nodes.inputs().len();
+            let num_outputs = circuit.nodes.outputs().len();
+            circuit_output_pos(window_rect, num_inputs, num_outputs, i)
+        }
         hierarchy::NodeParentKind::CircuitIn(c, i) => {
             let circuit = &circuits[c];
             let location = &circuit.location;

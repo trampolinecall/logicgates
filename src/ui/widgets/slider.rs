@@ -30,7 +30,7 @@ impl<Getter: Fn(&crate::LogicGates) -> f32, Changer: Fn(f32) -> crate::Message> 
     }
 
     fn size(&self, _: (f32, f32)) -> (f32, f32) {
-        (150.0, 25.0) // TODO: put this in theme?, also TODO: clamp to given space
+        (100.0, 15.0) // TODO: put this in theme?, also TODO: clamp to given space
     }
 
     fn view(&self, _: &nannou::App, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
