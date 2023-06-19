@@ -21,14 +21,13 @@ impl SimulationWidget {
 }
 
 impl Widget for SimulationWidget {
-    type Drawing = drawing::SimulationDrawing;
-
     fn id(&self) -> WidgetId {
         self.id
     }
 
-    fn view(&self, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (drawing::SimulationDrawing, Vec<view::Subscription>) {
-        drawing::SimulationDrawing::new(&logic_gates.simulation, self, rect)
+    fn view(&self, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
+        let (drawing, subscriptions) = drawing::SimulationDrawing::new(&logic_gates.simulation, self, rect);
+        (drawing, subscriptions)
     }
 
     fn targeted_message(&mut self, message: TargetedUIMessage) -> Option<Message> {
