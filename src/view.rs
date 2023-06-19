@@ -2,8 +2,8 @@ use crate::{ui::message::TargetedUIMessage, LogicGates};
 
 use nannou::prelude::*;
 
-pub(crate) struct View<D: Drawing> {
-    main_drawing: D,
+pub(crate) struct View {
+    main_drawing: Box<dyn Drawing>,
     subscriptions: Vec<Subscription>,
 }
 
@@ -66,8 +66,7 @@ pub(crate) fn event(app: &nannou::App, logic_gates: &LogicGates, event: nannou::
     }
 }
 
-fn view(app: &nannou::App, logic_gates: &LogicGates) -> View<impl Drawing> {
+fn view(app: &nannou::App, logic_gates: &LogicGates) -> View {
     let (main_drawing, subscriptions) = logic_gates.view(app.window_rect());
-
     View { main_drawing, subscriptions }
 }

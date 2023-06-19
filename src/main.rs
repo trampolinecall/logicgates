@@ -38,7 +38,7 @@ impl LogicGates {
         }
     }
 
-    fn view(&self, rect: nannou::geom::Rect) -> (impl view::Drawing, Vec<view::Subscription>) {
+    fn view(&self, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
         self.ui.main_widget.view(self, rect)
     }
 }

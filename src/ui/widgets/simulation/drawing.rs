@@ -28,7 +28,7 @@ pub(crate) struct SimulationDrawing {
     pub(crate) rect: nannou::geom::Rect,
 }
 impl SimulationDrawing {
-    pub(crate) fn new(simulation: &Simulation, simulation_widget: &super::SimulationWidget, rect: nannou::geom::Rect) -> (SimulationDrawing, Vec<view::Subscription>) {
+    pub(crate) fn new(simulation: &Simulation, simulation_widget: &super::SimulationWidget, rect: nannou::geom::Rect) -> (Box<SimulationDrawing>, Vec<view::Subscription>) {
         let toplevel_gates = &simulation.toplevel_gates; // TODO: ability to switch between viewing toplevel and circuit
 
         let gates = toplevel_gates.iter().copied();
@@ -52,7 +52,7 @@ impl SimulationDrawing {
             Vec::new()
         };
 
-        (SimulationDrawing { gates: gate_drawings, nodes: node_drawings, connections: connection_drawings, rect }, subscriptions)
+        (Box::new(SimulationDrawing { gates: gate_drawings, nodes: node_drawings, connections: connection_drawings, rect }), subscriptions)
     }
 }
 
