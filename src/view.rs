@@ -17,7 +17,6 @@ pub(crate) trait Drawing {
     // iterate through this and child widgets in z order to check which one the mouse is currently over
     fn find_hover(&self, mouse: Vec2) -> Option<&dyn Drawing>;
 
-    // TODO: reconsider whether or not to use listeners
     fn left_mouse_down(&self) -> Option<TargetedUIMessage> {
         None
     }
