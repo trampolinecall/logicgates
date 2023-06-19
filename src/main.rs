@@ -19,9 +19,7 @@ struct LogicGates {
 
 // TODO: find a better place to put this too
 enum Message {
-    MouseDownOnGate(simulation::GateKey),
-    MouseMoved(Vec2),
-    MouseUp,
+    GateMoved(simulation::GateKey, Vec2),
 }
 
 impl LogicGates {
@@ -30,26 +28,16 @@ impl LogicGates {
     }
 
     fn message(&mut self, message: crate::Message) {
-        /* TODO
         match message {
-            Message::MouseDownOnGate(gate) => {
-                self.ui.main_widget.cur_gate_drag = Some(gate);
-            }
-            Message::MouseMoved(mouse_pos) => {
-                if let Some(cur_gate_drag) = self.ui.main_widget.cur_gate_drag {
-                    let loc = simulation::Gate::location_mut(&mut self.simulation.circuits, &mut self.simulation.gates, cur_gate_drag);
-                    loc.x = mouse_pos.x; // TODO: zooming
-                    loc.y = mouse_pos.y;
-                }
-            }
-            Message::MouseUp => {
-                self.ui.main_widget.cur_gate_drag = None;
+            Message::GateMoved(gate, pos) => {
+                let loc = simulation::Gate::location_mut(&mut self.simulation.circuits, &mut self.simulation.gates, gate);
+                loc.x = pos.x;
+                loc.y = pos.y;
             }
         }
-        */
     }
 
-    fn view(&self, rect: nannou::geom::Rect) -> impl view::Drawing {
+    fn view(&self, rect: nannou::geom::Rect) -> (impl view::Drawing, Vec<view::Subscription>) {
         self.ui.main_widget.view(self, rect)
     }
 }
@@ -59,9 +47,12 @@ fn main() {
 }
 
 fn event(app: &App, logic_gates: &mut LogicGates, event: Event) {
-    let message = view::event(app, logic_gates, event);
-    if let Some(message) = message {
-        logic_gates.message(message);
+    let ui_message = view::event(app, logic_gates, event);
+    for ui_message in ui_message {
+        let logic_gate_message = logic_gates.ui.targeted_message(ui_message);
+        if let Some(logic_gate_message) = logic_gate_message {
+            logic_gates.message(logic_gate_message);
+        }
     }
 }
 
