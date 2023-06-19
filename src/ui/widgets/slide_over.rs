@@ -34,8 +34,7 @@ impl<Base: Widget, Over: Widget> Widget for SlideOver<Base, Over> {
     fn view(&self, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
         struct ToggleButtonDrawing {
             slide_over_id: WidgetId,
-            left_x: f32,
-            y: f32,
+            rect: nannou::geom::Rect,
             pressed: bool,
         }
 
@@ -63,8 +62,7 @@ impl<Base: Widget, Over: Widget> Widget for SlideOver<Base, Over> {
         }
         impl view::Drawing for ToggleButtonDrawing {
             fn draw(&self, _: &crate::LogicGates, draw: &nannou::Draw, hovered: Option<&dyn view::Drawing>) {
-                let r = nannou::geom::Rect::from_x_y_w_h(self.left_x + 5.0, self.y, 10.0, 30.0); // TODO: also make these constants and fix in find_hover as well
-                let mut rect = draw.rect().xy(r.xy()).wh(r.wh()).color(nannou::color::srgb(1.0, 1.0, 1.0)); // TODO: put this in theme
+                let mut rect = draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(nannou::color::srgb(1.0, 1.0, 1.0)); // TODO: put this in theme
                 if let Some(hovered) = hovered {
                     if std::ptr::eq(hovered, self) {
                         // TODO: fix clippy lint about this
@@ -78,8 +76,7 @@ impl<Base: Widget, Over: Widget> Widget for SlideOver<Base, Over> {
             }
 
             fn find_hover(&self, mouse: nannou::prelude::Vec2) -> Option<&dyn view::Drawing> {
-                if nannou::geom::Rect::from_x_y_w_h(self.left_x + 5.0, self.y, 10.0, 30.0).contains(mouse) {
-                    // TODO: make constants for these (put into theme?)
+                if self.rect.contains(mouse) {
                     Some(self)
                 } else {
                     None
@@ -109,10 +106,17 @@ impl<Base: Widget, Over: Widget> Widget for SlideOver<Base, Over> {
         base_subscriptions.extend(over_subscriptions);
 
         (
-            Box::new(SlideOverDrawing { base_drawing, toggle_button_drawing: ToggleButtonDrawing { left_x: toggle_button_left_x, y: rect.top() - 50.0, slide_over_id: self.id, pressed: self.toggle_pressed }, over_drawing }),
+            Box::new(SlideOverDrawing {
+                base_drawing,
+                toggle_button_drawing: ToggleButtonDrawing {
+                    rect: nannou::geom::Rect::from_x_y_w_h(toggle_button_left_x + 5.0, rect.top() - 50.0, 10.0, 30.0), // TODO: make constants for toggle button rect, also TODO: make a constant for y offset
+                    slide_over_id: self.id,
+                    pressed: self.toggle_pressed,
+                },
+                over_drawing,
+            }),
             base_subscriptions,
         )
-        // TODO: make a constant for y offset
     }
 
     fn targeted_message(&mut self, targeted_message: TargetedUIMessage) -> Option<crate::Message> {
