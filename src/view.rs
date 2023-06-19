@@ -1,15 +1,15 @@
-use crate::LogicGates;
+use crate::{ui::message::TargetedUIMessage, LogicGates};
 
 use nannou::prelude::*;
 
-pub(crate) struct View<D: Drawing, MouseMovedCallback: Fn(Vec2) -> Option<crate::Message>> {
+pub(crate) struct View<D: Drawing> {
     main_drawing: D,
-    subscriptions: Subscriptions<MouseMovedCallback>,
+    subscriptions: Vec<Subscription>,
 }
 
-struct Subscriptions<MouseMovedCallback: Fn(Vec2) -> Option<crate::Message>> {
-    mouse_moved: Option<MouseMovedCallback>,
-    left_mouse_up: Option<crate::Message>,
+pub(crate) enum Subscription {
+    MouseMoved(Box<dyn Fn(Vec2) -> TargetedUIMessage>),
+    LeftMouseUp(Box<dyn Fn() -> TargetedUIMessage>),
 }
 
 pub(crate) trait Drawing {
@@ -18,7 +18,7 @@ pub(crate) trait Drawing {
     fn find_hover(&self, mouse: Vec2) -> Option<&dyn Drawing>;
 
     // TODO: reconsider whether or not to use listeners
-    fn left_mouse_down(&self) -> Option<crate::Message> {
+    fn left_mouse_down(&self) -> Option<TargetedUIMessage> {
         None
     }
 }
@@ -29,46 +29,46 @@ pub(crate) fn render(app: &nannou::App, draw: &nannou::Draw, logic_gates: &Logic
     view.main_drawing.draw(logic_gates, draw, hover);
 }
 
-pub(crate) fn event(app: &nannou::App, logic_gates: &LogicGates, event: nannou::Event) -> Option<crate::Message> {
+pub(crate) fn event(app: &nannou::App, logic_gates: &LogicGates, event: nannou::Event) -> Vec<TargetedUIMessage> {
     let view = view(app, logic_gates);
     if let nannou::Event::WindowEvent { id: _, simple: Some(event) } = event {
         match event {
             WindowEvent::MousePressed(MouseButton::Left) => {
                 let hovered = view.main_drawing.find_hover(app.mouse.position());
                 if let Some(hovered) = hovered {
-                    hovered.left_mouse_down()
+                    hovered.left_mouse_down().into_iter().collect()
                 } else {
-                    None
+                    Vec::new()
                 }
             }
 
-            WindowEvent::MouseMoved(mouse_pos) => {
-                if let Some(mouse_moved_callback) = view.subscriptions.mouse_moved {
-                    mouse_moved_callback(mouse_pos)
-                } else {
-                    None
-                }
-            }
+            WindowEvent::MouseMoved(mouse_pos) => view
+                .subscriptions
+                .iter()
+                .filter_map(|sub| match sub {
+                    Subscription::MouseMoved(callback) => Some(callback(mouse_pos)),
+                    Subscription::LeftMouseUp(_) => None,
+                })
+                .collect(),
 
-            WindowEvent::MouseReleased(MouseButton::Left) => view.subscriptions.left_mouse_up,
+            WindowEvent::MouseReleased(MouseButton::Left) => view
+                .subscriptions
+                .iter()
+                .filter_map(|sub| match sub {
+                    Subscription::MouseMoved(_) => None,
+                    Subscription::LeftMouseUp(callback) => Some(callback()),
+                })
+                .collect(),
 
-            _ => None,
+            _ => Vec::new(),
         }
     } else {
-        None
+        Vec::new()
     }
 }
 
-fn view(app: &nannou::App, logic_gates: &LogicGates) -> View<impl Drawing, impl Fn(Vec2) -> Option<crate::Message>> {
-    let main_drawing = logic_gates.view(app.window_rect());
-
-    /* TODO
-    let subscriptions = Subscriptions {
-        mouse_moved: if logic_gates.ui.main_widget.cur_gate_drag.is_some() { Some(|mouse_pos| Some(crate::Message::MouseMoved(mouse_pos))) } else { None },
-        left_mouse_up: if logic_gates.ui.main_widget.cur_gate_drag.is_some() { Some(crate::Message::MouseUp) } else { None },
-    };
-    */
-    let subscriptions = Subscriptions { mouse_moved: None::<fn(_) -> _>, left_mouse_up: None };
+fn view(app: &nannou::App, logic_gates: &LogicGates) -> View<impl Drawing> {
+    let (main_drawing, subscriptions) = logic_gates.view(app.window_rect());
 
     View { main_drawing, subscriptions }
 }

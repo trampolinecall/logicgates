@@ -8,7 +8,11 @@ use nannou::prelude::*;
 
 use crate::{
     simulation::{self, hierarchy, location, Gate, GateKey, NodeKey, Simulation},
-    view::Drawing,
+    ui::{
+        message::{TargetedUIMessage, UIMessage},
+        widgets::WidgetId,
+    },
+    view::{self, Drawing},
     LogicGates,
 };
 
@@ -26,16 +30,31 @@ pub(crate) struct SimulationDrawing {
     pub(crate) rect: nannou::geom::Rect,
 }
 impl SimulationDrawing {
-    pub(crate) fn new(rect: nannou::geom::Rect, simulation: &Simulation) -> SimulationDrawing {
+    pub(crate) fn new(simulation: &Simulation, simulation_widget: &super::SimulationWidget, rect: nannou::geom::Rect) -> (SimulationDrawing, Vec<view::Subscription>) {
         let toplevel_gates = &simulation.toplevel_gates; // TODO: ability to switch between viewing toplevel and circuit
 
         let gates = toplevel_gates.iter().copied();
         let nodes =
             toplevel_gates.iter().flat_map(|gate| Gate::inputs(&simulation.circuits, &simulation.gates, *gate).iter().chain(Gate::outputs(&simulation.circuits, &simulation.gates, *gate))).copied();
 
-        let (gate_drawings, node_drawings, connection_drawings) = layout(&simulation.circuits, &simulation.gates, &simulation.nodes, &simulation.connections, gates, nodes, rect);
+        let (gate_drawings, node_drawings, connection_drawings) = layout(&simulation.circuits, &simulation.gates, &simulation.nodes, &simulation.connections, simulation_widget.id, gates, nodes, rect);
 
-        SimulationDrawing { gates: gate_drawings, nodes: node_drawings, connections: connection_drawings, rect }
+        let subscriptions = if simulation_widget.cur_gate_drag.is_some() {
+            vec![
+                view::Subscription::MouseMoved({
+                    let swid_id = simulation_widget.id;
+                    Box::new(move |mouse_pos| TargetedUIMessage { target: swid_id, message: UIMessage::MouseMoved(mouse_pos) })
+                }),
+                view::Subscription::LeftMouseUp({
+                    let swid_id = simulation_widget.id;
+                    Box::new(move || TargetedUIMessage { target: swid_id, message: UIMessage::LeftMouseUp })
+                }),
+            ]
+        } else {
+            Vec::new()
+        };
+
+        (SimulationDrawing { gates: gate_drawings, nodes: node_drawings, connections: connection_drawings, rect }, subscriptions)
     }
 }
 
@@ -78,7 +97,7 @@ impl Drawing for SimulationDrawing {
         None
     }
 
-    fn left_mouse_down(&self) -> Option<crate::Message> {
+    fn left_mouse_down(&self) -> Option<TargetedUIMessage> {
         None
     }
 }
@@ -88,6 +107,7 @@ fn layout(
     gate_map: &simulation::GateMap,
     node_map: &simulation::NodeMap,
     connections: &simulation::connections::Connections,
+    simulation_widget_id: WidgetId,
     gates: impl IntoIterator<Item = GateKey>,
     nodes: impl IntoIterator<Item = NodeKey>,
     rect: nannou::geom::Rect,
@@ -99,7 +119,7 @@ fn layout(
             let num_inputs = Gate::num_inputs(circuit_map, gate_map, gate);
             let num_outputs = Gate::num_outputs(circuit_map, gate_map, gate);
 
-            gate::GateDrawing { key: gate, rect: gate_rect(rect, gate_location, num_inputs, num_outputs) }
+            gate::GateDrawing { key: gate, rect: gate_rect(rect, gate_location, num_inputs, num_outputs), simulation_widget_id }
         })
         .collect();
     let node_positions: HashMap<_, _> = nodes.into_iter().map(|node| (node, node_pos(rect, circuit_map, gate_map, node_map, node))).collect();

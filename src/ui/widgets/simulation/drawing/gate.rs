@@ -2,9 +2,18 @@ use std::marker::PhantomData;
 
 use nannou::prelude::*;
 
-use crate::{simulation::GateKey, view::Drawing, LogicGates};
+use crate::{
+    simulation::GateKey,
+    ui::{
+        message::{TargetedUIMessage, UIMessage},
+        widgets::WidgetId,
+    },
+    view::Drawing,
+    LogicGates,
+};
 
 pub(crate) struct GateDrawing {
+    pub(crate) simulation_widget_id: WidgetId,
     pub(crate) key: GateKey,
     pub(crate) rect: nannou::geom::Rect,
 }
@@ -35,7 +44,7 @@ impl Drawing for GateDrawing {
         None
     }
 
-    fn left_mouse_down(&self) -> Option<crate::Message> {
-        Some(crate::Message::MouseDownOnGate(self.key))
+    fn left_mouse_down(&self) -> Option<TargetedUIMessage> {
+        Some(TargetedUIMessage { target: self.simulation_widget_id, message: UIMessage::MouseDownOnGate(self.key) })
     }
 }
