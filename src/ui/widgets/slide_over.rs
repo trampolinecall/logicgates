@@ -23,6 +23,10 @@ impl<Base: Widget, Over: Widget> Widget for SlideOver<Base, Over> {
         self.id
     }
 
+    fn size(&self, given: (f32, f32)) -> (f32, f32) {
+        todo!()
+    }
+
     fn view(&self, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
         todo!()
     }
