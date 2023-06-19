@@ -25,6 +25,10 @@ impl Widget for SimulationWidget {
         self.id
     }
 
+    fn size(&self, given: (f32, f32)) -> (f32, f32) {
+        given // always fills given space
+    }
+
     fn view(&self, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
         let (drawing, subscriptions) = drawing::SimulationDrawing::new(&logic_gates.simulation, self, rect);
         (drawing, subscriptions)

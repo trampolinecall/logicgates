@@ -6,6 +6,7 @@ use crate::{
     view,
 };
 
+// TODO: allow for multiple directions
 pub(crate) struct Flow {
     id: WidgetId,
     children: Vec<Box<dyn Widget>>,
@@ -22,8 +23,48 @@ impl Widget for Flow {
         self.id
     }
 
+    fn size(&self, given: (f32, f32)) -> (f32, f32) {
+        // TODO: stay within bounds of given
+        self.children.iter().map(|child| child.size(given)).fold((0.0, 0.0), |(last_max_x, last_y_sum), (cur_size_x, cur_size_y)| {
+            let max_x = if cur_size_x > last_max_x { cur_size_x } else { last_max_x };
+            let y_sum = last_y_sum + cur_size_y;
+            (max_x, y_sum)
+        })
+    }
+
     fn view(&self, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
-        todo!()
+        struct FlowDrawing {
+            children: Vec<Box<dyn view::Drawing>>,
+        }
+        impl view::Drawing for FlowDrawing {
+            fn draw(&self, logic_gates: &crate::LogicGates, draw: &nannou::Draw, hovered: Option<&dyn view::Drawing>) {
+                for child in &self.children {
+                    child.draw(logic_gates, draw, hovered);
+                }
+            }
+
+            fn find_hover(&self, mouse: nannou::prelude::Vec2) -> Option<&dyn view::Drawing> {
+                for child in &self.children {
+                    if let x @ Some(_) = child.find_hover(mouse) {
+                        return x;
+                    }
+                }
+                None
+            }
+        }
+
+        // TODO: stay within bounds of rect
+        let cur_y = rect.top();
+
+        let (children_drawings, all_subscriptions): (Vec<_>, Vec<_>) = self
+            .children
+            .iter()
+            .map(|child| {
+                let child_size = child.size(rect.w_h());
+                child.view(logic_gates, nannou::geom::Rect::from_x_y_w_h(rect.x(), cur_y + child_size.1 / 2.0, child_size.0, child_size.1))
+            })
+            .unzip();
+        (Box::new(FlowDrawing { children: children_drawings }), all_subscriptions.into_iter().flatten().collect())
     }
 
     fn targeted_message(&mut self, targeted_message: TargetedUIMessage) -> Option<crate::Message> {
