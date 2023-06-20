@@ -5,7 +5,8 @@ use crate::{
     ui::widgets::button::ButtonState,
     view::{
         id::{ViewId, ViewIdMaker},
-        lens::{self, Lens}, TargetedEvent, View, GeneralEvent,
+        lens::{self, Lens},
+        GeneralEvent, TargetedEvent, View,
     },
 };
 
@@ -108,8 +109,7 @@ impl<Data, ButtonView: View<Data>, BaseView: View<Data>, OverView: View<Data>> V
         self.base.send_targeted_event(app, data, target, event);
     }
 
-    fn targeted_event(&self, _: &nannou::App, _: &mut Data, _: TargetedEvent) {
-    }
+    fn targeted_event(&self, _: &nannou::App, _: &mut Data, _: TargetedEvent) {}
     fn general_event(&self, app: &nannou::App, data: &mut Data, event: GeneralEvent) {
         self.base.general_event(app, data, event);
         self.over.general_event(app, data, event);
