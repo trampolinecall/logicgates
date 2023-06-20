@@ -3,7 +3,7 @@ use std::{collections::HashMap, marker::PhantomData};
 use nannou::prelude::*;
 
 use crate::{
-    newview::{
+    view::{
         id::{ViewId, ViewIdMaker},
         lens::Lens,
         Event, Subscription, View,

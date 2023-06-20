@@ -1,7 +1,7 @@
 use std::{fmt::Display, marker::PhantomData, ops::Add};
 
 use crate::{
-    newview::{
+    view::{
         id::{ViewId, ViewIdMaker},
         lens::Lens,
         Event, Subscription, View,

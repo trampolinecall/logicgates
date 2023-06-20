@@ -1,6 +1,5 @@
 pub(crate) mod id;
 pub(crate) mod lens;
-pub(crate) mod widgets;
 
 use nannou::prelude::*;
 
@@ -27,13 +26,13 @@ pub(crate) trait View<Data> {
 }
 
 pub(crate) fn render(app: &nannou::App, draw: &nannou::Draw, logic_gates: &crate::LogicGates) {
-    let view = view(app, logic_gates);
+    let view = crate::view(app, logic_gates);
     let hover = view.find_hover(app.window_rect(), app.mouse.position());
     view.draw(app, draw, app.window_rect(), hover);
 }
 
 pub(crate) fn event(app: &nannou::App, logic_gates: &mut crate::LogicGates, event: nannou::Event) {
-    let view = view(app, logic_gates);
+    let view = crate::view(app, logic_gates);
     if let nannou::Event::WindowEvent { id: _, simple: Some(event) } = event {
         match event {
             WindowEvent::MousePressed(MouseButton::Left) => {
@@ -64,44 +63,4 @@ pub(crate) fn event(app: &nannou::App, logic_gates: &mut crate::LogicGates, even
             _ => {}
         }
     }
-}
-
-fn view(app: &nannou::App, logic_gates: &crate::LogicGates) -> impl View<crate::LogicGates> {
-    let mut id_maker = id::ViewIdMaker::new();
-
-    let simulation_view = crate::ui::widgets::new_simulation::simulation(
-        &mut id_maker,
-        lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.newui.main_simulation_state, |logic_gates| &mut logic_gates.newui.main_simulation_state),
-        lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.simulation, |logic_gates| &mut logic_gates.simulation),
-        logic_gates,
-    );
-
-    let mut rects: Vec<_> = (0..20)
-        .map(|i| {
-            Box::new(widgets::submodule::submodule(
-                lens::unit(),
-                crate::ui::widgets::new_test_rect::test_rect(&mut id_maker, nannou::color::srgb(i as f32 / 20.0, (20 - i) as f32 / 20.0, 0.0), ((i * 5 + 20) as f32, 10.0)),
-            )) as Box<dyn View<_>>
-        })
-        .collect();
-    rects.push(Box::new(crate::ui::widgets::new_slider::slider(
-        &mut id_maker,
-        Some(1),
-        Some(20),
-        lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.newui.subticks_slider_state, |logic_gates| &mut logic_gates.newui.subticks_slider_state),
-        lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.subticks_per_update, |logic_gates| &mut logic_gates.subticks_per_update),
-        |mouse_diff| (mouse_diff / 10.0) as isize,
-        logic_gates,
-    )));
-
-    let flow_view = crate::ui::widgets::new_flow::vertical_flow(&mut id_maker, rects);
-
-    crate::ui::widgets::new_slide_over::slide_over(
-        app,
-        &mut id_maker,
-        logic_gates,
-        lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.newui.new_slide_over, |logic_gates: &mut crate::LogicGates| &mut logic_gates.newui.new_slide_over),
-        simulation_view,
-        flow_view,
-    )
 }
