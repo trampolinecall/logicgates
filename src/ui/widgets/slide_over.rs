@@ -5,8 +5,7 @@ use crate::{
     ui::widgets::button::ButtonState,
     view::{
         id::{ViewId, ViewIdMaker},
-        lens::{self, Lens},
-        Event, Subscription, View,
+        lens::{self, Lens}, TargetedEvent, View, GeneralEvent,
     },
 };
 
@@ -102,21 +101,19 @@ impl<Data, ButtonView: View<Data>, BaseView: View<Data>, OverView: View<Data>> V
         self.base.size(given)
     }
 
-    fn targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: Event) {
+    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
         // only one of these will respond
-        self.button.targeted_event(app, data, target, event);
-        self.over.targeted_event(app, data, target, event);
-        self.base.targeted_event(app, data, target, event);
+        self.button.send_targeted_event(app, data, target, event);
+        self.over.send_targeted_event(app, data, target, event);
+        self.base.send_targeted_event(app, data, target, event);
     }
 
-    fn event(&self, _: &nannou::App, _: &mut Data, event: Event) {
-        match event {
-            Event::LeftMouseDown => {}
-        }
+    fn targeted_event(&self, _: &nannou::App, _: &mut Data, _: TargetedEvent) {
     }
-
-    fn subscriptions(&self) -> Vec<Subscription<Data>> {
-        [self.base.subscriptions(), self.over.subscriptions(), self.button.subscriptions()].into_iter().flatten().collect()
+    fn general_event(&self, app: &nannou::App, data: &mut Data, event: GeneralEvent) {
+        self.base.general_event(app, data, event);
+        self.over.general_event(app, data, event);
+        self.button.general_event(app, data, event);
     }
 }
 
