@@ -58,7 +58,7 @@ impl<Data> View<Data> for FlowView<Data> {
                     child.draw(app, draw, *child_rect, hover);
                 }
             },
-        )
+        );
     }
 
     fn find_hover(&self, rect: nannou::geom::Rect, mouse: nannou::geom::Vec2) -> Option<ViewId> {
@@ -107,7 +107,7 @@ impl<Data> View<Data> for FlowView<Data> {
     fn targeted_event(&self, _: &nannou::App, _: &mut Data, _: TargetedEvent) {}
     fn general_event(&self, app: &nannou::App, data: &mut Data, event: GeneralEvent) {
         for child in &self.children {
-            child.general_event(app, data, event)
+            child.general_event(app, data, event);
         }
     }
 }

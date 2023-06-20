@@ -86,7 +86,7 @@ impl<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: 
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
         if target == self.id {
-            self.targeted_event(app, data, event)
+            self.targeted_event(app, data, event);
         }
     }
 
@@ -119,7 +119,7 @@ impl<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: 
                         }
                     });
                     if let Some(new_value) = new_value {
-                        self.value_lens.with_mut(data, |value| *value = new_value)
+                        self.value_lens.with_mut(data, |value| *value = new_value);
                     }
                 }
                 GeneralEvent::LeftMouseUp => self.state_lens.with_mut(data, |state| {

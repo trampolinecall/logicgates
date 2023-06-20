@@ -64,7 +64,7 @@ impl<Data, ButtonView: View<Data>, BaseView: View<Data>, OverView: View<Data>> V
                 }
                 self.button.draw(app, draw, layout.toggle_button_rect, hover);
             },
-        )
+        );
     }
 
     fn find_hover(&self, rect: nannou::geom::Rect, mouse: nannou::geom::Vec2) -> Option<ViewId> {

@@ -29,7 +29,7 @@ impl View<()> for TestRectView {
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut (), target: ViewId, event: TargetedEvent) {
         if target == self.id {
-            self.targeted_event(app, data, event)
+            self.targeted_event(app, data, event);
         }
     }
 

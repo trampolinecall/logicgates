@@ -14,7 +14,7 @@ impl GateChildren {
     }
 
     pub(crate) fn add_gate(&mut self, gate: GateKey) {
-        self.gates.push(gate)
+        self.gates.push(gate);
     }
 
     pub(crate) fn contains(&self, gk: GateKey) -> bool {

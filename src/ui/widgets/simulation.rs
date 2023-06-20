@@ -262,7 +262,7 @@ impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Da
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
         if target == self.id {
-            self.targeted_event(app, data, event)
+            self.targeted_event(app, data, event);
         }
         for node in &self.nodes {
             node.send_targeted_event(app, data, target, event);
@@ -342,7 +342,7 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
                         let loc = simulation::Gate::location_mut(&mut simulation.circuits, &mut simulation.gates, self.gate_key);
                         loc.x = mouse_pos.x;
                         loc.y = mouse_pos.y;
-                    })
+                    });
                 }
                 GeneralEvent::LeftMouseUp => self.state_lens.with_mut(data, |state| {
                     state.cur_gate_drag = None;
@@ -394,7 +394,7 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
             line = line.weight(Theme::DEFAULT.connection_width + Theme::DEFAULT.connection_hover_dist);
         }
 
-        line.finish()
+        line.finish();
     }
 
     fn find_hover(&self, rect: nannou::geom::Rect, mouse_pos: nannou::geom::Vec2) -> Option<ViewId> {

@@ -56,7 +56,7 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&nannou::App, &m
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
         if target == self.id {
-            self.targeted_event(app, data, event)
+            self.targeted_event(app, data, event);
         }
     }
     fn targeted_event(&self, _: &nannou::App, data: &mut Data, event: TargetedEvent) {

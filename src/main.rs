@@ -1,5 +1,6 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::type_complexity)]
+#![warn(clippy::semicolon_if_nothing_returned)]
 
 #[macro_use]
 pub(crate) mod utils;
