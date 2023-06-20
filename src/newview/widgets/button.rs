@@ -19,17 +19,16 @@ impl ButtonState {
     }
 }
 
-struct ButtonView<Data, GetButtonData: Lens<Data, ButtonState>> {
+struct ButtonView<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&nannou::App, &mut Data)> {
     id: ViewId,
-
     pressed: bool,
-
     button_data_lens: GetButtonData,
+    callback: Callback,
 
     _phantom: PhantomData<fn(&Data) -> &ButtonState>,
 }
 
-impl<Data, GetButtonData: Lens<Data, ButtonState>> View<Data> for ButtonView<Data, GetButtonData> {
+impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&nannou::App, &mut Data)> View<Data> for ButtonView<Data, GetButtonData, Callback> {
     fn draw(&self, app: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
         let mut rect = draw.rect().xy(rect.xy()).wh(rect.wh()).color(Theme::DEFAULT.button_normal_bg);
         if hover == Some(self.id) {
@@ -68,8 +67,12 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>> View<Data> for ButtonView<Dat
 
     fn subscriptions(&self) -> Vec<Subscription<Data>> {
         if self.pressed {
-            // TODO: callback
-            vec![Subscription::LeftMouseUp(Box::new(|app, data| self.button_data_lens.get_mut(data).pressed = false))]
+            vec![Subscription::LeftMouseUp(Box::new(|app, data| {
+                if self.button_data_lens.get(data).pressed {
+                    self.button_data_lens.get_mut(data).pressed = false;
+                    (self.callback)(app, data);
+                }
+            }))]
         } else {
             Vec::new()
         }
@@ -77,6 +80,6 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>> View<Data> for ButtonView<Dat
 }
 
 // TODO: should this return ButtonView instead of an opaque type?
-pub(crate) fn button<Data>(id_maker: &mut ViewIdMaker, data: &Data, get_button_data: impl Lens<Data, ButtonState>) -> impl View<Data> {
-    ButtonView { id: id_maker.next_id(), pressed: get_button_data.get(data).pressed, button_data_lens: get_button_data, _phantom: PhantomData }
+pub(crate) fn button<Data>(id_maker: &mut ViewIdMaker, data: &Data, get_button_data: impl Lens<Data, ButtonState>, callback: impl Fn(&nannou::App, &mut Data)) -> impl View<Data> {
+    ButtonView { id: id_maker.next_id(), pressed: get_button_data.get(data).pressed, button_data_lens: get_button_data, callback, _phantom: PhantomData }
 }

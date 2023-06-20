@@ -160,6 +160,11 @@ pub(crate) fn slide_over<Data>(
         id_maker,
         data,
         lens::from_closures(move |data| &get_slide_over_data.get(data).toggle_button, move |data| &mut get_slide_over_data.get_mut(data).toggle_button),
+        move |app, data| {
+            let slide_over_data = get_slide_over_data.get_mut(data);
+            slide_over_data.drawer_out = !slide_over_data.drawer_out;
+            slide_over_data.last_switch_time = app.duration.since_start;
+        },
     );
     SlideOverView { lens: get_slide_over_data, base, over, button, drawer_openness, layout: RefCell::new(None), _phantom: PhantomData }
 }

@@ -68,10 +68,18 @@ pub(crate) fn event(app: &nannou::App, logic_gates: &mut crate::LogicGates, even
 
 fn view(app: &nannou::App, logic_gates: &crate::LogicGates) -> impl View<crate::LogicGates> {
     let mut id_maker = id::ViewIdMaker::new();
-    let button1 =
-        widgets::button::button(&mut id_maker, logic_gates, lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.newui, |logic_gates: &mut crate::LogicGates| &mut logic_gates.newui));
-    let button2 =
-        widgets::button::button(&mut id_maker, logic_gates, lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.newui, |logic_gates: &mut crate::LogicGates| &mut logic_gates.newui));
+    let button1 = widgets::button::button(
+        &mut id_maker,
+        logic_gates,
+        lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.newui, |logic_gates: &mut crate::LogicGates| &mut logic_gates.newui),
+        |_, _| (),
+    );
+    let button2 = widgets::button::button(
+        &mut id_maker,
+        logic_gates,
+        lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.newui, |logic_gates: &mut crate::LogicGates| &mut logic_gates.newui),
+        |_, _| (),
+    );
     crate::ui::widgets::new_slide_over::slide_over(
         app,
         &mut id_maker,
