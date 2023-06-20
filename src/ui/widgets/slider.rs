@@ -13,7 +13,6 @@ pub(crate) struct SliderState<Value: Display> {
     drag_start: Option<(nannou::geom::Vec2, Value)>,
 }
 
-// TODO: data type
 struct SliderView<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: Lens<Data, SliderState<Value>>, DataLens: Lens<Data, Value>, ConvertMousePosition: Fn(f32) -> Value> {
     id: ViewId,
 
