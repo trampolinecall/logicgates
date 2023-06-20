@@ -72,6 +72,7 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>> View<Data> for ButtonView<Dat
     }
 }
 
+// TODO: should this return ButtonView instead of an opaque type?
 pub(crate) fn button<Data>(id_maker: &mut ViewIdMaker, data: &Data, rect: nannou::geom::Rect, get_button_data: impl Lens<Data, ButtonState>) -> impl View<Data> {
     // TODO: figure out how layouting is supposed to work
     ButtonView { id: id_maker.next_id(), rect, pressed: get_button_data.get(data).pressed, button_data_lens: get_button_data, _phantom: PhantomData }
