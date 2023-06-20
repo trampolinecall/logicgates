@@ -4,6 +4,7 @@ pub(crate) mod widgets;
 
 use nannou::prelude::*;
 
+#[derive(Copy, Clone)]
 pub(crate) enum Event {
     LeftMouseDown,
 }
@@ -18,7 +19,7 @@ pub(crate) enum Subscription<'a, Data> {
 pub(crate) trait View<Data> {
     fn draw(&self, app: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<id::ViewId>);
     fn find_hover(&self, rect: nannou::geom::Rect, mouse: nannou::geom::Vec2) -> Option<id::ViewId>;
-    fn size(&self, given: (f32, f32)) -> (f32, f32);
+    fn size(&self, given: (f32, f32)) -> (f32, f32); // TODO: this should eventually take some kind of constraint type instead of just a given size
 
     fn targeted_event(&self, app: &nannou::App, data: &mut Data, target: id::ViewId, event: Event);
     fn event(&self, app: &nannou::App, data: &mut Data, event: Event);
@@ -67,9 +68,16 @@ pub(crate) fn event(app: &nannou::App, logic_gates: &mut crate::LogicGates, even
 
 fn view(app: &nannou::App, logic_gates: &crate::LogicGates) -> impl View<crate::LogicGates> {
     let mut id_maker = id::ViewIdMaker::new();
-    widgets::button::button(
+    let button1 =
+        widgets::button::button(&mut id_maker, logic_gates, lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.newui, |logic_gates: &mut crate::LogicGates| &mut logic_gates.newui));
+    let button2 =
+        widgets::button::button(&mut id_maker, logic_gates, lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.newui, |logic_gates: &mut crate::LogicGates| &mut logic_gates.newui));
+    crate::ui::widgets::new_slide_over::slide_over(
+        app,
         &mut id_maker,
         logic_gates,
-        lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.newui, |logic_gates: &mut crate::LogicGates| &mut logic_gates.newui),
+        lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.ui.new_slide_over, |logic_gates: &mut crate::LogicGates| &mut logic_gates.ui.new_slide_over),
+        button1,
+        button2,
     )
 }

@@ -38,6 +38,7 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>> View<Data> for ButtonView<Dat
         if self.pressed {
             rect = rect.color(Theme::DEFAULT.button_pressed_bg);
         }
+        rect = rect.stroke(nannou::color::rgb(0_u8, 0, 0));
 
         rect.finish();
     }
@@ -51,8 +52,9 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>> View<Data> for ButtonView<Dat
     }
 
     fn size(&self, given: (f32, f32)) -> (f32, f32) {
-        todo!()
+        (150.0, 25.0) // TODO: adapt to given size
     }
+
     fn targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: Event) {
         if target == self.id {
             self.event(app, data, event)
