@@ -4,7 +4,7 @@ use crate::view::{id::ViewId, layout_cache::LayoutCache, GeneralEvent, TargetedE
 struct FlowView<Data> {
     direction: Direction,
     children: Vec<Box<dyn View<Data>>>,
-    layout: LayoutCache<FlowLayout>, // TODO: factor out refcell into LayoutCache struct so that the caching logic can be shared between all the views that need it
+    layout: LayoutCache<FlowLayout>,
 }
 struct FlowLayout {
     child_rects: Vec<nannou::geom::Rect>,
