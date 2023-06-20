@@ -14,7 +14,6 @@ use crate::{
 pub(crate) struct SlideOverState {
     drawer_out: bool,
     last_switch_time: Duration,
-
     toggle_button: ButtonState,
 }
 

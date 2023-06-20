@@ -29,7 +29,7 @@ struct ButtonView<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&na
 }
 
 impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&nannou::App, &mut Data)> View<Data> for ButtonView<Data, GetButtonData, Callback> {
-    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
+    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
         let mut rect = draw.rect().xy(rect.xy()).wh(rect.wh()).color(Theme::DEFAULT.button_normal_bg);
         if hover == Some(self.id) {
             rect = rect.color(Theme::DEFAULT.button_hover_bg);
@@ -59,7 +59,7 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&nannou::App, &m
             self.event(app, data, event)
         }
     }
-    fn event(&self, app: &nannou::App, data: &mut Data, event: Event) {
+    fn event(&self, _: &nannou::App, data: &mut Data, event: Event) {
         match event {
             Event::LeftMouseDown => self.button_data_lens.get_mut(data).pressed = true,
         }
