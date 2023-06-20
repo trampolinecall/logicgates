@@ -1,12 +1,12 @@
 use std::{fmt::Display, marker::PhantomData, ops::Add};
 
 use crate::{
+    theme::Theme,
     view::{
         id::{ViewId, ViewIdMaker},
         lens::Lens,
-        Event, Subscription, View,
+        GeneralEvent, TargetedEvent, View,
     },
-    theme::Theme,
 };
 
 pub(crate) struct SliderState<Value: Display> {
@@ -84,61 +84,50 @@ impl<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: 
         (100.0, 15.0) // TODO: put this in theme?, also TODO: clamp to given space
     }
 
-    fn targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: Event) {
+    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
         if target == self.id {
-            self.event(app, data, event)
+            self.targeted_event(app, data, event)
         }
     }
 
-    fn event(&self, app: &nannou::App, data: &mut Data, event: Event) {
+    fn targeted_event(&self, app: &nannou::App, data: &mut Data, event: TargetedEvent) {
         match event {
-            Event::LeftMouseDown => {
+            TargetedEvent::LeftMouseDown => {
                 let mouse_pos = app.mouse.position();
                 let cur_value = self.value_lens.with(data, |value| *value);
                 self.state_lens.with_mut(data, |state| state.drag_start = Some((mouse_pos, cur_value)));
             }
         }
     }
-
-    fn subscriptions(&self) -> Vec<Subscription<Data>> {
+    fn general_event(&self, _: &nannou::App, data: &mut Data, event: GeneralEvent) {
         if self.pressed {
-            let mouse_moved_sub = Subscription::MouseMoved(Box::new({
-                move |_, data, new_mouse_pos| {
-                    let new_value = {
-                        self.state_lens.with_mut(data, |state| {
-                            if let Some((drag_start_mouse_pos, start_value)) = state.drag_start {
-                                let diff = (self.convert_mouse_position)(new_mouse_pos.x - drag_start_mouse_pos.x); // TODO: scale this, also with modifier keys
-                                let mut new_value = start_value + diff;
-                                if let Some(min) = self.min {
-                                    new_value = new_value.max(min);
-                                }
-                                if let Some(max) = self.max {
-                                    new_value = new_value.min(max);
-                                }
-                                Some(new_value)
-                            } else {
-                                None
+            match event {
+                GeneralEvent::MouseMoved(new_mouse_pos) => {
+                    let new_value = self.state_lens.with_mut(data, |state| {
+                        if let Some((drag_start_mouse_pos, start_value)) = state.drag_start {
+                            let diff = (self.convert_mouse_position)(new_mouse_pos.x - drag_start_mouse_pos.x); // TODO: scale this, also with modifier keys
+                            let mut new_value = start_value + diff;
+                            if let Some(min) = self.min {
+                                new_value = new_value.max(min);
                             }
-                        })
-                    };
+                            if let Some(max) = self.max {
+                                new_value = new_value.min(max);
+                            }
+                            Some(new_value)
+                        } else {
+                            None
+                        }
+                    });
                     if let Some(new_value) = new_value {
                         self.value_lens.with_mut(data, |value| *value = new_value)
                     }
                 }
-            }));
-            let left_mouse_up_sub = Subscription::LeftMouseUp(Box::new({
-                move |_, data| {
-                    self.state_lens.with_mut(data, |state| {
-                        if state.drag_start.is_some() {
-                            state.drag_start = None;
-                        }
-                    })
-                }
-            }));
-
-            vec![mouse_moved_sub, left_mouse_up_sub]
-        } else {
-            Vec::new()
+                GeneralEvent::LeftMouseUp => self.state_lens.with_mut(data, |state| {
+                    if state.drag_start.is_some() {
+                        state.drag_start = None;
+                    }
+                }),
+            }
         }
     }
 }

@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::view::{id::ViewId, lens::Lens, Event, Subscription, View};
+use crate::view::{id::ViewId, lens::Lens, GeneralEvent, TargetedEvent, View};
 
 pub(crate) struct SubmoduleView<Data, SubData, L: Lens<Data, SubData>, SubView: View<SubData>> {
     lens: L,
@@ -22,26 +22,16 @@ impl<Data, SubData, L: Lens<Data, SubData>, SubView: View<SubData>> View<Data> f
         self.subview.size(given)
     }
 
-    fn targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: Event) {
-        self.lens.with_mut(data, |subdata| self.subview.targeted_event(app, subdata, target, event))
+    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
+        self.lens.with_mut(data, |subdata| self.subview.send_targeted_event(app, subdata, target, event))
     }
 
-    fn event(&self, app: &nannou::App, data: &mut Data, event: Event) {
-        self.lens.with_mut(data, |subdata| self.subview.event(app, subdata, event))
+    fn targeted_event(&self, app: &nannou::App, data: &mut Data, event: TargetedEvent) {
+        self.lens.with_mut(data, |subdata| self.subview.targeted_event(app, subdata, event))
     }
 
-    fn subscriptions(&self) -> Vec<Subscription<Data>> {
-        // TODO: is there a better way that involves less boxes?
-        self.subview
-            .subscriptions()
-            .into_iter()
-            .map(|subscription| match subscription {
-                Subscription::MouseMoved(callback) => {
-                    Subscription::MouseMoved(Box::new(move |app, bigger_data, mouse_pos| self.lens.with_mut(bigger_data, |smaller_data| callback(app, smaller_data, mouse_pos))))
-                }
-                Subscription::LeftMouseUp(callback) => Subscription::LeftMouseUp(Box::new(move |app, bigger_data| self.lens.with_mut(bigger_data, |smaller_data| callback(app, smaller_data)))),
-            })
-            .collect()
+    fn general_event(&self, app: &nannou::App, data: &mut Data, event: GeneralEvent) {
+        self.lens.with_mut(data, |subdata| self.subview.general_event(app, subdata, event))
     }
 }
 

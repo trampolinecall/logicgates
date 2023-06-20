@@ -1,12 +1,12 @@
 use std::marker::PhantomData;
 
 use crate::{
+    theme::Theme,
     view::{
         id::{ViewId, ViewIdMaker},
         lens::Lens,
-        Event, Subscription, View,
+        GeneralEvent, TargetedEvent, View,
     },
-    theme::Theme,
 };
 
 pub(crate) struct ButtonState {
@@ -50,33 +50,33 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&nannou::App, &m
         }
     }
 
-    fn size(&self, given: (f32, f32)) -> (f32, f32) {
+    fn size(&self, _: (f32, f32)) -> (f32, f32) {
         (150.0, 25.0) // TODO: adapt to given size
     }
 
-    fn targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: Event) {
+    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
         if target == self.id {
-            self.event(app, data, event)
+            self.targeted_event(app, data, event)
         }
     }
-    fn event(&self, _: &nannou::App, data: &mut Data, event: Event) {
+    fn targeted_event(&self, _: &nannou::App, data: &mut Data, event: TargetedEvent) {
         match event {
-            Event::LeftMouseDown => self.button_data_lens.with_mut(data, |button_data| button_data.pressed = true),
+            TargetedEvent::LeftMouseDown => self.button_data_lens.with_mut(data, |button_data| button_data.pressed = true),
         }
     }
-
-    fn subscriptions(&self) -> Vec<Subscription<Data>> {
-        if self.pressed {
-            vec![Subscription::LeftMouseUp(Box::new(|app, data| {
-                self.button_data_lens.with_mut(data, |button_data| {
-                    if button_data.pressed {
-                        button_data.pressed = false;
-                    }
-                });
-                (self.callback)(app, data);
-            }))]
-        } else {
-            Vec::new()
+    fn general_event(&self, app: &nannou::App, data: &mut Data, event: GeneralEvent) {
+        match event {
+            GeneralEvent::LeftMouseUp => {
+                if self.pressed {
+                    self.button_data_lens.with_mut(data, |button_data| {
+                        if button_data.pressed {
+                            button_data.pressed = false;
+                        }
+                    });
+                    (self.callback)(app, data);
+                }
+            }
+            GeneralEvent::MouseMoved(_) => {}
         }
     }
 }

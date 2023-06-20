@@ -3,13 +3,13 @@ use std::{collections::HashMap, marker::PhantomData};
 use nannou::prelude::*;
 
 use crate::{
+    simulation::{self, hierarchy, logic, Gate, GateKey, NodeKey, NodeMap, Simulation},
+    theme::Theme,
     view::{
         id::{ViewId, ViewIdMaker},
         lens::Lens,
-        Event, Subscription, View,
+        GeneralEvent, TargetedEvent, View,
     },
-    simulation::{self, hierarchy, logic, Gate, GateKey, NodeKey, NodeMap, Simulation},
-    theme::Theme,
 };
 
 const VERTICAL_VALUE_SPACING: f32 = 20.0;
@@ -29,9 +29,6 @@ impl SimulationWidgetState {
 
 struct SimulationView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
     id: ViewId,
-
-    state_lens: StateLens,
-    simulation_lens: SimulationLens,
 
     gates: Vec<GateView<Data, StateLens, SimulationLens>>,
     nodes: Vec<NodeView<Data, StateLens, SimulationLens>>,
@@ -64,28 +61,32 @@ enum NodeViewPos {
 struct NodeView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
     id: ViewId,
 
-    state_lens: StateLens,
-    simulation_lens: SimulationLens,
+    // state_lens: StateLens,
+    // simulation_lens: SimulationLens,
 
-    key: NodeKey,
+    // key: NodeKey,
     pos: NodeViewPos,
     color: nannou::color::Srgb<u8>,
 
     _phantom: PhantomData<fn(&Data)>,
+    _phantom2: PhantomData<StateLens>,
+    _phantom3: PhantomData<SimulationLens>,
 }
 struct ConnectionView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
     id: ViewId,
 
-    state_lens: StateLens,
-    simulation_lens: SimulationLens,
+    // state_lens: StateLens,
+    // simulation_lens: SimulationLens,
 
-    node1: NodeKey,
-    node2: NodeKey,
+    // node1: NodeKey,
+    // node2: NodeKey,
     pos1: NodeViewPos,
     pos2: NodeViewPos,
     color: nannou::color::Srgb<u8>,
 
     _phantom: PhantomData<fn(&Data)>,
+    _phantom2: PhantomData<StateLens>,
+    _phantom3: PhantomData<SimulationLens>,
 }
 
 pub(crate) fn simulation<Data>(
@@ -185,24 +186,35 @@ pub(crate) fn simulation<Data>(
             .filter_map(|(a, b)| {
                 Some(ConnectionView {
                     id: id_maker.next_id(),
-                    state_lens,
-                    simulation_lens,
-                    node1: *a,
-                    node2: *b,
                     pos1: node_positions_and_colors.get(a)?.0,
                     pos2: node_positions_and_colors.get(b)?.0,
                     color: node_positions_and_colors.get(a)?.1,
                     _phantom: PhantomData,
+                    _phantom2: PhantomData,
+                    _phantom3: PhantomData,
+                    // state_lens,
+                    // simulation_lens,
+                    // node1: *a,
+                    // node2: *b,
                 })
             })
             .collect();
-        let node_views =
-            node_positions_and_colors.into_iter().map(|(node, (pos, color))| NodeView { id: id_maker.next_id(), state_lens, simulation_lens, key: node, pos, color, _phantom: PhantomData }).collect();
+        let node_views = node_positions_and_colors
+            .into_iter()
+            .map(|(_, (pos, color))| NodeView {
+                id: id_maker.next_id(),
+                pos,
+                color,
+                _phantom: PhantomData,
+                _phantom2: PhantomData,
+                _phantom3: PhantomData, /* state_lens, simulation_lens, key: node */
+            })
+            .collect();
 
         (gate_views, node_views, connection_vews)
     });
 
-    SimulationView { id: id_maker.next_id(), state_lens, simulation_lens, gates, nodes, connections }
+    SimulationView { id: id_maker.next_id(), gates, nodes, connections }
 }
 
 impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> View<Data> for SimulationView<Data, StateLens, SimulationLens> {
@@ -248,34 +260,37 @@ impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Da
         given // always fills given space
     }
 
-    fn targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: Event) {
+    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
         if target == self.id {
-            self.event(app, data, event)
+            self.targeted_event(app, data, event)
         }
-        for node in self.nodes.iter().rev() {
-            node.targeted_event(app, data, target, event);
+        for node in &self.nodes {
+            node.send_targeted_event(app, data, target, event);
         }
-        for gate in self.gates.iter().rev() {
-            gate.targeted_event(app, data, target, event);
+        for gate in &self.gates {
+            gate.send_targeted_event(app, data, target, event);
         }
-        for connection in self.connections.iter().rev() {
-            connection.targeted_event(app, data, target, event);
-        }
-    }
-
-    fn event(&self, app: &nannou::App, data: &mut Data, event: Event) {
-        match event {
-            Event::LeftMouseDown => {}
+        for connection in &self.connections {
+            connection.send_targeted_event(app, data, target, event);
         }
     }
 
-    fn subscriptions(&self) -> Vec<Subscription<Data>> {
-        self.nodes.iter().map(View::subscriptions).chain(self.gates.iter().map(View::subscriptions)).chain(self.connections.iter().map(View::subscriptions)).flatten().collect()
+    fn targeted_event(&self, _: &nannou::App, _: &mut Data, _: TargetedEvent) {}
+    fn general_event(&self, app: &nannou::App, data: &mut Data, event: GeneralEvent) {
+        for node in &self.nodes {
+            node.general_event(app, data, event);
+        }
+        for gate in &self.gates {
+            gate.general_event(app, data, event);
+        }
+        for connection in &self.connections {
+            connection.general_event(app, data, event);
+        }
     }
 }
 
 impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<Data, SimulationWidgetState>> View<Data> for GateView<Data, StateLens, SimulationLens> {
-    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, widget_rect: nannou::geom::Rect, hover: Option<ViewId>) {
+    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, widget_rect: nannou::geom::Rect, hover: Option<ViewId>) {
         // TODO: cache?
         let rect = gate_rect(widget_rect, self.gate_location, self.num_inputs, self.num_outputs);
 
@@ -301,47 +316,45 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
         None
     }
 
-    fn size(&self, given: (f32, f32)) -> (f32, f32) {
+    fn size(&self, _: (f32, f32)) -> (f32, f32) {
         (0.0, 0.0) // does not participate in layout
     }
 
-    fn targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: Event) {
+    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
         if self.id == target {
-            self.event(app, data, event);
+            self.targeted_event(app, data, event);
         }
         // no other chilren to go through
     }
 
-    fn event(&self, app: &nannou::App, data: &mut Data, event: Event) {
+    fn targeted_event(&self, _: &nannou::App, data: &mut Data, event: TargetedEvent) {
         match event {
-            Event::LeftMouseDown => self.state_lens.with_mut(data, |state| state.cur_gate_drag = Some(self.gate_key)),
+            TargetedEvent::LeftMouseDown => self.state_lens.with_mut(data, |state| state.cur_gate_drag = Some(self.gate_key)),
         }
     }
 
-    fn subscriptions(&self) -> Vec<Subscription<Data>> {
+    fn general_event(&self, _: &nannou::App, data: &mut Data, event: GeneralEvent) {
         if self.being_dragged {
-            let mouse_moved_sub = Subscription::MouseMoved(Box::new(move |app, data, mouse_pos| {
-                // TODO: zooming and panning, also fix dragging when simulation widget is not at center of screen
-                self.simulation_lens.with_mut(data, |simulation| {
-                    let loc = simulation::Gate::location_mut(&mut simulation.circuits, &mut simulation.gates, self.gate_key);
-                    loc.x = mouse_pos.x;
-                    loc.y = mouse_pos.y;
-                })
-            }));
-            let left_mouse_up_sub = Subscription::LeftMouseUp(Box::new(move |app, data| {
-                self.state_lens.with_mut(data, |state| {
+            match event {
+                GeneralEvent::MouseMoved(mouse_pos) => {
+                    // TODO: zooming and panning, also fix dragging when simulation widget is not at center of screen
+                    self.simulation_lens.with_mut(data, |simulation| {
+                        let loc = simulation::Gate::location_mut(&mut simulation.circuits, &mut simulation.gates, self.gate_key);
+                        loc.x = mouse_pos.x;
+                        loc.y = mouse_pos.y;
+                    })
+                }
+                GeneralEvent::LeftMouseUp => self.state_lens.with_mut(data, |state| {
                     state.cur_gate_drag = None;
-                })
-            }));
-
-            vec![mouse_moved_sub, left_mouse_up_sub]
+                }),
+            }
         } else {
-            Vec::new()
+            // dont care
         }
     }
 }
 impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, simulation::Simulation>> View<Data> for NodeView<Data, StateLens, SimulationLens> {
-    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
+    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
         let pos = node_pos(rect, self.pos);
         if Some(self.id) == hover {
             draw.ellipse().xy(pos).radius(Theme::DEFAULT.node_rad + Theme::DEFAULT.node_hover_dist).color(Theme::DEFAULT.node_hover_color);
@@ -358,28 +371,21 @@ impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Da
         None
     }
 
-    fn size(&self, given: (f32, f32)) -> (f32, f32) {
+    fn size(&self, _: (f32, f32)) -> (f32, f32) {
         (0.0, 0.0)
     }
 
-    fn targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: Event) {
+    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
         if target == self.id {
-            self.event(app, data, event);
+            self.targeted_event(app, data, event);
         }
     }
 
-    fn event(&self, app: &nannou::App, data: &mut Data, event: Event) {
-        match event {
-            Event::LeftMouseDown => {}
-        }
-    }
-
-    fn subscriptions(&self) -> Vec<Subscription<Data>> {
-        Vec::new()
-    }
+    fn targeted_event(&self, _: &nannou::App, _: &mut Data, _: TargetedEvent) {}
+    fn general_event(&self, _: &nannou::App, _: &mut Data, _: GeneralEvent) {}
 }
 impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<Data, SimulationWidgetState>> View<Data> for ConnectionView<Data, StateLens, SimulationLens> {
-    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
+    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
         let pos1 = node_pos(rect, self.pos1);
         let pos2 = node_pos(rect, self.pos2);
         let mut line = draw.line().start(pos1).end(pos2).weight(Theme::DEFAULT.connection_width).color(self.color);
@@ -401,25 +407,18 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
         }
     }
 
-    fn size(&self, given: (f32, f32)) -> (f32, f32) {
+    fn size(&self, _: (f32, f32)) -> (f32, f32) {
         (0.0, 0.0) // does not participate in layout
     }
 
-    fn targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: Event) {
+    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
         if target == self.id {
-            self.event(app, data, event);
+            self.targeted_event(app, data, event);
         }
     }
 
-    fn event(&self, app: &nannou::App, data: &mut Data, event: Event) {
-        match event {
-            Event::LeftMouseDown => {}
-        }
-    }
-
-    fn subscriptions(&self) -> Vec<Subscription<Data>> {
-        Vec::new()
-    }
+    fn targeted_event(&self, _: &nannou::App, _: &mut Data, _: TargetedEvent) {}
+    fn general_event(&self, _: &nannou::App, _: &mut Data, _: GeneralEvent) {}
 }
 
 // TODO: reorganize all of these functions

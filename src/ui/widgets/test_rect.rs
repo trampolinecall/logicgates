@@ -1,6 +1,6 @@
 use crate::view::{
     id::{ViewId, ViewIdMaker},
-    Event, Subscription, View,
+    GeneralEvent, TargetedEvent, View,
 };
 
 pub(crate) struct TestRectView {
@@ -27,21 +27,14 @@ impl View<()> for TestRectView {
         self.size
     }
 
-    fn targeted_event(&self, app: &nannou::App, data: &mut (), target: ViewId, event: Event) {
+    fn send_targeted_event(&self, app: &nannou::App, data: &mut (), target: ViewId, event: TargetedEvent) {
         if target == self.id {
-            self.event(app, data, event)
+            self.targeted_event(app, data, event)
         }
     }
 
-    fn event(&self, _: &nannou::App, _: &mut (), event: Event) {
-        match event {
-            Event::LeftMouseDown => {}
-        }
-    }
-
-    fn subscriptions(&self) -> Vec<Subscription<()>> {
-        Vec::new()
-    }
+    fn targeted_event(&self, _: &nannou::App, _: &mut (), _: TargetedEvent) {}
+    fn general_event(&self, _: &nannou::App, _: &mut (), _: GeneralEvent) {}
 }
 
 pub(crate) fn test_rect(id_maker: &mut ViewIdMaker, color: nannou::color::Srgb, size: (f32, f32)) -> impl View<()> {

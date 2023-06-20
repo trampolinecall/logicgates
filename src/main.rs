@@ -71,7 +71,7 @@ fn view(app: &nannou::App, logic_gates: &crate::LogicGates) -> impl view::View<c
         logic_gates,
     )));
 
-    let flow_view = ui::widgets::flow::vertical_flow(&mut id_maker, rects);
+    let flow_view = ui::widgets::flow::vertical_flow(rects);
 
     ui::widgets::slide_over::slide_over(
         app,

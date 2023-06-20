@@ -1,9 +1,6 @@
 use std::cell::RefCell;
 
-use crate::view::{
-    id::{ViewId, ViewIdMaker},
-    Event, Subscription, View,
-};
+use crate::view::{id::ViewId, GeneralEvent, TargetedEvent, View};
 
 // TODO: turn this into a macro?
 struct FlowView<Data> {
@@ -105,27 +102,24 @@ impl<Data> View<Data> for FlowView<Data> {
         })
     }
 
-    fn targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: Event) {
+    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
         for child in &self.children {
-            child.targeted_event(app, data, target, event);
+            child.send_targeted_event(app, data, target, event);
         }
     }
 
-    fn event(&self, _: &nannou::App, _: &mut Data, event: Event) {
-        match event {
-            Event::LeftMouseDown => {}
+    fn targeted_event(&self, _: &nannou::App, _: &mut Data, _: TargetedEvent) {}
+    fn general_event(&self, app: &nannou::App, data: &mut Data, event: GeneralEvent) {
+        for child in &self.children {
+            child.general_event(app, data, event)
         }
-    }
-
-    fn subscriptions(&self) -> Vec<Subscription<Data>> {
-        self.children.iter().flat_map(|c| c.subscriptions()).collect()
     }
 }
 
-pub(crate) fn horizontal_flow<Data>(id_maker: &mut ViewIdMaker, children: Vec<Box<dyn View<Data>>>) -> impl View<Data> {
+pub(crate) fn horizontal_flow<Data>(children: Vec<Box<dyn View<Data>>>) -> impl View<Data> {
     flow(Direction::Horizontal, children)
 }
-pub(crate) fn vertical_flow<Data>(id_maker: &mut ViewIdMaker, children: Vec<Box<dyn View<Data>>>) -> impl View<Data> {
+pub(crate) fn vertical_flow<Data>(children: Vec<Box<dyn View<Data>>>) -> impl View<Data> {
     flow(Direction::Vertical, children)
 }
 fn flow<Data>(direction: Direction, children: Vec<Box<dyn View<Data>>>) -> impl View<Data> {

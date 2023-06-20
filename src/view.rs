@@ -4,12 +4,13 @@ pub(crate) mod lens;
 use nannou::prelude::*;
 
 #[derive(Copy, Clone)]
-pub(crate) enum Event {
+pub(crate) enum TargetedEvent {
     LeftMouseDown,
 }
-pub(crate) enum Subscription<'a, Data> {
-    MouseMoved(Box<dyn Fn(&nannou::App, &mut Data, Vec2) + 'a>),
-    LeftMouseUp(Box<dyn Fn(&nannou::App, &mut Data) + 'a>),
+#[derive(Copy, Clone)]
+pub(crate) enum GeneralEvent {
+    MouseMoved(Vec2),
+    LeftMouseUp,
 }
 
 // new view system heavilty inspired by xilem
@@ -20,9 +21,9 @@ pub(crate) trait View<Data> {
     fn find_hover(&self, rect: nannou::geom::Rect, mouse: nannou::geom::Vec2) -> Option<id::ViewId>;
     fn size(&self, given: (f32, f32)) -> (f32, f32); // TODO: this should eventually take some kind of constraint type instead of just a given size
 
-    fn targeted_event(&self, app: &nannou::App, data: &mut Data, target: id::ViewId, event: Event);
-    fn event(&self, app: &nannou::App, data: &mut Data, event: Event);
-    fn subscriptions(&self) -> Vec<Subscription<Data>>;
+    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: id::ViewId, event: TargetedEvent);
+    fn targeted_event(&self, app: &nannou::App, data: &mut Data, event: TargetedEvent);
+    fn general_event(&self, app: &nannou::App, data: &mut Data, event: GeneralEvent);
 }
 
 pub(crate) fn render(app: &nannou::App, draw: &nannou::Draw, logic_gates: &crate::LogicGates) {
@@ -38,27 +39,13 @@ pub(crate) fn event(app: &nannou::App, logic_gates: &mut crate::LogicGates, even
             WindowEvent::MousePressed(MouseButton::Left) => {
                 let hovered = view.find_hover(app.window_rect(), app.mouse.position());
                 if let Some(hovered) = hovered {
-                    view.targeted_event(app, logic_gates, hovered, Event::LeftMouseDown);
+                    view.send_targeted_event(app, logic_gates, hovered, TargetedEvent::LeftMouseDown);
                 }
             }
 
-            WindowEvent::MouseMoved(mouse_pos) => {
-                for sub in view.subscriptions() {
-                    match sub {
-                        Subscription::MouseMoved(callback) => callback(app, logic_gates, mouse_pos),
-                        Subscription::LeftMouseUp(_) => {}
-                    }
-                }
-            }
+            WindowEvent::MouseMoved(mouse_pos) => view.general_event(app, logic_gates, GeneralEvent::MouseMoved(mouse_pos)),
 
-            WindowEvent::MouseReleased(MouseButton::Left) => {
-                for sub in view.subscriptions() {
-                    match sub {
-                        Subscription::MouseMoved(_) => {}
-                        Subscription::LeftMouseUp(callback) => callback(app, logic_gates),
-                    }
-                }
-            }
+            WindowEvent::MouseReleased(MouseButton::Left) => view.general_event(app, logic_gates, GeneralEvent::LeftMouseUp),
 
             _ => {}
         }
