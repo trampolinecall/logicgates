@@ -24,18 +24,20 @@ struct ButtonView<Data, GetButtonData: Lens<Data, ButtonState>> {
 
     rect: nannou::geom::Rect,
 
+    pressed: bool,
+
     button_data_lens: GetButtonData,
 
     _phantom: PhantomData<fn(&Data) -> &ButtonState>,
 }
 
 impl<Data, GetButtonData: Lens<Data, ButtonState>> View<Data> for ButtonView<Data, GetButtonData> {
-    fn draw(&self, app: &nannou::App, data: &Data, draw: &nannou::Draw, hover: Option<ViewId>) {
+    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, hover: Option<ViewId>) {
         let mut rect = draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(Theme::DEFAULT.button_normal_bg);
         if hover == Some(self.id) {
             rect = rect.color(Theme::DEFAULT.button_hover_bg);
         }
-        if self.button_data_lens.get(data).pressed {
+        if self.pressed {
             rect = rect.color(Theme::DEFAULT.button_pressed_bg);
         }
 
@@ -60,9 +62,8 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>> View<Data> for ButtonView<Dat
             Event::LeftMouseDown => self.button_data_lens.get_mut(data).pressed = true,
         }
     }
-
-    fn subscriptions(&self, data: &Data) -> Vec<Subscription<Data>> {
-        if self.button_data_lens.get(data).pressed {
+    fn subscriptions(&self) -> Vec<Subscription<Data>> {
+        if self.pressed {
             // TODO: callback
             vec![Subscription::LeftMouseUp(Box::new(|app, data| self.button_data_lens.get_mut(data).pressed = false))]
         } else {
@@ -71,7 +72,7 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>> View<Data> for ButtonView<Dat
     }
 }
 
-pub(crate) fn button<Data>(id_maker: &mut ViewIdMaker, rect: nannou::geom::Rect, get_button_data: impl Lens<Data, ButtonState>) -> impl View<Data> {
+pub(crate) fn button<Data>(id_maker: &mut ViewIdMaker, data: &Data, rect: nannou::geom::Rect, get_button_data: impl Lens<Data, ButtonState>) -> impl View<Data> {
     // TODO: figure out how layouting is supposed to work
-    ButtonView { id: id_maker.next_id(), rect, button_data_lens: get_button_data, _phantom: PhantomData }
+    ButtonView { id: id_maker.next_id(), rect, pressed: get_button_data.get(data).pressed, button_data_lens: get_button_data, _phantom: PhantomData }
 }

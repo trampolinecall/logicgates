@@ -2,10 +2,10 @@ use std::{marker::PhantomData, time::Duration};
 
 use crate::{
     newview::{
-        id::{ViewIdMaker, ViewId},
+        id::{ViewId, ViewIdMaker},
         lens::{self, Lens},
         widgets::button::ButtonState,
-        View, Event, Subscription,
+        Event, Subscription, View,
     },
     theme::Theme,
     ui::{
@@ -51,7 +51,7 @@ struct SlideOverView<Data, L: Lens<Data, SlideOverState>, ButtonView: View<Slide
     _phantom: PhantomData<fn(&Data) -> &SlideOverState>,
 }
 impl<Data, L: Lens<Data, SlideOverState>, ButtonView: View<SlideOverState>> View<Data> for SlideOverView<Data, L, ButtonView> {
-    fn draw(&self, app: &nannou::App, data: &Data, draw: &nannou::Draw, hover: Option<ViewId>) {
+    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, hover: Option<ViewId>) {
         todo!()
     }
 
@@ -67,21 +67,19 @@ impl<Data, L: Lens<Data, SlideOverState>, ButtonView: View<SlideOverState>> View
         todo!()
     }
 
-    fn subscriptions(&self, data: &Data) -> Vec<Subscription<Data>> {
+    fn subscriptions(&self) -> Vec<Subscription<Data>> {
         todo!()
     }
 }
 
-pub(crate) fn slide_over<Data>(id_maker: &mut ViewIdMaker, lens: impl Lens<Data, SlideOverState>) -> impl View<Data> {
-    SlideOverView {
-        lens,
-        button: crate::newview::widgets::button::button(
-            id_maker,
-            todo!(),
-            lens::from_closures(|slide_over_state: &SlideOverState| &slide_over_state.toggle_button, |slide_over_state| &mut slide_over_state.toggle_button),
-        ),
-        _phantom: PhantomData,
-    }
+pub(crate) fn slide_over<Data>(id_maker: &mut ViewIdMaker, data: &Data, get_slide_over_data: impl Lens<Data, SlideOverState>) -> impl View<Data> {
+    let button = crate::newview::widgets::button::button(
+        id_maker,
+        get_slide_over_data.get(data),
+        todo!(),
+        lens::from_closures(|slide_over_state: &SlideOverState| &slide_over_state.toggle_button, |slide_over_state| &mut slide_over_state.toggle_button),
+    );
+    SlideOverView { lens: get_slide_over_data, button, _phantom: PhantomData }
 }
 
 struct ToggleButtonDrawing {
