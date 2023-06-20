@@ -10,7 +10,7 @@ pub(crate) struct TestRectView {
 }
 
 impl View<()> for TestRectView {
-    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
+    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, _: Option<ViewId>) {
         // TODO: use hovered?
         draw.rect().xy(rect.xy()).wh(rect.wh()).color(self.color);
     }
@@ -33,7 +33,7 @@ impl View<()> for TestRectView {
         }
     }
 
-    fn event(&self, app: &nannou::App, data: &mut (), event: Event) {
+    fn event(&self, _: &nannou::App, _: &mut (), event: Event) {
         match event {
             Event::LeftMouseDown => {}
         }
