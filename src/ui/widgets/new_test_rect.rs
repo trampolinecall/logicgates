@@ -44,6 +44,6 @@ impl View<()> for TestRectView {
     }
 }
 
-pub(crate) fn new(id_maker: &mut ViewIdMaker, color: nannou::color::Srgb, size: (f32, f32)) -> impl View<()> {
+pub(crate) fn test_rect(id_maker: &mut ViewIdMaker, color: nannou::color::Srgb, size: (f32, f32)) -> impl View<()> {
     TestRectView { id: id_maker.next_id(), color, size }
 }

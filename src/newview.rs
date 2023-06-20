@@ -68,24 +68,39 @@ pub(crate) fn event(app: &nannou::App, logic_gates: &mut crate::LogicGates, even
 
 fn view(app: &nannou::App, logic_gates: &crate::LogicGates) -> impl View<crate::LogicGates> {
     let mut id_maker = id::ViewIdMaker::new();
-    let button1 = widgets::button::button(
+
+    let simulation_view = crate::ui::widgets::new_simulation::simulation(
         &mut id_maker,
+        lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.newui.main_simulation_state, |logic_gates| &mut logic_gates.newui.main_simulation_state),
+        lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.simulation, |logic_gates| &mut logic_gates.simulation),
         logic_gates,
-        lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.newui, |logic_gates: &mut crate::LogicGates| &mut logic_gates.newui),
-        |_, _| (),
     );
-    let button2 = widgets::button::button(
+
+    let mut rects: Vec<_> = (0..20)
+        .map(|i| {
+            Box::new(widgets::submodule::submodule(
+                lens::unit(),
+                crate::ui::widgets::new_test_rect::test_rect(&mut id_maker, nannou::color::srgb(i as f32 / 20.0, (20 - i) as f32 / 20.0, 0.0), ((i * 5 + 20) as f32, 10.0)),
+            )) as Box<dyn View<_>>
+        })
+        .collect();
+    rects.push(Box::new(crate::ui::widgets::new_slider::slider(
         &mut id_maker,
+        Some(1.0),
+        Some(20.0),
+        lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.newui.subticks_slider_state, |logic_gates| &mut logic_gates.newui.subticks_slider_state),
+        lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.subticks_per_update, |logic_gates| &mut logic_gates.subticks_per_update),
         logic_gates,
-        lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.newui, |logic_gates: &mut crate::LogicGates| &mut logic_gates.newui),
-        |_, _| (),
-    );
+    )));
+
+    let flow_view = crate::ui::widgets::new_flow::vertical_flow(&mut id_maker, rects);
+
     crate::ui::widgets::new_slide_over::slide_over(
         app,
         &mut id_maker,
         logic_gates,
-        lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.ui.new_slide_over, |logic_gates: &mut crate::LogicGates| &mut logic_gates.ui.new_slide_over),
-        button1,
-        button2,
+        lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.newui.new_slide_over, |logic_gates: &mut crate::LogicGates| &mut logic_gates.newui.new_slide_over),
+        simulation_view,
+        flow_view,
     )
 }
