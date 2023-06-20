@@ -51,11 +51,15 @@ struct SlideOverView<Data, L: Lens<Data, SlideOverState>, ButtonView: View<Slide
     _phantom: PhantomData<fn(&Data) -> &SlideOverState>,
 }
 impl<Data, L: Lens<Data, SlideOverState>, ButtonView: View<SlideOverState>> View<Data> for SlideOverView<Data, L, ButtonView> {
-    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, hover: Option<ViewId>) {
+    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
         todo!()
     }
 
-    fn find_hover(&self, mouse: nannou::geom::Vec2) -> Option<ViewId> {
+    fn find_hover(&self, rect: nannou::geom::Rect, mouse: nannou::geom::Vec2) -> Option<ViewId> {
+        todo!()
+    }
+
+    fn size(&self, given: (f32, f32)) -> (f32, f32) {
         todo!()
     }
 
@@ -76,7 +80,6 @@ pub(crate) fn slide_over<Data>(id_maker: &mut ViewIdMaker, data: &Data, get_slid
     let button = crate::newview::widgets::button::button(
         id_maker,
         get_slide_over_data.get(data),
-        todo!(),
         lens::from_closures(|slide_over_state: &SlideOverState| &slide_over_state.toggle_button, |slide_over_state| &mut slide_over_state.toggle_button),
     );
     SlideOverView { lens: get_slide_over_data, button, _phantom: PhantomData }
