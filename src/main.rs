@@ -18,7 +18,7 @@ struct LogicGates {
     simulation: simulation::Simulation,
     subtick_per_update: f32, // TODO: chagen this to usize after fixing slider widget
     ui: ui::UI,
-    newui: newview::widgets::button::ButtonData,
+    newui: newview::widgets::button::ButtonState,
 }
 
 // TODO: find a better place to put this too
@@ -29,7 +29,7 @@ enum Message {
 
 impl LogicGates {
     fn new(_: &App) -> LogicGates {
-        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), ui: ui::UI::new(), subtick_per_update: 1.0, newui: newview::widgets::button::ButtonData::new() }
+        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), ui: ui::UI::new(), subtick_per_update: 1.0, newui: newview::widgets::button::ButtonState::new() }
     }
 
     fn message(&mut self, message: crate::Message) {
