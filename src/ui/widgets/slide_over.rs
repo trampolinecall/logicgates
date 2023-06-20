@@ -1,10 +1,11 @@
-use std::{cell::RefCell, marker::PhantomData, time::Duration};
+use std::{marker::PhantomData, time::Duration};
 
 use crate::{
     theme::Theme,
     ui::widgets::button::ButtonState,
     view::{
         id::{ViewId, ViewIdMaker},
+        layout_cache::LayoutCache,
         lens::{self, Lens},
         GeneralEvent, TargetedEvent, View,
     },
@@ -30,7 +31,7 @@ struct SlideOverView<Data, ButtonView: View<Data>, BaseView: View<Data>, OverVie
 
     drawer_openness: f32,
 
-    layout: RefCell<Option<(nannou::geom::Rect, SlideOverLayout)>>, // cache layout
+    layout: LayoutCache<SlideOverLayout>,
 
     _phantom: PhantomData<fn(&Data) -> &SlideOverState>,
 }
@@ -41,61 +42,54 @@ struct SlideOverLayout {
 }
 
 impl<Data, ButtonView: View<Data>, BaseView: View<Data>, OverView: View<Data>> SlideOverView<Data, ButtonView, BaseView, OverView> {
-    fn layout<'layout>(&self, given_rect: nannou::geom::Rect, layout_field: &'layout mut Option<(nannou::geom::Rect, SlideOverLayout)>) -> &'layout SlideOverLayout {
-        // the layout should really never need to be computed more than once because the view tree is supposed to only be used for one frame so the layout should really never change
-        // but conceptually the layout is supposed to be computed for whatever rect is passed into draw() or find_hover() and this only caches whatever layout was computed last
+    fn layout(&self, given_rect: nannou::geom::Rect) -> SlideOverLayout {
+        let over_size = self.over.size(given_rect.w_h());
+        let over_rect = nannou::geom::Rect::from_wh(over_size.into()).align_y_of(nannou::geom::Align::End, given_rect).left_of(given_rect).shift_x(over_size.0 * self.drawer_openness);
+        let toggle_button_rect = nannou::geom::Rect::from_wh(Theme::DEFAULT.slide_out_size.into()).right_of(over_rect).align_top_of(given_rect).shift_y(-Theme::DEFAULT.slide_out_toggle_y_offset);
+        let over_rect_needed = self.drawer_openness != 0.0;
 
-        let needs_recompute = match layout_field {
-            None => true,
-            Some((old_given_rect, _)) if *old_given_rect != given_rect => true,
-
-            _ => false,
-        };
-        if needs_recompute {
-            let over_size = self.over.size(given_rect.w_h());
-            let over_rect = nannou::geom::Rect::from_wh(over_size.into()).align_y_of(nannou::geom::Align::End, given_rect).left_of(given_rect).shift_x(over_size.0 * self.drawer_openness);
-            let toggle_button_rect = nannou::geom::Rect::from_wh(Theme::DEFAULT.slide_out_size.into()).right_of(over_rect).align_top_of(given_rect).shift_y(-Theme::DEFAULT.slide_out_toggle_y_offset);
-            let over_rect_needed = self.drawer_openness != 0.0;
-
-            *layout_field = Some((given_rect, SlideOverLayout { base_rect: given_rect, over_rect: if over_rect_needed { Some(over_rect) } else { None }, toggle_button_rect }));
-        }
-
-        &layout_field.as_ref().expect("layout was either already computed or just computed").1
+        SlideOverLayout { base_rect: given_rect, over_rect: if over_rect_needed { Some(over_rect) } else { None }, toggle_button_rect }
     }
 }
 
 impl<Data, ButtonView: View<Data>, BaseView: View<Data>, OverView: View<Data>> View<Data> for SlideOverView<Data, ButtonView, BaseView, OverView> {
     fn draw(&self, app: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
-        let mut layout_borrow = self.layout.borrow_mut();
-        let layout = self.layout(rect, &mut layout_borrow);
-
-        self.base.draw(app, draw, layout.base_rect, hover);
-        if let Some(over_rect) = layout.over_rect {
-            self.over.draw(app, draw, over_rect, hover);
-        }
-        self.button.draw(app, draw, layout.toggle_button_rect, hover);
+        self.layout.with_layout(
+            rect,
+            |given_rect| self.layout(given_rect),
+            |layout| {
+                self.base.draw(app, draw, layout.base_rect, hover);
+                if let Some(over_rect) = layout.over_rect {
+                    self.over.draw(app, draw, over_rect, hover);
+                }
+                self.button.draw(app, draw, layout.toggle_button_rect, hover);
+            },
+        )
     }
 
     fn find_hover(&self, rect: nannou::geom::Rect, mouse: nannou::geom::Vec2) -> Option<ViewId> {
-        let mut layout_borrow = self.layout.borrow_mut();
-        let layout = self.layout(rect, &mut layout_borrow);
+        self.layout.with_layout(
+            rect,
+            |given_rect| self.layout(given_rect),
+            |layout| {
+                // go in z order from top to bottom
+                if let x @ Some(_) = self.button.find_hover(layout.toggle_button_rect, mouse) {
+                    return x;
+                }
 
-        // go in z order from top to bottom
-        if let x @ Some(_) = self.button.find_hover(layout.toggle_button_rect, mouse) {
-            return x;
-        }
+                if let Some(over_rect) = layout.over_rect {
+                    if let x @ Some(_) = self.over.find_hover(over_rect, mouse) {
+                        return x;
+                    }
+                }
 
-        if let Some(over_rect) = layout.over_rect {
-            if let x @ Some(_) = self.over.find_hover(over_rect, mouse) {
-                return x;
-            }
-        }
+                if let x @ Some(_) = self.base.find_hover(layout.base_rect, mouse) {
+                    return x;
+                }
 
-        if let x @ Some(_) = self.base.find_hover(layout.base_rect, mouse) {
-            return x;
-        }
-
-        None
+                None
+            },
+        )
     }
 
     fn size(&self, given: (f32, f32)) -> (f32, f32) {
@@ -146,5 +140,5 @@ pub(crate) fn slide_over<Data>(
             });
         },
     );
-    SlideOverView { base, over, button, drawer_openness, layout: RefCell::new(None), _phantom: PhantomData }
+    SlideOverView { base, over, button, drawer_openness, layout: LayoutCache::new(), _phantom: PhantomData }
 }
