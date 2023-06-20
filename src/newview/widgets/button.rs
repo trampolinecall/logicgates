@@ -30,6 +30,7 @@ struct ButtonView<Data, GetButtonData: Lens<Data, ButtonData>> {
 }
 
 impl<Data, GetButtonData: Lens<Data, ButtonData>> View<Data> for ButtonView<Data, GetButtonData> {
+    // TODO: is this ever used?
     fn id(&self) -> ViewId {
         self.id
     }
