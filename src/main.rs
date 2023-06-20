@@ -9,9 +9,6 @@ pub(crate) mod newview;
 pub(crate) mod simulation;
 pub(crate) mod theme;
 pub(crate) mod ui;
-pub(crate) mod view;
-
-use crate::ui::widgets::Widget;
 
 use nannou::prelude::*;
 
@@ -19,35 +16,14 @@ use nannou::prelude::*;
 struct LogicGates {
     simulation: simulation::Simulation,
     subticks_per_update: isize,
-    ui: ui::UI,
     newui: newui::UI,
-}
-
-// TODO: find a better place to put this too
-enum Message {
-    GateMoved(simulation::GateKey, Vec2),
-    NumberOfSubticksPerUpdateChanged(f32),
 }
 
 impl LogicGates {
     fn new(_: &App) -> LogicGates {
-        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), ui: ui::UI::new(), subticks_per_update: 1, newui: newui::UI::new() }
+        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), subticks_per_update: 1, newui: newui::UI::new() }
     }
 
-    fn message(&mut self, message: crate::Message) {
-        match message {
-            Message::GateMoved(gate, pos) => {
-                let loc = simulation::Gate::location_mut(&mut self.simulation.circuits, &mut self.simulation.gates, gate);
-                loc.x = pos.x;
-                loc.y = pos.y;
-            }
-            Message::NumberOfSubticksPerUpdateChanged(t) => {},
-        }
-    }
-
-    fn view(&self, app: &App, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
-        self.ui.main_widget.view(app, self, rect)
-    }
 }
 
 fn main() {
@@ -55,15 +31,6 @@ fn main() {
 }
 
 fn event(app: &App, logic_gates: &mut LogicGates, event: Event) {
-    /*
-    let ui_message = view::event(app, logic_gates, event);
-    for ui_message in ui_message {
-        let logic_gate_message = logic_gates.ui.targeted_message(app, ui_message);
-        if let Some(logic_gate_message) = logic_gate_message {
-            logic_gates.message(logic_gate_message);
-        }
-    }
-    */
     newview::event(app, logic_gates, event);
 }
 
