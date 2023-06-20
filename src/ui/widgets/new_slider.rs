@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{fmt::Display, marker::PhantomData, ops::Add};
 
 use crate::{
     newview::{
@@ -9,40 +9,52 @@ use crate::{
     theme::Theme,
 };
 
-pub(crate) struct SliderState {
-    drag_start: Option<(nannou::geom::Vec2, f32)>,
+pub(crate) struct SliderState<Value: Display> {
+    drag_start: Option<(nannou::geom::Vec2, Value)>,
 }
 
 // TODO: data type
-struct SliderView<Data, StateLens: Lens<Data, SliderState>, DataLens: Lens<Data, f32>> {
+struct SliderView<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: Lens<Data, SliderState<Value>>, DataLens: Lens<Data, Value>, ConvertMousePosition: Fn(f32) -> Value> {
     id: ViewId,
 
-    min: Option<f32>,
-    max: Option<f32>,
-    value: f32,
+    min: Option<Value>,
+    max: Option<Value>,
+    value: Value,
 
     pressed: bool,
 
     state_lens: StateLens,
     value_lens: DataLens,
 
-    _phantom: PhantomData<(fn(&Data) -> &SliderState, fn(&Data) -> &f32)>,
+    convert_mouse_position: ConvertMousePosition,
+
+    _phantom: PhantomData<(fn(&Data) -> &SliderState<Value>, fn(&Data) -> &Value)>,
 }
 
-impl SliderState {
-    pub(crate) fn new() -> SliderState {
+impl<Value: Display> SliderState<Value> {
+    pub(crate) fn new() -> SliderState<Value> {
         SliderState { drag_start: None }
     }
 }
 
 // TODO: find a more consistent order for the arguments of all of these view creating functions
-pub(crate) fn slider<Data>(id_maker: &mut ViewIdMaker, min: Option<f32>, max: Option<f32>, state_lens: impl Lens<Data, SliderState>, value_lens: impl Lens<Data, f32>, data: &Data) -> impl View<Data> {
+pub(crate) fn slider<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord>(
+    id_maker: &mut ViewIdMaker,
+    min: Option<Value>,
+    max: Option<Value>,
+    state_lens: impl Lens<Data, SliderState<Value>>,
+    value_lens: impl Lens<Data, Value>,
+    convert_mouse_position: impl Fn(f32) -> Value,
+    data: &Data,
+) -> impl View<Data> {
     let pressed = state_lens.with(data, |slider_state| slider_state.drag_start.is_some());
     let value = value_lens.with(data, |v| *v);
-    SliderView { id: id_maker.next_id(), min, max, value, pressed, state_lens, value_lens, _phantom: PhantomData }
+    SliderView { id: id_maker.next_id(), min, max, value, pressed, state_lens, value_lens, convert_mouse_position, _phantom: PhantomData }
 }
 
-impl<Data, StateLens: Lens<Data, SliderState>, DataLens: Lens<Data, f32>> View<Data> for SliderView<Data, StateLens, DataLens> {
+impl<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: Lens<Data, SliderState<Value>>, DataLens: Lens<Data, Value>, ConvertMousePosition: Fn(f32) -> Value> View<Data>
+    for SliderView<Data, Value, StateLens, DataLens, ConvertMousePosition>
+{
     fn draw(&self, _: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
         // TODO: show as progress bar if both min and max
         let mut background_rect = draw.rect().xy(rect.xy()).wh(rect.wh()).color(Theme::DEFAULT.button_normal_bg);
@@ -95,7 +107,7 @@ impl<Data, StateLens: Lens<Data, SliderState>, DataLens: Lens<Data, f32>> View<D
                     let new_value = {
                         self.state_lens.with_mut(data, |state| {
                             if let Some((drag_start_mouse_pos, start_value)) = state.drag_start {
-                                let diff = new_mouse_pos.x - drag_start_mouse_pos.x; // TODO: scale this
+                                let diff = (self.convert_mouse_position)(new_mouse_pos.x - drag_start_mouse_pos.x); // TODO: scale this, also with modifier keys
                                 let mut new_value = start_value + diff;
                                 if let Some(min) = self.min {
                                     new_value = new_value.max(min);

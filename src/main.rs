@@ -18,7 +18,7 @@ use nannou::prelude::*;
 // TODO: find a better place to put this and reorganize everything
 struct LogicGates {
     simulation: simulation::Simulation,
-    subticks_per_update: f32, // TODO: chagen this to usize after fixing slider widget
+    subticks_per_update: isize,
     ui: ui::UI,
     newui: newui::UI,
 }
@@ -31,7 +31,7 @@ enum Message {
 
 impl LogicGates {
     fn new(_: &App) -> LogicGates {
-        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), ui: ui::UI::new(), subticks_per_update: 1.0, newui: newui::UI::new() }
+        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), ui: ui::UI::new(), subticks_per_update: 1, newui: newui::UI::new() }
     }
 
     fn message(&mut self, message: crate::Message) {
@@ -41,7 +41,7 @@ impl LogicGates {
                 loc.x = pos.x;
                 loc.y = pos.y;
             }
-            Message::NumberOfSubticksPerUpdateChanged(t) => self.subticks_per_update = t,
+            Message::NumberOfSubticksPerUpdateChanged(t) => {},
         }
     }
 

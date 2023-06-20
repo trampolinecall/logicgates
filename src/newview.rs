@@ -86,10 +86,11 @@ fn view(app: &nannou::App, logic_gates: &crate::LogicGates) -> impl View<crate::
         .collect();
     rects.push(Box::new(crate::ui::widgets::new_slider::slider(
         &mut id_maker,
-        Some(1.0),
-        Some(20.0),
+        Some(1),
+        Some(20),
         lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.newui.subticks_slider_state, |logic_gates| &mut logic_gates.newui.subticks_slider_state),
         lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.subticks_per_update, |logic_gates| &mut logic_gates.subticks_per_update),
+        |mouse_diff| (mouse_diff / 10.0) as isize,
         logic_gates,
     )));
 
