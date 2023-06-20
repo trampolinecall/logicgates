@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use crate::{
-    newview::{
+    view::{
         id::{ViewId, ViewIdMaker},
         lens::Lens,
         Event, Subscription, View,

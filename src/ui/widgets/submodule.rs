@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::newview::{id::ViewId, lens::Lens, Event, Subscription, View};
+use crate::view::{id::ViewId, lens::Lens, Event, Subscription, View};
 
 pub(crate) struct SubmoduleView<Data, SubData, L: Lens<Data, SubData>, SubView: View<SubData>> {
     lens: L,

@@ -1,13 +1,13 @@
 use std::{cell::RefCell, marker::PhantomData, time::Duration};
 
 use crate::{
-    newview::{
+    theme::Theme,
+    ui::widgets::button::ButtonState,
+    view::{
         id::{ViewId, ViewIdMaker},
         lens::{self, Lens},
-        widgets::button::ButtonState,
         Event, Subscription, View,
     },
-    theme::Theme,
 };
 
 // TODO: implement slide over from other sides
@@ -138,7 +138,7 @@ pub(crate) fn slide_over<Data>(
         }
     });
 
-    let button = crate::newview::widgets::button::button(
+    let button = crate::ui::widgets::button::button(
         id_maker,
         data,
         lens::compose(get_slide_over_data, lens::from_closures(move |slide_over_data: &SlideOverState| &slide_over_data.toggle_button, move |slide_over_data| &mut slide_over_data.toggle_button)),

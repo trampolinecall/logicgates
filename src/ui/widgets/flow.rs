@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 
-use crate::newview::{
+use crate::view::{
     id::{ViewId, ViewIdMaker},
     Event, Subscription, View,
 };
