@@ -10,12 +10,16 @@ pub(crate) struct SubmoduleView<Data, SubData, L: Lens<Data, SubData>, SubView: 
     _phantom: PhantomData<fn(&Data) -> &SubData>,
 }
 impl<Data, SubData, L: Lens<Data, SubData>, SubView: View<SubData>> View<Data> for SubmoduleView<Data, SubData, L, SubView> {
-    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, hover: Option<ViewId>) {
-        self.subview.draw(app, draw, hover)
+    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
+        self.subview.draw(app, draw, rect, hover)
     }
 
-    fn find_hover(&self, mouse: nannou::geom::Vec2) -> Option<ViewId> {
-        self.subview.find_hover(mouse)
+    fn find_hover(&self, rect: nannou::geom::Rect, mouse: nannou::geom::Vec2) -> Option<ViewId> {
+        self.subview.find_hover(rect, mouse)
+    }
+
+    fn size(&self, given: (f32, f32)) -> (f32, f32) {
+        self.subview.size(given)
     }
 
     fn targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: Event) {

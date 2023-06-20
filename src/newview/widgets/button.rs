@@ -22,8 +22,6 @@ impl ButtonState {
 struct ButtonView<Data, GetButtonData: Lens<Data, ButtonState>> {
     id: ViewId,
 
-    rect: nannou::geom::Rect,
-
     pressed: bool,
 
     button_data_lens: GetButtonData,
@@ -32,8 +30,8 @@ struct ButtonView<Data, GetButtonData: Lens<Data, ButtonState>> {
 }
 
 impl<Data, GetButtonData: Lens<Data, ButtonState>> View<Data> for ButtonView<Data, GetButtonData> {
-    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, hover: Option<ViewId>) {
-        let mut rect = draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(Theme::DEFAULT.button_normal_bg);
+    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
+        let mut rect = draw.rect().xy(rect.xy()).wh(rect.wh()).color(Theme::DEFAULT.button_normal_bg);
         if hover == Some(self.id) {
             rect = rect.color(Theme::DEFAULT.button_hover_bg);
         }
@@ -44,14 +42,17 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>> View<Data> for ButtonView<Dat
         rect.finish();
     }
 
-    fn find_hover(&self, mouse: nannou::geom::Vec2) -> Option<ViewId> {
-        if self.rect.contains(mouse) {
+    fn find_hover(&self, rect: nannou::geom::Rect, mouse: nannou::geom::Vec2) -> Option<ViewId> {
+        if rect.contains(mouse) {
             Some(self.id)
         } else {
             None
         }
     }
 
+    fn size(&self, given: (f32, f32)) -> (f32, f32) {
+        todo!()
+    }
     fn targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: Event) {
         if target == self.id {
             self.event(app, data, event)
@@ -62,6 +63,7 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>> View<Data> for ButtonView<Dat
             Event::LeftMouseDown => self.button_data_lens.get_mut(data).pressed = true,
         }
     }
+
     fn subscriptions(&self) -> Vec<Subscription<Data>> {
         if self.pressed {
             // TODO: callback
@@ -73,7 +75,6 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>> View<Data> for ButtonView<Dat
 }
 
 // TODO: should this return ButtonView instead of an opaque type?
-pub(crate) fn button<Data>(id_maker: &mut ViewIdMaker, data: &Data, rect: nannou::geom::Rect, get_button_data: impl Lens<Data, ButtonState>) -> impl View<Data> {
-    // TODO: figure out how layouting is supposed to work
-    ButtonView { id: id_maker.next_id(), rect, pressed: get_button_data.get(data).pressed, button_data_lens: get_button_data, _phantom: PhantomData }
+pub(crate) fn button<Data>(id_maker: &mut ViewIdMaker, data: &Data, get_button_data: impl Lens<Data, ButtonState>) -> impl View<Data> {
+    ButtonView { id: id_maker.next_id(), pressed: get_button_data.get(data).pressed, button_data_lens: get_button_data, _phantom: PhantomData }
 }
