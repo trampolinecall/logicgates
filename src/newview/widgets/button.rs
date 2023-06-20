@@ -9,27 +9,27 @@ use crate::{
     theme::Theme,
 };
 
-pub(crate) struct ButtonData {
+pub(crate) struct ButtonState {
     pressed: bool,
 }
 
-impl ButtonData {
-    pub(crate) fn new() -> ButtonData {
-        ButtonData { pressed: false }
+impl ButtonState {
+    pub(crate) fn new() -> ButtonState {
+        ButtonState { pressed: false }
     }
 }
 
-struct ButtonView<Data, GetButtonData: Lens<Data, ButtonData>> {
+struct ButtonView<Data, GetButtonData: Lens<Data, ButtonState>> {
     id: ViewId,
 
     rect: nannou::geom::Rect,
 
     button_data_lens: GetButtonData,
 
-    _phantom: PhantomData<fn(&Data) -> &ButtonData>,
+    _phantom: PhantomData<fn(&Data) -> &ButtonState>,
 }
 
-impl<Data, GetButtonData: Lens<Data, ButtonData>> View<Data> for ButtonView<Data, GetButtonData> {
+impl<Data, GetButtonData: Lens<Data, ButtonState>> View<Data> for ButtonView<Data, GetButtonData> {
     fn draw(&self, app: &nannou::App, data: &Data, draw: &nannou::Draw, hover: Option<ViewId>) {
         let mut rect = draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(Theme::DEFAULT.button_normal_bg);
         if hover == Some(self.id) {
@@ -71,7 +71,7 @@ impl<Data, GetButtonData: Lens<Data, ButtonData>> View<Data> for ButtonView<Data
     }
 }
 
-pub(crate) fn button<Data>(id_maker: &mut ViewIdMaker, rect: nannou::geom::Rect, get_button_data: impl Lens<Data, ButtonData>) -> impl View<Data> {
+pub(crate) fn button<Data>(id_maker: &mut ViewIdMaker, rect: nannou::geom::Rect, get_button_data: impl Lens<Data, ButtonState>) -> impl View<Data> {
     // TODO: figure out how layouting is supposed to work
     ButtonView { id: id_maker.next_id(), rect, button_data_lens: get_button_data, _phantom: PhantomData }
 }

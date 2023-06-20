@@ -5,6 +5,7 @@ use crate::ui::widgets::Widget;
 
 pub(crate) struct UI {
     pub(crate) main_widget: widgets::slide_over::SlideOver<widgets::simulation::SimulationWidget, widgets::flow::Flow>,
+    pub(crate) new_slide_over: widgets::new_slide_over::SlideOverState,
 }
 
 impl UI {
@@ -17,7 +18,7 @@ impl UI {
         rects.push(Box::new(widgets::slider::Slider::new(&mut id_maker, Some(1.0), Some(20.0), |logic_gates| logic_gates.subtick_per_update, crate::Message::NumberOfSubticksPerUpdateChanged)));
         let flow = widgets::flow::Flow::new(&mut id_maker, widgets::flow::FlowDirection::Vertical, rects);
         let slide_over = widgets::slide_over::SlideOver::new(&mut id_maker, simulation_widget, flow);
-        UI { main_widget: slide_over }
+        UI { main_widget: slide_over, new_slide_over: widgets::new_slide_over::SlideOverState::new() }
     }
 
     pub(crate) fn targeted_message(&mut self, app: &nannou::App, tm: message::TargetedUIMessage) -> Option<crate::Message> {
