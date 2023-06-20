@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::simulation::{hierarchy, CircuitKey, CircuitMap, Gate, GateKey, GateMap, Node, NodeKey, NodeMap};
+use crate::simulation::{hierarchy, Gate, GateKey, GateMap, Node, NodeKey, NodeMap};
 
 pub(crate) struct NodeLogic {
     production: Option<Value>,
@@ -89,30 +89,6 @@ pub(crate) fn get_node_production(nodes: &slotmap::SlotMap<NodeKey, Node>, node:
 
 fn set_node_production(nodes: &mut NodeMap, index: NodeKey, new_value: Value) {
     nodes[index].logic.production = Some(new_value);
-}
-
-pub(crate) fn toggle_input(circuits: &mut CircuitMap, nodes: &mut NodeMap, circuit: CircuitKey, i: usize) {
-    assert!(i < circuits[circuit].nodes.inputs().len(), "toggle input out of range of number of inputs");
-    let node_key = circuits[circuit].nodes.inputs()[i];
-    let node = &nodes[node_key];
-    let old_production = node.logic.production;
-
-    set_node_production(
-        nodes,
-        node_key,
-        match old_production {
-            Some(Value::L) => Value::H,
-            Some(Value::H) => Value::L,
-            Some(Value::Z) | Some(Value::X) | None => Value::H,
-        },
-    );
-}
-
-pub(crate) fn set_input(circuits: &mut CircuitMap, nodes: &mut NodeMap, circuit: CircuitKey, i: usize, value: Value) {
-    assert!(i < circuits[circuit].nodes.inputs().len(), "set input out of range of number of inputs");
-    let node_key = circuits[circuit].nodes.inputs()[i];
-
-    set_node_production(nodes, node_key, value);
 }
 // update {{{1
 pub(crate) fn update(gates: &mut GateMap, node_map: &mut NodeMap, subticks: usize) {
