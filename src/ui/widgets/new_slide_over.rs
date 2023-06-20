@@ -128,20 +128,25 @@ pub(crate) fn slide_over<Data>(
     base: impl View<Data>,
     over: impl View<Data>,
 ) -> impl View<Data> {
-    let slide_over_data = get_slide_over_data.get(data);
-
-    let time_since_switch = app.duration.since_start - slide_over_data.last_switch_time;
-    let time_interp = (Theme::DEFAULT.animation_ease)((time_since_switch.as_secs_f32() / Theme::DEFAULT.animation_time).clamp(0.0, 1.0));
-    let drawer_openness = if slide_over_data.drawer_out { time_interp } else { 1.0 - time_interp };
+    let drawer_openness = get_slide_over_data.with(data, |slide_over_data| {
+        let time_since_switch = app.duration.since_start - slide_over_data.last_switch_time;
+        let time_interp = (Theme::DEFAULT.animation_ease)((time_since_switch.as_secs_f32() / Theme::DEFAULT.animation_time).clamp(0.0, 1.0));
+        if slide_over_data.drawer_out {
+            time_interp
+        } else {
+            1.0 - time_interp
+        }
+    });
 
     let button = crate::newview::widgets::button::button(
         id_maker,
         data,
-        lens::from_closures(move |data| &get_slide_over_data.get(data).toggle_button, move |data| &mut get_slide_over_data.get_mut(data).toggle_button),
+        lens::compose(get_slide_over_data, lens::from_closures(move |slide_over_data: &SlideOverState| &slide_over_data.toggle_button, move |slide_over_data| &mut slide_over_data.toggle_button)),
         move |app, data| {
-            let slide_over_data = get_slide_over_data.get_mut(data);
-            slide_over_data.drawer_out = !slide_over_data.drawer_out;
-            slide_over_data.last_switch_time = app.duration.since_start;
+            get_slide_over_data.with_mut(data, |slide_over_data| {
+                slide_over_data.drawer_out = !slide_over_data.drawer_out;
+                slide_over_data.last_switch_time = app.duration.since_start;
+            });
         },
     );
     SlideOverView { base, over, button, drawer_openness, layout: RefCell::new(None), _phantom: PhantomData }

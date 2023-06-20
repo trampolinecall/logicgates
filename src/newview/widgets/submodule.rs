@@ -23,11 +23,11 @@ impl<Data, SubData, L: Lens<Data, SubData>, SubView: View<SubData>> View<Data> f
     }
 
     fn targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: Event) {
-        self.subview.targeted_event(app, self.lens.get_mut(data), target, event)
+        self.lens.with_mut(data, |subdata| self.subview.targeted_event(app, subdata, target, event))
     }
 
     fn event(&self, app: &nannou::App, data: &mut Data, event: Event) {
-        self.subview.event(app, self.lens.get_mut(data), event)
+        self.lens.with_mut(data, |subdata| self.subview.event(app, subdata, event))
     }
 
     fn subscriptions(&self) -> Vec<Subscription<Data>> {
@@ -36,8 +36,10 @@ impl<Data, SubData, L: Lens<Data, SubData>, SubView: View<SubData>> View<Data> f
             .subscriptions()
             .into_iter()
             .map(|subscription| match subscription {
-                Subscription::MouseMoved(callback) => Subscription::MouseMoved(Box::new(move |app, bigger_data, mouse_pos| callback(app, self.lens.get_mut(bigger_data), mouse_pos))),
-                Subscription::LeftMouseUp(callback) => Subscription::LeftMouseUp(Box::new(move |app, bigger_data| callback(app, self.lens.get_mut(bigger_data)))),
+                Subscription::MouseMoved(callback) => {
+                    Subscription::MouseMoved(Box::new(move |app, bigger_data, mouse_pos| self.lens.with_mut(bigger_data, |smaller_data| callback(app, smaller_data, mouse_pos))))
+                }
+                Subscription::LeftMouseUp(callback) => Subscription::LeftMouseUp(Box::new(move |app, bigger_data| self.lens.with_mut(bigger_data, |smaller_data| callback(app, smaller_data)))),
             })
             .collect()
     }
