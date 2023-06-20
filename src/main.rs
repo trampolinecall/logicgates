@@ -1,13 +1,15 @@
 #![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::type_complexity)]
 
 #[macro_use]
 pub(crate) mod utils;
 pub(crate) mod compiler;
+pub(crate) mod newui;
+pub(crate) mod newview;
 pub(crate) mod simulation;
 pub(crate) mod theme;
 pub(crate) mod ui;
 pub(crate) mod view;
-pub(crate) mod newview;
 
 use crate::ui::widgets::Widget;
 
@@ -16,9 +18,9 @@ use nannou::prelude::*;
 // TODO: find a better place to put this and reorganize everything
 struct LogicGates {
     simulation: simulation::Simulation,
-    subtick_per_update: f32, // TODO: chagen this to usize after fixing slider widget
+    subticks_per_update: f32, // TODO: chagen this to usize after fixing slider widget
     ui: ui::UI,
-    newui: newview::widgets::button::ButtonState,
+    newui: newui::UI,
 }
 
 // TODO: find a better place to put this too
@@ -29,7 +31,7 @@ enum Message {
 
 impl LogicGates {
     fn new(_: &App) -> LogicGates {
-        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), ui: ui::UI::new(), subtick_per_update: 1.0, newui: newview::widgets::button::ButtonState::new() }
+        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), ui: ui::UI::new(), subticks_per_update: 1.0, newui: newui::UI::new() }
     }
 
     fn message(&mut self, message: crate::Message) {
@@ -39,7 +41,7 @@ impl LogicGates {
                 loc.x = pos.x;
                 loc.y = pos.y;
             }
-            Message::NumberOfSubticksPerUpdateChanged(t) => self.subtick_per_update = t,
+            Message::NumberOfSubticksPerUpdateChanged(t) => self.subticks_per_update = t,
         }
     }
 
@@ -67,7 +69,7 @@ fn event(app: &App, logic_gates: &mut LogicGates, event: Event) {
 
 fn update(_: &App, logic_gates: &mut LogicGates, _: Update) {
     // TODO: adjust number of ticks for time since last update
-    simulation::logic::update(&mut logic_gates.simulation.gates, &mut logic_gates.simulation.nodes, logic_gates.subtick_per_update as usize);
+    simulation::logic::update(&mut logic_gates.simulation.gates, &mut logic_gates.simulation.nodes, logic_gates.subticks_per_update as usize);
 }
 
 fn view(app: &App, logic_gates: &LogicGates, frame: Frame) {

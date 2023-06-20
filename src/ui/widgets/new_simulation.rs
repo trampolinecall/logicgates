@@ -21,6 +21,12 @@ pub(crate) struct SimulationWidgetState {
     view: Option<simulation::CircuitKey>,
 }
 
+impl SimulationWidgetState {
+    pub(crate) fn new() -> SimulationWidgetState {
+        SimulationWidgetState { cur_gate_drag: None, view: None }
+    }
+}
+
 struct SimulationView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
     id: ViewId,
 
@@ -246,6 +252,15 @@ impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Da
         if target == self.id {
             self.event(app, data, event)
         }
+        for node in self.nodes.iter().rev() {
+            node.targeted_event(app, data, target, event);
+        }
+        for gate in self.gates.iter().rev() {
+            gate.targeted_event(app, data, target, event);
+        }
+        for connection in self.connections.iter().rev() {
+            connection.targeted_event(app, data, target, event);
+        }
     }
 
     fn event(&self, app: &nannou::App, data: &mut Data, event: Event) {
@@ -255,7 +270,7 @@ impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Da
     }
 
     fn subscriptions(&self) -> Vec<Subscription<Data>> {
-        Vec::new()
+        self.nodes.iter().map(View::subscriptions).chain(self.gates.iter().map(View::subscriptions)).chain(self.connections.iter().map(View::subscriptions)).flatten().collect()
     }
 }
 
