@@ -7,6 +7,7 @@ pub(crate) mod simulation;
 pub(crate) mod theme;
 pub(crate) mod ui;
 pub(crate) mod view;
+pub(crate) mod newview;
 
 use crate::ui::widgets::Widget;
 
@@ -17,6 +18,7 @@ struct LogicGates {
     simulation: simulation::Simulation,
     subtick_per_update: f32, // TODO: chagen this to usize after fixing slider widget
     ui: ui::UI,
+    newui: newview::widgets::button::ButtonData,
 }
 
 // TODO: find a better place to put this too
@@ -27,7 +29,7 @@ enum Message {
 
 impl LogicGates {
     fn new(_: &App) -> LogicGates {
-        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), ui: ui::UI::new(), subtick_per_update: 1.0 }
+        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), ui: ui::UI::new(), subtick_per_update: 1.0, newui: newview::widgets::button::ButtonData::new() }
     }
 
     fn message(&mut self, message: crate::Message) {
@@ -51,6 +53,7 @@ fn main() {
 }
 
 fn event(app: &App, logic_gates: &mut LogicGates, event: Event) {
+    /*
     let ui_message = view::event(app, logic_gates, event);
     for ui_message in ui_message {
         let logic_gate_message = logic_gates.ui.targeted_message(app, ui_message);
@@ -58,6 +61,8 @@ fn event(app: &App, logic_gates: &mut LogicGates, event: Event) {
             logic_gates.message(logic_gate_message);
         }
     }
+    */
+    newview::event(app, logic_gates, event);
 }
 
 fn update(_: &App, logic_gates: &mut LogicGates, _: Update) {
@@ -67,6 +72,6 @@ fn update(_: &App, logic_gates: &mut LogicGates, _: Update) {
 
 fn view(app: &App, logic_gates: &LogicGates, frame: Frame) {
     let draw = app.draw();
-    view::render(app, &draw, logic_gates);
+    newview::render(app, &draw, logic_gates);
     draw.to_frame(app, &frame).unwrap();
 }
