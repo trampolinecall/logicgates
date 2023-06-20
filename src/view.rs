@@ -1,6 +1,6 @@
 pub(crate) mod id;
-pub(crate) mod lens;
 pub(crate) mod layout_cache;
+pub(crate) mod lens;
 
 use nannou::prelude::*;
 
