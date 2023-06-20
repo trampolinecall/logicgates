@@ -16,8 +16,6 @@ pub(crate) enum Subscription<'a, Data> {
 // specifically this blog post: https://raphlinus.github.io/rust/gui/2022/05/07/ui-architecture.html
 // kind of like a merge of the old Widget and old Drawing trait
 pub(crate) trait View<Data> {
-    fn id(&self) -> id::ViewId;
-
     fn draw(&self, app: &nannou::App, data: &Data, draw: &nannou::Draw, hover: Option<id::ViewId>);
     fn find_hover(&self, mouse: nannou::geom::Vec2) -> Option<id::ViewId>;
 

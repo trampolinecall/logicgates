@@ -1,13 +1,8 @@
 use std::marker::PhantomData;
 
-use crate::newview::{
-    id::{ViewId, ViewIdMaker},
-    lens::Lens,
-    Event, Subscription, View,
-};
+use crate::newview::{id::ViewId, lens::Lens, Event, Subscription, View};
 
 pub(crate) struct SubmoduleView<Data, SubData, L: Lens<Data, SubData>, SubView: View<SubData>> {
-    id: ViewId,
     lens: L,
 
     subview: SubView,
@@ -15,10 +10,6 @@ pub(crate) struct SubmoduleView<Data, SubData, L: Lens<Data, SubData>, SubView: 
     _phantom: PhantomData<fn(&Data) -> &SubData>,
 }
 impl<Data, SubData, L: Lens<Data, SubData>, SubView: View<SubData>> View<Data> for SubmoduleView<Data, SubData, L, SubView> {
-    fn id(&self) -> ViewId {
-        self.id
-    }
-
     fn draw(&self, app: &nannou::App, data: &Data, draw: &nannou::Draw, hover: Option<ViewId>) {
         self.subview.draw(app, self.lens.get(data), draw, hover)
     }
@@ -48,6 +39,6 @@ impl<Data, SubData, L: Lens<Data, SubData>, SubView: View<SubData>> View<Data> f
     }
 }
 
-pub(crate) fn submodule<Data, SubData>(id_maker: &mut ViewIdMaker, lens: impl Lens<Data, SubData>, subview: impl View<SubData>) -> impl View<Data> {
-    SubmoduleView { id: id_maker.next_id(), lens, _phantom: PhantomData, subview }
+pub(crate) fn submodule<Data, SubData>(lens: impl Lens<Data, SubData>, subview: impl View<SubData>) -> impl View<Data> {
+    SubmoduleView { lens, _phantom: PhantomData, subview }
 }
