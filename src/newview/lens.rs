@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
 pub(crate) trait Lens<A, B> {
-    fn get<'a>(&self, a: &'a A) -> &'a B;
-    fn get_mut<'a>(&self, a: &'a mut A) -> &'a mut B;
+    fn with<R, F: FnOnce(&B) -> R>(&self, a: &A, f: F) -> R;
+    fn with_mut<R, F: FnOnce(&mut B) -> R>(&self, a: &mut A, f: F) -> R;
 }
 
 // TODO: split this into a copy version and a non-copy version
@@ -22,14 +22,35 @@ pub(crate) fn from_closures<A, B>(immut: impl Fn(&A) -> &B + Copy, mut_: impl Fn
     impl<A, B, I: Fn(&A) -> &B + Copy, M: Fn(&mut A) -> &mut B + Copy> Copy for Closures<A, B, I, M> {}
 
     impl<A, B, I: Fn(&A) -> &B, M: Fn(&mut A) -> &mut B> Lens<A, B> for Closures<A, B, I, M> {
-        fn get<'a>(&self, a: &'a A) -> &'a B {
-            (self.immut)(a)
+        fn with<R, F: FnOnce(&B) -> R>(&self, a: &A, f: F) -> R {
+            f((self.immut)(a))
         }
 
-        fn get_mut<'a>(&self, a: &'a mut A) -> &'a mut B {
-            (self.mut_)(a)
+        fn with_mut<R, F: FnOnce(&mut B) -> R>(&self, a: &mut A, f: F) -> R {
+            f((self.mut_)(a))
         }
     }
 
     Closures { immut, mut_, _phantom: PhantomData }
+}
+
+pub(crate) fn compose<A, B, C>(a_b: impl Lens<A, B>, b_c: impl Lens<B, C>) -> impl Lens<A, C> {
+    struct Composed<A, B, C, Lens1: Lens<A, B>, Lens2: Lens<B, C>> {
+        a_b: Lens1,
+        b_c: Lens2,
+
+        _phantom: PhantomData<(fn(&A) -> &B, fn(&B) -> &C)>,
+    }
+
+    impl<A, B, C, Lens1: Lens<A, B>, Lens2: Lens<B, C>> Lens<A, C> for Composed<A, B, C, Lens1, Lens2> {
+        fn with<R, F: FnOnce(&C) -> R>(&self, a: &A, f: F) -> R {
+            self.a_b.with(a, move |b| self.b_c.with(b, f))
+        }
+
+        fn with_mut<R, F: FnOnce(&mut C) -> R>(&self, a: &mut A, f: F) -> R {
+            self.a_b.with_mut(a, move |b| self.b_c.with_mut(b, f))
+        }
+    }
+
+    Composed { a_b, b_c, _phantom: PhantomData }
 }

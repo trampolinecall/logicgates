@@ -61,17 +61,19 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&nannou::App, &m
     }
     fn event(&self, _: &nannou::App, data: &mut Data, event: Event) {
         match event {
-            Event::LeftMouseDown => self.button_data_lens.get_mut(data).pressed = true,
+            Event::LeftMouseDown => self.button_data_lens.with_mut(data, |button_data| button_data.pressed = true),
         }
     }
 
     fn subscriptions(&self) -> Vec<Subscription<Data>> {
         if self.pressed {
             vec![Subscription::LeftMouseUp(Box::new(|app, data| {
-                if self.button_data_lens.get(data).pressed {
-                    self.button_data_lens.get_mut(data).pressed = false;
-                    (self.callback)(app, data);
-                }
+                self.button_data_lens.with_mut(data, |button_data| {
+                    if button_data.pressed {
+                        button_data.pressed = false;
+                    }
+                });
+                (self.callback)(app, data);
             }))]
         } else {
             Vec::new()
@@ -81,5 +83,5 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&nannou::App, &m
 
 // TODO: should this return ButtonView instead of an opaque type?
 pub(crate) fn button<Data>(id_maker: &mut ViewIdMaker, data: &Data, get_button_data: impl Lens<Data, ButtonState>, callback: impl Fn(&nannou::App, &mut Data)) -> impl View<Data> {
-    ButtonView { id: id_maker.next_id(), pressed: get_button_data.get(data).pressed, button_data_lens: get_button_data, callback, _phantom: PhantomData }
+    ButtonView { id: id_maker.next_id(), pressed: get_button_data.with(data, |button_data| button_data.pressed), button_data_lens: get_button_data, callback, _phantom: PhantomData }
 }
