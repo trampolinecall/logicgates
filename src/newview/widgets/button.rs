@@ -30,11 +30,6 @@ struct ButtonView<Data, GetButtonData: Lens<Data, ButtonData>> {
 }
 
 impl<Data, GetButtonData: Lens<Data, ButtonData>> View<Data> for ButtonView<Data, GetButtonData> {
-    // TODO: is this ever used?
-    fn id(&self) -> ViewId {
-        self.id
-    }
-
     fn draw(&self, app: &nannou::App, data: &Data, draw: &nannou::Draw, hover: Option<ViewId>) {
         let mut rect = draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(Theme::DEFAULT.button_normal_bg);
         if hover == Some(self.id) {
