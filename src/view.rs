@@ -1,72 +1,53 @@
-use crate::{ui::message::TargetedUIMessage, LogicGates};
+pub(crate) mod id;
+pub(crate) mod lens;
 
 use nannou::prelude::*;
 
-pub(crate) struct View {
-    main_drawing: Box<dyn Drawing>,
-    subscriptions: Vec<Subscription>,
+#[derive(Copy, Clone)]
+pub(crate) enum TargetedEvent {
+    LeftMouseDown,
+}
+#[derive(Copy, Clone)]
+pub(crate) enum GeneralEvent {
+    MouseMoved(Vec2),
+    LeftMouseUp,
 }
 
-pub(crate) enum Subscription {
-    MouseMoved(Box<dyn Fn(&nannou::App, Vec2) -> TargetedUIMessage>),
-    LeftMouseUp(Box<dyn Fn(&nannou::App) -> TargetedUIMessage>),
+// new view system heavilty inspired by xilem
+// specifically this blog post: https://raphlinus.github.io/rust/gui/2022/05/07/ui-architecture.html
+// kind of like a merge of the old Widget and old Drawing trait
+pub(crate) trait View<Data> {
+    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<id::ViewId>);
+    fn find_hover(&self, rect: nannou::geom::Rect, mouse: nannou::geom::Vec2) -> Option<id::ViewId>;
+    fn size(&self, given: (f32, f32)) -> (f32, f32); // TODO: this should eventually take some kind of constraint type instead of just a given size
+
+    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: id::ViewId, event: TargetedEvent);
+    fn targeted_event(&self, app: &nannou::App, data: &mut Data, event: TargetedEvent);
+    fn general_event(&self, app: &nannou::App, data: &mut Data, event: GeneralEvent);
 }
 
-pub(crate) trait Drawing {
-    fn draw(&self, logic_gates: &LogicGates, draw: &nannou::Draw, hovered: Option<&dyn Drawing>);
-    // iterate through this and child widgets in z order to check which one the mouse is currently over
-    fn find_hover(&self, mouse: Vec2) -> Option<&dyn Drawing>;
-
-    fn left_mouse_down(&self, _: &nannou::App) -> Option<TargetedUIMessage> {
-        None
-    }
+pub(crate) fn render(app: &nannou::App, draw: &nannou::Draw, logic_gates: &crate::LogicGates) {
+    let view = crate::view(app, logic_gates);
+    let hover = view.find_hover(app.window_rect(), app.mouse.position());
+    view.draw(app, draw, app.window_rect(), hover);
 }
 
-pub(crate) fn render(app: &nannou::App, draw: &nannou::Draw, logic_gates: &LogicGates) {
-    let view = view(app, logic_gates);
-    let hover = view.main_drawing.find_hover(app.mouse.position());
-    view.main_drawing.draw(logic_gates, draw, hover);
-}
-
-pub(crate) fn event(app: &nannou::App, logic_gates: &LogicGates, event: nannou::Event) -> Vec<TargetedUIMessage> {
-    let view = view(app, logic_gates);
+pub(crate) fn event(app: &nannou::App, logic_gates: &mut crate::LogicGates, event: nannou::Event) {
+    let view = crate::view(app, logic_gates);
     if let nannou::Event::WindowEvent { id: _, simple: Some(event) } = event {
         match event {
             WindowEvent::MousePressed(MouseButton::Left) => {
-                let hovered = view.main_drawing.find_hover(app.mouse.position());
+                let hovered = view.find_hover(app.window_rect(), app.mouse.position());
                 if let Some(hovered) = hovered {
-                    hovered.left_mouse_down(app).into_iter().collect()
-                } else {
-                    Vec::new()
+                    view.send_targeted_event(app, logic_gates, hovered, TargetedEvent::LeftMouseDown);
                 }
             }
 
-            WindowEvent::MouseMoved(mouse_pos) => view
-                .subscriptions
-                .iter()
-                .filter_map(|sub| match sub {
-                    Subscription::MouseMoved(callback) => Some(callback(app, mouse_pos)),
-                    Subscription::LeftMouseUp(_) => None,
-                })
-                .collect(),
+            WindowEvent::MouseMoved(mouse_pos) => view.general_event(app, logic_gates, GeneralEvent::MouseMoved(mouse_pos)),
 
-            WindowEvent::MouseReleased(MouseButton::Left) => view
-                .subscriptions
-                .iter()
-                .filter_map(|sub| match sub {
-                    Subscription::MouseMoved(_) => None,
-                    Subscription::LeftMouseUp(callback) => Some(callback(app)),
-                })
-                .collect(),
+            WindowEvent::MouseReleased(MouseButton::Left) => view.general_event(app, logic_gates, GeneralEvent::LeftMouseUp),
 
-            _ => Vec::new(),
+            _ => {}
         }
-    } else {
-        Vec::new()
     }
-}
-
-fn view(app: &nannou::App, logic_gates: &LogicGates) -> View {
-    let (main_drawing, subscriptions) = logic_gates.view(app, app.window_rect());
-    View { main_drawing, subscriptions }
 }

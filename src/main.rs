@@ -1,4 +1,5 @@
 #![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::type_complexity)]
 
 #[macro_use]
 pub(crate) mod utils;
@@ -8,65 +9,76 @@ pub(crate) mod theme;
 pub(crate) mod ui;
 pub(crate) mod view;
 
-use crate::ui::widgets::Widget;
-
 use nannou::prelude::*;
 
 // TODO: find a better place to put this and reorganize everything
 struct LogicGates {
     simulation: simulation::Simulation,
-    subtick_per_update: f32, // TODO: chagen this to usize after fixing slider widget
+    subticks_per_update: isize,
     ui: ui::UI,
-}
-
-// TODO: find a better place to put this too
-enum Message {
-    GateMoved(simulation::GateKey, Vec2),
-    NumberOfSubticksPerUpdateChanged(f32),
 }
 
 impl LogicGates {
     fn new(_: &App) -> LogicGates {
-        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), ui: ui::UI::new(), subtick_per_update: 1.0 }
-    }
-
-    fn message(&mut self, message: crate::Message) {
-        match message {
-            Message::GateMoved(gate, pos) => {
-                let loc = simulation::Gate::location_mut(&mut self.simulation.circuits, &mut self.simulation.gates, gate);
-                loc.x = pos.x;
-                loc.y = pos.y;
-            }
-            Message::NumberOfSubticksPerUpdateChanged(t) => self.subtick_per_update = t,
-        }
-    }
-
-    fn view(&self, app: &App, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
-        self.ui.main_widget.view(app, self, rect)
+        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), subticks_per_update: 1, ui: ui::UI::new() }
     }
 }
 
 fn main() {
-    nannou::app(LogicGates::new).event(event).update(update).simple_window(view).run();
+    nannou::app(LogicGates::new).event(event).update(update).simple_window(draw).run();
 }
 
 fn event(app: &App, logic_gates: &mut LogicGates, event: Event) {
-    let ui_message = view::event(app, logic_gates, event);
-    for ui_message in ui_message {
-        let logic_gate_message = logic_gates.ui.targeted_message(app, ui_message);
-        if let Some(logic_gate_message) = logic_gate_message {
-            logic_gates.message(logic_gate_message);
-        }
-    }
+    view::event(app, logic_gates, event);
 }
 
 fn update(_: &App, logic_gates: &mut LogicGates, _: Update) {
     // TODO: adjust number of ticks for time since last update
-    simulation::logic::update(&mut logic_gates.simulation.gates, &mut logic_gates.simulation.nodes, logic_gates.subtick_per_update as usize);
+    simulation::logic::update(&mut logic_gates.simulation.gates, &mut logic_gates.simulation.nodes, logic_gates.subticks_per_update as usize);
 }
 
-fn view(app: &App, logic_gates: &LogicGates, frame: Frame) {
+fn draw(app: &App, logic_gates: &LogicGates, frame: Frame) {
     let draw = app.draw();
     view::render(app, &draw, logic_gates);
     draw.to_frame(app, &frame).unwrap();
+}
+
+fn view(app: &nannou::App, logic_gates: &crate::LogicGates) -> impl view::View<crate::LogicGates> {
+    let mut id_maker = view::id::ViewIdMaker::new();
+
+    let simulation_view = ui::widgets::simulation::simulation(
+        &mut id_maker,
+        view::lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.ui.main_simulation_state, |logic_gates| &mut logic_gates.ui.main_simulation_state),
+        view::lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.simulation, |logic_gates| &mut logic_gates.simulation),
+        logic_gates,
+    );
+
+    let mut rects: Vec<_> = (0..20)
+        .map(|i| {
+            Box::new(ui::widgets::submodule::submodule(
+                view::lens::unit(),
+                ui::widgets::test_rect::test_rect(&mut id_maker, nannou::color::srgb(i as f32 / 20.0, (20 - i) as f32 / 20.0, 0.0), ((i * 5 + 20) as f32, 10.0)),
+            )) as Box<dyn view::View<_>>
+        })
+        .collect();
+    rects.push(Box::new(ui::widgets::slider::slider(
+        &mut id_maker,
+        Some(1),
+        Some(20),
+        view::lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.ui.subticks_slider_state, |logic_gates| &mut logic_gates.ui.subticks_slider_state),
+        view::lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.subticks_per_update, |logic_gates| &mut logic_gates.subticks_per_update),
+        |mouse_diff| (mouse_diff / 10.0) as isize,
+        logic_gates,
+    )));
+
+    let flow_view = ui::widgets::flow::vertical_flow(rects);
+
+    ui::widgets::slide_over::slide_over(
+        app,
+        &mut id_maker,
+        logic_gates,
+        view::lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.ui.new_slide_over, |logic_gates: &mut crate::LogicGates| &mut logic_gates.ui.new_slide_over),
+        simulation_view,
+        flow_view,
+    )
 }

@@ -1,121 +1,67 @@
+use std::{fmt::Display, marker::PhantomData, ops::Add};
+
 use crate::{
     theme::Theme,
-    ui::{
-        message::{TargetedUIMessage, UIMessage},
-        widgets::{Widget, WidgetId, WidgetIdMaker},
+    view::{
+        id::{ViewId, ViewIdMaker},
+        lens::Lens,
+        GeneralEvent, TargetedEvent, View,
     },
-    view,
 };
 
-pub(crate) struct Slider<Getter: Fn(&crate::LogicGates) -> f32, Changer: Fn(f32) -> crate::Message> {
-    id: WidgetId,
-    min: Option<f32>,
-    max: Option<f32>,
-
-    getter: Getter,
-    change: Changer,
-
-    drag_start: Option<(nannou::geom::Vec2, f32)>,
+pub(crate) struct SliderState<Value: Display> {
+    drag_start: Option<(nannou::geom::Vec2, Value)>,
 }
 
-impl<Getter: Fn(&crate::LogicGates) -> f32, Changer: Fn(f32) -> crate::Message> Slider<Getter, Changer> {
-    pub(crate) fn new(id_maker: &mut WidgetIdMaker, min: Option<f32>, max: Option<f32>, getter: Getter, change: Changer) -> Self {
-        Self { id: id_maker.next_id(), min, max, getter, change, drag_start: None }
-    }
-}
+// TODO: data type
+struct SliderView<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: Lens<Data, SliderState<Value>>, DataLens: Lens<Data, Value>, ConvertMousePosition: Fn(f32) -> Value> {
+    id: ViewId,
 
-impl<Getter: Fn(&crate::LogicGates) -> f32, Changer: Fn(f32) -> crate::Message> Widget for Slider<Getter, Changer> {
-    fn id(&self) -> WidgetId {
-        self.id
-    }
+    min: Option<Value>,
+    max: Option<Value>,
+    value: Value,
 
-    fn size(&self, _: (f32, f32)) -> (f32, f32) {
-        (100.0, 15.0) // TODO: put this in theme?, also TODO: clamp to given space
-    }
-
-    fn view(&self, _: &nannou::App, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
-        // TODO: show as progressbar if both min and max
-        let drawing = SliderDrawing { slider_id: self.id, rect, value: (self.getter)(logic_gates), pressed: self.drag_start.is_some() };
-
-        (
-            Box::new(drawing),
-            if self.drag_start.is_some() {
-                vec![
-                    view::Subscription::MouseMoved(Box::new({
-                        let slider_id = self.id;
-                        move |_, mouse_pos| TargetedUIMessage { target: slider_id, message: UIMessage::MouseMoved(mouse_pos) }
-                    })),
-                    view::Subscription::LeftMouseUp(Box::new({
-                        let slider_id = self.id;
-                        move |_| TargetedUIMessage { target: slider_id, message: UIMessage::LeftMouseUp }
-                    })),
-                ]
-            } else {
-                Vec::new()
-            },
-        )
-    }
-
-    fn targeted_message(&mut self, app: &nannou::App, targeted_message: TargetedUIMessage) -> Option<crate::Message> {
-        if targeted_message.target == self.id {
-            self.message(app, targeted_message.message)
-        } else {
-            None
-        }
-    }
-
-    fn message(&mut self, _: &nannou::App, message: UIMessage) -> Option<crate::Message> {
-        match message {
-            UIMessage::MouseDownOnGate(_) => None,
-            UIMessage::MouseMoved(new_mouse_pos) => {
-                if let Some((drag_start_mouse_pos, start_value)) = self.drag_start {
-                    let diff = new_mouse_pos.x - drag_start_mouse_pos.x; // TODO: scale this
-                    let mut new_value = start_value + diff;
-                    if let Some(min) = self.min {
-                        new_value = new_value.max(min);
-                    }
-                    if let Some(max) = self.max {
-                        new_value = new_value.min(max);
-                    }
-                    Some((self.change)(new_value))
-                } else {
-                    None
-                }
-            }
-            UIMessage::LeftMouseUp => {
-                if self.drag_start.is_some() {
-                    self.drag_start = None;
-                    None
-                } else {
-                    None
-                }
-            }
-            UIMessage::MouseDownOnSlideOverToggleButton => None,
-            UIMessage::MouseDownOnSlider(mouse_pos, cur_value) => {
-                self.drag_start = Some((mouse_pos, cur_value));
-                None
-            }
-        }
-    }
-}
-
-struct SliderDrawing {
-    slider_id: WidgetId,
-    rect: nannou::geom::Rect,
-    value: f32,
     pressed: bool,
+
+    state_lens: StateLens,
+    value_lens: DataLens,
+
+    convert_mouse_position: ConvertMousePosition,
+
+    _phantom: PhantomData<(fn(&Data) -> &SliderState<Value>, fn(&Data) -> &Value)>,
 }
 
-impl view::Drawing for SliderDrawing {
-    fn draw(&self, _: &crate::LogicGates, draw: &nannou::Draw, hovered: Option<&dyn view::Drawing>) {
-        let mut background_rect = draw.rect().xy(self.rect.xy()).wh(self.rect.wh()).color(Theme::DEFAULT.button_normal_bg);
-        let mut text = draw.text(&self.value.to_string()).xy(self.rect.xy()).wh(self.rect.wh()).center_justify().align_text_middle_y().color(Theme::DEFAULT.button_normal_fg);
-        if let Some(hovered) = hovered {
-            if std::ptr::eq(hovered, self) {
-                // TODO: fix clippy lint about this
-                background_rect = background_rect.color(Theme::DEFAULT.button_hover_bg);
-                text = text.color(Theme::DEFAULT.button_hover_fg);
-            }
+impl<Value: Display> SliderState<Value> {
+    pub(crate) fn new() -> SliderState<Value> {
+        SliderState { drag_start: None }
+    }
+}
+
+// TODO: find a more consistent order for the arguments of all of these view creating functions
+pub(crate) fn slider<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord>(
+    id_maker: &mut ViewIdMaker,
+    min: Option<Value>,
+    max: Option<Value>,
+    state_lens: impl Lens<Data, SliderState<Value>>,
+    value_lens: impl Lens<Data, Value>,
+    convert_mouse_position: impl Fn(f32) -> Value,
+    data: &Data,
+) -> impl View<Data> {
+    let pressed = state_lens.with(data, |slider_state| slider_state.drag_start.is_some());
+    let value = value_lens.with(data, |v| *v);
+    SliderView { id: id_maker.next_id(), min, max, value, pressed, state_lens, value_lens, convert_mouse_position, _phantom: PhantomData }
+}
+
+impl<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: Lens<Data, SliderState<Value>>, DataLens: Lens<Data, Value>, ConvertMousePosition: Fn(f32) -> Value> View<Data>
+    for SliderView<Data, Value, StateLens, DataLens, ConvertMousePosition>
+{
+    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
+        // TODO: show as progress bar if both min and max
+        let mut background_rect = draw.rect().xy(rect.xy()).wh(rect.wh()).color(Theme::DEFAULT.button_normal_bg);
+        let mut text = draw.text(&self.value.to_string()).xy(rect.xy()).wh(rect.wh()).center_justify().align_text_middle_y().color(Theme::DEFAULT.button_normal_fg);
+        if Some(self.id) == hover {
+            background_rect = background_rect.color(Theme::DEFAULT.button_hover_bg);
+            text = text.color(Theme::DEFAULT.button_hover_fg);
         }
         if self.pressed {
             background_rect = background_rect.color(Theme::DEFAULT.button_pressed_bg);
@@ -126,15 +72,62 @@ impl view::Drawing for SliderDrawing {
         text.finish();
     }
 
-    fn find_hover(&self, mouse: nannou::prelude::Vec2) -> Option<&dyn view::Drawing> {
-        if self.rect.contains(mouse) {
-            Some(self)
+    fn find_hover(&self, rect: nannou::geom::Rect, mouse: nannou::geom::Vec2) -> Option<ViewId> {
+        if rect.contains(mouse) {
+            Some(self.id)
         } else {
             None
         }
     }
 
-    fn left_mouse_down(&self, app: &nannou::App) -> Option<TargetedUIMessage> {
-        Some(TargetedUIMessage { target: self.slider_id, message: UIMessage::MouseDownOnSlider(app.mouse.position(), self.value) })
+    fn size(&self, _: (f32, f32)) -> (f32, f32) {
+        (100.0, 15.0) // TODO: put this in theme?, also TODO: clamp to given space
+    }
+
+    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
+        if target == self.id {
+            self.targeted_event(app, data, event)
+        }
+    }
+
+    fn targeted_event(&self, app: &nannou::App, data: &mut Data, event: TargetedEvent) {
+        match event {
+            TargetedEvent::LeftMouseDown => {
+                let mouse_pos = app.mouse.position();
+                let cur_value = self.value_lens.with(data, |value| *value);
+                self.state_lens.with_mut(data, |state| state.drag_start = Some((mouse_pos, cur_value)));
+            }
+        }
+    }
+    fn general_event(&self, _: &nannou::App, data: &mut Data, event: GeneralEvent) {
+        if self.pressed {
+            match event {
+                GeneralEvent::MouseMoved(new_mouse_pos) => {
+                    let new_value = self.state_lens.with_mut(data, |state| {
+                        if let Some((drag_start_mouse_pos, start_value)) = state.drag_start {
+                            let diff = (self.convert_mouse_position)(new_mouse_pos.x - drag_start_mouse_pos.x); // TODO: scale this, also with modifier keys
+                            let mut new_value = start_value + diff;
+                            if let Some(min) = self.min {
+                                new_value = new_value.max(min);
+                            }
+                            if let Some(max) = self.max {
+                                new_value = new_value.min(max);
+                            }
+                            Some(new_value)
+                        } else {
+                            None
+                        }
+                    });
+                    if let Some(new_value) = new_value {
+                        self.value_lens.with_mut(data, |value| *value = new_value)
+                    }
+                }
+                GeneralEvent::LeftMouseUp => self.state_lens.with_mut(data, |state| {
+                    if state.drag_start.is_some() {
+                        state.drag_start = None;
+                    }
+                }),
+            }
+        }
     }
 }

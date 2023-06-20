@@ -1,26 +1,17 @@
-pub(crate) mod message;
 pub(crate) mod widgets;
 
-use crate::ui::widgets::Widget;
-
 pub(crate) struct UI {
-    pub(crate) main_widget: widgets::slide_over::SlideOver<widgets::simulation::SimulationWidget, widgets::flow::Flow>,
+    pub(crate) new_slide_over: widgets::slide_over::SlideOverState,
+    pub(crate) main_simulation_state: widgets::simulation::SimulationWidgetState,
+    pub(crate) subticks_slider_state: widgets::slider::SliderState<isize>,
 }
 
 impl UI {
     pub(crate) fn new() -> UI {
-        let mut id_maker = widgets::WidgetIdMaker::new();
-        let simulation_widget = widgets::simulation::SimulationWidget::new(&mut id_maker);
-        let mut rects: Vec<_> = (0..20)
-            .map(|i| Box::new(widgets::test_rect::TestRect::new(&mut id_maker, nannou::color::srgb(i as f32 / 20.0, (20 - i) as f32 / 20.0, 0.0), ((i * 5 + 20) as f32, 10.0))) as Box<dyn Widget>)
-            .collect();
-        rects.push(Box::new(widgets::slider::Slider::new(&mut id_maker, Some(1.0), Some(20.0), |logic_gates| logic_gates.subtick_per_update, crate::Message::NumberOfSubticksPerUpdateChanged)));
-        let flow = widgets::flow::Flow::new(&mut id_maker, widgets::flow::FlowDirection::Vertical, rects);
-        let slide_over = widgets::slide_over::SlideOver::new(&mut id_maker, simulation_widget, flow);
-        UI { main_widget: slide_over }
-    }
-
-    pub(crate) fn targeted_message(&mut self, app: &nannou::App, tm: message::TargetedUIMessage) -> Option<crate::Message> {
-        self.main_widget.targeted_message(app, tm)
+        UI {
+            new_slide_over: widgets::slide_over::SlideOverState::new(),
+            main_simulation_state: widgets::simulation::SimulationWidgetState::new(),
+            subticks_slider_state: widgets::slider::SliderState::new(),
+        }
     }
 }

@@ -1,44 +1,98 @@
-use crate::{
-    ui::{
-        message::{TargetedUIMessage, UIMessage},
-        widgets::{Widget, WidgetId, WidgetIdMaker},
-    },
-    view,
-};
+use std::cell::RefCell;
 
-// TODO: allow for multiple directions
-pub(crate) struct Flow {
-    id: WidgetId,
-    direction: FlowDirection,
-    children: Vec<Box<dyn Widget>>,
+use crate::view::{id::ViewId, GeneralEvent, TargetedEvent, View};
+
+// TODO: turn this into a macro?
+struct FlowView<Data> {
+    direction: Direction,
+    children: Vec<Box<dyn View<Data>>>,
+    layout: RefCell<Option<(nannou::geom::Rect, FlowLayout)>>, // TODO: factor out refcell into LayoutCache struct so that the caching logic can be shared between all the views that need it
 }
-pub(crate) enum FlowDirection {
+struct FlowLayout {
+    child_rects: Vec<nannou::geom::Rect>,
+}
+enum Direction {
     Horizontal,
     Vertical,
 }
 
-impl Flow {
-    pub(crate) fn new(id_maker: &mut WidgetIdMaker, direction: FlowDirection, children: Vec<Box<dyn Widget>>) -> Self {
-        Self { id: id_maker.next_id(), children, direction }
+impl<Data> FlowView<Data> {
+    fn layout<'layout>(&self, given_rect: nannou::geom::Rect, layout_field: &'layout mut Option<(nannou::geom::Rect, FlowLayout)>) -> &'layout FlowLayout {
+        let needs_recompute = match layout_field {
+            None => true,
+            Some((old_given_rect, _)) if *old_given_rect != given_rect => true,
+            _ => false,
+        };
+
+        if needs_recompute {
+            // TODO: stay within bounds of rect
+            let mut cur_pos = match self.direction {
+                Direction::Horizontal => given_rect.left(),
+                Direction::Vertical => given_rect.top(),
+            };
+
+            let child_rects = self
+                .children
+                .iter()
+                .map(|child| {
+                    let child_size = child.size(given_rect.w_h());
+                    let child_xy = match self.direction {
+                        Direction::Horizontal => {
+                            let pos = nannou::geom::vec2(cur_pos + child_size.0 / 2.0, given_rect.y());
+                            cur_pos += child_size.0;
+                            pos
+                        }
+                        Direction::Vertical => {
+                            let pos = nannou::geom::vec2(given_rect.x(), cur_pos - child_size.1 / 2.0);
+                            cur_pos -= child_size.1;
+                            pos
+                        }
+                    };
+                    nannou::geom::Rect::from_xy_wh(child_xy, child_size.into())
+                })
+                .collect();
+            *layout_field = Some((given_rect, FlowLayout { child_rects }));
+        }
+
+        &layout_field.as_ref().expect("layout was either already computed or just computed").1
     }
 }
 
-impl Widget for Flow {
-    fn id(&self) -> super::WidgetId {
-        self.id
+impl<Data> View<Data> for FlowView<Data> {
+    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
+        let mut layout_ref = self.layout.borrow_mut();
+        let layout = self.layout(rect, &mut layout_ref);
+        assert_eq!(layout.child_rects.len(), self.children.len());
+
+        for (child_rect, child) in layout.child_rects.iter().zip(&self.children) {
+            child.draw(app, draw, *child_rect, hover);
+        }
+    }
+
+    fn find_hover(&self, rect: nannou::geom::Rect, mouse: nannou::geom::Vec2) -> Option<ViewId> {
+        let mut layout_ref = self.layout.borrow_mut();
+        let layout = self.layout(rect, &mut layout_ref);
+        assert_eq!(layout.child_rects.len(), self.children.len());
+
+        for (child_rect, child) in layout.child_rects.iter().zip(&self.children) {
+            if let x @ Some(_) = child.find_hover(*child_rect, mouse) {
+                return x;
+            }
+        }
+        None
     }
 
     fn size(&self, given: (f32, f32)) -> (f32, f32) {
         // TODO: stay within bounds of given
         self.children.iter().map(|child| child.size(given)).fold((0.0, 0.0), |(x_acc, y_acc), (cur_size_x, cur_size_y)| {
             match self.direction {
-                FlowDirection::Horizontal => {
+                Direction::Horizontal => {
                     // sum x, take max of y
                     let x_sum = x_acc + cur_size_x;
                     let max_y = if cur_size_y > y_acc { cur_size_y } else { y_acc };
                     (x_sum, max_y)
                 }
-                FlowDirection::Vertical => {
+                Direction::Vertical => {
                     // take max of x, sum y
                     let max_x = if cur_size_x > x_acc { cur_size_x } else { x_acc };
                     let y_sum = y_acc + cur_size_y;
@@ -48,80 +102,26 @@ impl Widget for Flow {
         })
     }
 
-    fn view(&self, app: &nannou::App, logic_gates: &crate::LogicGates, rect: nannou::geom::Rect) -> (Box<dyn view::Drawing>, Vec<view::Subscription>) {
-        struct FlowDrawing {
-            children: Vec<Box<dyn view::Drawing>>,
-        }
-        impl view::Drawing for FlowDrawing {
-            fn draw(&self, logic_gates: &crate::LogicGates, draw: &nannou::Draw, hovered: Option<&dyn view::Drawing>) {
-                for child in &self.children {
-                    child.draw(logic_gates, draw, hovered);
-                }
-            }
-
-            fn find_hover(&self, mouse: nannou::prelude::Vec2) -> Option<&dyn view::Drawing> {
-                for child in &self.children {
-                    if let x @ Some(_) = child.find_hover(mouse) {
-                        return x;
-                    }
-                }
-                None
-            }
-        }
-
-        // TODO: stay within bounds of rect
-        let mut cur_pos = match self.direction {
-            FlowDirection::Horizontal => rect.left(),
-            FlowDirection::Vertical => rect.top(),
-        };
-
-        let (children_drawings, all_subscriptions): (Vec<_>, Vec<_>) = self
-            .children
-            .iter()
-            .map(|child| {
-                let child_size = child.size(rect.w_h());
-                let child_xy = match self.direction {
-                    FlowDirection::Horizontal => {
-                        let pos = nannou::geom::vec2(cur_pos + child_size.0 / 2.0, rect.y());
-                        cur_pos += child_size.0;
-                        pos
-                    }
-                    FlowDirection::Vertical => {
-                        let pos = nannou::geom::vec2(rect.x(), cur_pos - child_size.1 / 2.0);
-                        cur_pos -= child_size.1;
-                        pos
-                    }
-                };
-                let child_rect = nannou::geom::Rect::from_xy_wh(child_xy, child_size.into());
-                let child_drawing = child.view(app, logic_gates, child_rect);
-                child_drawing
-            })
-            .unzip();
-
-        (Box::new(FlowDrawing { children: children_drawings }), all_subscriptions.into_iter().flatten().collect())
-    }
-
-    fn targeted_message(&mut self, app: &nannou::App, targeted_message: TargetedUIMessage) -> Option<crate::Message> {
-        if targeted_message.target == self.id {
-            self.message(app, targeted_message.message)
-        } else {
-            for child in &mut self.children {
-                if let Some(child_response) = child.targeted_message(app, targeted_message) {
-                    return Some(child_response);
-                }
-            }
-
-            None
+    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
+        for child in &self.children {
+            child.send_targeted_event(app, data, target, event);
         }
     }
 
-    fn message(&mut self, _: &nannou::App, message: UIMessage) -> Option<crate::Message> {
-        match message {
-            UIMessage::MouseDownOnGate(_) => None,
-            UIMessage::MouseMoved(_) => None,
-            UIMessage::LeftMouseUp => None,
-            UIMessage::MouseDownOnSlideOverToggleButton => None,
-            UIMessage::MouseDownOnSlider(_, _) => None,
+    fn targeted_event(&self, _: &nannou::App, _: &mut Data, _: TargetedEvent) {}
+    fn general_event(&self, app: &nannou::App, data: &mut Data, event: GeneralEvent) {
+        for child in &self.children {
+            child.general_event(app, data, event)
         }
     }
+}
+
+pub(crate) fn horizontal_flow<Data>(children: Vec<Box<dyn View<Data>>>) -> impl View<Data> {
+    flow(Direction::Horizontal, children)
+}
+pub(crate) fn vertical_flow<Data>(children: Vec<Box<dyn View<Data>>>) -> impl View<Data> {
+    flow(Direction::Vertical, children)
+}
+fn flow<Data>(direction: Direction, children: Vec<Box<dyn View<Data>>>) -> impl View<Data> {
+    FlowView { children, direction, layout: RefCell::new(None) }
 }
