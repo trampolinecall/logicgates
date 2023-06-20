@@ -10,8 +10,8 @@ pub(crate) struct SubmoduleView<Data, SubData, L: Lens<Data, SubData>, SubView: 
     _phantom: PhantomData<fn(&Data) -> &SubData>,
 }
 impl<Data, SubData, L: Lens<Data, SubData>, SubView: View<SubData>> View<Data> for SubmoduleView<Data, SubData, L, SubView> {
-    fn draw(&self, app: &nannou::App, data: &Data, draw: &nannou::Draw, hover: Option<ViewId>) {
-        self.subview.draw(app, self.lens.get(data), draw, hover)
+    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, hover: Option<ViewId>) {
+        self.subview.draw(app, draw, hover)
     }
 
     fn find_hover(&self, mouse: nannou::geom::Vec2) -> Option<ViewId> {
@@ -26,10 +26,10 @@ impl<Data, SubData, L: Lens<Data, SubData>, SubView: View<SubData>> View<Data> f
         self.subview.event(app, self.lens.get_mut(data), event)
     }
 
-    fn subscriptions(&self, data: &Data) -> Vec<Subscription<Data>> {
+    fn subscriptions(&self) -> Vec<Subscription<Data>> {
         // TODO: is there a better way that involves less boxes?
         self.subview
-            .subscriptions(self.lens.get(data))
+            .subscriptions()
             .into_iter()
             .map(|subscription| match subscription {
                 Subscription::MouseMoved(callback) => Subscription::MouseMoved(Box::new(move |app, bigger_data, mouse_pos| callback(app, self.lens.get_mut(bigger_data), mouse_pos))),
