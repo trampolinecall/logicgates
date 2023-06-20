@@ -1,9 +1,11 @@
 pub(crate) mod flow;
 pub(crate) mod simulation;
 pub(crate) mod slide_over;
-pub(crate) mod new_slide_over;
 pub(crate) mod slider;
 pub(crate) mod test_rect;
+
+pub(crate) mod new_flow;
+pub(crate) mod new_slide_over;
 
 use crate::{
     ui::message::{TargetedUIMessage, UIMessage},
