@@ -11,7 +11,7 @@ pub(crate) mod layout {
     pub(crate) fn child_sc(sc: SizeConstraints) -> SizeConstraints {
         sc.with_no_min()
     }
-    pub(crate) fn find_own_size<'i, Data: 'static>(direction: Direction, sc: SizeConstraints, children: impl IntoIterator<Item = &'i dyn View<Data>>) -> Vec2 {
+    pub(crate) fn find_own_size<'i, Data: 'i>(direction: Direction, sc: SizeConstraints, children: impl IntoIterator<Item = &'i (dyn View<Data> + 'i)>) -> Vec2 {
         Vec2::from(children.into_iter().fold((0.0, 0.0), |(x_acc, y_acc), child| {
             match direction {
                 Direction::Horizontal => {
@@ -57,18 +57,18 @@ use nannou::geom::Vec2;
 use crate::view::{id::ViewId, GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout};
 
 // this is kind of a hack but ViewWithoutLayout cannot be used as a trait object because it has the associated type
-pub(crate) trait ViewLayoutIntoBoxView<Data> {
-    fn layout(&self, sc: SizeConstraints) -> Box<dyn View<Data> + '_>;
+pub(crate) trait ViewLayoutIntoBoxView<'s, Data> {
+    fn layout(&'s self, sc: SizeConstraints) -> Box<dyn View<Data> + 's>;
 }
-impl<T: ViewWithoutLayout<Data>, Data: 'static> ViewLayoutIntoBoxView<Data> for T {
-    fn layout<'a>(&'a self, sc: SizeConstraints) -> Box<dyn View<Data> + 'a> {
-        Box::new(self.layout(sc)) as Box<dyn View<Data> + 'a>
+impl<'s, T: ViewWithoutLayout<Data>, Data: 's> ViewLayoutIntoBoxView<'s, Data> for T {
+    fn layout(&'s self, sc: SizeConstraints) -> Box<dyn View<Data> + 's> {
+        Box::new(self.layout(sc)) as Box<dyn View<_>>
     }
 }
 
 struct FlowView<Data> {
     direction: Direction,
-    children: Vec<Box<dyn ViewLayoutIntoBoxView<Data>>>,
+    children: Vec<Box<dyn for<'a> ViewLayoutIntoBoxView<'a, Data>>>,
 }
 struct FlowLayout<'original, Data> {
     own_size: Vec2,
@@ -80,17 +80,17 @@ pub(crate) enum Direction {
     Vertical,
 }
 
-pub(crate) fn horizontal_flow<Data: 'static>(children: Vec<Box<dyn ViewLayoutIntoBoxView<Data>>>) -> impl ViewWithoutLayout<Data> {
+pub(crate) fn horizontal_flow<Data>(children: Vec<Box<dyn for<'s> ViewLayoutIntoBoxView<'s, Data>>>) -> impl ViewWithoutLayout<Data> {
     flow(Direction::Horizontal, children)
 }
-pub(crate) fn vertical_flow<Data: 'static>(children: Vec<Box<dyn ViewLayoutIntoBoxView<Data>>>) -> impl ViewWithoutLayout<Data> {
+pub(crate) fn vertical_flow<Data>(children: Vec<Box<dyn for<'s> ViewLayoutIntoBoxView<'s, Data>>>) -> impl ViewWithoutLayout<Data> {
     flow(Direction::Vertical, children)
 }
-pub(crate) fn flow<Data: 'static>(direction: Direction, children: Vec<Box<dyn ViewLayoutIntoBoxView<Data>>>) -> impl ViewWithoutLayout<Data> {
+pub(crate) fn flow<Data>(direction: Direction, children: Vec<Box<dyn for<'s> ViewLayoutIntoBoxView<'s, Data>>>) -> impl ViewWithoutLayout<Data> {
     FlowView { children, direction }
 }
 
-impl<Data: 'static> ViewWithoutLayout<Data> for FlowView<Data> {
+impl<Data> ViewWithoutLayout<Data> for FlowView<Data> {
     type WithLayout<'without_layout>  = FlowLayout<'without_layout, Data> where Self: 'without_layout;
 
     fn layout(&self, sc: SizeConstraints) -> Self::WithLayout<'_> {

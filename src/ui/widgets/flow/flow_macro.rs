@@ -24,7 +24,7 @@ macro_rules! flow {
             }
 
             #[allow(non_camel_case_types)]
-            impl<Data: 'static, $($name: $crate::view::ViewWithoutLayout<Data>),*> $crate::view::ViewWithoutLayout<Data> for Container<Data, $($name),*> {
+            impl<Data, $($name: $crate::view::ViewWithoutLayout<Data>),*> $crate::view::ViewWithoutLayout<Data> for Container<Data, $($name),*> {
                 type WithLayout<'s> = ContainerWithLayout<'s, Data, $($name),*> where $($name: 's,)* Data: 's;
 
                 fn layout(&self, sc: view::SizeConstraints) -> ContainerWithLayout<'_, Data, $($name),*> {
