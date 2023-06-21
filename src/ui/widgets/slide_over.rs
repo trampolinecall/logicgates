@@ -49,7 +49,7 @@ impl<Data, ButtonView: View<Data>, BaseView: View<Data>, OverView: View<Data>> S
     fn over_sc(sc: SizeConstraints) -> SizeConstraints {
         SizeConstraints { min: sc.min, max: Vec2::new(sc.max.x - Theme::DEFAULT.slide_out_size.0, sc.max.y) }
     }
-    fn toggle_sc(sc: SizeConstraints) -> SizeConstraints {
+    fn toggle_sc() -> SizeConstraints {
         SizeConstraints { min: Theme::DEFAULT.slide_out_size.into(), max: Theme::DEFAULT.slide_out_size.into() }
     }
 
@@ -63,7 +63,7 @@ impl<Data, ButtonView: View<Data>, BaseView: View<Data>, OverView: View<Data>> S
         let over_right_edge = -base_size.x / 2.0 + over_size.x * self.drawer_openness;
         let over_shift = over_right_edge - over_size.x / 2.0;
 
-        let toggle_button_size = self.button.size(Self::toggle_sc(sc));
+        let toggle_button_size = self.button.size(Self::toggle_sc());
         let toggle_button_offset = Vec2::new(over_right_edge + toggle_button_size.x / 2.0, base_size.y / 2.0 - Theme::DEFAULT.slide_out_toggle_y_offset);
 
         SlideOverLayout { over_shift: if over_rect_needed { Some(over_shift) } else { None }, toggle_button_offset }
@@ -80,7 +80,7 @@ impl<Data, ButtonView: View<Data>, BaseView: View<Data>, OverView: View<Data>> V
                 if let Some(over_shift) = layout.over_shift {
                     self.over.draw(app, draw, center + Vec2::new(over_shift, 0.0), Self::over_sc(sc), hover);
                 }
-                self.button.draw(app, draw, center + layout.toggle_button_offset, Self::toggle_sc(sc), hover);
+                self.button.draw(app, draw, center + layout.toggle_button_offset, Self::toggle_sc(), hover);
             },
         );
     }
@@ -91,7 +91,7 @@ impl<Data, ButtonView: View<Data>, BaseView: View<Data>, OverView: View<Data>> V
             |sc| self.layout(sc),
             |layout| {
                 // go in z order from top to bottom
-                if let x @ Some(_) = self.button.find_hover(center + layout.toggle_button_offset, Self::toggle_sc(sc), mouse) {
+                if let x @ Some(_) = self.button.find_hover(center + layout.toggle_button_offset, Self::toggle_sc(), mouse) {
                     return x;
                 }
 
