@@ -8,7 +8,7 @@ use crate::{
     view::{
         id::{ViewId, ViewIdMaker},
         lens::Lens,
-        GeneralEvent, SizeConstraints, TargetedEvent, View,
+        GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout,
     },
 };
 
@@ -34,6 +34,14 @@ struct SimulationView<Data, StateLens: Lens<Data, SimulationWidgetState>, Simula
     nodes: Vec<NodeView<Data, StateLens, SimulationLens>>,
     connections: Vec<ConnectionView<Data, StateLens, SimulationLens>>,
 }
+struct SimulationViewLayout<'original, Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
+    view: &'original SimulationView<Data, StateLens, SimulationLens>,
+    widget_size: nannou::geom::Vec2,
+
+    gates: Vec<GateViewLayout<'original, Data, StateLens, SimulationLens>>,
+    nodes: Vec<NodeViewLayout<'original, Data, StateLens, SimulationLens>>,
+    connections: Vec<ConnectionViewLayout<'original, Data, StateLens, SimulationLens>>,
+}
 
 struct GateView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
     id: ViewId,
@@ -50,6 +58,10 @@ struct GateView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLe
     being_dragged: bool,
 
     _phantom: PhantomData<fn(&Data)>,
+}
+struct GateViewLayout<'original, Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
+    view: &'original GateView<Data, StateLens, SimulationLens>,
+    widget_size: nannou::geom::Vec2,
 }
 #[derive(Copy, Clone)]
 enum NodeViewPos {
@@ -72,6 +84,10 @@ struct NodeView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLe
     _phantom2: PhantomData<StateLens>,
     _phantom3: PhantomData<SimulationLens>,
 }
+struct NodeViewLayout<'original, Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
+    view: &'original NodeView<Data, StateLens, SimulationLens>,
+    widget_size: nannou::geom::Vec2,
+}
 struct ConnectionView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
     id: ViewId,
 
@@ -88,13 +104,17 @@ struct ConnectionView<Data, StateLens: Lens<Data, SimulationWidgetState>, Simula
     _phantom2: PhantomData<StateLens>,
     _phantom3: PhantomData<SimulationLens>,
 }
+struct ConnectionViewLayout<'original, Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
+    view: &'original ConnectionView<Data, StateLens, SimulationLens>,
+    widget_size: nannou::geom::Vec2,
+}
 
 pub(crate) fn simulation<Data>(
     id_maker: &mut ViewIdMaker,
     state_lens: impl Lens<Data, SimulationWidgetState> + Copy,
     simulation_lens: impl Lens<Data, Simulation> + Copy,
     data: &Data,
-) -> impl View<Data> {
+) -> impl ViewWithoutLayout<Data> {
     // TODO: show currently viewing at top of widget
     let (current_view, cur_gate_drag) = state_lens.with(data, |state| (state.view, state.cur_gate_drag));
     let (gates, nodes, connections) = simulation_lens.with(data, |simulation| {
@@ -217,52 +237,68 @@ pub(crate) fn simulation<Data>(
     SimulationView { id: id_maker.next_id(), gates, nodes, connections }
 }
 
-impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> View<Data> for SimulationView<Data, StateLens, SimulationLens> {
-    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, center: Vec2, sc: SizeConstraints, hover: Option<ViewId>) {
-        let widget_rect = widget_rect(center, sc);
+impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> ViewWithoutLayout<Data> for SimulationView<Data, StateLens, SimulationLens> {
+    type WithLayout<'without_layout> = SimulationViewLayout<'without_layout, Data, StateLens, SimulationLens> where Self: 'without_layout;
+
+    fn layout(&self, sc: SizeConstraints) -> Self::WithLayout<'_> {
+        SimulationViewLayout {
+            view: self,
+            widget_size: sc.max,
+            gates: self.gates.iter().map(|gate| gate.layout(sc)).collect(),
+            nodes: self.nodes.iter().map(|node| node.layout(sc)).collect(),
+            connections: self.connections.iter().map(|connection| connection.layout(sc)).collect(),
+        }
+    }
+}
+impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> View<Data> for SimulationViewLayout<'_, Data, StateLens, SimulationLens> {
+    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, center: Vec2, hover: Option<ViewId>) {
+        let widget_rect = {
+            let size = self.widget_size;
+            nannou::geom::Rect::from_xy_wh(center, size)
+        };
         draw.rect().xy(widget_rect.xy()).wh(widget_rect.wh()).color(Theme::DEFAULT.simulation_bg_color);
 
         for connection in &self.connections {
-            connection.draw(app, draw, center, sc, hover);
+            connection.draw(app, draw, center, hover);
         }
         for gate in &self.gates {
-            gate.draw(app, draw, center, sc, hover);
+            gate.draw(app, draw, center, hover);
         }
         for node in &self.nodes {
-            node.draw(app, draw, center, sc, hover);
+            node.draw(app, draw, center, hover);
         }
     }
 
-    fn find_hover(&self, center: Vec2, sc: SizeConstraints, mouse: Vec2) -> Option<ViewId> {
+    fn find_hover(&self, center: Vec2, mouse: Vec2) -> Option<ViewId> {
         // reverse to go in z order from highest to lowest
         for node in self.nodes.iter().rev() {
-            if let hover @ Some(_) = node.find_hover(center, sc, mouse) {
+            if let hover @ Some(_) = node.find_hover(center, mouse) {
                 return hover;
             }
         }
         for gate in self.gates.iter().rev() {
-            if let hover @ Some(_) = gate.find_hover(center, sc, mouse) {
+            if let hover @ Some(_) = gate.find_hover(center, mouse) {
                 return hover;
             }
         }
         for connection in self.connections.iter().rev() {
-            if let hover @ Some(_) = connection.find_hover(center, sc, mouse) {
+            if let hover @ Some(_) = connection.find_hover(center, mouse) {
                 return hover;
             }
         }
-        if widget_rect(center, sc).contains(mouse) {
-            return Some(self.id);
+        if nannou::geom::Rect::from_xy_wh(center, self.widget_size).contains(mouse) {
+            return Some(self.view.id);
         }
 
         None
     }
 
-    fn size(&self, sc: SizeConstraints) -> Vec2 {
-        sc.max
+    fn size(&self) -> Vec2 {
+        self.widget_size
     }
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
-        if target == self.id {
+        if target == self.view.id {
             self.targeted_event(app, data, event);
         }
         for node in &self.nodes {
@@ -290,17 +326,22 @@ impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Da
     }
 }
 
-fn widget_rect(center: Vec2, sc: SizeConstraints) -> nannou::geom::Rect {
-    nannou::geom::Rect::from_xy_wh(center, sc.max)
+impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<Data, SimulationWidgetState>> ViewWithoutLayout<Data> for GateView<Data, StateLens, SimulationLens> {
+    type WithLayout<'without_layout> = GateViewLayout<'without_layout, Data, StateLens, SimulationLens>
+    where
+        Self: 'without_layout;
+
+    fn layout(&self, sc: SizeConstraints) -> Self::WithLayout<'_> {
+        GateViewLayout { view: self, widget_size: sc.max }
+    }
 }
-
-impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<Data, SimulationWidgetState>> View<Data> for GateView<Data, StateLens, SimulationLens> {
-    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, widget_center: Vec2, widget_sc: SizeConstraints, hover: Option<ViewId>) {
+impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<Data, SimulationWidgetState>> View<Data> for GateViewLayout<'_, Data, StateLens, SimulationLens> {
+    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, widget_center: Vec2, hover: Option<ViewId>) {
         // TODO: cache?
-        let widget_rect = widget_rect(widget_center, widget_sc);
-        let rect = gate_rect(widget_rect, self.gate_location, self.num_inputs, self.num_outputs);
+        let widget_rect = nannou::geom::Rect::from_xy_wh(widget_center, self.widget_size);
+        let rect = gate_rect(widget_rect, self.view.gate_location, self.view.num_inputs, self.view.num_outputs);
 
-        if Some(self.id) == hover {
+        if Some(self.view.id) == hover {
             let hover_rect =
                 rect.pad_left(-Theme::DEFAULT.gate_hover_dist).pad_top(-Theme::DEFAULT.gate_hover_dist).pad_right(-Theme::DEFAULT.gate_hover_dist).pad_bottom(-Theme::DEFAULT.gate_hover_dist); // expand by hover distance, this is the "stroke weight"
             draw.rect().xy(hover_rect.xy()).wh(hover_rect.wh()).color(Theme::DEFAULT.gate_hover_color);
@@ -308,27 +349,27 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
 
         draw.rect().xy(rect.xy()).wh(rect.wh()).color(Theme::DEFAULT.gate_color);
 
-        draw.text(&self.name).xy(rect.xy()).wh(rect.wh()).center_justify().align_text_middle_y().color(Theme::DEFAULT.gate_text_color);
+        draw.text(&self.view.name).xy(rect.xy()).wh(rect.wh()).center_justify().align_text_middle_y().color(Theme::DEFAULT.gate_text_color);
     }
 
-    fn find_hover(&self, widget_center: Vec2, widget_sc: SizeConstraints, mouse_pos: Vec2) -> Option<ViewId> {
+    fn find_hover(&self, widget_center: Vec2, mouse_pos: Vec2) -> Option<ViewId> {
         // TODO: also cache?
-        let widget_rect = widget_rect(widget_center, widget_sc);
-        let rect = gate_rect(widget_rect, self.gate_location, self.num_inputs, self.num_outputs);
+        let widget_rect = nannou::geom::Rect::from_xy_wh(widget_center, self.widget_size);
+        let rect = gate_rect(widget_rect, self.view.gate_location, self.view.num_inputs, self.view.num_outputs);
         if rect.contains(mouse_pos) {
             // TODO: hover distance
-            return Some(self.id);
+            return Some(self.view.id);
         }
 
         None
     }
 
-    fn size(&self, _: SizeConstraints) -> Vec2 {
+    fn size(&self) -> Vec2 {
         Vec2::ZERO // does not participate in layout
     }
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
-        if self.id == target {
+        if self.view.id == target {
             self.targeted_event(app, data, event);
         }
         // no other chilren to go through
@@ -336,22 +377,22 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
 
     fn targeted_event(&self, _: &nannou::App, data: &mut Data, event: TargetedEvent) {
         match event {
-            TargetedEvent::LeftMouseDown => self.state_lens.with_mut(data, |state| state.cur_gate_drag = Some(self.gate_key)),
+            TargetedEvent::LeftMouseDown => self.view.state_lens.with_mut(data, |state| state.cur_gate_drag = Some(self.view.gate_key)),
         }
     }
 
     fn general_event(&self, _: &nannou::App, data: &mut Data, event: GeneralEvent) {
-        if self.being_dragged {
+        if self.view.being_dragged {
             match event {
                 GeneralEvent::MouseMoved(mouse_pos) => {
                     // TODO: zooming and panning, also fix dragging when simulation widget is not at center of screen
-                    self.simulation_lens.with_mut(data, |simulation| {
-                        let loc = simulation::Gate::location_mut(&mut simulation.circuits, &mut simulation.gates, self.gate_key);
+                    self.view.simulation_lens.with_mut(data, |simulation| {
+                        let loc = simulation::Gate::location_mut(&mut simulation.circuits, &mut simulation.gates, self.view.gate_key);
                         loc.x = mouse_pos.x;
                         loc.y = mouse_pos.y;
                     });
                 }
-                GeneralEvent::LeftMouseUp => self.state_lens.with_mut(data, |state| {
+                GeneralEvent::LeftMouseUp => self.view.state_lens.with_mut(data, |state| {
                     state.cur_gate_drag = None;
                 }),
             }
@@ -360,32 +401,41 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
         }
     }
 }
-impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, simulation::Simulation>> View<Data> for NodeView<Data, StateLens, SimulationLens> {
-    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, widget_center: Vec2, widget_sc: SizeConstraints, hover: Option<ViewId>) {
-        let widget_rect = widget_rect(widget_center, widget_sc);
-        let pos = node_pos(widget_rect, self.pos);
-        if Some(self.id) == hover {
+impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, simulation::Simulation>> ViewWithoutLayout<Data> for NodeView<Data, StateLens, SimulationLens> {
+    type WithLayout<'without_layout> = NodeViewLayout<'without_layout, Data, StateLens, SimulationLens>
+    where
+        Self: 'without_layout;
+
+    fn layout(&self, sc: SizeConstraints) -> Self::WithLayout<'_> {
+        NodeViewLayout { view: self, widget_size: sc.max }
+    }
+}
+impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, simulation::Simulation>> View<Data> for NodeViewLayout<'_, Data, StateLens, SimulationLens> {
+    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, widget_center: Vec2, hover: Option<ViewId>) {
+        let widget_rect = nannou::geom::Rect::from_xy_wh(widget_center, self.widget_size);
+        let pos = node_pos(widget_rect, self.view.pos);
+        if Some(self.view.id) == hover {
             draw.ellipse().xy(pos).radius(Theme::DEFAULT.node_rad + Theme::DEFAULT.node_hover_dist).color(Theme::DEFAULT.node_hover_color);
         }
 
-        draw.ellipse().xy(pos).radius(Theme::DEFAULT.node_rad).color(self.color);
+        draw.ellipse().xy(pos).radius(Theme::DEFAULT.node_rad).color(self.view.color);
     }
 
-    fn find_hover(&self, widget_center: Vec2, widget_sc: SizeConstraints, mouse_pos: Vec2) -> Option<ViewId> {
-        let widget_rect = widget_rect(widget_center, widget_sc);
-        let pos = node_pos(widget_rect, self.pos);
+    fn find_hover(&self, widget_center: Vec2, mouse_pos: Vec2) -> Option<ViewId> {
+        let widget_rect = nannou::geom::Rect::from_xy_wh(widget_center, self.widget_size);
+        let pos = node_pos(widget_rect, self.view.pos);
         if pos.distance(mouse_pos) < Theme::DEFAULT.node_rad + Theme::DEFAULT.node_hover_dist {
-            return Some(self.id);
+            return Some(self.view.id);
         }
         None
     }
 
-    fn size(&self, _: SizeConstraints) -> Vec2 {
+    fn size(&self) -> Vec2 {
         Vec2::ZERO
     }
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
-        if target == self.id {
+        if target == self.view.id {
             self.targeted_event(app, data, event);
         }
     }
@@ -393,37 +443,46 @@ impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Da
     fn targeted_event(&self, _: &nannou::App, _: &mut Data, _: TargetedEvent) {}
     fn general_event(&self, _: &nannou::App, _: &mut Data, _: GeneralEvent) {}
 }
-impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<Data, SimulationWidgetState>> View<Data> for ConnectionView<Data, StateLens, SimulationLens> {
-    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, widget_center: Vec2, widget_sc: SizeConstraints, hover: Option<ViewId>) {
-        let widget_rect = widget_rect(widget_center, widget_sc);
-        let pos1 = node_pos(widget_rect, self.pos1);
-        let pos2 = node_pos(widget_rect, self.pos2);
-        let mut line = draw.line().start(pos1).end(pos2).weight(Theme::DEFAULT.connection_width).color(self.color);
+impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<Data, SimulationWidgetState>> ViewWithoutLayout<Data> for ConnectionView<Data, StateLens, SimulationLens> {
+    type WithLayout<'without_layout> = ConnectionViewLayout<'without_layout, Data, StateLens, SimulationLens>
+    where
+        Self: 'without_layout;
 
-        if Some(self.id) == hover {
+    fn layout(&self, sc: SizeConstraints) -> Self::WithLayout<'_> {
+        ConnectionViewLayout { view: self, widget_size: sc.max }
+    }
+}
+impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<Data, SimulationWidgetState>> View<Data> for ConnectionViewLayout<'_, Data, StateLens, SimulationLens> {
+    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, widget_center: Vec2, hover: Option<ViewId>) {
+        let widget_rect = nannou::geom::Rect::from_xy_wh(widget_center, self.widget_size);
+        let pos1 = node_pos(widget_rect, self.view.pos1);
+        let pos2 = node_pos(widget_rect, self.view.pos2);
+        let mut line = draw.line().start(pos1).end(pos2).weight(Theme::DEFAULT.connection_width).color(self.view.color);
+
+        if Some(self.view.id) == hover {
             line = line.weight(Theme::DEFAULT.connection_width + Theme::DEFAULT.connection_hover_dist);
         }
 
         line.finish();
     }
 
-    fn find_hover(&self, widget_center: Vec2, widget_sc: SizeConstraints, mouse_pos: Vec2) -> Option<ViewId> {
-        let widget_rect = widget_rect(widget_center, widget_sc);
-        let pos1 = node_pos(widget_rect, self.pos1);
-        let pos2 = node_pos(widget_rect, self.pos2);
+    fn find_hover(&self, widget_center: Vec2, mouse_pos: Vec2) -> Option<ViewId> {
+        let widget_rect = nannou::geom::Rect::from_xy_wh(widget_center, self.widget_size);
+        let pos1 = node_pos(widget_rect, self.view.pos1);
+        let pos2 = node_pos(widget_rect, self.view.pos2);
         if min_dist_to_line_squared((pos1, pos2), mouse_pos) < Theme::DEFAULT.connection_hover_dist.powf(2.0) {
-            Some(self.id)
+            Some(self.view.id)
         } else {
             None
         }
     }
 
-    fn size(&self, _: SizeConstraints) -> Vec2 {
+    fn size(&self) -> Vec2 {
         Vec2::ZERO // does not participate in layout
     }
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
-        if target == self.id {
+        if target == self.view.id {
             self.targeted_event(app, data, event);
         }
     }

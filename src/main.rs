@@ -44,7 +44,7 @@ fn draw(app: &App, logic_gates: &LogicGates, frame: Frame) {
     draw.to_frame(app, &frame).unwrap();
 }
 
-fn view(app: &nannou::App, logic_gates: &crate::LogicGates) -> impl view::View<crate::LogicGates> {
+fn view(app: &nannou::App, logic_gates: &crate::LogicGates) -> impl view::ViewWithoutLayout<crate::LogicGates> {
     let mut id_maker = view::id::ViewIdMaker::new();
 
     let simulation_view = ui::widgets::simulation::simulation(
@@ -54,12 +54,12 @@ fn view(app: &nannou::App, logic_gates: &crate::LogicGates) -> impl view::View<c
         logic_gates,
     );
 
-    let mut rects: Vec<_> = (0..20)
+    let mut rects: Vec<Box<dyn ui::widgets::flow::ViewLayoutIntoBoxView<_>>> = (0..20)
         .map(|i| {
             Box::new(ui::widgets::submodule::submodule(
                 view::lens::unit(),
                 ui::widgets::test_rect::test_rect(&mut id_maker, nannou::color::srgb(i as f32 / 20.0, (20 - i) as f32 / 20.0, 0.0), ((i * 5 + 20) as f32, 10.0)),
-            )) as Box<dyn view::View<_>>
+            )) as Box<dyn ui::widgets::flow::ViewLayoutIntoBoxView<_>>
         })
         .collect();
     rects.push(Box::new(ui::widgets::slider::slider(

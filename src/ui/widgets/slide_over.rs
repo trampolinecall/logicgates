@@ -7,9 +7,8 @@ use crate::{
     ui::widgets::button::ButtonState,
     view::{
         id::{ViewId, ViewIdMaker},
-        layout_cache::LayoutCache,
         lens::{self, Lens},
-        GeneralEvent, SizeConstraints, TargetedEvent, View,
+        GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout,
     },
 };
 
@@ -26,36 +25,40 @@ impl SlideOverState {
     }
 }
 
-struct SlideOverView<Data, ButtonView: View<Data>, BaseView: View<Data>, OverView: View<Data>> {
+struct SlideOverView<Data, ButtonView: ViewWithoutLayout<Data>, BaseView: ViewWithoutLayout<Data>, OverView: ViewWithoutLayout<Data>> {
     base: BaseView,
     over: OverView,
     button: ButtonView,
 
     drawer_openness: f32,
 
-    layout: LayoutCache<SlideOverLayout>,
-
     _phantom: PhantomData<fn(&Data) -> &SlideOverState>,
 }
-struct SlideOverLayout {
+struct SlideOverLayout<'original, Data, ButtonView: ViewWithoutLayout<Data> + 'original, BaseView: ViewWithoutLayout<Data> + 'original, OverView: ViewWithoutLayout<Data> + 'original> {
+    base: BaseView::WithLayout<'original>,
+    over: OverView::WithLayout<'original>,
+    button: ButtonView::WithLayout<'original>,
+
     over_shift: Option<f32>,
     toggle_button_offset: Vec2,
 }
 
-impl<Data, ButtonView: View<Data>, BaseView: View<Data>, OverView: View<Data>> SlideOverView<Data, ButtonView, BaseView, OverView> {
-    fn base_sc(sc: SizeConstraints) -> SizeConstraints {
-        sc
-    }
-    fn over_sc(sc: SizeConstraints) -> SizeConstraints {
-        SizeConstraints { min: sc.min, max: Vec2::new(sc.max.x - Theme::DEFAULT.slide_out_size.0, sc.max.y) }
-    }
-    fn toggle_sc() -> SizeConstraints {
-        SizeConstraints { min: Theme::DEFAULT.slide_out_size.into(), max: Theme::DEFAULT.slide_out_size.into() }
-    }
+impl<Data, ButtonView: ViewWithoutLayout<Data>, BaseView: ViewWithoutLayout<Data>, OverView: ViewWithoutLayout<Data>> ViewWithoutLayout<Data> for SlideOverView<Data, ButtonView, BaseView, OverView> {
+    type WithLayout<'without_layout>  = SlideOverLayout<'without_layout, Data, ButtonView, BaseView, OverView> where Self: 'without_layout;
 
-    fn layout(&self, sc: SizeConstraints) -> SlideOverLayout {
-        let base_size = self.base.size(Self::base_sc(sc));
-        let over_size = self.over.size(Self::over_sc(sc));
+    fn layout(&self, sc: SizeConstraints) -> Self::WithLayout<'_> {
+        let base_sc = sc;
+        let over_sc = SizeConstraints { min: sc.min, max: Vec2::new(sc.max.x - Theme::DEFAULT.slide_out_size.0, sc.max.y) };
+        let button_sc = SizeConstraints { min: Theme::DEFAULT.slide_out_size.into(), max: Theme::DEFAULT.slide_out_size.into() };
+
+        let base = self.base.layout(base_sc);
+        let over = self.over.layout(over_sc);
+        let button = self.button.layout(button_sc);
+
+        let base_size = base.size();
+        let over_size = over.size();
+        let button_size = button.size();
+
         // let over_rect = nannou::geom::Rect::from_wh(over_size.into()).align_y_of(nannou::geom::Align::End, given_rect).left_of(given_rect).shift_x(over_size.0 * self.drawer_openness);
         // let toggle_button_rect = nannou::geom::Rect::from_wh(Theme::DEFAULT.slide_out_size.into()).right_of(over_rect).align_top_of(given_rect).shift_y(-Theme::DEFAULT.slide_out_toggle_y_offset);
 
@@ -63,55 +66,41 @@ impl<Data, ButtonView: View<Data>, BaseView: View<Data>, OverView: View<Data>> S
         let over_right_edge = -base_size.x / 2.0 + over_size.x * self.drawer_openness;
         let over_shift = over_right_edge - over_size.x / 2.0;
 
-        let toggle_button_size = self.button.size(Self::toggle_sc());
-        let toggle_button_offset = Vec2::new(over_right_edge + toggle_button_size.x / 2.0, base_size.y / 2.0 - Theme::DEFAULT.slide_out_toggle_y_offset);
+        let button_offset = Vec2::new(over_right_edge + button_size.x / 2.0, base_size.y / 2.0 - Theme::DEFAULT.slide_out_toggle_y_offset);
 
-        SlideOverLayout { over_shift: if over_rect_needed { Some(over_shift) } else { None }, toggle_button_offset }
+        SlideOverLayout { base, over, button, over_shift: if over_rect_needed { Some(over_shift) } else { None }, toggle_button_offset: button_offset }
     }
 }
-
-impl<Data, ButtonView: View<Data>, BaseView: View<Data>, OverView: View<Data>> View<Data> for SlideOverView<Data, ButtonView, BaseView, OverView> {
-    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, center: nannou::geom::Vec2, sc: SizeConstraints, hover: Option<ViewId>) {
-        self.layout.with_layout(
-            sc,
-            |sc| self.layout(sc),
-            |layout| {
-                self.base.draw(app, draw, center, Self::base_sc(sc), hover);
-                if let Some(over_shift) = layout.over_shift {
-                    self.over.draw(app, draw, center + Vec2::new(over_shift, 0.0), Self::over_sc(sc), hover);
-                }
-                self.button.draw(app, draw, center + layout.toggle_button_offset, Self::toggle_sc(), hover);
-            },
-        );
+impl<Data, ButtonView: ViewWithoutLayout<Data>, BaseView: ViewWithoutLayout<Data>, OverView: ViewWithoutLayout<Data>> View<Data> for SlideOverLayout<'_, Data, ButtonView, BaseView, OverView> {
+    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, center: nannou::geom::Vec2, hover: Option<ViewId>) {
+        self.base.draw(app, draw, center, hover);
+        if let Some(over_shift) = self.over_shift {
+            self.over.draw(app, draw, center + Vec2::new(over_shift, 0.0), hover);
+        }
+        self.button.draw(app, draw, center + self.toggle_button_offset, hover);
     }
 
-    fn find_hover(&self, center: nannou::geom::Vec2, sc: SizeConstraints, mouse: Vec2) -> Option<ViewId> {
-        self.layout.with_layout(
-            sc,
-            |sc| self.layout(sc),
-            |layout| {
-                // go in z order from top to bottom
-                if let x @ Some(_) = self.button.find_hover(center + layout.toggle_button_offset, Self::toggle_sc(), mouse) {
-                    return x;
-                }
+    fn find_hover(&self, center: nannou::geom::Vec2, mouse: Vec2) -> Option<ViewId> {
+        // go in z order from top to bottom
+        if let x @ Some(_) = self.button.find_hover(center + self.toggle_button_offset, mouse) {
+            return x;
+        }
 
-                if let Some(over_shift) = layout.over_shift {
-                    if let x @ Some(_) = self.over.find_hover(center + Vec2::new(over_shift, 0.0), Self::over_sc(sc), mouse) {
-                        return x;
-                    }
-                }
+        if let Some(over_shift) = self.over_shift {
+            if let x @ Some(_) = self.over.find_hover(center + Vec2::new(over_shift, 0.0), mouse) {
+                return x;
+            }
+        }
 
-                if let x @ Some(_) = self.base.find_hover(center, Self::base_sc(sc), mouse) {
-                    return x;
-                }
+        if let x @ Some(_) = self.base.find_hover(center, mouse) {
+            return x;
+        }
 
-                None
-            },
-        )
+        None
     }
 
-    fn size(&self, sc: SizeConstraints) -> Vec2 {
-        self.base.size(Self::base_sc(sc))
+    fn size(&self) -> Vec2 {
+        self.base.size()
     }
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
@@ -134,9 +123,9 @@ pub(crate) fn slide_over<Data>(
     id_maker: &mut ViewIdMaker,
     data: &Data,
     get_slide_over_data: impl Lens<Data, SlideOverState> + Copy,
-    base: impl View<Data>,
-    over: impl View<Data>,
-) -> impl View<Data> {
+    base: impl ViewWithoutLayout<Data>,
+    over: impl ViewWithoutLayout<Data>,
+) -> impl ViewWithoutLayout<Data> {
     let drawer_openness = get_slide_over_data.with(data, |slide_over_data| {
         let time_since_switch = app.duration.since_start - slide_over_data.last_switch_time;
         let time_interp = (Theme::DEFAULT.animation_ease)((time_since_switch.as_secs_f32() / Theme::DEFAULT.animation_time).clamp(0.0, 1.0));
@@ -158,5 +147,5 @@ pub(crate) fn slide_over<Data>(
             });
         },
     );
-    SlideOverView { base, over, button, drawer_openness, layout: LayoutCache::new(), _phantom: PhantomData }
+    SlideOverView { base, over, button, drawer_openness, _phantom: PhantomData }
 }

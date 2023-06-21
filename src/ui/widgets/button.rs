@@ -7,7 +7,7 @@ use crate::{
     view::{
         id::{ViewId, ViewIdMaker},
         lens::Lens,
-        GeneralEvent, TargetedEvent, View, SizeConstraints,
+        GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout,
     },
 };
 
@@ -29,16 +29,28 @@ struct ButtonView<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&na
 
     _phantom: PhantomData<fn(&Data) -> &ButtonState>,
 }
+struct ButtonViewLayout<'button, Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&nannou::App, &mut Data)> {
+    view: &'button ButtonView<Data, GetButtonData, Callback>,
+    size: Vec2,
+}
 
-impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&nannou::App, &mut Data)> View<Data> for ButtonView<Data, GetButtonData, Callback> {
-    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, center: Vec2, size_constraints: SizeConstraints, hover: Option<ViewId>) {
-        let size = self.size(size_constraints);
+impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&nannou::App, &mut Data)> ViewWithoutLayout<Data> for ButtonView<Data, GetButtonData, Callback> {
+    type WithLayout<'without_layout> = ButtonViewLayout<'without_layout, Data, GetButtonData, Callback> where Data: 'without_layout, GetButtonData: 'without_layout, Callback: 'without_layout;
+
+    fn layout(&self, sc: SizeConstraints) -> Self::WithLayout<'_> {
+        // TODO: move size to constants in the theme
+        ButtonViewLayout { view: self, size: Vec2::new(150.0, 25.0).clamp(sc.min, sc.max) }
+    }
+}
+impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&nannou::App, &mut Data)> View<Data> for ButtonViewLayout<'_, Data, GetButtonData, Callback> {
+    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, center: Vec2, hover: Option<ViewId>) {
+        let size = self.size();
 
         let mut rect = draw.rect().xy(center).wh(size).color(Theme::DEFAULT.button_normal_bg);
-        if hover == Some(self.id) {
+        if hover == Some(self.view.id) {
             rect = rect.color(Theme::DEFAULT.button_hover_bg);
         }
-        if self.pressed {
+        if self.view.pressed {
             rect = rect.color(Theme::DEFAULT.button_pressed_bg);
         }
         rect = rect.stroke(nannou::color::rgb(0_u8, 0, 0));
@@ -46,38 +58,38 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&nannou::App, &m
         rect.finish();
     }
 
-    fn find_hover(&self, center: Vec2, size_constraints: SizeConstraints, mouse: Vec2) -> Option<ViewId> {
-        if Rect::from_xy_wh(center, self.size(size_constraints)).contains(mouse) {
-            Some(self.id)
+    fn find_hover(&self, center: Vec2, mouse: Vec2) -> Option<ViewId> {
+        if Rect::from_xy_wh(center, self.size).contains(mouse) {
+            Some(self.view.id)
         } else {
             None
         }
     }
 
-    fn size(&self, size_constraints: SizeConstraints) -> Vec2 {
-        Vec2::new(150.0, 25.0).clamp(size_constraints.min, size_constraints.max) // TODO: move these to constants in the theme
+    fn size(&self) -> Vec2 {
+        self.size
     }
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
-        if target == self.id {
+        if target == self.view.id {
             self.targeted_event(app, data, event);
         }
     }
     fn targeted_event(&self, _: &nannou::App, data: &mut Data, event: TargetedEvent) {
         match event {
-            TargetedEvent::LeftMouseDown => self.button_data_lens.with_mut(data, |button_data| button_data.pressed = true),
+            TargetedEvent::LeftMouseDown => self.view.button_data_lens.with_mut(data, |button_data| button_data.pressed = true),
         }
     }
     fn general_event(&self, app: &nannou::App, data: &mut Data, event: GeneralEvent) {
         match event {
             GeneralEvent::LeftMouseUp => {
-                if self.pressed {
-                    self.button_data_lens.with_mut(data, |button_data| {
+                if self.view.pressed {
+                    self.view.button_data_lens.with_mut(data, |button_data| {
                         if button_data.pressed {
                             button_data.pressed = false;
                         }
                     });
-                    (self.callback)(app, data);
+                    (self.view.callback)(app, data);
                 }
             }
             GeneralEvent::MouseMoved(_) => {}
@@ -86,6 +98,6 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&nannou::App, &m
 }
 
 // TODO: should this return ButtonView instead of an opaque type?
-pub(crate) fn button<Data>(id_maker: &mut ViewIdMaker, data: &Data, get_button_data: impl Lens<Data, ButtonState>, callback: impl Fn(&nannou::App, &mut Data)) -> impl View<Data> {
+pub(crate) fn button<Data>(id_maker: &mut ViewIdMaker, data: &Data, get_button_data: impl Lens<Data, ButtonState>, callback: impl Fn(&nannou::App, &mut Data)) -> impl ViewWithoutLayout<Data> {
     ButtonView { id: id_maker.next_id(), pressed: get_button_data.with(data, |button_data| button_data.pressed), button_data_lens: get_button_data, callback, _phantom: PhantomData }
 }
