@@ -7,6 +7,7 @@ pub(crate) mod utils;
 pub(crate) mod compiler;
 pub(crate) mod simulation;
 pub(crate) mod theme;
+#[macro_use]
 pub(crate) mod ui;
 pub(crate) mod view;
 
@@ -54,15 +55,18 @@ fn view(app: &nannou::App, logic_gates: &crate::LogicGates) -> impl view::ViewWi
         logic_gates,
     );
 
-    let mut rects: Vec<Box<dyn ui::widgets::flow::ViewLayoutIntoBoxView<_>>> = (0..20)
+    let mut rects: [_; 20] = (0..20)
         .map(|i| {
-            Box::new(ui::widgets::submodule::submodule(
+            Some(ui::widgets::submodule::submodule(
                 view::lens::unit(),
                 ui::widgets::test_rect::test_rect(&mut id_maker, nannou::color::srgb(i as f32 / 20.0, (20 - i) as f32 / 20.0, 0.0), ((i * 5 + 20) as f32, 10.0)),
-            )) as Box<dyn ui::widgets::flow::ViewLayoutIntoBoxView<_>>
+            ))
         })
-        .collect();
-    rects.push(Box::new(ui::widgets::slider::slider(
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap_or_else(|_| unreachable!());
+
+    let subticks_slider = ui::widgets::slider::slider(
         &mut id_maker,
         Some(1),
         Some(20),
@@ -70,9 +74,33 @@ fn view(app: &nannou::App, logic_gates: &crate::LogicGates) -> impl view::ViewWi
         view::lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.subticks_per_update, |logic_gates| &mut logic_gates.subticks_per_update),
         |mouse_diff| (mouse_diff / 10.0) as isize,
         logic_gates,
-    )));
+    );
 
-    let flow_view = ui::widgets::flow::vertical_flow(rects);
+    let flow_view = flow! {
+        vertical
+
+        rect0: rects[0].take().unwrap(),
+        rect1: rects[1].take().unwrap(),
+        rect2: rects[2].take().unwrap(),
+        rect3: rects[3].take().unwrap(),
+        rect4: rects[4].take().unwrap(),
+        rect5: rects[5].take().unwrap(),
+        rect6: rects[6].take().unwrap(),
+        rect7: rects[7].take().unwrap(),
+        rect8: rects[8].take().unwrap(),
+        rect9: rects[9].take().unwrap(),
+        rect10: rects[10].take().unwrap(),
+        rect11: rects[11].take().unwrap(),
+        rect12: rects[12].take().unwrap(),
+        rect13: rects[13].take().unwrap(),
+        rect14: rects[14].take().unwrap(),
+        rect15: rects[15].take().unwrap(),
+        rect16: rects[16].take().unwrap(),
+        rect17: rects[17].take().unwrap(),
+        rect18: rects[18].take().unwrap(),
+        rect19: rects[19].take().unwrap(),
+        slider: subticks_slider,
+    };
 
     ui::widgets::slide_over::slide_over(
         app,

@@ -1,3 +1,4 @@
+#[macro_use]
 pub(crate) mod widgets;
 
 pub(crate) struct UI {
