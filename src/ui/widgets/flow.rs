@@ -12,27 +12,23 @@ pub(crate) mod layout {
         sc.with_no_min()
     }
     pub(crate) fn find_own_size<'i, Data: 'static>(direction: Direction, sc: SizeConstraints, children: impl IntoIterator<Item = &'i dyn View<Data>>) -> Vec2 {
-        let own_size: Vec2 = children
-            .into_iter()
-            .fold((0.0, 0.0), |(x_acc, y_acc), child| {
-                match direction {
-                    Direction::Horizontal => {
-                        // sum x, take max of y
-                        let x_sum = x_acc + child.size().x;
-                        let max_y = if child.size().y > y_acc { child.size().y } else { y_acc };
-                        (x_sum, max_y)
-                    }
-                    Direction::Vertical => {
-                        // take max of x, sum y
-                        let max_x = if child.size().x > x_acc { child.size().x } else { x_acc };
-                        let y_sum = y_acc + child.size().y;
-                        (max_x, y_sum)
-                    }
+        Vec2::from(children.into_iter().fold((0.0, 0.0), |(x_acc, y_acc), child| {
+            match direction {
+                Direction::Horizontal => {
+                    // sum x, take max of y
+                    let x_sum = x_acc + child.size().x;
+                    let max_y = if child.size().y > y_acc { child.size().y } else { y_acc };
+                    (x_sum, max_y)
                 }
-            })
-            .into();
-        let own_size = own_size.clamp(sc.min, sc.max);
-        own_size
+                Direction::Vertical => {
+                    // take max of x, sum y
+                    let max_x = if child.size().x > x_acc { child.size().x } else { x_acc };
+                    let y_sum = y_acc + child.size().y;
+                    (max_x, y_sum)
+                }
+            }
+        }))
+        .clamp(sc.min, sc.max)
     }
     pub(crate) fn find_start_pos(direction: Direction, own_size: Vec2) -> f32 {
         match direction {
