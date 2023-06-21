@@ -31,12 +31,14 @@ impl NodeConnections {
 }
 
 pub(crate) fn connect(connections: &mut Connections, nodes: &mut NodeMap, a: NodeKey, b: NodeKey) {
-    connections.connections.insert((a, b));
-    nodes[a].connections.adjacent.insert(b);
-    nodes[b].connections.adjacent.insert(a);
+    let (lower, higher) = if a < b { (a, b) } else { (b, a) };
+    connections.connections.insert((lower, higher));
+    nodes[lower].connections.adjacent.insert(higher);
+    nodes[higher].connections.adjacent.insert(lower);
 }
 pub(crate) fn disconnect(connections: &mut Connections, nodes: &mut NodeMap, a: NodeKey, b: NodeKey) {
-    connections.connections.remove(&(a, b));
-    nodes[a].connections.adjacent.remove(&b);
-    nodes[b].connections.adjacent.remove(&a);
+    let (lower, higher) = if a < b { (a, b) } else { (b, a) };
+    connections.connections.remove(&(lower, higher));
+    nodes[lower].connections.adjacent.remove(&higher);
+    nodes[higher].connections.adjacent.remove(&lower);
 }
