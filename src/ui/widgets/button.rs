@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use nannou::geom::{Rect, Vec2};
 
 use crate::{
+    draw,
     theme::Theme,
     view::{
         id::{ViewId, ViewIdMaker},
@@ -43,10 +44,8 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&nannou::App, &m
     }
 }
 impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&nannou::App, &mut Data)> View<Data> for ButtonViewLayout<'_, Data, GetButtonData, Callback> {
-    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, center: Vec2, hover: Option<ViewId>) {
-        let size = self.size();
-
-        let mut rect = draw.rect().xy(center).wh(size).color(Theme::DEFAULT.button_normal_bg);
+    fn draw_inner(&self, _: &nannou::App, draw: &draw::Draw, center: Vec2, hover: Option<ViewId>) {
+        let mut rect = draw.rect().xy(center).wh(self.size).color(Theme::DEFAULT.button_normal_bg);
         if hover == Some(self.view.id) {
             rect = rect.color(Theme::DEFAULT.button_hover_bg);
         }

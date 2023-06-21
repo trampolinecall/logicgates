@@ -9,7 +9,7 @@ use crate::{
         id::{ViewId, ViewIdMaker},
         lens::{self, Lens},
         GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout,
-    },
+    }, draw,
 };
 
 // TODO: implement slide over from other sides
@@ -72,7 +72,7 @@ impl<Data, ButtonView: ViewWithoutLayout<Data>, BaseView: ViewWithoutLayout<Data
     }
 }
 impl<Data, ButtonView: ViewWithoutLayout<Data>, BaseView: ViewWithoutLayout<Data>, OverView: ViewWithoutLayout<Data>> View<Data> for SlideOverLayout<'_, Data, ButtonView, BaseView, OverView> {
-    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, center: nannou::geom::Vec2, hover: Option<ViewId>) {
+    fn draw_inner(&self, app: &nannou::App, draw: &draw::Draw, center: nannou::geom::Vec2, hover: Option<ViewId>) {
         self.base.draw(app, draw, center, hover);
         if let Some(over_shift) = self.over_shift {
             self.over.draw(app, draw, center + Vec2::new(over_shift, 0.0), hover);

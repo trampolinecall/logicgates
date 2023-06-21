@@ -1,6 +1,9 @@
-use crate::view::{
-    id::{ViewId, ViewIdMaker},
-    GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout,
+use crate::{
+    draw,
+    view::{
+        id::{ViewId, ViewIdMaker},
+        GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout,
+    },
 };
 
 struct TestRectView {
@@ -21,7 +24,7 @@ impl ViewWithoutLayout<()> for TestRectView {
     }
 }
 impl View<()> for TestRectViewLayout<'_> {
-    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, center: nannou::geom::Vec2, _: Option<ViewId>) {
+    fn draw_inner(&self, _: &nannou::App, draw: &draw::Draw, center: nannou::geom::Vec2, _: Option<ViewId>) {
         // TODO: use hovered?
         let rect = nannou::geom::Rect::from_xy_wh(center, self.actual_size);
         draw.rect().xy(rect.xy()).wh(rect.wh()).color(self.test_rect.color);

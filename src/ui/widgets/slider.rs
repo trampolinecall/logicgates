@@ -6,7 +6,7 @@ use crate::{
         id::{ViewId, ViewIdMaker},
         lens::Lens,
         GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout,
-    },
+    }, draw,
 };
 
 pub(crate) struct SliderState<Value: Display> {
@@ -77,7 +77,7 @@ impl<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: 
 impl<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: Lens<Data, SliderState<Value>>, DataLens: Lens<Data, Value>, ConvertMousePosition: Fn(f32) -> Value> View<Data>
     for SliderLayout<'_, Data, Value, StateLens, DataLens, ConvertMousePosition>
 {
-    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, center: nannou::geom::Vec2, hover: Option<ViewId>) {
+    fn draw_inner(&self, _: &nannou::App, draw: &draw::Draw, center: nannou::geom::Vec2, hover: Option<ViewId>) {
         // TODO: show as progress bar if both min and max
         let rect = nannou::geom::Rect::from_xy_wh(center, self.size);
         let mut background_rect = draw.rect().xy(rect.xy()).wh(rect.wh()).color(Theme::DEFAULT.button_normal_bg);

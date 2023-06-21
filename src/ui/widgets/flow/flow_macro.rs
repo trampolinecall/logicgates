@@ -43,7 +43,7 @@ macro_rules! flow {
             }
             #[allow(non_camel_case_types)]
             impl<Data, $($name: $crate::view::ViewWithoutLayout<Data>),*> $crate::view::View<Data> for ContainerWithLayout<'_, Data, $($name),*> {
-                fn draw(&self, app: &::nannou::App, draw: &::nannou::Draw, center: ::nannou::geom::Vec2, hover: ::std::option::Option<$crate::view::id::ViewId>) {
+                fn draw_inner(&self, app: &::nannou::App, draw: &$crate::draw::Draw, center: ::nannou::geom::Vec2, hover: ::std::option::Option<$crate::view::id::ViewId>) {
                     $(
                         {
                             let (offset, child) = &self.$name;

@@ -10,6 +10,7 @@ pub(crate) mod theme;
 #[macro_use]
 pub(crate) mod ui;
 pub(crate) mod view;
+pub(crate) mod draw;
 
 use nannou::prelude::*;
 
@@ -40,7 +41,7 @@ fn update(_: &App, logic_gates: &mut LogicGates, _: Update) {
 }
 
 fn draw(app: &App, logic_gates: &LogicGates, frame: Frame) {
-    let draw = app.draw();
+    let draw = draw::Draw::new(app.draw(), app.window_rect());
     view::render(app, &draw, logic_gates);
     draw.to_frame(app, &frame).unwrap();
 }

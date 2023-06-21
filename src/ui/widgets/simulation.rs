@@ -3,6 +3,7 @@ use std::{collections::HashMap, marker::PhantomData};
 use nannou::prelude::*;
 
 use crate::{
+    draw,
     simulation::{self, hierarchy, logic, Gate, GateKey, NodeKey, NodeMap, Simulation},
     theme::Theme,
     view::{
@@ -251,11 +252,9 @@ impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Da
     }
 }
 impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> View<Data> for SimulationViewLayout<'_, Data, StateLens, SimulationLens> {
-    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, center: Vec2, hover: Option<ViewId>) {
-        let widget_rect = {
-            let size = self.widget_size;
-            nannou::geom::Rect::from_xy_wh(center, size)
-        };
+    fn draw_inner(&self, app: &nannou::App, draw: &draw::Draw, center: Vec2, hover: Option<ViewId>) {
+        let widget_rect = nannou::geom::Rect::from_xy_wh(center, self.widget_size);
+
         draw.rect().xy(widget_rect.xy()).wh(widget_rect.wh()).color(Theme::DEFAULT.simulation_bg_color);
 
         for connection in &self.connections {
@@ -336,7 +335,10 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
     }
 }
 impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<Data, SimulationWidgetState>> View<Data> for GateViewLayout<'_, Data, StateLens, SimulationLens> {
-    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, widget_center: Vec2, hover: Option<ViewId>) {
+    fn draw(&self, app: &nannou::App, draw: &draw::Draw, widget_center: Vec2, hover: Option<ViewId>) {
+        self.draw_inner(app, draw, widget_center, hover);
+    }
+    fn draw_inner(&self, _: &nannou::App, draw: &draw::Draw, widget_center: Vec2, hover: Option<ViewId>) {
         // TODO: cache?
         let widget_rect = nannou::geom::Rect::from_xy_wh(widget_center, self.widget_size);
         let rect = gate_rect(widget_rect, self.view.gate_location, self.view.num_inputs, self.view.num_outputs);
@@ -411,7 +413,10 @@ impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Da
     }
 }
 impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, simulation::Simulation>> View<Data> for NodeViewLayout<'_, Data, StateLens, SimulationLens> {
-    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, widget_center: Vec2, hover: Option<ViewId>) {
+    fn draw(&self, app: &nannou::App, draw: &draw::Draw, widget_center: Vec2, hover: Option<ViewId>) {
+        self.draw_inner(app, draw, widget_center, hover);
+    }
+    fn draw_inner(&self, _: &nannou::App, draw: &draw::Draw, widget_center: Vec2, hover: Option<ViewId>) {
         let widget_rect = nannou::geom::Rect::from_xy_wh(widget_center, self.widget_size);
         let pos = node_pos(widget_rect, self.view.pos);
         if Some(self.view.id) == hover {
@@ -453,7 +458,10 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
     }
 }
 impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<Data, SimulationWidgetState>> View<Data> for ConnectionViewLayout<'_, Data, StateLens, SimulationLens> {
-    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, widget_center: Vec2, hover: Option<ViewId>) {
+    fn draw(&self, app: &nannou::App, draw: &draw::Draw, widget_center: Vec2, hover: Option<ViewId>) {
+        self.draw_inner(app, draw, widget_center, hover);
+    }
+    fn draw_inner(&self, _: &nannou::App, draw: &draw::Draw, widget_center: Vec2, hover: Option<ViewId>) {
         let widget_rect = nannou::geom::Rect::from_xy_wh(widget_center, self.widget_size);
         let pos1 = node_pos(widget_rect, self.view.pos1);
         let pos2 = node_pos(widget_rect, self.view.pos2);

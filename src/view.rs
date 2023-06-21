@@ -3,6 +3,8 @@ pub(crate) mod lens;
 
 use nannou::prelude::*;
 
+use crate::draw;
+
 #[derive(Copy, Clone)]
 pub(crate) enum TargetedEvent {
     LeftMouseDown,
@@ -28,7 +30,11 @@ impl SizeConstraints {
 // specifically this blog post: https://raphlinus.github.io/rust/gui/2022/05/07/ui-architecture.html
 // kind of like a merge of the old Widget and old Drawing trait
 pub(crate) trait View<Data> {
-    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, center: nannou::geom::Vec2, hover: Option<id::ViewId>);
+    fn draw(&self, app: &nannou::App, draw: &draw::Draw, center: nannou::geom::Vec2, hover: Option<id::ViewId>) {
+        let rect = nannou::geom::Rect::from_xy_wh(center, self.size());
+        self.draw_inner(app, &draw.scissor(rect), center, hover);
+    }
+    fn draw_inner(&self, app: &nannou::App, draw: &draw::Draw, center: nannou::geom::Vec2, hover: Option<id::ViewId>);
     fn find_hover(&self, center: nannou::geom::Vec2, mouse: nannou::geom::Vec2) -> Option<id::ViewId>;
     fn size(&self) -> Vec2;
 
@@ -40,9 +46,8 @@ pub(crate) trait ViewWithoutLayout<Data> {
     type WithLayout<'without_layout>: View<Data> where Self: 'without_layout;
     fn layout(&self, sc: SizeConstraints) -> Self::WithLayout<'_>;
 }
-// TODO: make sure that draws to inner views do not draw outside of their given boxes
 
-pub(crate) fn render(app: &nannou::App, draw: &nannou::Draw, logic_gates: &crate::LogicGates) {
+pub(crate) fn render(app: &nannou::App, draw: &draw::Draw, logic_gates: &crate::LogicGates) {
     let view_center = Vec2::ZERO;
     let size_constraints = SizeConstraints { min: Vec2::ZERO, max: app.window_rect().wh() };
 

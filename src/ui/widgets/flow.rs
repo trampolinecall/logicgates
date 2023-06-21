@@ -54,7 +54,7 @@ pub(crate) mod layout {
 
 use nannou::geom::Vec2;
 
-use crate::view::{id::ViewId, GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout};
+use crate::{view::{id::ViewId, GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout}, draw};
 
 // this is kind of a hack but ViewWithoutLayout cannot be used as a trait object because it has the associated type
 pub(crate) trait ViewLayoutIntoBoxView<'s, Data> {
@@ -105,7 +105,7 @@ impl<Data> ViewWithoutLayout<Data> for FlowView<Data> {
     }
 }
 impl<Data> View<Data> for FlowLayout<'_, Data> {
-    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, center: Vec2, hover: Option<ViewId>) {
+    fn draw_inner(&self, app: &nannou::App, draw: &draw::Draw, center: Vec2, hover: Option<ViewId>) {
         for (child_offset, child) in self.children.iter() {
             child.draw(app, draw, center + *child_offset, hover);
         }

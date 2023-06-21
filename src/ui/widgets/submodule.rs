@@ -1,6 +1,9 @@
 use std::marker::PhantomData;
 
-use crate::view::{id::ViewId, lens::Lens, GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout};
+use crate::{
+    draw,
+    view::{id::ViewId, lens::Lens, GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout},
+};
 
 struct SubmoduleView<Data, SubData, L: Lens<Data, SubData>, SubView: ViewWithoutLayout<SubData>> {
     lens: L,
@@ -21,8 +24,12 @@ impl<Data, SubData, L: Lens<Data, SubData>, SubView: ViewWithoutLayout<SubData>>
     }
 }
 impl<Data, SubData, L: Lens<Data, SubData>, SubView: ViewWithoutLayout<SubData>> View<Data> for SubmoduleLayout<'_, Data, SubData, L, SubView> {
-    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, center: nannou::geom::Vec2, hover: Option<ViewId>) {
+    fn draw(&self, app: &nannou::App, draw: &draw::Draw, center: nannou::geom::Vec2, hover: Option<ViewId>) {
         self.subview.draw(app, draw, center, hover);
+    }
+
+    fn draw_inner(&self, app: &nannou::App, draw: &draw::Draw, center: nannou::geom::Vec2, hover: Option<ViewId>) {
+        self.subview.draw_inner(app, draw, center, hover);
     }
 
     fn find_hover(&self, center: nannou::geom::Vec2, mouse: nannou::geom::Vec2) -> Option<ViewId> {
