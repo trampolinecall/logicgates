@@ -8,7 +8,7 @@ use crate::{
     view::{
         id::{ViewId, ViewIdMaker},
         lens::Lens,
-        GeneralEvent, TargetedEvent, View,
+        GeneralEvent, SizeConstraints, TargetedEvent, View,
     },
 };
 
@@ -218,46 +218,47 @@ pub(crate) fn simulation<Data>(
 }
 
 impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> View<Data> for SimulationView<Data, StateLens, SimulationLens> {
-    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
-        draw.rect().xy(rect.xy()).wh(rect.wh()).color(Theme::DEFAULT.simulation_bg_color);
+    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, center: Vec2, sc: SizeConstraints, hover: Option<ViewId>) {
+        let widget_rect = widget_rect(center, sc);
+        draw.rect().xy(widget_rect.xy()).wh(widget_rect.wh()).color(Theme::DEFAULT.simulation_bg_color);
 
         for connection in &self.connections {
-            connection.draw(app, draw, rect, hover);
+            connection.draw(app, draw, center, sc, hover);
         }
         for gate in &self.gates {
-            gate.draw(app, draw, rect, hover);
+            gate.draw(app, draw, center, sc, hover);
         }
         for node in &self.nodes {
-            node.draw(app, draw, rect, hover);
+            node.draw(app, draw, center, sc, hover);
         }
     }
 
-    fn find_hover(&self, rect: nannou::geom::Rect, mouse: nannou::geom::Vec2) -> Option<ViewId> {
+    fn find_hover(&self, center: Vec2, sc: SizeConstraints, mouse: Vec2) -> Option<ViewId> {
         // reverse to go in z order from highest to lowest
         for node in self.nodes.iter().rev() {
-            if let hover @ Some(_) = node.find_hover(rect, mouse) {
+            if let hover @ Some(_) = node.find_hover(center, sc, mouse) {
                 return hover;
             }
         }
         for gate in self.gates.iter().rev() {
-            if let hover @ Some(_) = gate.find_hover(rect, mouse) {
+            if let hover @ Some(_) = gate.find_hover(center, sc, mouse) {
                 return hover;
             }
         }
         for connection in self.connections.iter().rev() {
-            if let hover @ Some(_) = connection.find_hover(rect, mouse) {
+            if let hover @ Some(_) = connection.find_hover(center, sc, mouse) {
                 return hover;
             }
         }
-        if rect.contains(mouse) {
+        if widget_rect(center, sc).contains(mouse) {
             return Some(self.id);
         }
 
         None
     }
 
-    fn size(&self, given: (f32, f32)) -> (f32, f32) {
-        given // always fills given space
+    fn size(&self, sc: SizeConstraints) -> Vec2 {
+        sc.max
     }
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
@@ -289,9 +290,14 @@ impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Da
     }
 }
 
+fn widget_rect(center: Vec2, sc: SizeConstraints) -> nannou::geom::Rect {
+    nannou::geom::Rect::from_xy_wh(center, sc.max)
+}
+
 impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<Data, SimulationWidgetState>> View<Data> for GateView<Data, StateLens, SimulationLens> {
-    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, widget_rect: nannou::geom::Rect, hover: Option<ViewId>) {
+    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, widget_center: Vec2, widget_sc: SizeConstraints, hover: Option<ViewId>) {
         // TODO: cache?
+        let widget_rect = widget_rect(widget_center, widget_sc);
         let rect = gate_rect(widget_rect, self.gate_location, self.num_inputs, self.num_outputs);
 
         if Some(self.id) == hover {
@@ -305,8 +311,9 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
         draw.text(&self.name).xy(rect.xy()).wh(rect.wh()).center_justify().align_text_middle_y().color(Theme::DEFAULT.gate_text_color);
     }
 
-    fn find_hover(&self, widget_rect: nannou::geom::Rect, mouse_pos: nannou::geom::Vec2) -> Option<ViewId> {
+    fn find_hover(&self, widget_center: Vec2, widget_sc: SizeConstraints, mouse_pos: Vec2) -> Option<ViewId> {
         // TODO: also cache?
+        let widget_rect = widget_rect(widget_center, widget_sc);
         let rect = gate_rect(widget_rect, self.gate_location, self.num_inputs, self.num_outputs);
         if rect.contains(mouse_pos) {
             // TODO: hover distance
@@ -316,8 +323,8 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
         None
     }
 
-    fn size(&self, _: (f32, f32)) -> (f32, f32) {
-        (0.0, 0.0) // does not participate in layout
+    fn size(&self, _: SizeConstraints) -> Vec2 {
+        Vec2::ZERO // does not participate in layout
     }
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
@@ -354,8 +361,9 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
     }
 }
 impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, simulation::Simulation>> View<Data> for NodeView<Data, StateLens, SimulationLens> {
-    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
-        let pos = node_pos(rect, self.pos);
+    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, widget_center: Vec2, widget_sc: SizeConstraints, hover: Option<ViewId>) {
+        let widget_rect = widget_rect(widget_center, widget_sc);
+        let pos = node_pos(widget_rect, self.pos);
         if Some(self.id) == hover {
             draw.ellipse().xy(pos).radius(Theme::DEFAULT.node_rad + Theme::DEFAULT.node_hover_dist).color(Theme::DEFAULT.node_hover_color);
         }
@@ -363,16 +371,17 @@ impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Da
         draw.ellipse().xy(pos).radius(Theme::DEFAULT.node_rad).color(self.color);
     }
 
-    fn find_hover(&self, rect: nannou::geom::Rect, mouse_pos: nannou::geom::Vec2) -> Option<ViewId> {
-        let pos = node_pos(rect, self.pos);
+    fn find_hover(&self, widget_center: Vec2, widget_sc: SizeConstraints, mouse_pos: Vec2) -> Option<ViewId> {
+        let widget_rect = widget_rect(widget_center, widget_sc);
+        let pos = node_pos(widget_rect, self.pos);
         if pos.distance(mouse_pos) < Theme::DEFAULT.node_rad + Theme::DEFAULT.node_hover_dist {
             return Some(self.id);
         }
         None
     }
 
-    fn size(&self, _: (f32, f32)) -> (f32, f32) {
-        (0.0, 0.0)
+    fn size(&self, _: SizeConstraints) -> Vec2 {
+        Vec2::ZERO
     }
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
@@ -385,9 +394,10 @@ impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Da
     fn general_event(&self, _: &nannou::App, _: &mut Data, _: GeneralEvent) {}
 }
 impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<Data, SimulationWidgetState>> View<Data> for ConnectionView<Data, StateLens, SimulationLens> {
-    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
-        let pos1 = node_pos(rect, self.pos1);
-        let pos2 = node_pos(rect, self.pos2);
+    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, widget_center: Vec2, widget_sc: SizeConstraints, hover: Option<ViewId>) {
+        let widget_rect = widget_rect(widget_center, widget_sc);
+        let pos1 = node_pos(widget_rect, self.pos1);
+        let pos2 = node_pos(widget_rect, self.pos2);
         let mut line = draw.line().start(pos1).end(pos2).weight(Theme::DEFAULT.connection_width).color(self.color);
 
         if Some(self.id) == hover {
@@ -397,9 +407,10 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
         line.finish();
     }
 
-    fn find_hover(&self, rect: nannou::geom::Rect, mouse_pos: nannou::geom::Vec2) -> Option<ViewId> {
-        let pos1 = node_pos(rect, self.pos1);
-        let pos2 = node_pos(rect, self.pos2);
+    fn find_hover(&self, widget_center: Vec2, widget_sc: SizeConstraints, mouse_pos: Vec2) -> Option<ViewId> {
+        let widget_rect = widget_rect(widget_center, widget_sc);
+        let pos1 = node_pos(widget_rect, self.pos1);
+        let pos2 = node_pos(widget_rect, self.pos2);
         if min_dist_to_line_squared((pos1, pos2), mouse_pos) < Theme::DEFAULT.connection_hover_dist.powf(2.0) {
             Some(self.id)
         } else {
@@ -407,8 +418,8 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
         }
     }
 
-    fn size(&self, _: (f32, f32)) -> (f32, f32) {
-        (0.0, 0.0) // does not participate in layout
+    fn size(&self, _: SizeConstraints) -> Vec2 {
+        Vec2::ZERO // does not participate in layout
     }
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
@@ -463,7 +474,7 @@ fn node_pos(widget_rect: nannou::geom::Rect, pos: NodeViewPos) -> Vec2 {
     }
 }
 
-fn min_dist_to_line_squared(line_segment: (nannou::geom::Vec2, nannou::geom::Vec2), point: nannou::geom::Vec2) -> f32 {
+fn min_dist_to_line_squared(line_segment: (Vec2, Vec2), point: Vec2) -> f32 {
     let (a, b) = line_segment;
 
     let len_squared = a.distance_squared(b);

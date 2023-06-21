@@ -1,11 +1,13 @@
 use std::marker::PhantomData;
 
+use nannou::geom::{Rect, Vec2};
+
 use crate::{
     theme::Theme,
     view::{
         id::{ViewId, ViewIdMaker},
         lens::Lens,
-        GeneralEvent, TargetedEvent, View,
+        GeneralEvent, TargetedEvent, View, SizeConstraints,
     },
 };
 
@@ -29,8 +31,10 @@ struct ButtonView<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&na
 }
 
 impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&nannou::App, &mut Data)> View<Data> for ButtonView<Data, GetButtonData, Callback> {
-    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
-        let mut rect = draw.rect().xy(rect.xy()).wh(rect.wh()).color(Theme::DEFAULT.button_normal_bg);
+    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, center: Vec2, size_constraints: SizeConstraints, hover: Option<ViewId>) {
+        let size = self.size(size_constraints);
+
+        let mut rect = draw.rect().xy(center).wh(size).color(Theme::DEFAULT.button_normal_bg);
         if hover == Some(self.id) {
             rect = rect.color(Theme::DEFAULT.button_hover_bg);
         }
@@ -42,16 +46,16 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&nannou::App, &m
         rect.finish();
     }
 
-    fn find_hover(&self, rect: nannou::geom::Rect, mouse: nannou::geom::Vec2) -> Option<ViewId> {
-        if rect.contains(mouse) {
+    fn find_hover(&self, center: Vec2, size_constraints: SizeConstraints, mouse: Vec2) -> Option<ViewId> {
+        if Rect::from_xy_wh(center, self.size(size_constraints)).contains(mouse) {
             Some(self.id)
         } else {
             None
         }
     }
 
-    fn size(&self, _: (f32, f32)) -> (f32, f32) {
-        (150.0, 25.0) // TODO: adapt to given size
+    fn size(&self, size_constraints: SizeConstraints) -> Vec2 {
+        Vec2::new(150.0, 25.0).clamp(size_constraints.min, size_constraints.max) // TODO: move these to constants in the theme
     }
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {

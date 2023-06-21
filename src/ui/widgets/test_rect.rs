@@ -1,6 +1,6 @@
 use crate::view::{
     id::{ViewId, ViewIdMaker},
-    GeneralEvent, TargetedEvent, View,
+    GeneralEvent, SizeConstraints, TargetedEvent, View,
 };
 
 pub(crate) struct TestRectView {
@@ -10,21 +10,22 @@ pub(crate) struct TestRectView {
 }
 
 impl View<()> for TestRectView {
-    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, _: Option<ViewId>) {
+    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, center: nannou::geom::Vec2, sc: SizeConstraints, _: Option<ViewId>) {
         // TODO: use hovered?
+        let rect = nannou::geom::Rect::from_xy_wh(center, self.size(sc));
         draw.rect().xy(rect.xy()).wh(rect.wh()).color(self.color);
     }
 
-    fn find_hover(&self, rect: nannou::geom::Rect, mouse: nannou::prelude::Vec2) -> Option<ViewId> {
-        if rect.contains(mouse) {
+    fn find_hover(&self, center: nannou::geom::Vec2, sc: SizeConstraints, mouse: nannou::prelude::Vec2) -> Option<ViewId> {
+        if nannou::geom::Rect::from_xy_wh(center, self.size(sc)).contains(mouse) {
             Some(self.id)
         } else {
             None
         }
     }
-    fn size(&self, _: (f32, f32)) -> (f32, f32) {
+    fn size(&self, sc: SizeConstraints) -> nannou::geom::Vec2 {
         // TODO: clamp to given size
-        self.size
+        nannou::geom::Vec2::from(self.size).clamp(sc.min, sc.max)
     }
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut (), target: ViewId, event: TargetedEvent) {

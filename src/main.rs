@@ -53,6 +53,12 @@ fn view(app: &nannou::App, logic_gates: &crate::LogicGates) -> impl view::View<c
         view::lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.simulation, |logic_gates| &mut logic_gates.simulation),
         logic_gates,
     );
+    let simulation_view2 = ui::widgets::simulation::simulation(
+        &mut id_maker,
+        view::lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.ui.main_simulation_state, |logic_gates| &mut logic_gates.ui.main_simulation_state),
+        view::lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.simulation, |logic_gates| &mut logic_gates.simulation),
+        logic_gates,
+    );
 
     let mut rects: Vec<_> = (0..20)
         .map(|i| {
@@ -71,6 +77,7 @@ fn view(app: &nannou::App, logic_gates: &crate::LogicGates) -> impl view::View<c
         |mouse_diff| (mouse_diff / 10.0) as isize,
         logic_gates,
     )));
+    rects.push(Box::new(simulation_view2));
 
     let flow_view = ui::widgets::flow::vertical_flow(rects);
 

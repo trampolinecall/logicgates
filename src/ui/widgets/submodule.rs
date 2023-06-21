@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::view::{id::ViewId, lens::Lens, GeneralEvent, TargetedEvent, View};
+use crate::view::{id::ViewId, lens::Lens, GeneralEvent, TargetedEvent, View, SizeConstraints};
 
 pub(crate) struct SubmoduleView<Data, SubData, L: Lens<Data, SubData>, SubView: View<SubData>> {
     lens: L,
@@ -10,16 +10,16 @@ pub(crate) struct SubmoduleView<Data, SubData, L: Lens<Data, SubData>, SubView: 
     _phantom: PhantomData<fn(&Data) -> &SubData>,
 }
 impl<Data, SubData, L: Lens<Data, SubData>, SubView: View<SubData>> View<Data> for SubmoduleView<Data, SubData, L, SubView> {
-    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
-        self.subview.draw(app, draw, rect, hover);
+    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, center: nannou::geom::Vec2, size_constraints: SizeConstraints, hover: Option<ViewId>) {
+        self.subview.draw(app, draw, center, size_constraints, hover);
     }
 
-    fn find_hover(&self, rect: nannou::geom::Rect, mouse: nannou::geom::Vec2) -> Option<ViewId> {
-        self.subview.find_hover(rect, mouse)
+    fn find_hover(&self, center: nannou::geom::Vec2, sc: SizeConstraints, mouse: nannou::geom::Vec2) -> Option<ViewId> {
+        self.subview.find_hover(center, sc, mouse)
     }
 
-    fn size(&self, given: (f32, f32)) -> (f32, f32) {
-        self.subview.size(given)
+    fn size(&self, size_constraints: SizeConstraints) -> nannou::geom::Vec2 {
+        self.subview.size(size_constraints)
     }
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {

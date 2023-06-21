@@ -1,5 +1,7 @@
 use std::{marker::PhantomData, time::Duration};
 
+use nannou::geom::Vec2;
+
 use crate::{
     theme::Theme,
     ui::widgets::button::ButtonState,
@@ -7,7 +9,7 @@ use crate::{
         id::{ViewId, ViewIdMaker},
         layout_cache::LayoutCache,
         lens::{self, Lens},
-        GeneralEvent, TargetedEvent, View,
+        GeneralEvent, SizeConstraints, TargetedEvent, View,
     },
 };
 
@@ -36,54 +38,70 @@ struct SlideOverView<Data, ButtonView: View<Data>, BaseView: View<Data>, OverVie
     _phantom: PhantomData<fn(&Data) -> &SlideOverState>,
 }
 struct SlideOverLayout {
-    base_rect: nannou::geom::Rect,
-    over_rect: Option<nannou::geom::Rect>,
-    toggle_button_rect: nannou::geom::Rect,
+    over_shift: Option<f32>,
+    toggle_button_offset: Vec2,
 }
 
 impl<Data, ButtonView: View<Data>, BaseView: View<Data>, OverView: View<Data>> SlideOverView<Data, ButtonView, BaseView, OverView> {
-    fn layout(&self, given_rect: nannou::geom::Rect) -> SlideOverLayout {
-        let over_size = self.over.size(given_rect.w_h());
-        let over_rect = nannou::geom::Rect::from_wh(over_size.into()).align_y_of(nannou::geom::Align::End, given_rect).left_of(given_rect).shift_x(over_size.0 * self.drawer_openness);
-        let toggle_button_rect = nannou::geom::Rect::from_wh(Theme::DEFAULT.slide_out_size.into()).right_of(over_rect).align_top_of(given_rect).shift_y(-Theme::DEFAULT.slide_out_toggle_y_offset);
-        let over_rect_needed = self.drawer_openness != 0.0;
+    fn base_sc(sc: SizeConstraints) -> SizeConstraints {
+        sc
+    }
+    fn over_sc(sc: SizeConstraints) -> SizeConstraints {
+        SizeConstraints { min: sc.min, max: Vec2::new(sc.max.x - Theme::DEFAULT.slide_out_size.0, sc.max.y) }
+    }
+    fn toggle_sc(sc: SizeConstraints) -> SizeConstraints {
+        SizeConstraints { min: Theme::DEFAULT.slide_out_size.into(), max: Theme::DEFAULT.slide_out_size.into() }
+    }
 
-        SlideOverLayout { base_rect: given_rect, over_rect: if over_rect_needed { Some(over_rect) } else { None }, toggle_button_rect }
+    fn layout(&self, sc: SizeConstraints) -> SlideOverLayout {
+        let base_size = self.base.size(Self::base_sc(sc));
+        let over_size = self.over.size(Self::over_sc(sc));
+        // let over_rect = nannou::geom::Rect::from_wh(over_size.into()).align_y_of(nannou::geom::Align::End, given_rect).left_of(given_rect).shift_x(over_size.0 * self.drawer_openness);
+        // let toggle_button_rect = nannou::geom::Rect::from_wh(Theme::DEFAULT.slide_out_size.into()).right_of(over_rect).align_top_of(given_rect).shift_y(-Theme::DEFAULT.slide_out_toggle_y_offset);
+
+        let over_rect_needed = self.drawer_openness != 0.0;
+        let over_right_edge = -base_size.x / 2.0 + over_size.x * self.drawer_openness;
+        let over_shift = over_right_edge - over_size.x / 2.0;
+
+        let toggle_button_size = self.button.size(Self::toggle_sc(sc));
+        let toggle_button_offset = Vec2::new(over_right_edge + toggle_button_size.x / 2.0, base_size.y / 2.0 - Theme::DEFAULT.slide_out_toggle_y_offset);
+
+        SlideOverLayout { over_shift: if over_rect_needed { Some(over_shift) } else { None }, toggle_button_offset }
     }
 }
 
 impl<Data, ButtonView: View<Data>, BaseView: View<Data>, OverView: View<Data>> View<Data> for SlideOverView<Data, ButtonView, BaseView, OverView> {
-    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
+    fn draw(&self, app: &nannou::App, draw: &nannou::Draw, center: nannou::geom::Vec2, sc: SizeConstraints, hover: Option<ViewId>) {
         self.layout.with_layout(
-            rect,
-            |given_rect| self.layout(given_rect),
+            sc,
+            |sc| self.layout(sc),
             |layout| {
-                self.base.draw(app, draw, layout.base_rect, hover);
-                if let Some(over_rect) = layout.over_rect {
-                    self.over.draw(app, draw, over_rect, hover);
+                self.base.draw(app, draw, center, Self::base_sc(sc), hover);
+                if let Some(over_shift) = layout.over_shift {
+                    self.over.draw(app, draw, center + Vec2::new(over_shift, 0.0), Self::over_sc(sc), hover);
                 }
-                self.button.draw(app, draw, layout.toggle_button_rect, hover);
+                self.button.draw(app, draw, center + layout.toggle_button_offset, Self::toggle_sc(sc), hover);
             },
         );
     }
 
-    fn find_hover(&self, rect: nannou::geom::Rect, mouse: nannou::geom::Vec2) -> Option<ViewId> {
+    fn find_hover(&self, center: nannou::geom::Vec2, sc: SizeConstraints, mouse: Vec2) -> Option<ViewId> {
         self.layout.with_layout(
-            rect,
-            |given_rect| self.layout(given_rect),
+            sc,
+            |sc| self.layout(sc),
             |layout| {
                 // go in z order from top to bottom
-                if let x @ Some(_) = self.button.find_hover(layout.toggle_button_rect, mouse) {
+                if let x @ Some(_) = self.button.find_hover(center + layout.toggle_button_offset, Self::toggle_sc(sc), mouse) {
                     return x;
                 }
 
-                if let Some(over_rect) = layout.over_rect {
-                    if let x @ Some(_) = self.over.find_hover(over_rect, mouse) {
+                if let Some(over_shift) = layout.over_shift {
+                    if let x @ Some(_) = self.over.find_hover(center + Vec2::new(over_shift, 0.0), Self::over_sc(sc), mouse) {
                         return x;
                     }
                 }
 
-                if let x @ Some(_) = self.base.find_hover(layout.base_rect, mouse) {
+                if let x @ Some(_) = self.base.find_hover(center, Self::base_sc(sc), mouse) {
                     return x;
                 }
 
@@ -92,8 +110,8 @@ impl<Data, ButtonView: View<Data>, BaseView: View<Data>, OverView: View<Data>> V
         )
     }
 
-    fn size(&self, given: (f32, f32)) -> (f32, f32) {
-        self.base.size(given)
+    fn size(&self, sc: SizeConstraints) -> Vec2 {
+        self.base.size(Self::base_sc(sc))
     }
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {

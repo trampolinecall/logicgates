@@ -5,7 +5,7 @@ use crate::{
     view::{
         id::{ViewId, ViewIdMaker},
         lens::Lens,
-        GeneralEvent, TargetedEvent, View,
+        GeneralEvent, SizeConstraints, TargetedEvent, View,
     },
 };
 
@@ -54,8 +54,9 @@ pub(crate) fn slider<Data, Value: Display + Copy + Add<Value, Output = Value> + 
 impl<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: Lens<Data, SliderState<Value>>, DataLens: Lens<Data, Value>, ConvertMousePosition: Fn(f32) -> Value> View<Data>
     for SliderView<Data, Value, StateLens, DataLens, ConvertMousePosition>
 {
-    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, rect: nannou::geom::Rect, hover: Option<ViewId>) {
+    fn draw(&self, _: &nannou::App, draw: &nannou::Draw, center: nannou::geom::Vec2, sc: SizeConstraints, hover: Option<ViewId>) {
         // TODO: show as progress bar if both min and max
+        let rect = nannou::geom::Rect::from_xy_wh(center, self.size(sc));
         let mut background_rect = draw.rect().xy(rect.xy()).wh(rect.wh()).color(Theme::DEFAULT.button_normal_bg);
         let mut text = draw.text(&self.value.to_string()).xy(rect.xy()).wh(rect.wh()).center_justify().align_text_middle_y().color(Theme::DEFAULT.button_normal_fg);
         if Some(self.id) == hover {
@@ -71,16 +72,16 @@ impl<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: 
         text.finish();
     }
 
-    fn find_hover(&self, rect: nannou::geom::Rect, mouse: nannou::geom::Vec2) -> Option<ViewId> {
-        if rect.contains(mouse) {
+    fn find_hover(&self, center: nannou::geom::Vec2, sc: SizeConstraints, mouse: nannou::geom::Vec2) -> Option<ViewId> {
+        if nannou::geom::Rect::from_xy_wh(center, self.size(sc)).contains(mouse) {
             Some(self.id)
         } else {
             None
         }
     }
 
-    fn size(&self, _: (f32, f32)) -> (f32, f32) {
-        (100.0, 15.0) // TODO: put this in theme?, also TODO: clamp to given space
+    fn size(&self, sc: SizeConstraints) -> nannou::geom::Vec2 {
+        nannou::geom::Vec2::new(100.0, 15.0).clamp(sc.min, sc.max) // TODO: put this in theme?
     }
 
     fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
