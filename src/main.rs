@@ -46,13 +46,13 @@ fn draw(app: &App, logic_gates: &LogicGates, frame: Frame) {
     draw.to_frame(app, &frame).unwrap();
 }
 
-fn view(app: &nannou::App, logic_gates: &crate::LogicGates) -> impl view::ViewWithoutLayout<crate::LogicGates> {
+fn view(app: &nannou::App, logic_gates: &LogicGates) -> impl view::ViewWithoutLayout<LogicGates> {
     let mut id_maker = view::id::ViewIdMaker::new();
 
     let simulation_view = ui::widgets::simulation::simulation(
         &mut id_maker,
-        view::lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.ui.main_simulation_state, |logic_gates| &mut logic_gates.ui.main_simulation_state),
-        view::lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.simulation, |logic_gates| &mut logic_gates.simulation),
+        view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.ui.main_simulation_state, |logic_gates| &mut logic_gates.ui.main_simulation_state),
+        view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.simulation, |logic_gates| &mut logic_gates.simulation),
         logic_gates,
     );
 
@@ -71,8 +71,8 @@ fn view(app: &nannou::App, logic_gates: &crate::LogicGates) -> impl view::ViewWi
         &mut id_maker,
         Some(1),
         Some(20),
-        view::lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.ui.subticks_slider_state, |logic_gates| &mut logic_gates.ui.subticks_slider_state),
-        view::lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.subticks_per_update, |logic_gates| &mut logic_gates.subticks_per_update),
+        view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.ui.subticks_slider_state, |logic_gates| &mut logic_gates.ui.subticks_slider_state),
+        view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.subticks_per_update, |logic_gates| &mut logic_gates.subticks_per_update),
         |mouse_diff| (mouse_diff / 10.0) as isize,
         logic_gates,
     );
@@ -107,7 +107,7 @@ fn view(app: &nannou::App, logic_gates: &crate::LogicGates) -> impl view::ViewWi
         app,
         &mut id_maker,
         logic_gates,
-        view::lens::from_closures(|logic_gates: &crate::LogicGates| &logic_gates.ui.new_slide_over, |logic_gates: &mut crate::LogicGates| &mut logic_gates.ui.new_slide_over),
+        view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.ui.new_slide_over, |logic_gates: &mut LogicGates| &mut logic_gates.ui.new_slide_over),
         simulation_view,
         flow_view,
     )
