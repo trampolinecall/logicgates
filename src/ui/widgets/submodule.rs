@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::view::{id::ViewId, lens::Lens, GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout};
+use crate::{view::{id::ViewId, lens::Lens, GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout}, graphics};
 
 struct SubmoduleView<Data, SubData, L: Lens<Data, SubData>, SubView: ViewWithoutLayout<SubData>> {
     lens: L,
@@ -21,19 +21,19 @@ impl<Data, SubData, L: Lens<Data, SubData>, SubView: ViewWithoutLayout<SubData>>
     }
 }
 impl<Data, SubData, L: Lens<Data, SubData>, SubView: ViewWithoutLayout<SubData>> View<Data> for SubmoduleLayout<'_, Data, SubData, L, SubView> {
-    fn draw(&self, app: &crate::App, target: &mut dyn sfml::graphics::RenderTarget, top_left: sfml::system::Vector2f, hover: Option<ViewId>) {
+    fn draw(&self, app: &crate::App, target: &mut dyn graphics::RenderTarget, top_left: graphics::Vector2f, hover: Option<ViewId>) {
         self.subview.draw(app, target, top_left, hover);
     }
 
-    fn draw_inner(&self, app: &crate::App, target: &mut dyn sfml::graphics::RenderTarget, top_left: sfml::system::Vector2f, hover: Option<ViewId>) {
+    fn draw_inner(&self, app: &crate::App, target: &mut dyn graphics::RenderTarget, top_left: graphics::Vector2f, hover: Option<ViewId>) {
         self.subview.draw_inner(app, target, top_left, hover);
     }
 
-    fn find_hover(&self, top_left: sfml::system::Vector2f, mouse: sfml::system::Vector2f) -> Option<ViewId> {
+    fn find_hover(&self, top_left: graphics::Vector2f, mouse: graphics::Vector2f) -> Option<ViewId> {
         self.subview.find_hover(top_left, mouse)
     }
 
-    fn size(&self) -> sfml::system::Vector2f {
+    fn size(&self) -> graphics::Vector2f {
         self.subview.size()
     }
 

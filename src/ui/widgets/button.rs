@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use sfml::graphics::Shape;
 
 use crate::{
+    graphics,
     theme::Theme,
     view::{
         id::{ViewId, ViewIdMaker},
@@ -31,7 +32,7 @@ struct ButtonView<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&cr
 }
 struct ButtonViewLayout<'button, Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&crate::App, &mut Data)> {
     view: &'button ButtonView<Data, GetButtonData, Callback>,
-    size: sfml::system::Vector2f,
+    size: graphics::Vector2f,
 }
 
 impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&crate::App, &mut Data)> ViewWithoutLayout<Data> for ButtonView<Data, GetButtonData, Callback> {
@@ -39,12 +40,12 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&crate::App, &mu
 
     fn layout(&self, sc: SizeConstraints) -> Self::WithLayout<'_> {
         // TODO: move size to constants in the theme
-        ButtonViewLayout { view: self, size: sc.clamp_size(sfml::system::Vector2f::new(150.0, 25.0)) }
+        ButtonViewLayout { view: self, size: sc.clamp_size(graphics::Vector2f::new(150.0, 25.0)) }
     }
 }
 impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&crate::App, &mut Data)> View<Data> for ButtonViewLayout<'_, Data, GetButtonData, Callback> {
-    fn draw_inner(&self, _: &crate::App, target: &mut dyn sfml::graphics::RenderTarget, top_left: sfml::system::Vector2f, hover: Option<ViewId>) {
-        let mut rect_shape = sfml::graphics::RectangleShape::from_rect(sfml::graphics::FloatRect::from_vecs(top_left, self.size));
+    fn draw_inner(&self, _: &crate::App, target: &mut dyn graphics::RenderTarget, top_left: graphics::Vector2f, hover: Option<ViewId>) {
+        let mut rect_shape = graphics::RectangleShape::from_rect(graphics::FloatRect::from_vecs(top_left, self.size));
         rect_shape.set_fill_color(Theme::DEFAULT.button_normal_bg);
 
         if hover == Some(self.view.id) {
@@ -57,15 +58,15 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&crate::App, &mu
         target.draw(&rect_shape);
     }
 
-    fn find_hover(&self, top_left: sfml::system::Vector2f, mouse: sfml::system::Vector2f) -> Option<ViewId> {
-        if sfml::graphics::FloatRect::from_vecs(top_left, self.size).contains(mouse) {
+    fn find_hover(&self, top_left: graphics::Vector2f, mouse: graphics::Vector2f) -> Option<ViewId> {
+        if graphics::FloatRect::from_vecs(top_left, self.size).contains(mouse) {
             Some(self.view.id)
         } else {
             None
         }
     }
 
-    fn size(&self) -> sfml::system::Vector2f {
+    fn size(&self) -> graphics::Vector2f {
         self.size
     }
 

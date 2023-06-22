@@ -1,6 +1,7 @@
 use std::{marker::PhantomData, time::Duration};
 
 use crate::{
+    graphics,
     theme::Theme,
     ui::widgets::button::ButtonState,
     view::{
@@ -38,7 +39,7 @@ struct SlideOverLayout<'original, Data, ButtonView: ViewWithoutLayout<Data> + 'o
     button: ButtonView::WithLayout<'original>,
 
     over_shift: Option<f32>,
-    toggle_button_offset: sfml::system::Vector2f,
+    toggle_button_offset: graphics::Vector2f,
 }
 
 impl<Data, ButtonView: ViewWithoutLayout<Data>, BaseView: ViewWithoutLayout<Data>, OverView: ViewWithoutLayout<Data>> ViewWithoutLayout<Data> for SlideOverView<Data, ButtonView, BaseView, OverView> {
@@ -46,7 +47,7 @@ impl<Data, ButtonView: ViewWithoutLayout<Data>, BaseView: ViewWithoutLayout<Data
 
     fn layout(&self, sc: SizeConstraints) -> Self::WithLayout<'_> {
         let base_sc = sc;
-        let over_sc = SizeConstraints { min: sc.min, max: sfml::system::Vector2f::new(sc.max.x - Theme::DEFAULT.slide_out_size.0, sc.max.y) };
+        let over_sc = SizeConstraints { min: sc.min, max: graphics::Vector2f::new(sc.max.x - Theme::DEFAULT.slide_out_size.0, sc.max.y) };
         let button_sc = SizeConstraints { min: Theme::DEFAULT.slide_out_size.into(), max: Theme::DEFAULT.slide_out_size.into() };
 
         let base = self.base.layout(base_sc);
@@ -59,28 +60,28 @@ impl<Data, ButtonView: ViewWithoutLayout<Data>, BaseView: ViewWithoutLayout<Data
         let button_shift = over_size.x * self.drawer_openness;
         let over_shift = -over_size.x + over_size.x * self.drawer_openness;
 
-        let button_offset = sfml::system::Vector2f::new(button_shift, Theme::DEFAULT.slide_out_toggle_y_offset);
+        let button_offset = graphics::Vector2f::new(button_shift, Theme::DEFAULT.slide_out_toggle_y_offset);
 
         SlideOverLayout { base, over, button, over_shift: if over_rect_needed { Some(over_shift) } else { None }, toggle_button_offset: button_offset }
     }
 }
 impl<Data, ButtonView: ViewWithoutLayout<Data>, BaseView: ViewWithoutLayout<Data>, OverView: ViewWithoutLayout<Data>> View<Data> for SlideOverLayout<'_, Data, ButtonView, BaseView, OverView> {
-    fn draw_inner(&self, app: &crate::App, target: &mut dyn sfml::graphics::RenderTarget, top_left: sfml::system::Vector2f, hover: Option<ViewId>) {
+    fn draw_inner(&self, app: &crate::App, target: &mut dyn graphics::RenderTarget, top_left: graphics::Vector2f, hover: Option<ViewId>) {
         self.base.draw(app, target, top_left, hover);
         if let Some(over_shift) = self.over_shift {
-            self.over.draw(app, target, top_left + sfml::system::Vector2f::new(over_shift, 0.0), hover);
+            self.over.draw(app, target, top_left + graphics::Vector2f::new(over_shift, 0.0), hover);
         }
         self.button.draw(app, target, top_left + self.toggle_button_offset, hover);
     }
 
-    fn find_hover(&self, top_left: sfml::system::Vector2f, mouse: sfml::system::Vector2f) -> Option<ViewId> {
+    fn find_hover(&self, top_left: graphics::Vector2f, mouse: graphics::Vector2f) -> Option<ViewId> {
         // go in z order from top to bottom
         if let x @ Some(_) = self.button.find_hover(top_left + self.toggle_button_offset, mouse) {
             return x;
         }
 
         if let Some(over_shift) = self.over_shift {
-            if let x @ Some(_) = self.over.find_hover(top_left + sfml::system::Vector2f::new(over_shift, 0.0), mouse) {
+            if let x @ Some(_) = self.over.find_hover(top_left + graphics::Vector2f::new(over_shift, 0.0), mouse) {
                 return x;
             }
         }
@@ -92,7 +93,7 @@ impl<Data, ButtonView: ViewWithoutLayout<Data>, BaseView: ViewWithoutLayout<Data
         None
     }
 
-    fn size(&self) -> sfml::system::Vector2f {
+    fn size(&self) -> graphics::Vector2f {
         self.base.size()
     }
 

@@ -2,6 +2,7 @@
 pub(crate) mod flow_macro;
 pub(crate) mod layout {
     use crate::{
+        graphics,
         ui::widgets::flow::Direction,
         view::{SizeConstraints, View},
     };
@@ -9,9 +10,9 @@ pub(crate) mod layout {
     pub(crate) fn child_sc(sc: SizeConstraints) -> SizeConstraints {
         sc.with_no_min()
     }
-    pub(crate) fn find_own_size<'i, Data: 'i>(direction: Direction, sc: SizeConstraints, children: impl IntoIterator<Item = &'i (dyn View<Data> + 'i)>) -> sfml::system::Vector2f {
+    pub(crate) fn find_own_size<'i, Data: 'i>(direction: Direction, sc: SizeConstraints, children: impl IntoIterator<Item = &'i (dyn View<Data> + 'i)>) -> graphics::Vector2f {
         {
-            sc.clamp_size(sfml::system::Vector2f::from(children.into_iter().fold((0.0, 0.0), |(x_acc, y_acc), child| {
+            sc.clamp_size(graphics::Vector2f::from(children.into_iter().fold((0.0, 0.0), |(x_acc, y_acc), child| {
                 match direction {
                     Direction::Horizontal => {
                         // sum x, take max of y
@@ -29,15 +30,15 @@ pub(crate) mod layout {
             })))
         }
     }
-    pub(crate) fn layout_step<Data>(direction: Direction, cur_pos: &mut f32, child: &dyn View<Data>) -> sfml::system::Vector2f {
+    pub(crate) fn layout_step<Data>(direction: Direction, cur_pos: &mut f32, child: &dyn View<Data>) -> graphics::Vector2f {
         match direction {
             Direction::Horizontal => {
-                let pos = sfml::system::Vector2f::new(*cur_pos, 0.0);
+                let pos = graphics::Vector2f::new(*cur_pos, 0.0);
                 *cur_pos += child.size().x;
                 pos
             }
             Direction::Vertical => {
-                let pos = sfml::system::Vector2f::new(0.0, *cur_pos);
+                let pos = graphics::Vector2f::new(0.0, *cur_pos);
                 *cur_pos += child.size().y;
                 pos
             }
@@ -45,7 +46,10 @@ pub(crate) mod layout {
     }
 }
 
-use crate::view::{id::ViewId, GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout};
+use crate::{
+    graphics,
+    view::{id::ViewId, GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout},
+};
 
 // this is kind of a hack but ViewWithoutLayout cannot be used as a trait object because it has the associated type
 pub(crate) trait ViewLayoutIntoBoxView<'s, Data> {
@@ -62,8 +66,8 @@ struct FlowView<Data> {
     children: Vec<Box<dyn for<'a> ViewLayoutIntoBoxView<'a, Data>>>,
 }
 struct FlowLayout<'original, Data> {
-    own_size: sfml::system::Vector2f,
-    children: Vec<(sfml::system::Vector2f, Box<dyn View<Data> + 'original>)>,
+    own_size: graphics::Vector2f,
+    children: Vec<(graphics::Vector2f, Box<dyn View<Data> + 'original>)>,
 }
 #[derive(Copy, Clone)]
 pub(crate) enum Direction {
@@ -96,13 +100,13 @@ impl<Data> ViewWithoutLayout<Data> for FlowView<Data> {
     }
 }
 impl<Data> View<Data> for FlowLayout<'_, Data> {
-    fn draw_inner(&self, app: &crate::App, target: &mut dyn sfml::graphics::RenderTarget, top_left: sfml::system::Vector2f, hover: Option<ViewId>) {
+    fn draw_inner(&self, app: &crate::App, target: &mut dyn graphics::RenderTarget, top_left: graphics::Vector2f, hover: Option<ViewId>) {
         for (child_offset, child) in self.children.iter() {
             child.draw(app, target, top_left + *child_offset, hover);
         }
     }
 
-    fn find_hover(&self, top_left: sfml::system::Vector2f, mouse: sfml::system::Vector2f) -> Option<ViewId> {
+    fn find_hover(&self, top_left: graphics::Vector2f, mouse: graphics::Vector2f) -> Option<ViewId> {
         for (child_offset, child) in self.children.iter() {
             if let x @ Some(_) = child.find_hover(top_left + *child_offset, mouse) {
                 return x;
@@ -111,7 +115,7 @@ impl<Data> View<Data> for FlowLayout<'_, Data> {
         None
     }
 
-    fn size(&self) -> sfml::system::Vector2f {
+    fn size(&self) -> graphics::Vector2f {
         self.own_size
     }
 

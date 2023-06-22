@@ -33,7 +33,7 @@ struct LogicGates {
     simulation: simulation::Simulation,
     subticks_per_update: isize,
     ui: ui::UI,
-    font: Rc<sfml::SfBox<sfml::graphics::Font>>, // not ideal but
+    font: Rc<sfml::SfBox<graphics::Font>>, // not ideal but
 }
 
 impl LogicGates {
@@ -43,7 +43,7 @@ impl LogicGates {
             .select_best_match(&[font_kit::family_name::FamilyName::SansSerif, font_kit::family_name::FamilyName::Serif], &font_kit::properties::Properties::new())
             .expect("could not find appropriate font");
         let font = match font_handle {
-            font_kit::handle::Handle::Path { path, font_index: _ } => sfml::graphics::Font::from_file(&path.to_string_lossy()).expect("could not load font"), // TODO: figure out how to handle font_index
+            font_kit::handle::Handle::Path { path, font_index: _ } => graphics::Font::from_file(&path.to_string_lossy()).expect("could not load font"), // TODO: figure out how to handle font_index
             font_kit::handle::Handle::Memory { bytes: _, font_index: _ } => unimplemented!("loading font from memory"),
         };
         LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), subticks_per_update: 1, ui: ui::UI::new(), font: Rc::new(font) }
@@ -69,7 +69,7 @@ fn main() {
                 Event::Closed => window.close(),
                 Event::Resized { width, height } => {
                     // update the view to the new size of the window
-                    let visible_area = sfml::graphics::FloatRect::new(0.0, 0.0, width as f32, height as f32);
+                    let visible_area = graphics::FloatRect::new(0.0, 0.0, width as f32, height as f32);
                     window.set_view(&sfml::graphics::View::from_rect(visible_area));
                 }
                 _ => view::event(&app, &window, &mut logic_gates, event),
@@ -102,7 +102,7 @@ fn view(app: &App, logic_gates: &LogicGates) -> impl view::ViewWithoutLayout<Log
         .map(|i| {
             Some(ui::widgets::submodule::submodule(
                 view::lens::unit(),
-                ui::widgets::test_rect::test_rect(&mut id_maker, sfml::graphics::Color::rgb((i as f32 / 20.0 * 255.0) as u8, (((20 - i) as f32 / 20.0) * 255.0) as u8, 0), ((i * 5 + 20) as f32, 10.0)), // TODO: clean up this math
+                ui::widgets::test_rect::test_rect(&mut id_maker, graphics::Color::rgb((i as f32 / 20.0 * 255.0) as u8, (((20 - i) as f32 / 20.0) * 255.0) as u8, 0), ((i * 5 + 20) as f32, 10.0)), // TODO: clean up this math
             ))
         })
         .collect::<Vec<_>>()

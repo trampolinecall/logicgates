@@ -17,9 +17,9 @@ macro_rules! flow {
             }
             #[allow(non_camel_case_types)]
             struct ContainerWithLayout<'original, Data, $($name: $crate::view::ViewWithoutLayout<Data> + 'original),*> {
-                own_size: sfml::system::Vector2f,
+                own_size: ::sfml::system::Vector2f,
                 $(
-                    $name: (sfml::system::Vector2f, $name::WithLayout<'original>),
+                    $name: (::sfml::system::Vector2f, $name::WithLayout<'original>),
                 )*
             }
 
@@ -43,7 +43,7 @@ macro_rules! flow {
             }
             #[allow(non_camel_case_types)]
             impl<Data, $($name: $crate::view::ViewWithoutLayout<Data>),*> $crate::view::View<Data> for ContainerWithLayout<'_, Data, $($name),*> {
-                fn draw_inner(&self, app: &$crate::App, target: &mut dyn sfml::graphics::RenderTarget, top_left: sfml::system::Vector2f, hover: ::std::option::Option<$crate::view::id::ViewId>) {
+                fn draw_inner(&self, app: &$crate::App, target: &mut dyn sfml::graphics::RenderTarget, top_left: ::sfml::system::Vector2f, hover: ::std::option::Option<$crate::view::id::ViewId>) {
                     $(
                         {
                             let (offset, child) = &self.$name;
@@ -52,7 +52,7 @@ macro_rules! flow {
                     )*
                 }
 
-                fn find_hover(&self, top_left: sfml::system::Vector2f, mouse: sfml::system::Vector2f) -> ::std::option::Option<$crate::view::id::ViewId> {
+                fn find_hover(&self, top_left: ::sfml::system::Vector2f, mouse: ::sfml::system::Vector2f) -> ::std::option::Option<$crate::view::id::ViewId> {
                     $(
                         {
                             let (offset, child) = &self.$name;
@@ -64,7 +64,7 @@ macro_rules! flow {
                     None
                 }
 
-                fn size(&self) -> sfml::system::Vector2f {
+                fn size(&self) -> ::sfml::system::Vector2f {
                     self.own_size
                 }
 
