@@ -46,7 +46,7 @@ fn main() {
 
     let app = App::new();
     let mut logic_gates = LogicGates::new();
-    let mut window = RenderWindow::new((800, 600), "logic gates", Style::DEFAULT, &Default::default());
+    let mut window = RenderWindow::new((800, 600), "logic gates", Style::DEFAULT, &sfml::window::ContextSettings { antialiasing_level: 4, ..Default::default() });
     window.set_vertical_sync_enabled(true);
 
     while window.is_open() {
