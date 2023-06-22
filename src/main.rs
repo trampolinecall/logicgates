@@ -2,6 +2,8 @@
 #![allow(clippy::type_complexity)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 
+use std::rc::Rc;
+
 #[macro_use]
 pub(crate) mod utils;
 pub(crate) mod compiler;
@@ -30,11 +32,20 @@ struct LogicGates {
     simulation: simulation::Simulation,
     subticks_per_update: isize,
     ui: ui::UI,
+    font: Rc<sfml::SfBox<sfml::graphics::Font>>, // not ideal but
 }
 
 impl LogicGates {
     fn new() -> LogicGates {
-        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), subticks_per_update: 1, ui: ui::UI::new() }
+        // TODO: convert panics to Result?
+        let font_handle = font_kit::source::SystemSource::new()
+            .select_best_match(&[font_kit::family_name::FamilyName::SansSerif, font_kit::family_name::FamilyName::Serif], &font_kit::properties::Properties::new())
+            .expect("could not find appropriate font");
+        let font = match font_handle {
+            font_kit::handle::Handle::Path { path, font_index: _ } => sfml::graphics::Font::from_file(&path.to_string_lossy()).expect("could not load font"), // TODO: figure out how to handle font_index
+            font_kit::handle::Handle::Memory { bytes: _, font_index: _ } => unimplemented!("loading font from memory"),
+        };
+        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), subticks_per_update: 1, ui: ui::UI::new(), font: Rc::new(font) }
     }
 }
 
@@ -82,6 +93,7 @@ fn view(app: &App, logic_gates: &LogicGates) -> impl view::ViewWithoutLayout<Log
         &mut id_maker,
         view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.ui.main_simulation_state, |logic_gates| &mut logic_gates.ui.main_simulation_state),
         view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.simulation, |logic_gates| &mut logic_gates.simulation),
+        &logic_gates.font,
         logic_gates,
     );
 
@@ -103,6 +115,7 @@ fn view(app: &App, logic_gates: &LogicGates) -> impl view::ViewWithoutLayout<Log
         view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.ui.subticks_slider_state, |logic_gates| &mut logic_gates.ui.subticks_slider_state),
         view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.subticks_per_update, |logic_gates| &mut logic_gates.subticks_per_update),
         |mouse_diff| (mouse_diff / 10.0) as isize,
+        &logic_gates.font,
         logic_gates,
     );
 

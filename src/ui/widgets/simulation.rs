@@ -1,4 +1,4 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 
 use sfml::graphics::{Shape, Transformable};
 
@@ -57,6 +57,8 @@ struct GateView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLe
 
     being_dragged: bool,
 
+    font: Rc<sfml::SfBox<sfml::graphics::Font>>,
+
     _phantom: PhantomData<fn(&Data)>,
 }
 struct GateViewLayout<'original, Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
@@ -113,6 +115,7 @@ pub(crate) fn simulation<Data>(
     id_maker: &mut ViewIdMaker,
     state_lens: impl Lens<Data, SimulationWidgetState> + Copy,
     simulation_lens: impl Lens<Data, Simulation> + Copy,
+    font: &Rc<sfml::SfBox<sfml::graphics::Font>>,
     data: &Data,
 ) -> impl ViewWithoutLayout<Data> {
     // TODO: show currently viewing at top of widget
@@ -147,6 +150,7 @@ pub(crate) fn simulation<Data>(
                     num_inputs,
                     num_outputs,
                     being_dragged: if let Some((cur_gate_drag, _, _)) = cur_gate_drag { cur_gate_drag == gate } else { false },
+                    font: font.clone(),
                     _phantom: PhantomData,
                 }
             })
@@ -361,7 +365,12 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
         gate_shape.set_fill_color(Theme::DEFAULT.gate_color);
         target.draw(&gate_shape);
 
-        // target.text(&self.view.name).xy(gate_rect.xy()).wh(gate_rect.wh()).center_justify().align_text_middle_y().color(Theme::DEFAULT.gate_text_color); TODO
+        let mut text = sfml::graphics::Text::new(&self.view.name, &self.view.font, 10); // TODO: put font size into theme
+        text.set_fill_color(Theme::DEFAULT.gate_text_color);
+        let text_bounds = text.local_bounds();
+        text.set_origin((text_bounds.width / 2.0, text_bounds.height / 2.0));
+        text.set_position((gate_rect.left + gate_rect.width / 2.0, gate_rect.top + gate_rect.height / 2.0));
+        target.draw(&text);
     }
 
     fn find_hover(&self, widget_top_left: sfml::system::Vector2f, mouse_pos: sfml::system::Vector2f) -> Option<ViewId> {

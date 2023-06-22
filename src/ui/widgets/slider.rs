@@ -1,6 +1,6 @@
-use std::{fmt::Display, marker::PhantomData, ops::Add};
+use std::{fmt::Display, marker::PhantomData, ops::Add, rc::Rc};
 
-use sfml::graphics::Shape;
+use sfml::graphics::{Shape, Transformable};
 
 use crate::{
     theme::Theme,
@@ -28,6 +28,8 @@ struct SliderView<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord
     value_lens: DataLens,
 
     convert_mouse_position: ConvertMousePosition,
+
+    font: Rc<sfml::SfBox<sfml::graphics::Font>>,
 
     _phantom: PhantomData<(fn(&Data) -> &SliderState<Value>, fn(&Data) -> &Value)>,
 }
@@ -57,11 +59,12 @@ pub(crate) fn slider<Data, Value: Display + Copy + Add<Value, Output = Value> + 
     state_lens: impl Lens<Data, SliderState<Value>>,
     value_lens: impl Lens<Data, Value>,
     convert_mouse_position: impl Fn(f32) -> Value,
+    font: &Rc<sfml::SfBox<sfml::graphics::Font>>,
     data: &Data,
 ) -> impl ViewWithoutLayout<Data> {
     let pressed = state_lens.with(data, |slider_state| slider_state.drag_start.is_some());
     let value = value_lens.with(data, |v| *v);
-    SliderView { id: id_maker.next_id(), min, max, value, pressed, state_lens, value_lens, convert_mouse_position, _phantom: PhantomData }
+    SliderView { id: id_maker.next_id(), min, max, value, pressed, state_lens, value_lens, convert_mouse_position, _phantom: PhantomData, font: font.clone() }
 }
 
 impl<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: Lens<Data, SliderState<Value>>, DataLens: Lens<Data, Value>, ConvertMousePosition: Fn(f32) -> Value>
@@ -82,20 +85,27 @@ impl<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: 
     fn draw_inner(&self, _: &crate::App, target: &mut dyn sfml::graphics::RenderTarget, top_left: sfml::system::Vector2f, hover: Option<ViewId>) {
         // TODO: show as progress bar if both min and max
         let rect = sfml::graphics::FloatRect::from_vecs(top_left, self.size);
+
         let mut background_rect = sfml::graphics::RectangleShape::from_rect(rect);
-        background_rect.set_fill_color(Theme::DEFAULT.button_normal_bg);
-        // let mut text = target.text(&self.slider.value.to_string()).xy(rect.xy()).wh(rect.wh()).center_justify().align_text_middle_y().color(Theme::DEFAULT.button_normal_fg); TODO: text
-        if Some(self.slider.id) == hover {
-            background_rect.set_fill_color(Theme::DEFAULT.button_hover_bg);
-            // text.set_color(Theme::DEFAULT.button_hover_fg);
-        }
+        let mut text = sfml::graphics::Text::new(&self.slider.value.to_string(), &self.slider.font, 10); // TODO: also put this font size into the theme as well
+
+        let text_bounds = text.local_bounds();
+        text.set_origin((text_bounds.width / 2.0, text_bounds.height / 2.0));
+        text.set_position((rect.left + rect.width / 2.0, rect.top + rect.height / 2.0));
+
         if self.slider.pressed {
             background_rect.set_fill_color(Theme::DEFAULT.button_pressed_bg);
-            // text.set_color(Theme::DEFAULT.button_pressed_fg);
+            text.set_fill_color(Theme::DEFAULT.button_pressed_fg);
+        } else if Some(self.slider.id) == hover {
+            background_rect.set_fill_color(Theme::DEFAULT.button_hover_bg);
+            text.set_fill_color(Theme::DEFAULT.button_hover_fg);
+        } else {
+            background_rect.set_fill_color(Theme::DEFAULT.button_normal_bg);
+            text.set_fill_color(Theme::DEFAULT.button_normal_fg);
         }
 
         target.draw(&background_rect);
-        // text.finish();
+        target.draw(&text);
     }
 
     fn find_hover(&self, top_left: sfml::system::Vector2f, mouse: sfml::system::Vector2f) -> Option<ViewId> {
