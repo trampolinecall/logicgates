@@ -126,7 +126,7 @@ impl<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: 
         }
     }
 
-    fn targeted_event(&self, app: &crate::App, data: &mut Data, event: TargetedEvent) {
+    fn targeted_event(&self, _: &crate::App, data: &mut Data, event: TargetedEvent) {
         match event {
             TargetedEvent::LeftMouseDown(mouse_pos) => {
                 let cur_value = self.slider.value_lens.with(data, |value| *value);

@@ -1,4 +1,4 @@
-use sfml::graphics::RenderTarget;
+use sfml::graphics::{RenderTarget, Transformable};
 
 use crate::graphics;
 
@@ -36,15 +36,18 @@ impl SizeConstraints {
 pub(crate) trait View<Data> {
     // top_left in draw_inner and draw does not necessarily correspond to window coordinates, but top_left in find_hover always does
     fn draw(&self, app: &crate::App, target: &mut dyn graphics::RenderTarget, top_left: graphics::Vector2f, hover: Option<id::ViewId>) {
-        /* TODO: this seems to invert the y axis
-        let mut sub_graphics = graphics::RenderTexture::new(self.size().x.ceil() as u32, self.size().y.ceil() as u32).expect("could not create render texture");
+        let mut sub_graphics =
+            graphics::RenderTexture::with_settings(self.size().x.ceil() as u32, self.size().y.ceil() as u32, &crate::App::default_render_context_settings()).expect("could not create render texture");
+
+        sub_graphics.set_active(true);
         self.draw_inner(app, &mut sub_graphics, graphics::Vector2f::new(0.0, 0.0), hover);
+        sub_graphics.set_active(false);
+        sub_graphics.display();
+
         let mut sprite = graphics::Sprite::new();
         sprite.set_texture(sub_graphics.texture(), true);
         sprite.set_position(top_left);
         target.draw(&sprite);
-        */
-        self.draw_inner(app, target, top_left, hover);
     }
     fn draw_inner(&self, app: &crate::App, target: &mut dyn graphics::RenderTarget, top_left: graphics::Vector2f, hover: Option<id::ViewId>);
     fn find_hover(&self, top_left: graphics::Vector2f, mouse: graphics::Vector2f) -> Option<id::ViewId>;

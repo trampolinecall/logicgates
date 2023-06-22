@@ -2,7 +2,7 @@
 
 #[allow(unused_imports)]
 pub(crate) use sfml::{
-    graphics::{CircleShape, Color, FloatRect, Font, Rect, RectangleShape, RenderTarget, RenderWindow, Text, Transformable},
+    graphics::{CircleShape, Color, FloatRect, Font, Rect, RectangleShape, RenderTarget, RenderTexture, RenderWindow, Sprite, Text, Transformable},
     system::{Vector2, Vector2f, Vector2i, Vector2u},
 };
 

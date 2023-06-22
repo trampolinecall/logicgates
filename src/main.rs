@@ -11,8 +11,8 @@ pub(crate) mod simulation;
 pub(crate) mod theme;
 #[macro_use]
 pub(crate) mod ui;
-pub(crate) mod view;
 pub(crate) mod graphics;
+pub(crate) mod view;
 
 struct App {
     start_time: std::time::Instant,
@@ -25,6 +25,10 @@ impl App {
 
     fn time_since_start(&self) -> std::time::Duration {
         std::time::Instant::now() - self.start_time
+    }
+
+    fn default_render_context_settings() -> sfml::window::ContextSettings {
+        sfml::window::ContextSettings { antialiasing_level: 0, ..Default::default() }
     }
 }
 
@@ -58,7 +62,7 @@ fn main() {
 
     let app = App::new();
     let mut logic_gates = LogicGates::new();
-    let mut window = RenderWindow::new((800, 600), "logic gates", Style::DEFAULT, &sfml::window::ContextSettings { antialiasing_level: 4, ..Default::default() });
+    let mut window = RenderWindow::new((800, 600), "logic gates", Style::DEFAULT, &App::default_render_context_settings());
     window.set_vertical_sync_enabled(true);
 
     while window.is_open() {
