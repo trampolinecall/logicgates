@@ -17,7 +17,7 @@ impl ViewWithoutLayout<()> for TestRect {
     type WithLayout<'without_layout> = TestRectLayout<'without_layout>;
 
     fn layout(&self, sc: SizeConstraints) -> Self::WithLayout<'_> {
-        TestRectLayout { test_rect: self, actual_size:  sc.clamp_size(sfml::system::Vector2f::from(self.size))  }
+        TestRectLayout { test_rect: self, actual_size: sc.clamp_size(sfml::system::Vector2f::from(self.size)) }
     }
 }
 impl View<()> for TestRectLayout<'_> {
