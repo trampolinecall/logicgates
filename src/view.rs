@@ -1,3 +1,5 @@
+use sfml::graphics::RenderTarget;
+
 use crate::graphics;
 
 pub(crate) mod id;
@@ -60,8 +62,6 @@ pub(crate) trait ViewWithoutLayout<Data> {
 }
 
 pub(crate) fn render(app: &crate::App, window: &mut graphics::RenderWindow, logic_gates: &crate::LogicGates) {
-    use graphics::RenderTarget;
-
     let view_center = graphics::Vector2f::new(0.0, 0.0);
     let size_constraints = SizeConstraints { min: graphics::Vector2f::new(0.0, 0.0), max: window.size().as_other() };
 
@@ -74,8 +74,6 @@ pub(crate) fn render(app: &crate::App, window: &mut graphics::RenderWindow, logi
 }
 
 pub(crate) fn event(app: &crate::App, window: &graphics::RenderWindow, logic_gates: &mut crate::LogicGates, event: sfml::window::Event) {
-    use graphics::RenderTarget;
-
     let view_center = graphics::Vector2f::new(0.0, 0.0);
     let size_constraints = SizeConstraints { min: graphics::Vector2f::new(0.0, 0.0), max: window.size().as_other() };
 
