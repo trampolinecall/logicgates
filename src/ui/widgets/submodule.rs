@@ -1,9 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{
-    draw,
-    view::{id::ViewId, lens::Lens, GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout},
-};
+use crate::view::{id::ViewId, lens::Lens, GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout};
 
 struct SubmoduleView<Data, SubData, L: Lens<Data, SubData>, SubView: ViewWithoutLayout<SubData>> {
     lens: L,
@@ -24,31 +21,31 @@ impl<Data, SubData, L: Lens<Data, SubData>, SubView: ViewWithoutLayout<SubData>>
     }
 }
 impl<Data, SubData, L: Lens<Data, SubData>, SubView: ViewWithoutLayout<SubData>> View<Data> for SubmoduleLayout<'_, Data, SubData, L, SubView> {
-    fn draw(&self, app: &nannou::App, draw: &draw::Draw, center: nannou::geom::Vec2, hover: Option<ViewId>) {
-        self.subview.draw(app, draw, center, hover);
+    fn draw(&self, app: &crate::App, target: &mut dyn sfml::graphics::RenderTarget, top_left: sfml::system::Vector2f, hover: Option<ViewId>) {
+        self.subview.draw(app, target, top_left, hover);
     }
 
-    fn draw_inner(&self, app: &nannou::App, draw: &draw::Draw, center: nannou::geom::Vec2, hover: Option<ViewId>) {
-        self.subview.draw_inner(app, draw, center, hover);
+    fn draw_inner(&self, app: &crate::App, target: &mut dyn sfml::graphics::RenderTarget, top_left: sfml::system::Vector2f, hover: Option<ViewId>) {
+        self.subview.draw_inner(app, target, top_left, hover);
     }
 
-    fn find_hover(&self, center: nannou::geom::Vec2, mouse: nannou::geom::Vec2) -> Option<ViewId> {
-        self.subview.find_hover(center, mouse)
+    fn find_hover(&self, top_left: sfml::system::Vector2f, mouse: sfml::system::Vector2f) -> Option<ViewId> {
+        self.subview.find_hover(top_left, mouse)
     }
 
-    fn size(&self) -> nannou::geom::Vec2 {
+    fn size(&self) -> sfml::system::Vector2f {
         self.subview.size()
     }
 
-    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
+    fn send_targeted_event(&self, app: &crate::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
         self.submodule.lens.with_mut(data, |subdata| self.subview.send_targeted_event(app, subdata, target, event));
     }
 
-    fn targeted_event(&self, app: &nannou::App, data: &mut Data, event: TargetedEvent) {
+    fn targeted_event(&self, app: &crate::App, data: &mut Data, event: TargetedEvent) {
         self.submodule.lens.with_mut(data, |subdata| self.subview.targeted_event(app, subdata, event));
     }
 
-    fn general_event(&self, app: &nannou::App, data: &mut Data, event: GeneralEvent) {
+    fn general_event(&self, app: &crate::App, data: &mut Data, event: GeneralEvent) {
         self.submodule.lens.with_mut(data, |subdata| self.subview.general_event(app, subdata, event));
     }
 }

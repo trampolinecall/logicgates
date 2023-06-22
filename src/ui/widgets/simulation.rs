@@ -1,9 +1,8 @@
 use std::{collections::HashMap, marker::PhantomData};
 
-use nannou::prelude::*;
+use sfml::graphics::{Shape, Transformable};
 
 use crate::{
-    draw,
     simulation::{self, hierarchy, logic, Gate, GateKey, NodeKey, NodeMap, Simulation},
     theme::Theme,
     view::{
@@ -37,7 +36,7 @@ struct SimulationView<Data, StateLens: Lens<Data, SimulationWidgetState>, Simula
 }
 struct SimulationViewLayout<'original, Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
     view: &'original SimulationView<Data, StateLens, SimulationLens>,
-    widget_size: nannou::geom::Vec2,
+    widget_size: sfml::system::Vector2f,
 
     gates: Vec<GateViewLayout<'original, Data, StateLens, SimulationLens>>,
     nodes: Vec<NodeViewLayout<'original, Data, StateLens, SimulationLens>>,
@@ -62,7 +61,7 @@ struct GateView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLe
 }
 struct GateViewLayout<'original, Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
     view: &'original GateView<Data, StateLens, SimulationLens>,
-    widget_size: nannou::geom::Vec2,
+    widget_size: sfml::system::Vector2f,
 }
 #[derive(Copy, Clone)]
 enum NodeViewPos {
@@ -79,7 +78,7 @@ struct NodeView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLe
 
     // key: NodeKey,
     pos: NodeViewPos,
-    color: nannou::color::Srgb<u8>,
+    color: sfml::graphics::Color,
 
     _phantom: PhantomData<fn(&Data)>,
     _phantom2: PhantomData<StateLens>,
@@ -87,7 +86,7 @@ struct NodeView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLe
 }
 struct NodeViewLayout<'original, Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
     view: &'original NodeView<Data, StateLens, SimulationLens>,
-    widget_size: nannou::geom::Vec2,
+    widget_size: sfml::system::Vector2f,
 }
 struct ConnectionView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
     id: ViewId,
@@ -99,7 +98,7 @@ struct ConnectionView<Data, StateLens: Lens<Data, SimulationWidgetState>, Simula
     // node2: NodeKey,
     pos1: NodeViewPos,
     pos2: NodeViewPos,
-    color: nannou::color::Srgb<u8>,
+    color: sfml::graphics::Color,
 
     _phantom: PhantomData<fn(&Data)>,
     _phantom2: PhantomData<StateLens>,
@@ -107,7 +106,7 @@ struct ConnectionView<Data, StateLens: Lens<Data, SimulationWidgetState>, Simula
 }
 struct ConnectionViewLayout<'original, Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
     view: &'original ConnectionView<Data, StateLens, SimulationLens>,
-    widget_size: nannou::geom::Vec2,
+    widget_size: sfml::system::Vector2f,
 }
 
 pub(crate) fn simulation<Data>(
@@ -252,51 +251,53 @@ impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Da
     }
 }
 impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> View<Data> for SimulationViewLayout<'_, Data, StateLens, SimulationLens> {
-    fn draw_inner(&self, app: &nannou::App, draw: &draw::Draw, center: Vec2, hover: Option<ViewId>) {
-        let widget_rect = nannou::geom::Rect::from_xy_wh(center, self.widget_size);
+    fn draw_inner(&self, app: &crate::App, target: &mut dyn sfml::graphics::RenderTarget, top_left: sfml::system::Vector2f, hover: Option<ViewId>) {
+        let widget_rect = sfml::graphics::FloatRect::from_vecs(top_left, self.widget_size);
 
-        draw.rect().xy(widget_rect.xy()).wh(widget_rect.wh()).color(Theme::DEFAULT.simulation_bg_color);
+        let mut widget_shape = sfml::graphics::RectangleShape::from_rect(widget_rect);
+        widget_shape.set_fill_color(Theme::DEFAULT.simulation_bg_color);
+        target.draw(&widget_shape);
 
         for connection in &self.connections {
-            connection.draw(app, draw, center, hover);
+            connection.draw(app, target, top_left, hover);
         }
         for gate in &self.gates {
-            gate.draw(app, draw, center, hover);
+            gate.draw(app, target, top_left, hover);
         }
         for node in &self.nodes {
-            node.draw(app, draw, center, hover);
+            node.draw(app, target, top_left, hover);
         }
     }
 
-    fn find_hover(&self, center: Vec2, mouse: Vec2) -> Option<ViewId> {
+    fn find_hover(&self, top_left: sfml::system::Vector2f, mouse: sfml::system::Vector2f) -> Option<ViewId> {
         // reverse to go in z order from highest to lowest
         for node in self.nodes.iter().rev() {
-            if let hover @ Some(_) = node.find_hover(center, mouse) {
+            if let hover @ Some(_) = node.find_hover(top_left, mouse) {
                 return hover;
             }
         }
         for gate in self.gates.iter().rev() {
-            if let hover @ Some(_) = gate.find_hover(center, mouse) {
+            if let hover @ Some(_) = gate.find_hover(top_left, mouse) {
                 return hover;
             }
         }
         for connection in self.connections.iter().rev() {
-            if let hover @ Some(_) = connection.find_hover(center, mouse) {
+            if let hover @ Some(_) = connection.find_hover(top_left, mouse) {
                 return hover;
             }
         }
-        if nannou::geom::Rect::from_xy_wh(center, self.widget_size).contains(mouse) {
+        if sfml::graphics::FloatRect::from_vecs(top_left, self.widget_size).contains(mouse) {
             return Some(self.view.id);
         }
 
         None
     }
 
-    fn size(&self) -> Vec2 {
+    fn size(&self) -> sfml::system::Vector2f {
         self.widget_size
     }
 
-    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
+    fn send_targeted_event(&self, app: &crate::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
         if target == self.view.id {
             self.targeted_event(app, data, event);
         }
@@ -311,8 +312,8 @@ impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Da
         }
     }
 
-    fn targeted_event(&self, _: &nannou::App, _: &mut Data, _: TargetedEvent) {}
-    fn general_event(&self, app: &nannou::App, data: &mut Data, event: GeneralEvent) {
+    fn targeted_event(&self, _: &crate::App, _: &mut Data, _: TargetedEvent) {}
+    fn general_event(&self, app: &crate::App, data: &mut Data, event: GeneralEvent) {
         for node in &self.nodes {
             node.general_event(app, data, event);
         }
@@ -335,28 +336,36 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
     }
 }
 impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<Data, SimulationWidgetState>> View<Data> for GateViewLayout<'_, Data, StateLens, SimulationLens> {
-    fn draw(&self, app: &nannou::App, draw: &draw::Draw, widget_center: Vec2, hover: Option<ViewId>) {
-        self.draw_inner(app, draw, widget_center, hover);
+    fn draw(&self, app: &crate::App, target: &mut dyn sfml::graphics::RenderTarget, widget_top_left: sfml::system::Vector2f, hover: Option<ViewId>) {
+        self.draw_inner(app, target, widget_top_left, hover);
     }
-    fn draw_inner(&self, _: &nannou::App, draw: &draw::Draw, widget_center: Vec2, hover: Option<ViewId>) {
-        // TODO: cache?
-        let widget_rect = nannou::geom::Rect::from_xy_wh(widget_center, self.widget_size);
-        let rect = gate_rect(widget_rect, self.view.gate_location, self.view.num_inputs, self.view.num_outputs);
+    fn draw_inner(&self, _: &crate::App, target: &mut dyn sfml::graphics::RenderTarget, widget_top_left: sfml::system::Vector2f, hover: Option<ViewId>) {
+        let widget_rect = sfml::graphics::FloatRect::from_vecs(widget_top_left, self.widget_size);
+        let gate_rect = gate_rect(widget_rect, self.view.gate_location, self.view.num_inputs, self.view.num_outputs);
 
         if Some(self.view.id) == hover {
-            let hover_rect =
-                rect.pad_left(-Theme::DEFAULT.gate_hover_dist).pad_top(-Theme::DEFAULT.gate_hover_dist).pad_right(-Theme::DEFAULT.gate_hover_dist).pad_bottom(-Theme::DEFAULT.gate_hover_dist); // expand by hover distance, this is the "stroke weight"
-            draw.rect().xy(hover_rect.xy()).wh(hover_rect.wh()).color(Theme::DEFAULT.gate_hover_color);
+            // expand by hover distance, this is the "stroke weight"
+            // TODO: test to see if stroke works well
+            let hover_rect = sfml::graphics::FloatRect::new(
+                gate_rect.left - Theme::DEFAULT.gate_hover_dist,
+                gate_rect.top - Theme::DEFAULT.gate_hover_dist,
+                gate_rect.width + Theme::DEFAULT.gate_hover_dist * 2.0,
+                gate_rect.height + Theme::DEFAULT.gate_hover_dist * 2.0,
+            );
+            let mut hover_shape = sfml::graphics::RectangleShape::from_rect(hover_rect);
+            hover_shape.set_fill_color(Theme::DEFAULT.gate_hover_color);
+            target.draw(&hover_shape);
         }
 
-        draw.rect().xy(rect.xy()).wh(rect.wh()).color(Theme::DEFAULT.gate_color);
+        let mut gate_shape = sfml::graphics::RectangleShape::from_rect(gate_rect);
+        gate_shape.set_fill_color(Theme::DEFAULT.gate_color);
+        target.draw(&gate_shape);
 
-        draw.text(&self.view.name).xy(rect.xy()).wh(rect.wh()).center_justify().align_text_middle_y().color(Theme::DEFAULT.gate_text_color);
+        // target.text(&self.view.name).xy(gate_rect.xy()).wh(gate_rect.wh()).center_justify().align_text_middle_y().color(Theme::DEFAULT.gate_text_color); TODO
     }
 
-    fn find_hover(&self, widget_center: Vec2, mouse_pos: Vec2) -> Option<ViewId> {
-        // TODO: also cache?
-        let widget_rect = nannou::geom::Rect::from_xy_wh(widget_center, self.widget_size);
+    fn find_hover(&self, widget_top_left: sfml::system::Vector2f, mouse_pos: sfml::system::Vector2f) -> Option<ViewId> {
+        let widget_rect = sfml::graphics::FloatRect::from_vecs(widget_top_left, self.widget_size);
         let rect = gate_rect(widget_rect, self.view.gate_location, self.view.num_inputs, self.view.num_outputs);
         if rect.contains(mouse_pos) {
             // TODO: hover distance
@@ -366,24 +375,24 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
         None
     }
 
-    fn size(&self) -> Vec2 {
-        Vec2::ZERO // does not participate in layout
+    fn size(&self) -> sfml::system::Vector2f {
+        sfml::system::Vector2f::new(0.0, 0.0) // does not participate in layout
     }
 
-    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
+    fn send_targeted_event(&self, app: &crate::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
         if self.view.id == target {
             self.targeted_event(app, data, event);
         }
         // no other chilren to go through
     }
 
-    fn targeted_event(&self, _: &nannou::App, data: &mut Data, event: TargetedEvent) {
+    fn targeted_event(&self, _: &crate::App, data: &mut Data, event: TargetedEvent) {
         match event {
-            TargetedEvent::LeftMouseDown => self.view.state_lens.with_mut(data, |state| state.cur_gate_drag = Some(self.view.gate_key)),
+            TargetedEvent::LeftMouseDown(_) => self.view.state_lens.with_mut(data, |state| state.cur_gate_drag = Some(self.view.gate_key)),
         }
     }
 
-    fn general_event(&self, _: &nannou::App, data: &mut Data, event: GeneralEvent) {
+    fn general_event(&self, _: &crate::App, data: &mut Data, event: GeneralEvent) {
         if self.view.being_dragged {
             match event {
                 GeneralEvent::MouseMoved(mouse_pos) => {
@@ -413,40 +422,49 @@ impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Da
     }
 }
 impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, simulation::Simulation>> View<Data> for NodeViewLayout<'_, Data, StateLens, SimulationLens> {
-    fn draw(&self, app: &nannou::App, draw: &draw::Draw, widget_center: Vec2, hover: Option<ViewId>) {
-        self.draw_inner(app, draw, widget_center, hover);
+    fn draw(&self, app: &crate::App, target: &mut dyn sfml::graphics::RenderTarget, widget_top_left: sfml::system::Vector2f, hover: Option<ViewId>) {
+        self.draw_inner(app, target, widget_top_left, hover);
     }
-    fn draw_inner(&self, _: &nannou::App, draw: &draw::Draw, widget_center: Vec2, hover: Option<ViewId>) {
-        let widget_rect = nannou::geom::Rect::from_xy_wh(widget_center, self.widget_size);
+    fn draw_inner(&self, _: &crate::App, target: &mut dyn sfml::graphics::RenderTarget, widget_top_left: sfml::system::Vector2f, hover: Option<ViewId>) {
+        let widget_rect = sfml::graphics::FloatRect::from_vecs(widget_top_left, self.widget_size);
         let pos = node_pos(widget_rect, self.view.pos);
         if Some(self.view.id) == hover {
-            draw.ellipse().xy(pos).radius(Theme::DEFAULT.node_rad + Theme::DEFAULT.node_hover_dist).color(Theme::DEFAULT.node_hover_color);
+            let hover_rad = Theme::DEFAULT.node_rad + Theme::DEFAULT.node_hover_dist;
+            let mut hover_shape = sfml::graphics::CircleShape::new(hover_rad, 30); // TODO: put point count in theme
+            hover_shape.set_origin((hover_rad, hover_rad));
+            hover_shape.set_position(pos);
+            hover_shape.set_fill_color(Theme::DEFAULT.node_hover_color);
+            target.draw(&hover_shape);
         }
 
-        draw.ellipse().xy(pos).radius(Theme::DEFAULT.node_rad).color(self.view.color);
+        let mut node_shape = sfml::graphics::CircleShape::new(Theme::DEFAULT.node_rad, 30); // TODO: put point count in theme
+        node_shape.set_origin((Theme::DEFAULT.node_rad, Theme::DEFAULT.node_rad));
+        node_shape.set_position(pos);
+        node_shape.set_fill_color(self.view.color);
+        target.draw(&node_shape);
     }
 
-    fn find_hover(&self, widget_center: Vec2, mouse_pos: Vec2) -> Option<ViewId> {
-        let widget_rect = nannou::geom::Rect::from_xy_wh(widget_center, self.widget_size);
+    fn find_hover(&self, widget_top_left: sfml::system::Vector2f, mouse_pos: sfml::system::Vector2f) -> Option<ViewId> {
+        let widget_rect = sfml::graphics::FloatRect::from_vecs(widget_top_left, self.widget_size);
         let pos = node_pos(widget_rect, self.view.pos);
-        if pos.distance(mouse_pos) < Theme::DEFAULT.node_rad + Theme::DEFAULT.node_hover_dist {
+        if vector_dist(pos, mouse_pos) < Theme::DEFAULT.node_rad + Theme::DEFAULT.node_hover_dist {
             return Some(self.view.id);
         }
         None
     }
 
-    fn size(&self) -> Vec2 {
-        Vec2::ZERO
+    fn size(&self) -> sfml::system::Vector2f {
+        sfml::system::Vector2f::new(0.0, 0.0)
     }
 
-    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
+    fn send_targeted_event(&self, app: &crate::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
         if target == self.view.id {
             self.targeted_event(app, data, event);
         }
     }
 
-    fn targeted_event(&self, _: &nannou::App, _: &mut Data, _: TargetedEvent) {}
-    fn general_event(&self, _: &nannou::App, _: &mut Data, _: GeneralEvent) {}
+    fn targeted_event(&self, _: &crate::App, _: &mut Data, _: TargetedEvent) {}
+    fn general_event(&self, _: &crate::App, _: &mut Data, _: GeneralEvent) {}
 }
 impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<Data, SimulationWidgetState>> ViewWithoutLayout<Data> for ConnectionView<Data, StateLens, SimulationLens> {
     type WithLayout<'without_layout> = ConnectionViewLayout<'without_layout, Data, StateLens, SimulationLens>
@@ -458,24 +476,24 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
     }
 }
 impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<Data, SimulationWidgetState>> View<Data> for ConnectionViewLayout<'_, Data, StateLens, SimulationLens> {
-    fn draw(&self, app: &nannou::App, draw: &draw::Draw, widget_center: Vec2, hover: Option<ViewId>) {
-        self.draw_inner(app, draw, widget_center, hover);
+    fn draw(&self, app: &crate::App, target: &mut dyn sfml::graphics::RenderTarget, widget_top_left: sfml::system::Vector2f, hover: Option<ViewId>) {
+        self.draw_inner(app, target, widget_top_left, hover);
     }
-    fn draw_inner(&self, _: &nannou::App, draw: &draw::Draw, widget_center: Vec2, hover: Option<ViewId>) {
-        let widget_rect = nannou::geom::Rect::from_xy_wh(widget_center, self.widget_size);
+    fn draw_inner(&self, _: &crate::App, target: &mut dyn sfml::graphics::RenderTarget, widget_top_left: sfml::system::Vector2f, hover: Option<ViewId>) {
+        let widget_rect = sfml::graphics::FloatRect::from_vecs(widget_top_left, self.widget_size);
         let pos1 = node_pos(widget_rect, self.view.pos1);
         let pos2 = node_pos(widget_rect, self.view.pos2);
-        let mut line = draw.line().start(pos1).end(pos2).weight(Theme::DEFAULT.connection_width).color(self.view.color);
+        // let mut line = target.line().start(pos1).end(pos2).weight(Theme::DEFAULT.connection_width).color(self.view.color); TODO: lines
 
         if Some(self.view.id) == hover {
-            line = line.weight(Theme::DEFAULT.connection_width + Theme::DEFAULT.connection_hover_dist);
+            // line = line.weight(Theme::DEFAULT.connection_width + Theme::DEFAULT.connection_hover_dist);
         }
 
-        line.finish();
+        // line.finish();
     }
 
-    fn find_hover(&self, widget_center: Vec2, mouse_pos: Vec2) -> Option<ViewId> {
-        let widget_rect = nannou::geom::Rect::from_xy_wh(widget_center, self.widget_size);
+    fn find_hover(&self, widget_top_left: sfml::system::Vector2f, mouse_pos: sfml::system::Vector2f) -> Option<ViewId> {
+        let widget_rect = sfml::graphics::FloatRect::from_vecs(widget_top_left, self.widget_size);
         let pos1 = node_pos(widget_rect, self.view.pos1);
         let pos2 = node_pos(widget_rect, self.view.pos2);
         if min_dist_to_line_squared((pos1, pos2), mouse_pos) < Theme::DEFAULT.connection_hover_dist.powf(2.0) {
@@ -485,29 +503,29 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
         }
     }
 
-    fn size(&self) -> Vec2 {
-        Vec2::ZERO // does not participate in layout
+    fn size(&self) -> sfml::system::Vector2f {
+        sfml::system::Vector2f::new(0.0, 0.0) // does not participate in layout
     }
 
-    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
+    fn send_targeted_event(&self, app: &crate::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
         if target == self.view.id {
             self.targeted_event(app, data, event);
         }
     }
 
-    fn targeted_event(&self, _: &nannou::App, _: &mut Data, _: TargetedEvent) {}
-    fn general_event(&self, _: &nannou::App, _: &mut Data, _: GeneralEvent) {}
+    fn targeted_event(&self, _: &crate::App, _: &mut Data, _: TargetedEvent) {}
+    fn general_event(&self, _: &crate::App, _: &mut Data, _: GeneralEvent) {}
 }
 
 // TODO: reorganize all of these functions
-fn gate_rect(widget_rect: Rect, (x, y): (f32, f32), num_inputs: usize, num_outputs: usize) -> Rect {
+fn gate_rect(widget_rect: sfml::graphics::FloatRect, (x, y): (f32, f32), num_inputs: usize, num_outputs: usize) -> sfml::graphics::FloatRect {
     let wh = gate_display_size(num_inputs, num_outputs);
-    Rect::from_x_y_w_h(widget_rect.x() + x, widget_rect.y() + y, wh.x, wh.y)
+    sfml::graphics::FloatRect::new(widget_rect.left + widget_rect.width / 2.0 + x - wh.x / 2.0, widget_rect.top + widget_rect.height / 2.0 + y - wh.y / 2.0, wh.x, wh.y)
 }
 
-fn gate_display_size(num_inputs: usize, num_outputs: usize) -> Vec2 {
+fn gate_display_size(num_inputs: usize, num_outputs: usize) -> sfml::system::Vector2f {
     let gate_height = (std::cmp::max(num_inputs, num_outputs) - 1) as f32 * VERTICAL_VALUE_SPACING + GATE_EXTRA_VERTICAL_HEIGHT;
-    pt2(GATE_WIDTH, gate_height)
+    sfml::system::Vector2f::new(GATE_WIDTH, gate_height)
 }
 
 fn y_centered_around(center_y: f32, total: usize, index: usize) -> f32 {
@@ -516,23 +534,23 @@ fn y_centered_around(center_y: f32, total: usize, index: usize) -> f32 {
     box_start_y - (index as f32) * VERTICAL_VALUE_SPACING
 }
 
-fn circuit_input_pos(widget_rect: Rect, num_inputs: usize, num_outputs: usize, index: usize) -> Vec2 {
-    pt2(widget_rect.x.start, y_centered_around(0.0, num_inputs, index))
+fn circuit_input_pos(widget_rect: sfml::graphics::FloatRect, num_inputs: usize, num_outputs: usize, index: usize) -> sfml::system::Vector2f {
+    sfml::system::Vector2f::new(widget_rect.left, y_centered_around(0.0, num_inputs, index))
 }
-fn circuit_output_pos(widget_rect: Rect, num_inputs: usize, num_outputs: usize, index: usize) -> Vec2 {
-    pt2(widget_rect.x.end, y_centered_around(0.0, num_outputs, index))
-}
-
-fn gate_input_pos(widget_rect: Rect, gate_location: (f32, f32), num_inputs: usize, num_outputs: usize, idx: usize) -> Vec2 {
-    let rect = gate_rect(widget_rect, gate_location, num_inputs, num_outputs);
-    pt2(rect.left(), y_centered_around(rect.y(), num_inputs, idx))
-}
-fn gate_output_pos(widget_rect: Rect, gate_location: (f32, f32), num_inputs: usize, num_outputs: usize, idx: usize) -> Vec2 {
-    let rect = gate_rect(widget_rect, gate_location, num_inputs, num_outputs);
-    pt2(rect.right(), y_centered_around(rect.y(), num_outputs, idx))
+fn circuit_output_pos(widget_rect: sfml::graphics::FloatRect, num_inputs: usize, num_outputs: usize, index: usize) -> sfml::system::Vector2f {
+    sfml::system::Vector2f::new(widget_rect.left + widget_rect.width, y_centered_around(0.0, num_outputs, index))
 }
 
-fn node_pos(widget_rect: nannou::geom::Rect, pos: NodeViewPos) -> Vec2 {
+fn gate_input_pos(widget_rect: sfml::graphics::FloatRect, gate_location: (f32, f32), num_inputs: usize, num_outputs: usize, idx: usize) -> sfml::system::Vector2f {
+    let rect = gate_rect(widget_rect, gate_location, num_inputs, num_outputs);
+    sfml::system::Vector2f::new(rect.left, y_centered_around(rect.top + rect.height / 2.0, num_inputs, idx))
+}
+fn gate_output_pos(widget_rect: sfml::graphics::FloatRect, gate_location: (f32, f32), num_inputs: usize, num_outputs: usize, idx: usize) -> sfml::system::Vector2f {
+    let rect = gate_rect(widget_rect, gate_location, num_inputs, num_outputs);
+    sfml::system::Vector2f::new(rect.left + rect.width, y_centered_around(rect.top + rect.height / 2.0, num_outputs, idx))
+}
+
+fn node_pos(widget_rect: sfml::graphics::FloatRect, pos: NodeViewPos) -> sfml::system::Vector2f {
     match pos {
         NodeViewPos::FarLeftEdge(i, inputs, outputs) => circuit_input_pos(widget_rect, inputs, outputs, i),
         NodeViewPos::FarRightEdge(i, inputs, outputs) => circuit_output_pos(widget_rect, inputs, outputs, i),
@@ -541,23 +559,34 @@ fn node_pos(widget_rect: nannou::geom::Rect, pos: NodeViewPos) -> Vec2 {
     }
 }
 
-fn min_dist_to_line_squared(line_segment: (Vec2, Vec2), point: Vec2) -> f32 {
+fn vector_dist_squared(a: sfml::system::Vector2f, b: sfml::system::Vector2f) -> f32 {
+    (b.x - a.x).powf(2.0) + (b.y - a.y).powf(2.0)
+}
+fn vector_dist(a: sfml::system::Vector2f, b: sfml::system::Vector2f) -> f32 {
+    vector_dist_squared(a, b).sqrt()
+}
+
+fn min_dist_to_line_squared(line_segment: (sfml::system::Vector2f, sfml::system::Vector2f), point: sfml::system::Vector2f) -> f32 {
+    fn lerp(a: sfml::system::Vector2f, b: sfml::system::Vector2f, t: f32) -> sfml::system::Vector2f {
+        a + (b - a) * t
+    }
+
     let (a, b) = line_segment;
 
-    let len_squared = a.distance_squared(b);
+    let len_squared = vector_dist_squared(a, b);
     if len_squared == 0.0 {
-        point.distance_squared(a)
+        vector_dist_squared(point, a)
     } else {
         // project point onto line segment and return distance to that projected point
         let t = (point - a).dot(b - a) / len_squared;
         let t_clamped = t.clamp(0.0, 1.0);
-        let projected = a.lerp(b, t_clamped);
-        point.distance_squared(projected)
+        let projected = lerp(a, b, t_clamped);
+        vector_dist_squared(point, projected)
     }
 }
 
-fn node_color(nodes: &NodeMap, node: NodeKey, use_production: bool) -> Rgb<u8> {
-    fn value_to_color(v: logic::Value) -> Rgb<u8> {
+fn node_color(nodes: &NodeMap, node: NodeKey, use_production: bool) -> sfml::graphics::Color {
+    fn value_to_color(v: logic::Value) -> sfml::graphics::Color {
         match v {
             logic::Value::H => Theme::DEFAULT.on_color,
             logic::Value::L => Theme::DEFAULT.off_color,

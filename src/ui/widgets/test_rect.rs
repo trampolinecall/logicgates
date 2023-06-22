@@ -1,56 +1,56 @@
-use crate::{
-    draw,
-    view::{
-        id::{ViewId, ViewIdMaker},
-        GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout,
-    },
+use crate::view::{
+    id::{ViewId, ViewIdMaker},
+    GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout,
 };
 
-struct TestRectView {
+struct TestRect {
     id: ViewId,
-    color: nannou::color::Srgb,
+    color: sfml::graphics::Color,
     size: (f32, f32),
 }
-struct TestRectViewLayout<'test_rect> {
-    test_rect: &'test_rect TestRectView,
-    actual_size: nannou::geom::Vec2,
+struct TestRectLayout<'test_rect> {
+    test_rect: &'test_rect TestRect,
+    actual_size: sfml::system::Vector2f,
 }
 
-impl ViewWithoutLayout<()> for TestRectView {
-    type WithLayout<'without_layout> = TestRectViewLayout<'without_layout>;
+impl ViewWithoutLayout<()> for TestRect {
+    type WithLayout<'without_layout> = TestRectLayout<'without_layout>;
 
     fn layout(&self, sc: SizeConstraints) -> Self::WithLayout<'_> {
-        TestRectViewLayout { test_rect: self, actual_size: nannou::geom::Vec2::from(self.size).clamp(sc.min, sc.max) }
+        TestRectLayout { test_rect: self, actual_size:  sc.clamp_size(sfml::system::Vector2f::from(self.size))  }
     }
 }
-impl View<()> for TestRectViewLayout<'_> {
-    fn draw_inner(&self, _: &nannou::App, draw: &draw::Draw, center: nannou::geom::Vec2, _: Option<ViewId>) {
+impl View<()> for TestRectLayout<'_> {
+    fn draw_inner(&self, _: &crate::App, target: &mut dyn sfml::graphics::RenderTarget, top_left: sfml::system::Vector2f, _: Option<ViewId>) {
+        use sfml::graphics::Shape;
         // TODO: use hovered?
-        let rect = nannou::geom::Rect::from_xy_wh(center, self.actual_size);
-        draw.rect().xy(rect.xy()).wh(rect.wh()).color(self.test_rect.color);
+        let rect = sfml::graphics::FloatRect::from_vecs(top_left, self.actual_size);
+        let mut rect_shape = sfml::graphics::RectangleShape::from_rect(rect);
+        rect_shape.set_fill_color(self.test_rect.color);
+        target.draw(&rect_shape);
     }
 
-    fn find_hover(&self, center: nannou::geom::Vec2, mouse: nannou::prelude::Vec2) -> Option<ViewId> {
-        if nannou::geom::Rect::from_xy_wh(center, self.actual_size).contains(mouse) {
+    fn find_hover(&self, top_left: sfml::system::Vector2f, mouse: sfml::system::Vector2f) -> Option<ViewId> {
+        if sfml::graphics::FloatRect::from_vecs(top_left, self.actual_size).contains(mouse) {
             Some(self.test_rect.id)
         } else {
             None
         }
     }
-    fn size(&self) -> nannou::geom::Vec2 {
+    fn size(&self) -> sfml::system::Vector2f {
         self.actual_size
     }
 
-    fn send_targeted_event(&self, app: &nannou::App, data: &mut (), target: ViewId, event: TargetedEvent) {
+    fn send_targeted_event(&self, app: &crate::App, data: &mut (), target: ViewId, event: TargetedEvent) {
         if target == self.test_rect.id {
             self.targeted_event(app, data, event);
         }
     }
 
-    fn targeted_event(&self, _: &nannou::App, _: &mut (), _: TargetedEvent) {}
-    fn general_event(&self, _: &nannou::App, _: &mut (), _: GeneralEvent) {}
+    fn targeted_event(&self, _: &crate::App, _: &mut (), _: TargetedEvent) {}
+    fn general_event(&self, _: &crate::App, _: &mut (), _: GeneralEvent) {}
 }
 
-pub(crate) fn test_rect(id_maker: &mut ViewIdMaker, color: nannou::color::Srgb, size: (f32, f32)) -> impl ViewWithoutLayout<()> {
-    TestRectView { id: id_maker.next_id(), color, size }
+pub(crate) fn test_rect(id_maker: &mut ViewIdMaker, color: sfml::graphics::Color, size: (f32, f32)) -> impl ViewWithoutLayout<()> {
+    TestRect { id: id_maker.next_id(), color, size }
 }

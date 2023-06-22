@@ -1,16 +1,18 @@
 use std::{fmt::Display, marker::PhantomData, ops::Add};
 
+use sfml::graphics::Shape;
+
 use crate::{
     theme::Theme,
     view::{
         id::{ViewId, ViewIdMaker},
         lens::Lens,
         GeneralEvent, SizeConstraints, TargetedEvent, View, ViewWithoutLayout,
-    }, draw,
+    },
 };
 
 pub(crate) struct SliderState<Value: Display> {
-    drag_start: Option<(nannou::geom::Vec2, Value)>,
+    drag_start: Option<(sfml::system::Vector2f, Value)>,
 }
 
 struct SliderView<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: Lens<Data, SliderState<Value>>, DataLens: Lens<Data, Value>, ConvertMousePosition: Fn(f32) -> Value> {
@@ -38,7 +40,7 @@ struct SliderLayout<
     ConvertMousePosition: Fn(f32) -> Value,
 > {
     slider: &'slider SliderView<Data, Value, StateLens, DataLens, ConvertMousePosition>,
-    size: nannou::geom::Vec2,
+    size: sfml::system::Vector2f,
 }
 
 impl<Value: Display> SliderState<Value> {
@@ -70,60 +72,59 @@ impl<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: 
     fn layout(&self, sc: SizeConstraints) -> Self::WithLayout<'_> {
         SliderLayout {
             slider: self,
-            size: nannou::geom::Vec2::new(100.0, 15.0).clamp(sc.min, sc.max), // TODO: put this in theme?
+            size: sc.clamp_size(sfml::system::Vector2f::new(100.0, 15.0)), // TODO: put this in theme?
         }
     }
 }
 impl<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: Lens<Data, SliderState<Value>>, DataLens: Lens<Data, Value>, ConvertMousePosition: Fn(f32) -> Value> View<Data>
     for SliderLayout<'_, Data, Value, StateLens, DataLens, ConvertMousePosition>
 {
-    fn draw_inner(&self, _: &nannou::App, draw: &draw::Draw, center: nannou::geom::Vec2, hover: Option<ViewId>) {
+    fn draw_inner(&self, _: &crate::App, target: &mut dyn sfml::graphics::RenderTarget, top_left: sfml::system::Vector2f, hover: Option<ViewId>) {
         // TODO: show as progress bar if both min and max
-        let rect = nannou::geom::Rect::from_xy_wh(center, self.size);
-        let mut background_rect = draw.rect().xy(rect.xy()).wh(rect.wh()).color(Theme::DEFAULT.button_normal_bg);
-        let mut text = draw.text(&self.slider.value.to_string()).xy(rect.xy()).wh(rect.wh()).center_justify().align_text_middle_y().color(Theme::DEFAULT.button_normal_fg);
+        let rect = sfml::graphics::FloatRect::from_vecs(top_left, self.size);
+        let mut background_rect = sfml::graphics::RectangleShape::from_rect(rect);
+        background_rect.set_fill_color(Theme::DEFAULT.button_normal_bg);
+        // let mut text = target.text(&self.slider.value.to_string()).xy(rect.xy()).wh(rect.wh()).center_justify().align_text_middle_y().color(Theme::DEFAULT.button_normal_fg); TODO: text
         if Some(self.slider.id) == hover {
-            background_rect = background_rect.color(Theme::DEFAULT.button_hover_bg);
-            text = text.color(Theme::DEFAULT.button_hover_fg);
+            background_rect.set_fill_color(Theme::DEFAULT.button_hover_bg);
+            // text.set_color(Theme::DEFAULT.button_hover_fg);
         }
         if self.slider.pressed {
-            background_rect = background_rect.color(Theme::DEFAULT.button_pressed_bg);
-            text = text.color(Theme::DEFAULT.button_pressed_fg);
+            background_rect.set_fill_color(Theme::DEFAULT.button_pressed_bg);
+            // text.set_color(Theme::DEFAULT.button_pressed_fg);
         }
 
-        background_rect.finish();
-        text.finish();
+        target.draw(&background_rect);
+        // text.finish();
     }
 
-    fn find_hover(&self, center: nannou::geom::Vec2, mouse: nannou::geom::Vec2) -> Option<ViewId> {
-        if nannou::geom::Rect::from_xy_wh(center, self.size).contains(mouse) {
+    fn find_hover(&self, top_left: sfml::system::Vector2f, mouse: sfml::system::Vector2f) -> Option<ViewId> {
+        if sfml::graphics::FloatRect::from_vecs(top_left, self.size).contains(mouse) {
             Some(self.slider.id)
         } else {
             None
         }
     }
 
-    fn size(&self) -> nannou::geom::Vec2 {
+    fn size(&self) -> sfml::system::Vector2f {
         self.size
-
     }
 
-    fn send_targeted_event(&self, app: &nannou::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
+    fn send_targeted_event(&self, app: &crate::App, data: &mut Data, target: ViewId, event: TargetedEvent) {
         if target == self.slider.id {
             self.targeted_event(app, data, event);
         }
     }
 
-    fn targeted_event(&self, app: &nannou::App, data: &mut Data, event: TargetedEvent) {
+    fn targeted_event(&self, app: &crate::App, data: &mut Data, event: TargetedEvent) {
         match event {
-            TargetedEvent::LeftMouseDown => {
-                let mouse_pos = app.mouse.position();
+            TargetedEvent::LeftMouseDown(mouse_pos) => {
                 let cur_value = self.slider.value_lens.with(data, |value| *value);
                 self.slider.state_lens.with_mut(data, |state| state.drag_start = Some((mouse_pos, cur_value)));
             }
         }
     }
-    fn general_event(&self, _: &nannou::App, data: &mut Data, event: GeneralEvent) {
+    fn general_event(&self, _: &crate::App, data: &mut Data, event: GeneralEvent) {
         if self.slider.pressed {
             match event {
                 GeneralEvent::MouseMoved(new_mouse_pos) => {

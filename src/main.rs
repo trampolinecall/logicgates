@@ -10,9 +10,20 @@ pub(crate) mod theme;
 #[macro_use]
 pub(crate) mod ui;
 pub(crate) mod view;
-pub(crate) mod draw;
 
-use nannou::prelude::*;
+struct App {
+    start_time: std::time::Instant,
+}
+
+impl App {
+    fn new() -> Self {
+        Self { start_time: std::time::Instant::now() }
+    }
+
+    fn time_since_start(&self) -> std::time::Duration {
+        std::time::Instant::now() - self.start_time
+    }
+}
 
 // TODO: find a better place to put this and reorganize everything
 struct LogicGates {
@@ -22,31 +33,45 @@ struct LogicGates {
 }
 
 impl LogicGates {
-    fn new(_: &App) -> LogicGates {
+    fn new() -> LogicGates {
         LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), subticks_per_update: 1, ui: ui::UI::new() }
     }
 }
 
 fn main() {
-    nannou::app(LogicGates::new).event(event).update(update).simple_window(draw).run();
+    use sfml::{
+        graphics::RenderWindow,
+        window::{Event, Style},
+    };
+
+    let app = App::new();
+    let mut logic_gates = LogicGates::new();
+    let mut window = RenderWindow::new((800, 600), "logic gates", Style::DEFAULT, &Default::default());
+    window.set_vertical_sync_enabled(true);
+
+    while window.is_open() {
+        // events
+        while let Some(event) = window.poll_event() {
+            // TODO: put this in the event handler with everything else
+            if event == Event::Closed {
+                window.close();
+            } else {
+                view::event(&app, &window, &mut logic_gates, event);
+            }
+        }
+
+        // update
+        // TODO: adjust number of ticks for time since last update
+        simulation::logic::update(&mut logic_gates.simulation.gates, &mut logic_gates.simulation.nodes, logic_gates.subticks_per_update as usize);
+
+        // draw
+        window.set_active(true);
+        view::render(&app, &mut window, &logic_gates);
+        window.display();
+    }
 }
 
-fn event(app: &App, logic_gates: &mut LogicGates, event: Event) {
-    view::event(app, logic_gates, event);
-}
-
-fn update(_: &App, logic_gates: &mut LogicGates, _: Update) {
-    // TODO: adjust number of ticks for time since last update
-    simulation::logic::update(&mut logic_gates.simulation.gates, &mut logic_gates.simulation.nodes, logic_gates.subticks_per_update as usize);
-}
-
-fn draw(app: &App, logic_gates: &LogicGates, frame: Frame) {
-    let draw = draw::Draw::new(app.draw(), app.window_rect());
-    view::render(app, &draw, logic_gates);
-    draw.to_frame(app, &frame).unwrap();
-}
-
-fn view(app: &nannou::App, logic_gates: &LogicGates) -> impl view::ViewWithoutLayout<LogicGates> {
+fn view(app: &App, logic_gates: &LogicGates) -> impl view::ViewWithoutLayout<LogicGates> {
     let mut id_maker = view::id::ViewIdMaker::new();
 
     let simulation_view = ui::widgets::simulation::simulation(
@@ -60,7 +85,7 @@ fn view(app: &nannou::App, logic_gates: &LogicGates) -> impl view::ViewWithoutLa
         .map(|i| {
             Some(ui::widgets::submodule::submodule(
                 view::lens::unit(),
-                ui::widgets::test_rect::test_rect(&mut id_maker, nannou::color::srgb(i as f32 / 20.0, (20 - i) as f32 / 20.0, 0.0), ((i * 5 + 20) as f32, 10.0)),
+                ui::widgets::test_rect::test_rect(&mut id_maker, sfml::graphics::Color::rgb((i as f32 / 20.0 * 255.0) as u8, (((20 - i) as f32 / 20.0) * 255.0) as u8, 0), ((i * 5 + 20) as f32, 10.0)), // TODO: clean up this math
             ))
         })
         .collect::<Vec<_>>()
