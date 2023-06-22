@@ -17,7 +17,7 @@ const GATE_EXTRA_VERTICAL_HEIGHT: f32 = 40.0;
 const GATE_WIDTH: f32 = 50.0;
 
 pub(crate) struct SimulationWidgetState {
-    cur_gate_drag: Option<simulation::GateKey>,
+    cur_gate_drag: Option<(simulation::GateKey, sfml::system::Vector2f, (f32, f32))>,
     view: Option<simulation::CircuitKey>,
 }
 
@@ -146,7 +146,7 @@ pub(crate) fn simulation<Data>(
                     gate_location: (gate_location.x, gate_location.y),
                     num_inputs,
                     num_outputs,
-                    being_dragged: Some(gate) == cur_gate_drag,
+                    being_dragged: if let Some((cur_gate_drag, _, _)) = cur_gate_drag { cur_gate_drag == gate } else { false },
                     _phantom: PhantomData,
                 }
             })
@@ -388,7 +388,13 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
 
     fn targeted_event(&self, _: &crate::App, data: &mut Data, event: TargetedEvent) {
         match event {
-            TargetedEvent::LeftMouseDown(_) => self.view.state_lens.with_mut(data, |state| state.cur_gate_drag = Some(self.view.gate_key)),
+            TargetedEvent::LeftMouseDown(mouse_pos) => {
+                let cur_gate_pos = self.view.simulation_lens.with(data, |simulation| {
+                    let location = Gate::location(&simulation.circuits, &simulation.gates, self.view.gate_key);
+                    (location.x, location.y)
+                });
+                self.view.state_lens.with_mut(data, |state| state.cur_gate_drag = Some((self.view.gate_key, mouse_pos, (cur_gate_pos.0, cur_gate_pos.1))));
+            }
         }
     }
 
@@ -396,12 +402,15 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
         if self.view.being_dragged {
             match event {
                 GeneralEvent::MouseMoved(mouse_pos) => {
-                    // TODO: zooming and panning, also fix dragging when simulation widget is not at center of screen
-                    self.view.simulation_lens.with_mut(data, |simulation| {
-                        let loc = simulation::Gate::location_mut(&mut simulation.circuits, &mut simulation.gates, self.view.gate_key);
-                        loc.x = mouse_pos.x;
-                        loc.y = mouse_pos.y;
-                    });
+                    if let Some((gate, mouse_start, gate_start)) = self.view.state_lens.with(data, |state| state.cur_gate_drag) {
+                        // TODO: zooming and panning
+                        self.view.simulation_lens.with_mut(data, |simulation| {
+                            let mouse_diff = mouse_pos - mouse_start;
+                            let loc = simulation::Gate::location_mut(&mut simulation.circuits, &mut simulation.gates, gate);
+                            loc.x = gate_start.0 + mouse_diff.x;
+                            loc.y = gate_start.1 + mouse_diff.y;
+                        });
+                    }
                 }
                 GeneralEvent::LeftMouseUp => self.view.state_lens.with_mut(data, |state| {
                     state.cur_gate_drag = None;

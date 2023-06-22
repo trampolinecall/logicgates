@@ -1,4 +1,4 @@
-use std::{cmp::min, marker::PhantomData};
+use std::marker::PhantomData;
 
 use sfml::graphics::Shape;
 
