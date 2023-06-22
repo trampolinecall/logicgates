@@ -53,15 +53,13 @@ macro_rules! flow {
                 }
 
                 fn find_hover(&self, top_left: ::sfml::system::Vector2f, mouse: ::sfml::system::Vector2f) -> ::std::option::Option<$crate::view::id::ViewId> {
-                    $(
-                        {
-                            let (offset, child) = &self.$name;
-                            if let x @ Some(_) = child.find_hover(top_left + *offset, mouse) {
-                                return x;
-                            }
-                        }
-                    )*
                     None
+                    $(
+                        .or({
+                            let (offset, child) = &self.$name;
+                            child.find_hover(top_left + *offset, mouse)
+                        })
+                    )*
                 }
 
                 fn size(&self) -> ::sfml::system::Vector2f {

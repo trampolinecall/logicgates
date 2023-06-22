@@ -76,21 +76,10 @@ impl<Data, ButtonView: ViewWithoutLayout<Data>, BaseView: ViewWithoutLayout<Data
 
     fn find_hover(&self, top_left: graphics::Vector2f, mouse: graphics::Vector2f) -> Option<ViewId> {
         // go in z order from top to bottom
-        if let x @ Some(_) = self.button.find_hover(top_left + self.toggle_button_offset, mouse) {
-            return x;
-        }
-
-        if let Some(over_shift) = self.over_shift {
-            if let x @ Some(_) = self.over.find_hover(top_left + graphics::Vector2f::new(over_shift, 0.0), mouse) {
-                return x;
-            }
-        }
-
-        if let x @ Some(_) = self.base.find_hover(top_left, mouse) {
-            return x;
-        }
-
-        None
+        self.button
+            .find_hover(top_left + self.toggle_button_offset, mouse)
+            .or(self.over_shift.and_then(|over_shift| self.over.find_hover(top_left + graphics::Vector2f::new(over_shift, 0.0), mouse)))
+            .or(self.base.find_hover(top_left, mouse))
     }
 
     fn size(&self) -> graphics::Vector2f {
