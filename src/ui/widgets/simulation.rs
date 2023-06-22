@@ -492,13 +492,18 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
         let widget_rect = sfml::graphics::FloatRect::from_vecs(widget_top_left, self.widget_size);
         let pos1 = node_pos(widget_rect, self.view.pos1);
         let pos2 = node_pos(widget_rect, self.view.pos2);
-        // let mut line = target.line().start(pos1).end(pos2).weight(Theme::DEFAULT.connection_width).color(self.view.color); TODO: lines
+        let line_weight = if Some(self.view.id) == hover { Theme::DEFAULT.connection_width + Theme::DEFAULT.connection_hover_dist } else { Theme::DEFAULT.connection_width };
 
-        if Some(self.view.id) == hover {
-            // line = line.weight(Theme::DEFAULT.connection_width + Theme::DEFAULT.connection_hover_dist);
-        }
+        let dist = vector_dist(pos1, pos2);
+        let mut connection_shape = sfml::graphics::RectangleShape::new();
 
-        // line.finish();
+        connection_shape.set_size((dist, line_weight));
+        connection_shape.set_origin((0.0, line_weight / 2.0));
+        connection_shape.set_position(pos1);
+        connection_shape.set_rotation(f32::atan2(pos2.y - pos1.y, pos2.x - pos1.x).to_degrees());
+        connection_shape.set_fill_color(self.view.color);
+
+        target.draw(&connection_shape);
     }
 
     fn find_hover(&self, widget_top_left: sfml::system::Vector2f, mouse_pos: sfml::system::Vector2f) -> Option<ViewId> {
@@ -539,8 +544,8 @@ fn gate_display_size(num_inputs: usize, num_outputs: usize) -> sfml::system::Vec
 
 fn y_centered_around(center_y: f32, total: usize, index: usize) -> f32 {
     let box_height: f32 = ((total - 1) as f32) * VERTICAL_VALUE_SPACING;
-    let box_start_y = center_y + (box_height / 2.0);
-    box_start_y - (index as f32) * VERTICAL_VALUE_SPACING
+    let box_start_y = center_y - (box_height / 2.0);
+    box_start_y + (index as f32) * VERTICAL_VALUE_SPACING
 }
 
 fn circuit_input_pos(widget_rect: sfml::graphics::FloatRect, num_inputs: usize, num_outputs: usize, index: usize) -> sfml::system::Vector2f {
