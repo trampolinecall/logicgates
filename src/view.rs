@@ -41,7 +41,7 @@ pub(crate) trait View<Data> {
         sprite.set_position(top_left);
         target.draw(&sprite);
         */
-        self.draw_inner(app, target, top_left, hover)
+        self.draw_inner(app, target, top_left, hover);
     }
     fn draw_inner(&self, app: &crate::App, target: &mut dyn sfml::graphics::RenderTarget, top_left: sfml::system::Vector2f, hover: Option<id::ViewId>);
     fn find_hover(&self, top_left: sfml::system::Vector2f, mouse: sfml::system::Vector2f) -> Option<id::ViewId>;

@@ -40,7 +40,7 @@ impl LogicGates {
 
 fn main() {
     use sfml::{
-        graphics::RenderWindow,
+        graphics::{RenderTarget, RenderWindow},
         window::{Event, Style},
     };
 
@@ -52,11 +52,15 @@ fn main() {
     while window.is_open() {
         // events
         while let Some(event) = window.poll_event() {
-            // TODO: put this in the event handler with everything else
-            if event == Event::Closed {
-                window.close();
-            } else {
-                view::event(&app, &window, &mut logic_gates, event);
+            match event {
+                // TODO: put these in the event handler with everything else
+                Event::Closed => window.close(),
+                Event::Resized { width, height } => {
+                    // update the view to the new size of the window
+                    let visible_area = sfml::graphics::FloatRect::new(0.0, 0.0, width as f32, height as f32);
+                    window.set_view(&sfml::graphics::View::from_rect(visible_area));
+                }
+                _ => view::event(&app, &window, &mut logic_gates, event),
             }
         }
 
