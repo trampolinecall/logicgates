@@ -92,7 +92,7 @@ pub(crate) fn event(app: &crate::App, window: &sfml::graphics::RenderWindow, log
 
         sfml::window::Event::MouseMoved { x, y } => view_with_layout.general_event(app, logic_gates, GeneralEvent::MouseMoved(sfml::system::Vector2::new(x as f32, y as f32))), // TODO: change the event to accept 2 i32s
 
-        sfml::window::Event::MouseButtonReleased { button: sfml::window::mouse::Button::Left, x, y } => view_with_layout.general_event(app, logic_gates, GeneralEvent::LeftMouseUp),
+        sfml::window::Event::MouseButtonReleased { button: sfml::window::mouse::Button::Left, x: _, y: _ } => view_with_layout.general_event(app, logic_gates, GeneralEvent::LeftMouseUp),
 
         _ => {}
     }
