@@ -3,6 +3,7 @@ use std::{fmt::Display, marker::PhantomData, ops::Add, rc::Rc};
 use sfml::graphics::{Shape, Transformable};
 
 use crate::{
+    graphics::{CenterText, RectCenter},
     theme::Theme,
     view::{
         id::{ViewId, ViewIdMaker},
@@ -89,9 +90,8 @@ impl<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: 
         let mut background_rect = sfml::graphics::RectangleShape::from_rect(rect);
         let mut text = sfml::graphics::Text::new(&self.slider.value.to_string(), &self.slider.font, 10); // TODO: also put this font size into the theme as well
 
-        let text_bounds = text.local_bounds();
-        text.set_origin((text_bounds.width / 2.0, text_bounds.height / 2.0));
-        text.set_position((rect.left + rect.width / 2.0, rect.top + rect.height / 2.0));
+        text.center();
+        text.set_position(rect.center());
 
         if self.slider.pressed {
             background_rect.set_fill_color(Theme::DEFAULT.button_pressed_bg);

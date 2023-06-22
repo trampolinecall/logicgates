@@ -12,6 +12,7 @@ pub(crate) mod theme;
 #[macro_use]
 pub(crate) mod ui;
 pub(crate) mod view;
+pub(crate) mod graphics;
 
 struct App {
     start_time: std::time::Instant,

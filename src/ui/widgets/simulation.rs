@@ -3,6 +3,7 @@ use std::{collections::HashMap, marker::PhantomData, rc::Rc};
 use sfml::graphics::{Shape, Transformable};
 
 use crate::{
+    graphics::{RectCenter, CenterText},
     simulation::{self, hierarchy, logic, Gate, GateKey, NodeKey, NodeMap, Simulation},
     theme::Theme,
     view::{
@@ -367,9 +368,8 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
 
         let mut text = sfml::graphics::Text::new(&self.view.name, &self.view.font, 10); // TODO: put font size into theme
         text.set_fill_color(Theme::DEFAULT.gate_text_color);
-        let text_bounds = text.local_bounds();
-        text.set_origin((text_bounds.width / 2.0, text_bounds.height / 2.0));
-        text.set_position((gate_rect.left + gate_rect.width / 2.0, gate_rect.top + gate_rect.height / 2.0));
+        text.center();
+        text.set_position(gate_rect.center());
         target.draw(&text);
     }
 
@@ -543,7 +543,8 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
 // TODO: reorganize all of these functions
 fn gate_rect(widget_rect: sfml::graphics::FloatRect, (x, y): (f32, f32), num_inputs: usize, num_outputs: usize) -> sfml::graphics::FloatRect {
     let wh = gate_display_size(num_inputs, num_outputs);
-    sfml::graphics::FloatRect::new(widget_rect.left + widget_rect.width / 2.0 + x - wh.x / 2.0, widget_rect.top + widget_rect.height / 2.0 + y - wh.y / 2.0, wh.x, wh.y)
+    let widget_center = widget_rect.center();
+    sfml::graphics::FloatRect::new(widget_center.x + x - wh.x / 2.0, widget_center.y + y - wh.y / 2.0, wh.x, wh.y)
 }
 
 fn gate_display_size(num_inputs: usize, num_outputs: usize) -> sfml::system::Vector2f {
