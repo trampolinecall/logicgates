@@ -16,6 +16,7 @@ pub(crate) struct SliderState<Value: Display> {
     drag_start: Option<(graphics::Vector2f, Value)>,
 }
 
+// TODO: type in values
 struct SliderView<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: Lens<Data, SliderState<Value>>, DataLens: Lens<Data, Value>, ConvertMousePosition: Fn(f32) -> Value> {
     id: ViewId,
 
