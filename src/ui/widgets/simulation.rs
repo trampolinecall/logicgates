@@ -13,9 +13,7 @@ use crate::{
     },
 };
 
-const VERTICAL_VALUE_SPACING: f32 = 20.0;
-const GATE_EXTRA_VERTICAL_HEIGHT: f32 = 40.0;
-const GATE_WIDTH: f32 = 50.0;
+const NODE_SPACING: f32 = 20.0;
 
 pub(crate) struct SimulationWidgetState {
     cur_gate_drag: Option<(simulation::GateKey, graphics::Vector2f, (f32, f32))>,
@@ -53,6 +51,7 @@ struct GateView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLe
     gate_key: GateKey,
     name: String,
     gate_location: (f32, f32),
+    direction: simulation::GateDirection,
     num_inputs: usize,
     num_outputs: usize,
 
@@ -70,8 +69,8 @@ struct GateViewLayout<'original, Data, StateLens: Lens<Data, SimulationWidgetSta
 enum NodeViewPos {
     FarLeftEdge(usize, usize, usize),
     FarRightEdge(usize, usize, usize),
-    LeftOfGate((f32, f32), usize, usize, usize),
-    RightOfGate((f32, f32), usize, usize, usize),
+    GateInput((f32, f32), simulation::GateDirection, usize, usize, usize),
+    GateOutput((f32, f32), simulation::GateDirection, usize, usize, usize),
 }
 struct NodeView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
     id: ViewId,
@@ -139,6 +138,7 @@ pub(crate) fn simulation<Data>(
                 let gate_location = Gate::location(&simulation.circuits, &simulation.gates, gate);
                 let num_inputs = Gate::num_inputs(&simulation.circuits, &simulation.gates, gate);
                 let num_outputs = Gate::num_outputs(&simulation.circuits, &simulation.gates, gate);
+                let direction = Gate::direction(&simulation.circuits, &simulation.gates, gate);
                 let gate_name = simulation.gates[gate].name(&simulation.circuits).to_string();
 
                 GateView {
@@ -148,6 +148,7 @@ pub(crate) fn simulation<Data>(
                     gate_key: gate,
                     name: gate_name,
                     gate_location: (gate_location.x, gate_location.y),
+                    direction,
                     num_inputs,
                     num_outputs,
                     being_dragged: if let Some((cur_gate_drag, _, _)) = cur_gate_drag { cur_gate_drag == gate } else { false },
@@ -178,26 +179,30 @@ pub(crate) fn simulation<Data>(
                         let location = &circuit.location;
                         let num_inputs = circuit.nodes.inputs().len();
                         let num_outputs = circuit.nodes.outputs().len();
-                        NodeViewPos::LeftOfGate((location.x, location.y), i, num_inputs, num_outputs)
+                        let direction = circuit.direction;
+                        NodeViewPos::GateInput((location.x, location.y), direction, i, num_inputs, num_outputs)
                     }
                     hierarchy::NodeParentKind::CircuitOut(c, i) => {
                         let circuit = &simulation.circuits[c];
                         let location = &circuit.location;
                         let num_inputs = circuit.nodes.inputs().len();
                         let num_outputs = circuit.nodes.outputs().len();
-                        NodeViewPos::RightOfGate((location.x, location.y), i, num_inputs, num_outputs)
+                        let direction = circuit.direction;
+                        NodeViewPos::GateOutput((location.x, location.y), direction, i, num_inputs, num_outputs)
                     }
                     hierarchy::NodeParentKind::GateIn(g, i) => {
                         let location = &simulation::Gate::location(&simulation.circuits, &simulation.gates, g);
                         let num_inputs = simulation::Gate::num_inputs(&simulation.circuits, &simulation.gates, g);
                         let num_outputs = simulation::Gate::num_outputs(&simulation.circuits, &simulation.gates, g);
-                        NodeViewPos::LeftOfGate((location.x, location.y), i, num_inputs, num_outputs)
+                        let direction = simulation::Gate::direction(&simulation.circuits, &simulation.gates, g);
+                        NodeViewPos::GateInput((location.x, location.y), direction, i, num_inputs, num_outputs)
                     }
                     hierarchy::NodeParentKind::GateOut(g, i) => {
                         let location = &simulation::Gate::location(&simulation.circuits, &simulation.gates, g);
                         let num_inputs = simulation::Gate::num_inputs(&simulation.circuits, &simulation.gates, g);
                         let num_outputs = simulation::Gate::num_outputs(&simulation.circuits, &simulation.gates, g);
-                        NodeViewPos::RightOfGate((location.x, location.y), i, num_inputs, num_outputs)
+                        let direction = simulation::Gate::direction(&simulation.circuits, &simulation.gates, g);
+                        NodeViewPos::GateOutput((location.x, location.y), direction, i, num_inputs, num_outputs)
                     }
                 };
                 let color = node_color(&simulation.nodes, node, true);
@@ -346,7 +351,7 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
     }
     fn draw_inner(&self, _: &crate::App, target: &mut dyn graphics::RenderTarget, widget_top_left: graphics::Vector2f, hover: Option<ViewId>) {
         let widget_rect = graphics::FloatRect::from_vecs(widget_top_left, self.widget_size);
-        let gate_rect = gate_rect(widget_rect, self.view.gate_location, self.view.num_inputs, self.view.num_outputs);
+        let gate_rect = gate_rect(widget_rect, self.view.gate_location, self.view.direction, self.view.num_inputs, self.view.num_outputs);
 
         if Some(self.view.id) == hover {
             // expand by hover distance, this is the "stroke weight"
@@ -375,7 +380,7 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
 
     fn find_hover(&self, widget_top_left: graphics::Vector2f, mouse_pos: graphics::Vector2f) -> Option<ViewId> {
         let widget_rect = graphics::FloatRect::from_vecs(widget_top_left, self.widget_size);
-        let rect = gate_rect(widget_rect, self.view.gate_location, self.view.num_inputs, self.view.num_outputs);
+        let rect = gate_rect(widget_rect, self.view.gate_location, self.view.direction, self.view.num_inputs, self.view.num_outputs);
         if rect.contains(mouse_pos) {
             // TODO: hover distance
             return Some(self.view.id);
@@ -540,46 +545,77 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
     fn general_event(&self, _: &crate::App, _: &mut Data, _: GeneralEvent) {}
 }
 
-// TODO: reorganize all of these functions
-fn gate_rect(widget_rect: graphics::FloatRect, (x, y): (f32, f32), num_inputs: usize, num_outputs: usize) -> graphics::FloatRect {
-    let wh = gate_display_size(num_inputs, num_outputs);
-    let widget_center = widget_rect.center();
-    graphics::FloatRect::new(widget_center.x + x - wh.x / 2.0, widget_center.y + y - wh.y / 2.0, wh.x, wh.y)
+fn gate_rect(widget_rect: graphics::FloatRect, gate_pos: (f32, f32), direction: simulation::GateDirection, num_inputs: usize, num_outputs: usize) -> graphics::FloatRect {
+    let gate_size = gate_display_size(direction, num_inputs, num_outputs);
+    graphics::FloatRect::from_vecs(widget_rect.center() + gate_pos.into() - gate_size / 2.0, gate_size)
 }
 
-fn gate_display_size(num_inputs: usize, num_outputs: usize) -> graphics::Vector2f {
-    let gate_height = (std::cmp::max(num_inputs, num_outputs) - 1) as f32 * VERTICAL_VALUE_SPACING + GATE_EXTRA_VERTICAL_HEIGHT;
-    graphics::Vector2f::new(GATE_WIDTH, gate_height)
+fn gate_display_size(direction: simulation::GateDirection, num_inputs: usize, num_outputs: usize) -> graphics::Vector2f {
+    const EXTRA_SPACE: f32 = 40.0;
+    const FIXED_SIZE: f32 = 50.0;
+
+    let variable_size = (std::cmp::max(num_inputs, num_outputs) - 1) as f32 * NODE_SPACING + EXTRA_SPACE;
+    match direction {
+        // nodes on left and right - height variable, width constant
+        simulation::GateDirection::LTR | simulation::GateDirection::RTL => graphics::Vector2f::new(FIXED_SIZE, variable_size),
+
+        // nodes on top and botton - width variable, height constant
+        simulation::GateDirection::TTB | simulation::GateDirection::BTT => graphics::Vector2f::new(variable_size, FIXED_SIZE),
+    }
 }
 
-fn y_centered_around(center_y: f32, total: usize, index: usize) -> f32 {
-    let box_height: f32 = ((total - 1) as f32) * VERTICAL_VALUE_SPACING;
-    let box_start_y = center_y - (box_height / 2.0);
-    box_start_y + (index as f32) * VERTICAL_VALUE_SPACING
+fn coord_centered_around(center: f32, total: usize, index: usize) -> f32 {
+    let box_height: f32 = ((total - 1) as f32) * NODE_SPACING;
+    let box_start_y = center - (box_height / 2.0);
+    box_start_y + (index as f32) * NODE_SPACING
 }
 
 fn circuit_input_pos(widget_rect: graphics::FloatRect, num_inputs: usize, num_outputs: usize, index: usize) -> graphics::Vector2f {
-    graphics::Vector2f::new(widget_rect.left, y_centered_around(0.0, num_inputs, index))
+    graphics::Vector2f::new(widget_rect.left, coord_centered_around(0.0, num_inputs, index))
 }
 fn circuit_output_pos(widget_rect: graphics::FloatRect, num_inputs: usize, num_outputs: usize, index: usize) -> graphics::Vector2f {
-    graphics::Vector2f::new(widget_rect.left + widget_rect.width, y_centered_around(0.0, num_outputs, index))
+    graphics::Vector2f::new(widget_rect.left + widget_rect.width, coord_centered_around(0.0, num_outputs, index))
 }
 
-fn gate_input_pos(widget_rect: graphics::FloatRect, gate_location: (f32, f32), num_inputs: usize, num_outputs: usize, idx: usize) -> graphics::Vector2f {
-    let rect = gate_rect(widget_rect, gate_location, num_inputs, num_outputs);
-    graphics::Vector2f::new(rect.left, y_centered_around(rect.top + rect.height / 2.0, num_inputs, idx))
+fn gate_input_pos(widget_rect: graphics::FloatRect, gate_location: (f32, f32), direction: simulation::GateDirection, num_inputs: usize, num_outputs: usize, idx: usize) -> graphics::Vector2f {
+    let rect = gate_rect(widget_rect, gate_location, direction, num_inputs, num_outputs);
+
+    let graphics::Vector2 { x: center_x, y: center_y } = rect.center();
+    let left_x = rect.left;
+    let right_x = rect.left + rect.width;
+    let top_y = rect.top;
+    let bottom_y = rect.top + rect.height;
+
+    match direction {
+        simulation::GateDirection::LTR => graphics::Vector2f::new(left_x, coord_centered_around(center_y, num_inputs, idx)),
+        simulation::GateDirection::RTL => graphics::Vector2f::new(right_x, coord_centered_around(center_y, num_inputs, idx)),
+        simulation::GateDirection::TTB => graphics::Vector2f::new(coord_centered_around(center_x, num_inputs, idx), top_y),
+        simulation::GateDirection::BTT => graphics::Vector2f::new(coord_centered_around(center_x, num_inputs, idx), bottom_y),
+    }
 }
-fn gate_output_pos(widget_rect: graphics::FloatRect, gate_location: (f32, f32), num_inputs: usize, num_outputs: usize, idx: usize) -> graphics::Vector2f {
-    let rect = gate_rect(widget_rect, gate_location, num_inputs, num_outputs);
-    graphics::Vector2f::new(rect.left + rect.width, y_centered_around(rect.top + rect.height / 2.0, num_outputs, idx))
+fn gate_output_pos(widget_rect: graphics::FloatRect, gate_location: (f32, f32), direction: simulation::GateDirection, num_inputs: usize, num_outputs: usize, idx: usize) -> graphics::Vector2f {
+    let rect = gate_rect(widget_rect, gate_location, direction, num_inputs, num_outputs);
+
+    let graphics::Vector2 { x: center_x, y: center_y } = rect.center();
+    let left_x = rect.left;
+    let right_x = rect.left + rect.width;
+    let top_y = rect.top;
+    let bottom_y = rect.top + rect.height;
+
+    match direction {
+        simulation::GateDirection::LTR => graphics::Vector2f::new(right_x, coord_centered_around(center_y, num_outputs, idx)),
+        simulation::GateDirection::RTL => graphics::Vector2f::new(left_x, coord_centered_around(center_y, num_outputs, idx)),
+        simulation::GateDirection::TTB => graphics::Vector2f::new(coord_centered_around(center_x, num_outputs, idx), bottom_y),
+        simulation::GateDirection::BTT => graphics::Vector2f::new(coord_centered_around(center_x, num_outputs, idx), top_y),
+    }
 }
 
 fn node_pos(widget_rect: graphics::FloatRect, pos: NodeViewPos) -> graphics::Vector2f {
     match pos {
         NodeViewPos::FarLeftEdge(i, inputs, outputs) => circuit_input_pos(widget_rect, inputs, outputs, i),
         NodeViewPos::FarRightEdge(i, inputs, outputs) => circuit_output_pos(widget_rect, inputs, outputs, i),
-        NodeViewPos::LeftOfGate(gate_pos, i, inputs, outputs) => gate_input_pos(widget_rect, gate_pos, inputs, outputs, i),
-        NodeViewPos::RightOfGate(gate_pos, i, inputs, outputs) => gate_output_pos(widget_rect, gate_pos, inputs, outputs, i),
+        NodeViewPos::GateInput(gate_pos, direction, i, inputs, outputs) => gate_input_pos(widget_rect, gate_pos, direction, inputs, outputs, i),
+        NodeViewPos::GateOutput(gate_pos, direction, i, inputs, outputs) => gate_output_pos(widget_rect, gate_pos, direction, inputs, outputs, i),
     }
 }
 
