@@ -67,10 +67,10 @@ struct GateViewLayout<'original, Data, StateLens: Lens<Data, SimulationWidgetSta
 }
 #[derive(Copy, Clone)]
 enum NodeViewPos {
-    FarLeftEdge(usize, usize, usize),
-    FarRightEdge(usize, usize, usize),
-    GateInput((f32, f32), simulation::GateDirection, usize, usize, usize),
-    GateOutput((f32, f32), simulation::GateDirection, usize, usize, usize),
+    FarLeftEdge { index: usize, num_inputs: usize, num_outputs: usize },
+    FarRightEdge { index: usize, num_inputs: usize, num_outputs: usize },
+    GateInput { gate_pos: (f32, f32), gate_direction: simulation::GateDirection, index: usize, num_inputs: usize, num_outputs: usize },
+    GateOutput { gate_pos: (f32, f32), gate_direction: simulation::GateDirection, index: usize, num_inputs: usize, num_outputs: usize },
 }
 struct NodeView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
     id: ViewId,
@@ -166,13 +166,13 @@ pub(crate) fn simulation<Data>(
                         let circuit = &simulation.circuits[c];
                         let num_inputs = circuit.nodes.inputs().len();
                         let num_outputs = circuit.nodes.outputs().len();
-                        NodeViewPos::FarLeftEdge(i, num_inputs, num_outputs)
+                        NodeViewPos::FarLeftEdge { index: i, num_inputs, num_outputs }
                     }
                     hierarchy::NodeParentKind::CircuitOut(c, i) if Some(c) == current_view => {
                         let circuit = &simulation.circuits[c];
                         let num_inputs = circuit.nodes.inputs().len();
                         let num_outputs = circuit.nodes.outputs().len();
-                        NodeViewPos::FarRightEdge(i, num_inputs, num_outputs)
+                        NodeViewPos::FarRightEdge { index: i, num_inputs, num_outputs }
                     }
                     hierarchy::NodeParentKind::CircuitIn(c, i) => {
                         let circuit = &simulation.circuits[c];
@@ -180,7 +180,7 @@ pub(crate) fn simulation<Data>(
                         let num_inputs = circuit.nodes.inputs().len();
                         let num_outputs = circuit.nodes.outputs().len();
                         let direction = circuit.direction;
-                        NodeViewPos::GateInput((location.x, location.y), direction, i, num_inputs, num_outputs)
+                        NodeViewPos::GateInput { gate_pos: (location.x, location.y), gate_direction: direction, index: i, num_inputs, num_outputs }
                     }
                     hierarchy::NodeParentKind::CircuitOut(c, i) => {
                         let circuit = &simulation.circuits[c];
@@ -188,21 +188,21 @@ pub(crate) fn simulation<Data>(
                         let num_inputs = circuit.nodes.inputs().len();
                         let num_outputs = circuit.nodes.outputs().len();
                         let direction = circuit.direction;
-                        NodeViewPos::GateOutput((location.x, location.y), direction, i, num_inputs, num_outputs)
+                        NodeViewPos::GateOutput { gate_pos: (location.x, location.y), gate_direction: direction, index: i, num_inputs, num_outputs }
                     }
                     hierarchy::NodeParentKind::GateIn(g, i) => {
                         let location = &simulation::Gate::location(&simulation.circuits, &simulation.gates, g);
                         let num_inputs = simulation::Gate::num_inputs(&simulation.circuits, &simulation.gates, g);
                         let num_outputs = simulation::Gate::num_outputs(&simulation.circuits, &simulation.gates, g);
                         let direction = simulation::Gate::direction(&simulation.circuits, &simulation.gates, g);
-                        NodeViewPos::GateInput((location.x, location.y), direction, i, num_inputs, num_outputs)
+                        NodeViewPos::GateInput { gate_pos: (location.x, location.y), gate_direction: direction, index: i, num_inputs, num_outputs }
                     }
                     hierarchy::NodeParentKind::GateOut(g, i) => {
                         let location = &simulation::Gate::location(&simulation.circuits, &simulation.gates, g);
                         let num_inputs = simulation::Gate::num_inputs(&simulation.circuits, &simulation.gates, g);
                         let num_outputs = simulation::Gate::num_outputs(&simulation.circuits, &simulation.gates, g);
                         let direction = simulation::Gate::direction(&simulation.circuits, &simulation.gates, g);
-                        NodeViewPos::GateOutput((location.x, location.y), direction, i, num_inputs, num_outputs)
+                        NodeViewPos::GateOutput { gate_pos: (location.x, location.y), gate_direction: direction, index: i, num_inputs, num_outputs }
                     }
                 };
                 let color = node_color(&simulation.nodes, node, true);
@@ -612,10 +612,10 @@ fn gate_output_pos(widget_rect: graphics::FloatRect, gate_location: (f32, f32), 
 
 fn node_pos(widget_rect: graphics::FloatRect, pos: NodeViewPos) -> graphics::Vector2f {
     match pos {
-        NodeViewPos::FarLeftEdge(i, inputs, outputs) => circuit_input_pos(widget_rect, inputs, outputs, i),
-        NodeViewPos::FarRightEdge(i, inputs, outputs) => circuit_output_pos(widget_rect, inputs, outputs, i),
-        NodeViewPos::GateInput(gate_pos, direction, i, inputs, outputs) => gate_input_pos(widget_rect, gate_pos, direction, inputs, outputs, i),
-        NodeViewPos::GateOutput(gate_pos, direction, i, inputs, outputs) => gate_output_pos(widget_rect, gate_pos, direction, inputs, outputs, i),
+        NodeViewPos::FarLeftEdge { index, num_inputs, num_outputs } => circuit_input_pos(widget_rect, num_inputs, num_outputs, index),
+        NodeViewPos::FarRightEdge { index, num_inputs, num_outputs } => circuit_output_pos(widget_rect, num_inputs, num_outputs, index),
+        NodeViewPos::GateInput { gate_pos, gate_direction, index, num_inputs, num_outputs } => gate_input_pos(widget_rect, gate_pos, gate_direction, num_inputs, num_outputs, index),
+        NodeViewPos::GateOutput { gate_pos, gate_direction, index, num_inputs, num_outputs } => gate_output_pos(widget_rect, gate_pos, gate_direction, num_inputs, num_outputs, index),
     }
 }
 
