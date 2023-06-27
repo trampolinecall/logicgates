@@ -1,7 +1,3 @@
-pub(crate) mod collect_all;
-#[macro_use]
-pub(crate) mod arena;
-
 pub(crate) fn enumerate_inputs(arity: usize) -> Vec<Vec<bool>> {
     let mut inputs = vec![vec![]];
     for _ in 0..arity {
