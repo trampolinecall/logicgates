@@ -1,15 +1,30 @@
 import json
+import functools
 
 from . import bundle, serialize, ty
+
 class Context:
     def __init__(self):
         self.connections = []
         self.toplevel_gates = None
 
-    def set_main_circuit(self, c):
-        assert c.inputs.type() == ty.ListProduct(), f'main circuit must have no inputs (has type {c.inputs.type()})'
-        assert c.outputs.type() == ty.ListProduct(), 'main circuit must have no outputs (has type {c.outputs.type()})'
-        self.toplevel_gates = c.gates
+    def set_main_circuit(self, make_main):
+        class MainCircuitHolder:
+            def __init__(self):
+                self.main = None
+
+            def new_circuit(self, input_type, output_type):
+                assert self.main is None, "main circuit can only create 1 circuit"
+                self.main = Circuit(input_type, output_type)
+                return self.main
+
+        holder = MainCircuitHolder()
+        make_main(self, holder)
+        circuit = holder.main
+
+        assert circuit.inputs.type() == ty.ListProduct(), f'main circuit must have no inputs (has type {circuit.inputs.type()})'
+        assert circuit.outputs.type() == ty.ListProduct(), f'main circuit must have no outputs (has type {circuit.outputs.type()})'
+        self.toplevel_gates = circuit.gates
 
     def connect(self, a, b):
         if a.type() != b.type():
@@ -56,27 +71,39 @@ class _UnerrorGate:
         self.inputs = bundle.Bit()
         self.outputs = bundle.Bit()
 
-class GateNodes:
-    def __init__(self, inputs, outputs):
-        self.inputs = inputs
-        self.outputs = outputs
+def make_circuit(name, input_type, output_type):
+    def decorator(func):
+        @functools.wraps(func)
+        def circuit_wrapper(context, parent):
+            c = parent.new_circuit(input_type, output_type) # TODO: name
+            func(context, c)
+            return c
+
+        return circuit_wrapper
+
+    return decorator
 
 def nand(context, parent):
     gate = _NandGate()
     parent.add_gate(gate)
-    return GateNodes(gate.inputs, gate.outputs)
+    return gate
 
 def false(context, parent):
     gate = _FalseGate()
     parent.add_gate(gate)
-    return GateNodes(gate.inputs, gate.outputs)
+    return gate
 
 def true(context, parent):
     gate = _TrueGate()
     parent.add_gate(gate)
-    return GateNodes(gate.inputs, gate.outputs)
+    return gate
 
 def unerror(context, parent):
     gate = _UnerrorGate()
     parent.add_gate(gate)
-    return GateNodes(gate.inputs, gate.outputs)
+    return gate
+
+def export(main, output):
+    context = Context()
+    context.set_main_circuit(main)
+    context.export(output)
