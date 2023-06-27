@@ -4,8 +4,6 @@
 
 use std::rc::Rc;
 
-#[macro_use]
-pub(crate) mod utils;
 pub(crate) mod import;
 pub(crate) mod simulation;
 pub(crate) mod theme;
