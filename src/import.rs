@@ -29,9 +29,9 @@ pub(crate) fn import(filename: &str) -> Result<simulation::Simulation, Box<dyn s
 
     for connection in connections {
         let JsonValue::Array(connection) = connection else { return Err("connection must be array".into()); };
-        let [JsonValue::Number(a), JsonValue::Number(b)] = &connection[..] else { return Err("connection must have 2 numbers".into()) };
-        let a = f64::from(*a) as usize;
-        let b = f64::from(*b) as usize;
+        let [a, b] = &connection[..] else { return Err("connection must have 2 element".into()) };
+        let a = a.as_usize().ok_or("connection node must be number")?;
+        let b = b.as_usize().ok_or("connection node must be number")?;
         let node_a = node_mapping[&a];
         let node_b = node_mapping[&b];
         simulation::connections::connect(&mut simulation.connections, &mut simulation.nodes, node_a, node_b);
