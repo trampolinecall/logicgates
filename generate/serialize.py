@@ -18,7 +18,7 @@ class Nodes:
 def serialize_context(context):
     nodes = Nodes()
     return {
-        'connections': [serialize_connection(nodes, connection) for connection in context.connections],
+        'connections': sum([serialize_connection(nodes, connection) for connection in context.connections], []),
         'toplevel_gates': [serialize_gate(nodes, gate) for gate in context.toplevel_gates],
     }
 
@@ -39,7 +39,13 @@ def serialize_gate(nodes, gate):
 def serialize_connection(nodes, connection):
     start = connection[0]
     end = connection[1]
-    return [convert_bundle(nodes, start), convert_bundle(nodes, end)]
+
+    start_bundle = convert_bundle(nodes, start)
+    end_bundle = convert_bundle(nodes, end)
+
+    assert len(start_bundle) == len(end_bundle)
+
+    return [[a, b] for (a, b) in zip(start_bundle, end_bundle)]
 
 def convert_bundle(nodes, b):
     if isinstance(b, bundle.Bit):

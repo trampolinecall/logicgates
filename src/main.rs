@@ -7,6 +7,7 @@ use std::rc::Rc;
 #[macro_use]
 pub(crate) mod utils;
 pub(crate) mod compiler;
+pub(crate) mod import;
 pub(crate) mod simulation;
 pub(crate) mod theme;
 #[macro_use]
@@ -50,7 +51,7 @@ impl LogicGates {
             font_kit::handle::Handle::Path { path, font_index: _ } => graphics::Font::from_file(&path.to_string_lossy()).expect("could not load font"), // TODO: figure out how to handle font_index
             font_kit::handle::Handle::Memory { bytes: _, font_index: _ } => unimplemented!("loading font from memory"),
         };
-        LogicGates { simulation: compiler::compile(&std::env::args().nth(1).expect("expected input file")).unwrap(), subticks_per_update: 1, ui: ui::UI::new(), font: Rc::new(font) }
+        LogicGates { simulation: import::import(&std::env::args().nth(1).expect("expected input file")).unwrap(), subticks_per_update: 1, ui: ui::UI::new(), font: Rc::new(font) }
     }
 }
 

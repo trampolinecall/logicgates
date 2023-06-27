@@ -49,6 +49,18 @@ pub(crate) enum Gate {
     Custom(CircuitKey),
 }
 
+impl Simulation {
+    pub(crate) fn new() -> Simulation {
+        Simulation {
+            circuits: CircuitMap::with_key(),
+            gates: GateMap::with_key(),
+            nodes: NodeMap::with_key(),
+            connections: connections::Connections::new(),
+            toplevel_gates: hierarchy::GateChildren::new(),
+        }
+    }
+}
+
 impl Circuit {
     pub(crate) fn new(circuit_key: CircuitKey, nodes: &mut NodeMap, name: String, direction: GateDirection, num_inputs: usize, num_outputs: usize) -> Circuit {
         Circuit {
