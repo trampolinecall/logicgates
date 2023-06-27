@@ -24,7 +24,7 @@ def serialize_context(context):
 
 def serialize_gate(nodes, gate):
     if isinstance(gate, gates.Circuit):
-        return {'type': 'subcircuit', 'inputs': convert_bundle(nodes, gate.inputs), 'outputs': convert_bundle(nodes, gate.outputs), 'gates': [serialize_gate(nodes, gate) for gate in gate.gates]}
+        return {'type': 'subcircuit', 'inputs': convert_bundle(nodes, gate.inputs), 'outputs': convert_bundle(nodes, gate.outputs), 'name': gate.name, 'gates': [serialize_gate(nodes, gate) for gate in gate.gates]}
     elif isinstance(gate, gates._NandGate):
         return {'type': 'nand', 'inputs': convert_bundle(nodes, gate.inputs), 'outputs': convert_bundle(nodes, gate.outputs)}
     elif isinstance(gate, gates._FalseGate):

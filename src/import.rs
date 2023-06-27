@@ -82,8 +82,10 @@ fn parse_gate(
         })),
 
         "subcircuit" => {
-            let ck = circuit_map.insert_with_key(|ck| simulation::Circuit::new(ck, node_map, "unnamed".to_string(), simulation::GateDirection::LTR, gate_inputs.len(), gate_outputs.len())); // TODO: names
-            let JsonValue::Array(subgates) = gate.remove("gates").ok_or("subcircuit gate must have field 'gate'")? else { return Err("gate subgates must be array".to_string()); };
+            let JsonValue::Array(subgates) = gate.remove("gates").ok_or("subcircuit gate must have field 'gates'")? else { return Err("gate subgates must be array".to_string()); };
+            let name = gate.remove("name").ok_or("subcircuit gate must have field 'name'")?.take_string().ok_or("subcircuit name must be string")?;
+
+            let ck = circuit_map.insert_with_key(|ck| simulation::Circuit::new(ck, node_map, name, simulation::GateDirection::LTR, gate_inputs.len(), gate_outputs.len())); // TODO: names
 
             assign_node_mapping(node_mapping, circuit_map[ck].nodes.inputs(), &gate_inputs);
             assign_node_mapping(node_mapping, circuit_map[ck].nodes.outputs(), &gate_outputs);
