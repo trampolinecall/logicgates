@@ -72,8 +72,8 @@ def xor(context, circuit):
         layout.ltr_gate(final_nand),
     ).apply()
 
-@gates.make_circuit('adder', ty.DictProduct(a=ty.Bit(), b=ty.Bit(), carry=ty.Bit()), ty.DictProduct(carry=ty.Bit(), result=ty.Bit()))
-def adder(context, circuit):
+@gates.make_circuit('adder1', ty.DictProduct(a=ty.Bit(), b=ty.Bit(), carry=ty.Bit()), ty.DictProduct(carry=ty.Bit(), result=ty.Bit()))
+def adder1(context, circuit):
     a_b_xor = xor(context, circuit)
     a_b_and = and_(context, circuit)
     ab_carry_xor = xor(context, circuit)
@@ -97,26 +97,27 @@ def adder(context, circuit):
         layout.ltr_gate(carry_or),
     ).apply()
 
-# @gates.make_circuit(, in; [; a8; ty.Bit(), a4; ty.Bit(), a2; ty.Bit(), a1; ty.Bit(), b8; ty.Bit(), b4; ty.Bit(), b2; ty.Bit(), b1; ty.Bit(), carry; ty.Bit(), ] out; [; carry; ty.Bit(), result; [4]ty.Bit(), ])
-# def adder4(context, circuit):
-#
-#     adder_gate = adder(context, circuit) adder1ins; [; a; ty.Bit(), b; ty.Bit(), carry; ty.Bit()] adder1res; [; carry; ty.Bit(), result; ty.Bit()]
-#     adder_gate = adder(context, circuit) adder2ins; [; a; ty.Bit(), b; ty.Bit(), carry; ty.Bit()] adder2res; [; carry; ty.Bit(), result; ty.Bit()]
-#     adder_gate = adder(context, circuit) adder4ins; [; a; ty.Bit(), b; ty.Bit(), carry; ty.Bit()] adder4res; [; carry; ty.Bit(), result; ty.Bit()]
-#     adder_gate = adder(context, circuit) adder8ins; [; a; ty.Bit(), b; ty.Bit(), carry; ty.Bit()] adder8res; [; carry; ty.Bit(), result; ty.Bit()]
-#
-#     context.connect([in.a8, in.a4, in.a2, in.a1] [adder8ins.a, adder4ins.a, adder2ins.a, adder1ins.a])
-#     context.connect([in.b8, in.b4, in.b2, in.b1] [adder8ins.b, adder4ins.b, adder2ins.b, adder1ins.b])
-#
-#     context.connect(in.carry adder1ins.carry)
-#     context.connect(adder1res.carry adder2ins.carry)
-#     context.connect(adder2res.carry adder4ins.carry)
-#     context.connect(adder4res.carry adder8ins.carry)
-#
-#     context.connect([adder8res.result, adder4res.result, adder2res.result, adder1res.result] circuit.outputs.result)
-#     context.connect(adder8res.carry circuit.outputs.carry)
-#
-#     context.connect(0 circuit.outputs.carry)
+def adder_many(width):
+    @gates.make_circuit(
+        f'adder{width}',
+        ty.DictProduct(a=ty.ListProduct(*[ty.Bit() for _ in range(width)]), b=ty.ListProduct(*[ty.Bit() for _ in range(width)]), carry=ty.Bit()),
+        ty.DictProduct(result=ty.ListProduct(*[ty.Bit() for _ in range(width)]), carry=ty.Bit()),
+    )
+    def make(context, circuit):
+        # ones place is at the end of each of the lists
+        adders = [adder1(context, circuit) for _ in range(width)]
+
+        for i in range(width):
+            context.connect(circuit.inputs['a'][i], adders[i].inputs['a'])
+            context.connect(circuit.inputs['b'][i], adders[i].inputs['b'])
+            context.connect(adders[i].outputs['result'], circuit.outputs['result'][i])
+
+        context.connect(circuit.inputs['carry'], adders[0].inputs['carry'])
+        for i in range(width - 1):
+            context.connect(adders[i].outputs['carry'], adders[i + 1].inputs['carry'])
+        context.connect(adders[-1].outputs['carry'], circuit.outputs['carry'])
+
+    return make
 
 @gates.make_circuit('clock', ty.DictProduct(enable=ty.Bit(), manual=ty.Bit()), ty.Bit())
 # TODO: adjustable speed
@@ -148,9 +149,16 @@ def main(context, circuit):
 
     context.connect(bundle.DictProduct(enable=enable_button.outputs, manual=manual_button.outputs), c.inputs)
 
-    buttons = [gates.button(context, circuit) for _ in range(3)]
-    adder_gate = adder(context, circuit)
-    context.connect(bundle.DictProduct(a=buttons[0].outputs, b=buttons[1].outputs, carry=buttons[2].outputs), adder_gate.inputs)
+    buttons = [gates.button(context, circuit) for _ in range(9)]
+    adder_gate = adder_many(4)(context, circuit)
+    context.connect(
+        bundle.DictProduct(
+            a=bundle.ListProduct(buttons[0].outputs, buttons[1].outputs, buttons[2].outputs, buttons[3].outputs),
+            b=bundle.ListProduct(buttons[4].outputs, buttons[5].outputs, buttons[6].outputs, buttons[7].outputs),
+            carry=buttons[8].outputs,
+        ),
+        adder_gate.inputs,
+    )
 
     layout.ltr_flow(
         layout.ttb_flow(layout.ltr_gate(enable_button), layout.ltr_gate(manual_button)),

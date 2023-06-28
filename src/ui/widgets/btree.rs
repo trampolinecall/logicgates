@@ -65,7 +65,7 @@ impl<Data, ChildView: ViewWithoutLayout<Data>, SplitHButtonView: ViewWithoutLayo
         match self {
             BTreeLayout::Single { splith_button, child_view, splith_button_offset } => {
                 child_view.draw(app, target, top_left, hover);
-                splith_button.draw(app, target, top_left + *splith_button_offset, hover);
+                // splith_button.draw(app, target, top_left + *splith_button_offset, hover); TODO: figure this out
             }
             BTreeLayout::HSplit { left, right } => todo!(),
             BTreeLayout::VSplit {} => todo!(),
@@ -74,7 +74,10 @@ impl<Data, ChildView: ViewWithoutLayout<Data>, SplitHButtonView: ViewWithoutLayo
 
     fn find_hover(&self, top_left: Vector2f, mouse: Vector2f) -> Option<ViewId> {
         match self {
-            BTreeLayout::Single { splith_button, child_view, splith_button_offset } => splith_button.find_hover(top_left + *splith_button_offset, mouse).or(child_view.find_hover(top_left, mouse)),
+            BTreeLayout::Single { splith_button, child_view, splith_button_offset } => {
+                // splith_button.find_hover(top_left + *splith_button_offset, mouse).or(child_view.find_hover(top_left, mouse)) TODO: figure this out
+                child_view.find_hover(top_left, mouse)
+            }
             BTreeLayout::HSplit { left, right } => todo!(),
             BTreeLayout::VSplit {} => todo!(),
         }

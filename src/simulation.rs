@@ -89,7 +89,7 @@ impl Gate {
             Gate::Nand { logic, location: _, direction: _ } => logic.nodes.inputs(),
             Gate::Const { logic, location: _, direction: _ } => logic.nodes.inputs(),
             Gate::Unerror { logic, location: _, direction: _ } => logic.nodes.inputs(),
-            Gate::Button { logic, location, direction } => logic.nodes.inputs(),
+            Gate::Button { logic, location: _, direction: _ } => logic.nodes.inputs(),
             Gate::Custom(circuit_idx) => circuits[*circuit_idx].nodes.inputs(),
         }
     }
@@ -98,7 +98,7 @@ impl Gate {
             Gate::Nand { logic, location: _, direction: _ } => logic.nodes.outputs(),
             Gate::Const { logic, location: _, direction: _ } => logic.nodes.outputs(),
             Gate::Unerror { logic, location: _, direction: _ } => logic.nodes.outputs(),
-            Gate::Button { logic, location, direction } => logic.nodes.outputs(),
+            Gate::Button { logic, location: _, direction: _ } => logic.nodes.outputs(),
             Gate::Custom(circuit_idx) => circuits[*circuit_idx].nodes.outputs(),
         }
     }
