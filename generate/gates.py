@@ -42,6 +42,7 @@ class Circuit:
         self.name = name
         self.inputs = input_type.make_bundle()
         self.outputs = output_type.make_bundle()
+        self.layout = layout.GateLayout((0, 0), 'ltr')
         self.gates = []
 
     def new_circuit(self, name, input_type, output_type):
