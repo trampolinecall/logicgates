@@ -182,7 +182,7 @@ pub(crate) fn btree<Child: Clone, BTreeLens: Lens<Data, BTree<Child>> + Copy, Ch
             let splith_button = crate::ui::widgets::button::button(
                 id_maker,
                 data,
-                lens::compose(lens::compose(btree_lens, SingleLens), lens::from_closures(|single: &Single<_>| &single.splith_button, |single| &mut single.splith_button)),
+                lens::Compose::new(lens::Compose::new(btree_lens, SingleLens), lens::Closures::new(|single: &Single<_>| &single.splith_button, |single| &mut single.splith_button)),
                 move |_, data| {
                     btree_lens.with_mut(data, |btree| match btree {
                         BTree::Single(Single { child, splith_button: _ }) => {
@@ -212,11 +212,11 @@ pub(crate) fn btree<Child: Clone, BTreeLens: Lens<Data, BTree<Child>> + Copy, Ch
             BTreeView::Single { splith_button, child_view: view_child(id_maker, BTreeChildLens { btree_lens, _phantom: PhantomData, get_child, get_child_mut }, data), _phantom: PhantomData }
         }
         BTree::HSplit(HSplit { left, right }) => {
-            let left_lens = lens::from_closures(todo!(), todo!());
-            let right_lens = lens::from_closures(todo!(), todo!());
+            let left_lens = lens::Closures::new(todo!(), todo!());
+            let right_lens = lens::Closures::new(todo!(), todo!());
             BTreeView::HSplit {
-                left: Box::new(self::btree(app, id_maker, data, lens::compose(btree_lens, left_lens), view_child)),
-                right: Box::new(self::btree(app, id_maker, data, lens::compose(btree_lens, right_lens), view_child)),
+                left: Box::new(self::btree(app, id_maker, data, lens::Compose::new(btree_lens, left_lens), view_child)),
+                right: Box::new(self::btree(app, id_maker, data, lens::Compose::new(btree_lens, right_lens), view_child)),
             }
         }
         BTree::VSplit(VSplit { top, bottom }) => BTreeView::VSplit {},

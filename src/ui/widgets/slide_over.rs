@@ -122,7 +122,7 @@ pub(crate) fn slide_over<Data>(
     let button = crate::ui::widgets::button::button(
         id_maker,
         data,
-        lens::compose(get_slide_over_data, lens::from_closures(move |slide_over_data: &SlideOverState| &slide_over_data.toggle_button, move |slide_over_data| &mut slide_over_data.toggle_button)),
+        lens::Compose::new(get_slide_over_data, lens::Closures::new(move |slide_over_data: &SlideOverState| &slide_over_data.toggle_button, move |slide_over_data| &mut slide_over_data.toggle_button)),
         move |app, data| {
             get_slide_over_data.with_mut(data, |slide_over_data| {
                 slide_over_data.drawer_out = !slide_over_data.drawer_out;

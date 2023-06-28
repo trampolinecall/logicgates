@@ -102,12 +102,12 @@ fn view(app: &App, logic_gates: &LogicGates) -> impl view::ViewWithoutLayout<Log
         app,
         &mut id_maker,
         logic_gates,
-        view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.ui.btree, |logic_gates| &mut logic_gates.ui.btree),
+        view::lens::Closures::new(|logic_gates: &LogicGates| &logic_gates.ui.btree, |logic_gates| &mut logic_gates.ui.btree),
         |id_maker, simulation_lens, logic_gates| {
             ui::widgets::simulation::simulation(
                 id_maker,
                 simulation_lens,
-                view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.simulation, |logic_gates| &mut logic_gates.simulation),
+                view::lens::Closures::new(|logic_gates: &LogicGates| &logic_gates.simulation, |logic_gates| &mut logic_gates.simulation),
                 &logic_gates.font,
                 logic_gates,
             )
@@ -117,7 +117,7 @@ fn view(app: &App, logic_gates: &LogicGates) -> impl view::ViewWithoutLayout<Log
     let mut rects: [_; 20] = (0..20)
         .map(|i| {
             Some(ui::widgets::submodule::submodule(
-                view::lens::unit(),
+                view::lens::Unit::new(),
                 ui::widgets::test_rect::test_rect(&mut id_maker, graphics::Color::rgb((i as f32 / 20.0 * 255.0) as u8, (((20 - i) as f32 / 20.0) * 255.0) as u8, 0), ((i * 5 + 20) as f32, 10.0)), // TODO: clean up this math
             ))
         })
@@ -129,8 +129,8 @@ fn view(app: &App, logic_gates: &LogicGates) -> impl view::ViewWithoutLayout<Log
         &mut id_maker,
         Some(1),
         Some(1000),
-        view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.ui.tps_slider_state, |logic_gates| &mut logic_gates.ui.tps_slider_state),
-        view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.ticks_per_second, |logic_gates| &mut logic_gates.ticks_per_second),
+        view::lens::Closures::new(|logic_gates: &LogicGates| &logic_gates.ui.tps_slider_state, |logic_gates| &mut logic_gates.ui.tps_slider_state),
+        view::lens::Closures::new(|logic_gates: &LogicGates| &logic_gates.ticks_per_second, |logic_gates| &mut logic_gates.ticks_per_second),
         |mouse_diff| (mouse_diff / 10.0) as isize,
         &logic_gates.font,
         logic_gates,
@@ -166,7 +166,7 @@ fn view(app: &App, logic_gates: &LogicGates) -> impl view::ViewWithoutLayout<Log
         app,
         &mut id_maker,
         logic_gates,
-        view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.ui.new_slide_over, |logic_gates: &mut LogicGates| &mut logic_gates.ui.new_slide_over),
+        view::lens::Closures::new(|logic_gates: &LogicGates| &logic_gates.ui.new_slide_over, |logic_gates: &mut LogicGates| &mut logic_gates.ui.new_slide_over),
         btree_view,
         flow_view,
     )
