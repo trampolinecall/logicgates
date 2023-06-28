@@ -1,4 +1,4 @@
-INDIVIDUAL_GATE_RECT = (100, 100) # TODO: sync this with constants from rust?
+INDIVIDUAL_GATE_RECT = (200, 200) # TODO: sync this with constants from rust?
 
 class GateLayout:
     def __init__(self, position, direction):
