@@ -87,6 +87,14 @@ def sr_latch(context, circuit):
     context.connect(not_gate.outputs, and_gate.inputs[1])
     context.connect(and_gate.outputs, circuit.outputs)
 
+    layout.ltr_flow(
+        layout.ttb_flow(
+            layout.ltr_gate(not_gate),
+            layout.ltr_flow(layout.ltr_gate(unerror_gate), layout.ltr_gate(or_gate)),
+        ),
+        layout.ltr_gate(and_gate),
+    ).apply()
+
 @gates.make_circuit('adder1', ty.DictProduct(a=ty.Bit(), b=ty.Bit(), carry=ty.Bit()), ty.DictProduct(carry=ty.Bit(), result=ty.Bit()))
 def adder1(context, circuit):
     a_b_xor = xor(context, circuit)
