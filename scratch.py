@@ -173,7 +173,7 @@ def d_flip_flop(context, circuit):
     ).apply()
 
 @gates.make_circuit('1 bit register', ty.DictProduct(data=ty.Bit(), store=ty.Bit(), clock=ty.Bit()), ty.Bit())
-def regsiter1(context, circuit):
+def register1(context, circuit):
     multi = multiplexer(context, circuit)
     d = d_flip_flop(context, circuit)
 
@@ -194,6 +194,22 @@ def regsiter1(context, circuit):
     context.connect(d.outputs, circuit.outputs)
 
     layout.ltr_flow(layout.ltr_gate(multi), layout.ltr_gate(d))
+
+def register(width):
+    @gates.make_circuit(f'{width} bit register', ty.DictProduct(data=ty.ListProduct(*[ty.Bit() for _ in range(width)]), store=ty.Bit(), clock=ty.Bit()), ty.ListProduct(*[ty.Bit() for _ in range(width)]))
+    def make(context, circuit):
+        bits = [register1(context, circuit) for _ in range(width)]
+
+        for i, bit in enumerate(bits):
+            context.connect(circuit.inputs['data'][i], bit.inputs['data'])
+            context.connect(circuit.inputs['clock'], bit.inputs['clock'])
+            context.connect(circuit.inputs['store'], bit.inputs['store'])
+
+            context.connect(bit.outputs, circuit.outputs[i])
+
+        layout.ttb_flow(*map(layout.ltr_gate, bits))
+
+    return make
 
 @gates.make_circuit('adder1', ty.DictProduct(a=ty.Bit(), b=ty.Bit(), carry=ty.Bit()), ty.DictProduct(carry=ty.Bit(), result=ty.Bit()))
 def adder1(context, circuit):
@@ -297,13 +313,16 @@ def main(context, circuit):
 
 @gates.make_circuit('main', ty.ListProduct(), ty.ListProduct())
 def main_d(context, circuit):
-    d_button = gates.button(context, circuit)
+    WIDTH = 8
+    d_buttons = [gates.button(context, circuit) for _ in range(WIDTH)]
     s_button = gates.button(context, circuit)
     c_button = gates.button(context, circuit)
 
-    reg = regsiter1(context, circuit)
+    reg = register(WIDTH)(context, circuit)
 
-    context.connect(d_button.outputs, reg.inputs['data'])
+    for button, reg_in in zip(d_buttons, reg.inputs['data'].fields):
+        context.connect(button.outputs, reg_in)
+
     context.connect(c_button.outputs, reg.inputs['clock'])
     context.connect(s_button.outputs, reg.inputs['store'])
 
