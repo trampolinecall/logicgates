@@ -16,10 +16,6 @@ impl GateChildren {
     pub(crate) fn add_gate(&mut self, gate: GateKey) {
         self.gates.push(gate);
     }
-
-    pub(crate) fn contains(&self, gk: GateKey) -> bool {
-        self.gates.contains(&gk)
-    }
 }
 
 impl<'a> IntoIterator for &'a GateChildren {
