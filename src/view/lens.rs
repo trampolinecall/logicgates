@@ -55,7 +55,7 @@ impl<A, B, C, Lens1: Lens<A, B>, Lens2: Lens<B, C>> Lens<A, C> for Compose<A, B,
 }
 impl<A, B, C, Lens1: Lens<A, B> + Clone, Lens2: Lens<B, C> + Clone> Clone for Compose<A, B, C, Lens1, Lens2> {
     fn clone(&self) -> Self {
-        Compose { a_b: self.a_b, b_c: self.b_c, _phantom: self._phantom }
+        Compose { a_b: self.a_b.clone(), b_c: self.b_c.clone(), _phantom: self._phantom }
     }
 }
 impl<A, B, C, Lens1: Lens<A, B> + Copy, Lens2: Lens<B, C> + Copy> Copy for Compose<A, B, C, Lens1, Lens2> {}

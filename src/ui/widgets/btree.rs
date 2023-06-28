@@ -212,12 +212,15 @@ pub(crate) fn btree<Child: Clone, BTreeLens: Lens<Data, BTree<Child>> + Copy, Ch
             BTreeView::Single { splith_button, child_view: view_child(id_maker, BTreeChildLens { btree_lens, _phantom: PhantomData, get_child, get_child_mut }, data), _phantom: PhantomData }
         }
         BTree::HSplit(HSplit { left, right }) => {
+            /* TODO
             let left_lens = lens::Closures::new(todo!(), todo!());
             let right_lens = lens::Closures::new(todo!(), todo!());
             BTreeView::HSplit {
                 left: Box::new(self::btree(app, id_maker, data, lens::Compose::new(btree_lens, left_lens), view_child)),
                 right: Box::new(self::btree(app, id_maker, data, lens::Compose::new(btree_lens, right_lens), view_child)),
             }
+            */
+            todo!()
         }
         BTree::VSplit(VSplit { top, bottom }) => BTreeView::VSplit {},
     })
