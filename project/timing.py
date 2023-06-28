@@ -20,7 +20,8 @@ def clock(length):
         context.connect(manual_or.outputs, circuit.outputs)
 
         layout.ltr_flow(
-            layout.snake('ltr', 'ttb', math.floor(math.sqrt(length)), lambda direction: layout.Gate(unerror, direction), *map(lambda g: lambda direction: layout.Gate(g, direction), nots)),
+            layout.ltr_gate(unerror),
+            layout.snake('ltr', 'ttb', math.floor(math.sqrt(length)), *map(lambda g: lambda direction: layout.Gate(g, direction), nots)),
             layout.ltr_gate(enable_and),
             layout.ltr_gate(manual_or),
         ).apply()

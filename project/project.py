@@ -15,7 +15,7 @@ def make_bus(context, circuit):
 def main(context, circuit):
     enable_button = basic.button(context, circuit)
     manual_button = basic.button(context, circuit)
-    clock = timing.clock(51)(context, circuit)
+    clock = timing.clock(121)(context, circuit)
     context.connect(bundle.DictProduct(enable=enable_button.outputs, manual=manual_button.outputs), clock.inputs)
 
     bus = make_bus(context, circuit)
