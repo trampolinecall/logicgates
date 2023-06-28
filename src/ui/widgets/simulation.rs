@@ -130,10 +130,18 @@ pub(crate) fn simulation<Data>(
             None => &simulation.toplevel_gates,
         };
 
+        let extra_nodes = match current_view {
+            Some(ck) => {
+                let circuit = &simulation.circuits[ck];
+                Some(circuit.nodes.inputs().iter().chain(circuit.nodes.outputs().iter()))
+            }
+            None => None,
+        };
         let gates = gates_currently_viewing.iter().copied();
         let nodes = gates_currently_viewing
             .iter()
             .flat_map(|gate| simulation::Gate::inputs(&simulation.circuits, &simulation.gates, *gate).iter().chain(simulation::Gate::outputs(&simulation.circuits, &simulation.gates, *gate)))
+            .chain(extra_nodes.into_iter().flatten())
             .copied();
 
         let gate_views = gates
@@ -591,10 +599,10 @@ fn coord_centered_around(center: f32, total: usize, index: usize) -> f32 {
 }
 
 fn circuit_input_pos(widget_rect: graphics::FloatRect, num_inputs: usize, num_outputs: usize, index: usize) -> graphics::Vector2f {
-    graphics::Vector2f::new(widget_rect.left, coord_centered_around(0.0, num_inputs, index))
+    graphics::Vector2f::new(widget_rect.left, coord_centered_around(widget_rect.center().y, num_inputs, index))
 }
 fn circuit_output_pos(widget_rect: graphics::FloatRect, num_inputs: usize, num_outputs: usize, index: usize) -> graphics::Vector2f {
-    graphics::Vector2f::new(widget_rect.left + widget_rect.width, coord_centered_around(0.0, num_outputs, index))
+    graphics::Vector2f::new(widget_rect.left + widget_rect.width, coord_centered_around(widget_rect.center().y, num_outputs, index))
 }
 
 fn gate_input_pos(widget_rect: graphics::FloatRect, gate_location: (f32, f32), direction: simulation::GateDirection, num_inputs: usize, num_outputs: usize, idx: usize) -> graphics::Vector2f {
