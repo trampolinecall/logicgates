@@ -5,6 +5,7 @@ false = gates.false
 true = gates.true
 unerror = gates.unerror
 button = gates.button
+tristate_buffer = gates.tristate_buffer
 
 @gates.make_circuit('and', ty.ListProduct(ty.Bit(), ty.Bit()), ty.Bit())
 def and_(context, circuit):

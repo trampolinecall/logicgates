@@ -2,6 +2,7 @@ from generate import gates, ty, bundle, layout
 import timing
 import arithmetic
 import basic
+import tristate
 import memory
 
 BIT_WIDTH = 8
@@ -20,18 +21,29 @@ def main(context, circuit):
     bus = make_bus(context, circuit)
 
     a_register = memory.register(BIT_WIDTH)(context, circuit)
-    b_register = memory.register(BIT_WIDTH)(context, circuit)
+    a_register_tristate = tristate.tristate_buffer(BIT_WIDTH)(context, circuit)
+    a_register_output_enable = basic.button(context, circuit)
+    context.connect(a_register.outputs, a_register_tristate.inputs['data'])
+    context.connect(a_register.inputs['data'], bus.outputs)
+    context.connect(a_register_tristate.outputs, bus.outputs)
+    context.connect(a_register_output_enable.outputs, a_register_tristate.inputs['enable'])
 
-    # buttons = [basic.button(context, circuit) for _ in range(11)]
-    # adder_gate = arithmetic.adder_many(5)(context, circuit)
-    # context.connect(
-    #     bundle.DictProduct(
-    #         a=bundle.ListProduct(buttons[0].outputs, buttons[1].outputs, buttons[2].outputs, buttons[3].outputs, buttons[4].outputs),
-    #         b=bundle.ListProduct(buttons[5].outputs, buttons[6].outputs, buttons[7].outputs, buttons[8].outputs, buttons[9].outputs),
-    #         carry=buttons[10].outputs,
-    #     ),
-    #     adder_gate.inputs,
-    # )
+    b_register = memory.register(BIT_WIDTH)(context, circuit)
+    b_register_tristate = tristate.tristate_buffer(BIT_WIDTH)(context, circuit)
+    b_register_output_enable = basic.button(context, circuit)
+    context.connect(b_register.outputs, b_register_tristate.inputs['data'])
+    context.connect(b_register.inputs['data'], bus.outputs)
+    context.connect(b_register_tristate.outputs, bus.outputs)
+    context.connect(b_register_output_enable.outputs, b_register_tristate.inputs['enable'])
+
+    adder = arithmetic.adder_many(BIT_WIDTH)(context, circuit)
+    adder_tristate = tristate.tristate_buffer(BIT_WIDTH)(context, circuit)
+    adder_output_enable = basic.button(context, circuit)
+    false_carry = basic.false(context, circuit)
+    context.connect(bundle.DictProduct(a=a_register.outputs, b=b_register.outputs, carry=false_carry.outputs), adder.inputs)
+    context.connect(adder.outputs['result'], adder_tristate.inputs['data'])
+    context.connect(adder_tristate.outputs, bus.outputs)
+    context.connect(adder_output_enable.outputs, adder_tristate.inputs['enable'])
 
     layout.ltr_flow(
         layout.ttb_flow(
@@ -42,8 +54,10 @@ def main(context, circuit):
         ),
         layout.ttb_gate(bus),
         layout.ttb_flow(
-            layout.ltr_gate(a_register),
-            layout.ltr_gate(b_register),
+            layout.ltr_flow(layout.ltr_gate(a_register), layout.ltr_gate(a_register_output_enable), layout.ltr_gate(a_register_tristate)),
+            layout.ltr_flow(layout.ltr_gate(b_register), layout.ltr_gate(b_register_output_enable), layout.ltr_gate(b_register_tristate)),
+            layout.ltr_flow(layout.ltr_gate(false_carry), layout.ltr_gate(adder), layout.ltr_gate(adder_output_enable), layout.ltr_gate(adder_tristate)),
+
         ),
     ).apply()
 

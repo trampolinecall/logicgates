@@ -60,9 +60,16 @@ def serialize_gate(nodes, gate):
             'outputs': convert_bundle(nodes, gate.outputs),
             'layout': serialize_layout(gate.layout),
         }
-    elif isinstance(gate, gates._ButtonGate):
+    elif isinstance(gate, gates._Button):
         return {
             'type': 'button',
+            'inputs': convert_bundle(nodes, gate.inputs),
+            'outputs': convert_bundle(nodes, gate.outputs),
+            'layout': serialize_layout(gate.layout),
+        }
+    elif isinstance(gate, gates._TristateBuffer):
+        return {
+            'type': 'tristate',
             'inputs': convert_bundle(nodes, gate.inputs),
             'outputs': convert_bundle(nodes, gate.outputs),
             'layout': serialize_layout(gate.layout),

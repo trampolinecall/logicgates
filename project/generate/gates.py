@@ -77,9 +77,15 @@ class _UnerrorGate:
         self.outputs = bundle.Bit()
         self.layout = layout.GateLayout((0, 0), 'ltr')
 
-class _ButtonGate:
+class _Button:
     def __init__(self):
         self.inputs = bundle.ListProduct()
+        self.outputs = bundle.Bit()
+        self.layout = layout.GateLayout((0, 0), 'ltr')
+
+class _TristateBuffer:
+    def __init__(self):
+        self.inputs = bundle.DictProduct(data=bundle.Bit(), enable=bundle.Bit())
         self.outputs = bundle.Bit()
         self.layout = layout.GateLayout((0, 0), 'ltr')
 
@@ -116,7 +122,12 @@ def unerror(context, parent):
     return gate
 
 def button(context, parent):
-    gate = _ButtonGate()
+    gate = _Button()
+    parent.add_gate(gate)
+    return gate
+
+def tristate_buffer(context, parent):
+    gate = _TristateBuffer()
     parent.add_gate(gate)
     return gate
 

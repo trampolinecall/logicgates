@@ -153,7 +153,7 @@ pub(crate) fn update(gates: &mut GateMap, node_map: &mut NodeMap) {
                 Gate::Custom(_) => None, // custom gates do not have to compute values because their nodes are connected to their inputs or are passthrough nodes and should automatically have the right values
                 Gate::Button { logic: _, location: _, direction: _ } => None, // buttons do not need to update their values
                 Gate::TristateBuffer { logic: TristateBufferLogic { nodes, _dont_construct }, location: _, direction: _ } => {
-                    let [enable, data] = nodes.inputs();
+                    let [data, enable] = nodes.inputs();
                     let [output] = nodes.outputs();
                     let enable_value = node_map[*enable].logic.value;
                     let data_value = node_map[*data].logic.value;
