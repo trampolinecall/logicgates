@@ -34,13 +34,6 @@ mod private {
 }
 
 impl NodeParent {
-    pub(crate) fn get_node_parent_type(&self) -> NodeParentType {
-        match self.kind {
-            NodeParentKind::GateIn(g, _) | NodeParentKind::GateOut(g, _) => NodeParentType::Gate(g),
-            NodeParentKind::CircuitIn(c, _) | NodeParentKind::CircuitOut(c, _) => NodeParentType::Circuit(c),
-        }
-    }
-
     pub(crate) fn kind(&self) -> NodeParentKind {
         self.kind
     }
