@@ -1,7 +1,7 @@
 import json
 import functools
 
-from . import bundle, serialize, ty
+from . import bundle, serialize, ty, layout
 
 class Context:
     def __init__(self):
@@ -56,21 +56,25 @@ class _NandGate:
     def __init__(self):
         self.inputs = bundle.ListProduct(bundle.Bit(), bundle.Bit())
         self.outputs = bundle.Bit()
+        self.layout = layout.GateLayout((0, 0), 'ltr')
 
 class _FalseGate:
     def __init__(self):
         self.inputs = bundle.ListProduct()
         self.outputs = bundle.Bit()
+        self.layout = layout.GateLayout((0, 0), 'ltr')
 
 class _TrueGate:
     def __init__(self):
         self.inputs = bundle.ListProduct()
         self.outputs = bundle.Bit()
+        self.layout = layout.GateLayout((0, 0), 'ltr')
 
 class _UnerrorGate:
     def __init__(self):
         self.inputs = bundle.Bit()
         self.outputs = bundle.Bit()
+        self.layout = layout.GateLayout((0, 0), 'ltr')
 
 def make_circuit(name, input_type, output_type):
     def decorator(func):

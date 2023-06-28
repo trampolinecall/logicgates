@@ -51,41 +51,43 @@ fn parse_gate(
     let gate_type = gate.remove("type").ok_or("gate must have field 'type'")?.take_string().ok_or("gate type must be string")?;
     let JsonValue::Array(gate_inputs) = gate.remove("inputs").ok_or("gate must have field 'inputs'")? else { return Err("gate inputs must be array".to_string()); };
     let JsonValue::Array(gate_outputs) = gate.remove("outputs").ok_or("gate must have field 'outputs'")? else { return Err("gate outputs must be array".to_string()); };
+    let JsonValue::Object(gate_layout) = gate.remove("layout").ok_or("gate must have field 'layout'")? else { return Err("gate layout must be object".to_string()); };
+    let (gate_direction, gate_pos) = parse_layout(gate_layout)?;
 
     match &*gate_type {
         "nand" => Ok(gate_map.insert_with_key(|gk| {
             let logic = simulation::logic::NandLogic::new(node_map, gk);
             assign_node_mapping(node_mapping, logic.nodes.inputs(), &gate_inputs);
             assign_node_mapping(node_mapping, logic.nodes.outputs(), &gate_outputs);
-            simulation::Gate::Nand { logic, location: simulation::location::GateLocation::new(), direction: simulation::GateDirection::LTR }
+            simulation::Gate::Nand { logic, location: gate_pos.into(), direction: gate_direction }
         })),
 
         "true" => Ok(gate_map.insert_with_key(|gk| {
             let logic = simulation::logic::ConstLogic::new(node_map, gk, true);
             assign_node_mapping(node_mapping, logic.nodes.inputs(), &gate_inputs);
             assign_node_mapping(node_mapping, logic.nodes.outputs(), &gate_outputs);
-            simulation::Gate::Const { logic, location: simulation::location::GateLocation::new(), direction: simulation::GateDirection::LTR }
+            simulation::Gate::Const { logic, location: gate_pos.into(), direction: gate_direction }
         })),
 
         "false" => Ok(gate_map.insert_with_key(|gk| {
             let logic = simulation::logic::ConstLogic::new(node_map, gk, false);
             assign_node_mapping(node_mapping, logic.nodes.inputs(), &gate_inputs);
             assign_node_mapping(node_mapping, logic.nodes.outputs(), &gate_outputs);
-            simulation::Gate::Const { logic, location: simulation::location::GateLocation::new(), direction: simulation::GateDirection::LTR }
+            simulation::Gate::Const { logic, location: gate_pos.into(), direction: gate_direction }
         })),
 
         "unerror" => Ok(gate_map.insert_with_key(|gk| {
             let logic = simulation::logic::UnerrorLogic::new(node_map, gk);
             assign_node_mapping(node_mapping, logic.nodes.inputs(), &gate_inputs);
             assign_node_mapping(node_mapping, logic.nodes.outputs(), &gate_outputs);
-            simulation::Gate::Unerror { logic, location: simulation::location::GateLocation::new(), direction: simulation::GateDirection::LTR }
+            simulation::Gate::Unerror { logic, location: gate_pos.into(), direction: gate_direction }
         })),
 
         "subcircuit" => {
             let JsonValue::Array(subgates) = gate.remove("gates").ok_or("subcircuit gate must have field 'gates'")? else { return Err("gate subgates must be array".to_string()); };
             let name = gate.remove("name").ok_or("subcircuit gate must have field 'name'")?.take_string().ok_or("subcircuit name must be string")?;
 
-            let ck = circuit_map.insert_with_key(|ck| simulation::Circuit::new(ck, node_map, name, simulation::GateDirection::LTR, gate_inputs.len(), gate_outputs.len())); // TODO: names
+            let ck = circuit_map.insert_with_key(|ck| simulation::Circuit::new(ck, node_map, name, gate_pos.into(), gate_direction, gate_inputs.len(), gate_outputs.len())); // TODO: names
 
             assign_node_mapping(node_mapping, circuit_map[ck].nodes.inputs(), &gate_inputs);
             assign_node_mapping(node_mapping, circuit_map[ck].nodes.outputs(), &gate_outputs);
@@ -100,6 +102,23 @@ fn parse_gate(
 
         _ => Err(format!("invalid gate type {}", gate_type)),
     }
+}
+
+fn parse_layout(mut layout: json::object::Object) -> Result<(simulation::GateDirection, (f32, f32)), String> {
+    let x = layout.remove("x").ok_or("gate layout must have field 'x'")?.as_f32().ok_or("gate layout x must be number")?;
+    let y = layout.remove("y").ok_or("gate layout must have field 'y'")?.as_f32().ok_or("gate layout y must be number")?;
+    let direction = layout.remove("direction").ok_or("gate layout must have field 'direction'")?.take_string().ok_or("gate layout direection must be string")?;
+
+    let direction = match &*direction {
+        "ltr" => simulation::GateDirection::LTR,
+        "rtl" => simulation::GateDirection::RTL,
+        "ttb" => simulation::GateDirection::TTB,
+        "btt" => simulation::GateDirection::BTT,
+
+        _ => return Err(format!("invalid direction '{}'", direction))
+    };
+
+    Ok((direction, (x, y)))
 }
 
 // TODO: figure out a better way than to panic

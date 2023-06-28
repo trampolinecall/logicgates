@@ -28,17 +28,38 @@ def serialize_gate(nodes, gate):
             'type': 'subcircuit',
             'inputs': convert_bundle(nodes, gate.inputs),
             'outputs': convert_bundle(nodes, gate.outputs),
+            'layout': serialize_layout(gate.layout),
             'name': gate.name,
             'gates': [serialize_gate(nodes, gate) for gate in gate.gates],
         }
     elif isinstance(gate, gates._NandGate):
-        return {'type': 'nand', 'inputs': convert_bundle(nodes, gate.inputs), 'outputs': convert_bundle(nodes, gate.outputs)}
+        return {
+            'type': 'nand',
+            'inputs': convert_bundle(nodes, gate.inputs),
+            'outputs': convert_bundle(nodes, gate.outputs),
+            'layout': serialize_layout(gate.layout),
+        }
     elif isinstance(gate, gates._FalseGate):
-        return {'type': 'false', 'inputs': convert_bundle(nodes, gate.inputs), 'outputs': convert_bundle(nodes, gate.outputs)}
+        return {
+            'type': 'false',
+            'inputs': convert_bundle(nodes, gate.inputs),
+            'outputs': convert_bundle(nodes, gate.outputs),
+            'layout': serialize_layout(gate.layout),
+        }
     elif isinstance(gate, gates._TrueGate):
-        return {'type': 'true', 'inputs': convert_bundle(nodes, gate.inputs), 'outputs': convert_bundle(nodes, gate.outputs)}
+        return {
+            'type': 'true',
+            'inputs': convert_bundle(nodes, gate.inputs),
+            'outputs': convert_bundle(nodes, gate.outputs),
+            'layout': serialize_layout(gate.layout),
+        }
     elif isinstance(gate, gates._UnerrorGate):
-        return {'type': 'unerror', 'inputs': convert_bundle(nodes, gate.inputs), 'outputs': convert_bundle(nodes, gate.outputs)}
+        return {
+            'type': 'unerror',
+            'inputs': convert_bundle(nodes, gate.inputs),
+            'outputs': convert_bundle(nodes, gate.outputs),
+            'layout': serialize_layout(gate.layout),
+        }
     else:
         raise Exception(f'invalid gate {gate}')
 
@@ -62,3 +83,10 @@ def convert_bundle(nodes, b):
         return sum([convert_bundle(nodes, subb) for (_, subb) in sorted(b.fields.items())], [])
     else:
         raise Exception(f'invalid bundle {b}')
+
+def serialize_layout(layout):
+    return {
+        'x': layout.position[0],
+        'y': layout.position[1],
+        'direction': layout.direction,
+    }

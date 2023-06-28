@@ -62,12 +62,12 @@ impl Simulation {
 }
 
 impl Circuit {
-    pub(crate) fn new(circuit_key: CircuitKey, nodes: &mut NodeMap, name: String, direction: GateDirection, num_inputs: usize, num_outputs: usize) -> Circuit {
+    pub(crate) fn new(circuit_key: CircuitKey, nodes: &mut NodeMap, name: String, location: location::GateLocation, direction: GateDirection, num_inputs: usize, num_outputs: usize) -> Circuit {
         Circuit {
             name,
             gates: hierarchy::GateChildren::new(),
             nodes: hierarchy::NodeChildren::new(nodes, hierarchy::NodeParentType::Circuit(circuit_key), num_inputs, num_outputs),
-            location: location::GateLocation::new(),
+            location,
             direction,
         }
     }
