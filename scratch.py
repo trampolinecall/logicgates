@@ -95,6 +95,35 @@ def sr_latch(context, circuit):
         layout.ltr_gate(and_gate),
     ).apply()
 
+@gates.make_circuit('d', ty.DictProduct(data=ty.Bit(), store=ty.Bit()), ty.Bit())
+def d_latch(context, circuit):
+    sr = sr_latch(context, circuit)
+
+    set_and = and_(context, circuit)
+    reset_and = and_(context, circuit)
+
+    data_inverse = not_(context, circuit)
+
+    context.connect(circuit.inputs['store'], set_and.inputs[0])
+    context.connect(circuit.inputs['data'], set_and.inputs[1])
+
+    context.connect(circuit.inputs['data'], data_inverse.inputs)
+    context.connect(circuit.inputs['store'], reset_and.inputs[0])
+    context.connect(data_inverse.outputs, reset_and.inputs[1])
+
+    context.connect(set_and.outputs, sr.inputs['set'])
+    context.connect(reset_and.outputs, sr.inputs['reset'])
+
+    context.connect(sr.outputs, circuit.outputs)
+
+    layout.ltr_flow(
+        layout.ttb_flow(
+            layout.ltr_gate(set_and),
+            layout.ltr_flow(layout.ltr_gate(data_inverse), layout.ltr_gate(reset_and)),
+        ),
+        layout.ltr_gate(sr),
+    ).apply()
+
 @gates.make_circuit('adder1', ty.DictProduct(a=ty.Bit(), b=ty.Bit(), carry=ty.Bit()), ty.DictProduct(carry=ty.Bit(), result=ty.Bit()))
 def adder1(context, circuit):
     a_b_xor = xor(context, circuit)
@@ -196,14 +225,14 @@ def main(context, circuit):
     ).apply()
 
 @gates.make_circuit('main', ty.ListProduct(), ty.ListProduct())
-def main_sr(context, circuit):
+def main_d(context, circuit):
+    d_button = gates.button(context, circuit)
     s_button = gates.button(context, circuit)
-    r_button = gates.button(context, circuit)
 
-    sr = sr_latch(context, circuit)
+    d = d_latch(context, circuit)
 
-    context.connect(s_button.outputs, sr.inputs['set'])
-    context.connect(r_button.outputs, sr.inputs['reset'])
+    context.connect(d_button.outputs, d.inputs['data'])
+    context.connect(s_button.outputs, d.inputs['store'])
 
 if __name__ == '__main__':
-    gates.export(main_sr, 'project.json')
+    gates.export(main_d, 'project.json')
