@@ -80,12 +80,12 @@ def register1(context, circuit):
     multi = utils.multiplexer(context, circuit)
     d = d_flip_flop(context, circuit)
 
-    unerror = basic.unerror(context, circuit)
-    context.connect(d.outputs, unerror.inputs)
+    loop_unerror = basic.unerror(context, circuit)
+    context.connect(d.outputs, loop_unerror.inputs)
 
     store = circuit.inputs['store']
     data = circuit.inputs['data']
-    current_output = unerror.outputs
+    current_output = loop_unerror.outputs
     # if store, choose data, but if not store, choose current output
     context.connect(store, multi.inputs['select'])
     context.connect(current_output, multi.inputs['a'])
@@ -94,9 +94,11 @@ def register1(context, circuit):
     context.connect(multi.outputs, d.inputs['data'])
     context.connect(circuit.inputs['clock'], d.inputs['clock'])
 
-    context.connect(d.outputs, circuit.outputs)
+    final_unerror = basic.unerror(context, circuit) # initially registers have an error value saved so this turns it into a 0
+    context.connect(d.outputs, final_unerror.inputs)
+    context.connect(final_unerror.outputs, circuit.outputs)
 
-    layout.ltr_flow(layout.ltr_gate(unerror), layout.ltr_gate(multi), layout.ltr_gate(d)).apply()
+    layout.ltr_flow(layout.ltr_gate(loop_unerror), layout.ltr_gate(multi), layout.ltr_gate(d), layout.ltr_gate(final_unerror)).apply()
 
 def register(width):
     @gates.make_circuit(f'{width} bit register', ty.DictProduct(data=ty.ListProduct(*[ty.Bit() for _ in range(width)]), store=ty.Bit(), clock=ty.Bit()), ty.ListProduct(*[ty.Bit() for _ in range(width)]))

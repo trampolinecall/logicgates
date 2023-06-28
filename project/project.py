@@ -45,19 +45,18 @@ def main(context, circuit):
     context.connect(adder_tristate.outputs, bus.outputs)
     context.connect(adder_output_enable.outputs, adder_tristate.inputs['enable'])
 
-    layout.ltr_flow(
-        layout.ttb_flow(
-            layout.ltr_flow(
-                layout.ttb_flow(layout.ltr_gate(enable_button), layout.ltr_gate(manual_button)),
-                layout.ltr_gate(clock),
+    layout.ttb_flow(
+        layout.ltr_flow(
+            layout.ttb_flow(
+                layout.ltr_flow(layout.ttb_gate(enable_button), layout.ttb_gate(manual_button)),
+                layout.ttb_gate(clock),
             ),
         ),
-        layout.ttb_gate(bus),
-        layout.ttb_flow(
-            layout.ltr_flow(layout.ltr_gate(a_register), layout.ltr_gate(a_register_output_enable), layout.ltr_gate(a_register_tristate)),
-            layout.ltr_flow(layout.ltr_gate(b_register), layout.ltr_gate(b_register_output_enable), layout.ltr_gate(b_register_tristate)),
-            layout.ltr_flow(layout.ltr_gate(false_carry), layout.ltr_gate(adder), layout.ltr_gate(adder_output_enable), layout.ltr_gate(adder_tristate)),
-
+        layout.ltr_gate(bus),
+        layout.ltr_flow(
+            layout.btt_flow(layout.btt_gate(a_register), layout.btt_gate(a_register_output_enable), layout.btt_gate(a_register_tristate)),
+            layout.btt_flow(layout.btt_gate(b_register), layout.btt_gate(b_register_output_enable), layout.btt_gate(b_register_tristate)),
+            layout.btt_flow(layout.btt_gate(false_carry), layout.btt_gate(adder), layout.btt_gate(adder_output_enable), layout.btt_gate(adder_tristate)),
         ),
     ).apply()
 
