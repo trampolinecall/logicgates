@@ -5,8 +5,6 @@ pub(crate) trait Lens<A, B> {
     fn with_mut<'a, R: 'a, F: FnOnce(&mut B) -> R>(&self, a: &mut A, f: F) -> R;
 }
 
-// TODO: move all structs out and then have each function be associated on each of the struct types?
-
 pub(crate) struct Closures<A, B, I: Fn(&A) -> &B, M: Fn(&mut A) -> &mut B> {
     immut: I,
     mut_: M,
