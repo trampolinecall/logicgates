@@ -13,6 +13,9 @@ class Bit:
     def make_bundle(self):
         return bundle.Bit()
 
+    def size(self):
+        return 1
+
 class ListProduct:
     def __init__(self, *fields):
         self.fields = fields
@@ -29,6 +32,9 @@ class ListProduct:
     def make_bundle(self):
         return bundle.ListProduct(*[field.make_bundle() for field in self.fields])
 
+    def size(self):
+        return sum([field.size() for field in self.fields])
+
 class DictProduct:
     def __init__(self, **fields):
         self.fields = fields
@@ -44,3 +50,6 @@ class DictProduct:
 
     def make_bundle(self):
         return bundle.DictProduct(**{name: ty.make_bundle() for (name, ty) in self.fields.items()})
+
+    def size(self):
+        return sum([ty.size() for ty in self.fields.values()])

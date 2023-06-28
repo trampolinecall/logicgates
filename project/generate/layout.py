@@ -1,4 +1,4 @@
-INDIVIDUAL_GATE_RECT = (200, 200) # TODO: sync this with constants from rust?
+# INDIVIDUAL_GATE_RECT = (200, 200) # TODO: sync this with constants from rust?
 
 class GateLayout:
     def __init__(self, position, direction):
@@ -11,7 +11,18 @@ class Gate:
         self.direction = direction
 
     def size(self):
-        return INDIVIDUAL_GATE_RECT
+        gate_max_num_nodes = max(self.gate.inputs.type().size(), self.gate.outputs.type().size())
+        variable_size = gate_max_num_nodes * 20 + 40 # TODO: sync constants with constants from rust
+        fixed_size = 50
+        spacing = 20
+        match self.direction:
+            case 'ltr' | 'rtl':
+                return (fixed_size + spacing, variable_size + spacing)
+            case 'ttb' | 'btt':
+                return (variable_size + spacing, fixed_size + spacing)
+
+            case _:
+                raise Exception(f'invalid gate direction \'{self.direction}\'')
 
     def apply(self, center=(0, 0)):
         self.gate.layout = GateLayout(center, self.direction)
