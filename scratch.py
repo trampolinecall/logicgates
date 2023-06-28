@@ -72,6 +72,33 @@ def xor(context, circuit):
         layout.ltr_gate(final_nand),
     ).apply()
 
+# if select is off, the result is a, and if select is on, the result is b
+@gates.make_circuit('multiplexer', ty.DictProduct(select=ty.Bit(), a=ty.Bit(), b=ty.Bit()), ty.Bit())
+def multiplexer(context, circuit):
+    select_not = not_(context, circuit)
+    context.connect(circuit.inputs['select'], select_not.inputs)
+
+    a_and = and_(context, circuit)
+    context.connect(circuit.inputs['a'], a_and.inputs[0])
+    context.connect(select_not.outputs, a_and.inputs[1])
+
+    b_and = and_(context, circuit)
+    context.connect(circuit.inputs['b'], b_and.inputs[0])
+    context.connect(circuit.inputs['select'], b_and.inputs[1])
+
+    final_or = or_(context, circuit)
+    context.connect(a_and.outputs, final_or.inputs[0])
+    context.connect(b_and.outputs, final_or.inputs[1])
+    context.connect(final_or.outputs, circuit.outputs)
+
+    layout.ltr_flow(
+        layout.ttb_flow(
+            layout.ltr_gate(a_and),
+            layout.ltr_flow(layout.ltr_gate(select_not), layout.ltr_gate(b_and)),
+        ),
+        layout.ltr_gate(final_or),
+    )
+
 @gates.make_circuit('sr', ty.DictProduct(set=ty.Bit(), reset=ty.Bit()), ty.Bit())
 def sr_latch(context, circuit):
     not_gate = not_(context, circuit)
@@ -126,7 +153,6 @@ def d_latch(context, circuit):
 
 @gates.make_circuit('d flip flop', ty.DictProduct(data=ty.Bit(), clock=ty.Bit()), ty.Bit())
 def d_flip_flop(context, circuit):
-
     clock_not = not_(context, circuit)
     context.connect(circuit.inputs['clock'], clock_not.inputs)
 
@@ -145,6 +171,29 @@ def d_flip_flop(context, circuit):
         layout.ltr_gate(d_before),
         layout.ltr_gate(d_main),
     ).apply()
+
+@gates.make_circuit('1 bit register', ty.DictProduct(data=ty.Bit(), store=ty.Bit(), clock=ty.Bit()), ty.Bit())
+def regsiter1(context, circuit):
+    multi = multiplexer(context, circuit)
+    d = d_flip_flop(context, circuit)
+
+    unerror = gates.unerror(context, circuit)
+    context.connect(d.outputs, unerror.inputs)
+
+    store = circuit.inputs['store']
+    data = circuit.inputs['data']
+    current_output = unerror.outputs
+    # if store, choose data, but if not store, choose current output
+    context.connect(store, multi.inputs['select'])
+    context.connect(current_output, multi.inputs['a'])
+    context.connect(data, multi.inputs['b'])
+
+    context.connect(multi.outputs, d.inputs['data'])
+    context.connect(circuit.inputs['clock'], d.inputs['clock'])
+
+    context.connect(d.outputs, circuit.outputs)
+
+    layout.ltr_flow(layout.ltr_gate(multi), layout.ltr_gate(d))
 
 @gates.make_circuit('adder1', ty.DictProduct(a=ty.Bit(), b=ty.Bit(), carry=ty.Bit()), ty.DictProduct(carry=ty.Bit(), result=ty.Bit()))
 def adder1(context, circuit):
@@ -249,12 +298,14 @@ def main(context, circuit):
 @gates.make_circuit('main', ty.ListProduct(), ty.ListProduct())
 def main_d(context, circuit):
     d_button = gates.button(context, circuit)
+    s_button = gates.button(context, circuit)
     c_button = gates.button(context, circuit)
 
-    d = d_flip_flop(context, circuit)
+    reg = regsiter1(context, circuit)
 
-    context.connect(d_button.outputs, d.inputs['data'])
-    context.connect(c_button.outputs, d.inputs['clock'])
+    context.connect(d_button.outputs, reg.inputs['data'])
+    context.connect(c_button.outputs, reg.inputs['clock'])
+    context.connect(s_button.outputs, reg.inputs['store'])
 
 if __name__ == '__main__':
     gates.export(main_d, 'project.json')
