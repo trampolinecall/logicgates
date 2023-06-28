@@ -83,6 +83,13 @@ fn parse_gate(
             simulation::Gate::Unerror { logic, location: gate_pos.into(), direction: gate_direction }
         })),
 
+        "button" => Ok(gate_map.insert_with_key(|gk| {
+            let logic = simulation::logic::ButtonLogic::new(node_map, gk);
+            assign_node_mapping(node_mapping, logic.nodes.inputs(), &gate_inputs);
+            assign_node_mapping(node_mapping, logic.nodes.outputs(), &gate_outputs);
+            simulation::Gate::Button { logic, location: gate_pos.into(), direction: gate_direction }
+        })),
+
         "subcircuit" => {
             let JsonValue::Array(subgates) = gate.remove("gates").ok_or("subcircuit gate must have field 'gates'")? else { return Err("gate subgates must be array".to_string()); };
             let name = gate.remove("name").ok_or("subcircuit gate must have field 'name'")?.take_string().ok_or("subcircuit name must be string")?;
@@ -115,7 +122,7 @@ fn parse_layout(mut layout: json::object::Object) -> Result<(simulation::GateDir
         "ttb" => simulation::GateDirection::TTB,
         "btt" => simulation::GateDirection::BTT,
 
-        _ => return Err(format!("invalid direction '{}'", direction))
+        _ => return Err(format!("invalid direction '{}'", direction)),
     };
 
     Ok((direction, (x, y)))

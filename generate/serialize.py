@@ -60,6 +60,13 @@ def serialize_gate(nodes, gate):
             'outputs': convert_bundle(nodes, gate.outputs),
             'layout': serialize_layout(gate.layout),
         }
+    elif isinstance(gate, gates._ButtonGate):
+        return {
+            'type': 'button',
+            'inputs': convert_bundle(nodes, gate.inputs),
+            'outputs': convert_bundle(nodes, gate.outputs),
+            'layout': serialize_layout(gate.layout),
+        }
     else:
         raise Exception(f'invalid gate {gate}')
 

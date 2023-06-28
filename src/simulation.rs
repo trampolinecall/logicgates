@@ -46,6 +46,7 @@ pub(crate) enum Gate {
     Nand { logic: logic::NandLogic, location: location::GateLocation, direction: GateDirection },
     Const { logic: logic::ConstLogic, location: location::GateLocation, direction: GateDirection },
     Unerror { logic: logic::UnerrorLogic, location: location::GateLocation, direction: GateDirection },
+    Button { logic: logic::ButtonLogic, location: location::GateLocation, direction: GateDirection },
     Custom(CircuitKey),
 }
 
@@ -78,6 +79,7 @@ impl Gate {
             Gate::Nand { logic, location: _, direction: _ } => logic.name(),
             Gate::Const { logic, location: _, direction: _ } => logic.name(),
             Gate::Unerror { logic, location: _, direction: _ } => logic.name(),
+            Gate::Button { logic, location: _, direction: _ } => logic.name(),
             Gate::Custom(sck) => &circuits[*sck].name,
         }
     }
@@ -86,16 +88,18 @@ impl Gate {
         match &gates[gate] {
             Gate::Nand { logic, location: _, direction: _ } => logic.nodes.inputs(),
             Gate::Const { logic, location: _, direction: _ } => logic.nodes.inputs(),
-            Gate::Custom(circuit_idx) => circuits[*circuit_idx].nodes.inputs(),
             Gate::Unerror { logic, location: _, direction: _ } => logic.nodes.inputs(),
+            Gate::Button { logic, location, direction } => logic.nodes.inputs(),
+            Gate::Custom(circuit_idx) => circuits[*circuit_idx].nodes.inputs(),
         }
     }
     pub(crate) fn outputs<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r [NodeKey] {
         match &gates[gate] {
             Gate::Nand { logic, location: _, direction: _ } => logic.nodes.outputs(),
             Gate::Const { logic, location: _, direction: _ } => logic.nodes.outputs(),
-            Gate::Custom(circuit_idx) => circuits[*circuit_idx].nodes.outputs(),
             Gate::Unerror { logic, location: _, direction: _ } => logic.nodes.outputs(),
+            Gate::Button { logic, location, direction } => logic.nodes.outputs(),
+            Gate::Custom(circuit_idx) => circuits[*circuit_idx].nodes.outputs(),
         }
     }
 
@@ -108,20 +112,29 @@ impl Gate {
 
     pub(crate) fn location<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> &'r location::GateLocation {
         match &gates[gate] {
-            Gate::Nand { logic: _, location, direction: _ } | Gate::Const { logic: _, location, direction: _ } | Gate::Unerror { logic: _, location, direction: _ } => location,
+            Gate::Nand { logic: _, location, direction: _ }
+            | Gate::Const { logic: _, location, direction: _ }
+            | Gate::Unerror { logic: _, location, direction: _ }
+            | Gate::Button { logic: _, location, direction: _ } => location,
             Gate::Custom(sck) => &circuits[*sck].location,
         }
     }
     pub(crate) fn location_mut<'c: 'r, 'g: 'r, 'r>(circuits: &'c mut CircuitMap, gates: &'g mut GateMap, gate: GateKey) -> &'r mut location::GateLocation {
         match &mut gates[gate] {
-            Gate::Nand { logic: _, location, direction: _ } | Gate::Const { logic: _, location, direction: _ } | Gate::Unerror { logic: _, location, direction: _ } => location,
+            Gate::Nand { logic: _, location, direction: _ }
+            | Gate::Const { logic: _, location, direction: _ }
+            | Gate::Unerror { logic: _, location, direction: _ }
+            | Gate::Button { logic: _, location, direction: _ } => location,
             Gate::Custom(sck) => &mut circuits[*sck].location,
         }
     }
 
     pub(crate) fn direction<'c: 'r, 'g: 'r, 'r>(circuits: &'c CircuitMap, gates: &'g GateMap, gate: GateKey) -> GateDirection {
         match &gates[gate] {
-            Gate::Nand { logic: _, location: _, direction } | Gate::Const { logic: _, location: _, direction } | Gate::Unerror { logic: _, location: _, direction } => *direction,
+            Gate::Nand { logic: _, location: _, direction }
+            | Gate::Const { logic: _, location: _, direction }
+            | Gate::Unerror { logic: _, location: _, direction }
+            | Gate::Button { logic: _, location: _, direction } => *direction,
             Gate::Custom(sck) => circuits[*sck].direction,
         }
     }

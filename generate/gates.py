@@ -77,6 +77,12 @@ class _UnerrorGate:
         self.outputs = bundle.Bit()
         self.layout = layout.GateLayout((0, 0), 'ltr')
 
+class _ButtonGate:
+    def __init__(self):
+        self.inputs = bundle.ListProduct()
+        self.outputs = bundle.Bit()
+        self.layout = layout.GateLayout((0, 0), 'ltr')
+
 def make_circuit(name, input_type, output_type):
     def decorator(func):
         @functools.wraps(func)
@@ -106,6 +112,11 @@ def true(context, parent):
 
 def unerror(context, parent):
     gate = _UnerrorGate()
+    parent.add_gate(gate)
+    return gate
+
+def button(context, parent):
+    gate = _ButtonGate()
     parent.add_gate(gate)
     return gate
 

@@ -57,6 +57,8 @@ struct GateView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLe
     num_inputs: usize,
     num_outputs: usize,
 
+    kind: GateViewKind,
+
     being_dragged: bool,
 
     ck_to_zoom: Option<simulation::CircuitKey>,
@@ -64,6 +66,10 @@ struct GateView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLe
     font: Rc<sfml::SfBox<graphics::Font>>,
 
     _phantom: PhantomData<fn(&Data)>,
+}
+enum GateViewKind {
+    Normal,
+    Button(graphics::Color),
 }
 struct GateViewLayout<'original, Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
     view: &'original GateView<Data, StateLens, SimulationLens>,
@@ -163,6 +169,13 @@ pub(crate) fn simulation<Data>(
                     direction,
                     num_inputs,
                     num_outputs,
+                    kind: match &simulation.gates[gate] {
+                        Gate::Nand { logic: _, location: _, direction: _ }
+                        | Gate::Const { logic: _, location: _, direction: _ }
+                        | Gate::Unerror { logic: _, location: _, direction: _ }
+                        | Gate::Custom(_) => GateViewKind::Normal,
+                        Gate::Button { logic, location: _, direction: _ } => GateViewKind::Button(node_color(&simulation.nodes, logic.nodes.outputs()[0], true)),
+                    },
                     being_dragged: if let Some((cur_gate_drag, _, _)) = cur_gate_drag { cur_gate_drag == gate } else { false },
                     ck_to_zoom: if let Gate::Custom(ck) = &simulation.gates[gate] { Some(*ck) } else { None },
                     font: font.clone(),
@@ -393,11 +406,24 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
         gate_shape.set_fill_color(Theme::DEFAULT.gate_color);
         target.draw(&gate_shape);
 
-        let mut text = graphics::Text::new(&self.view.name, &self.view.font, 10); // TODO: put font size into theme
-        text.set_fill_color(Theme::DEFAULT.gate_text_color);
-        text.center();
-        text.set_position(gate_rect.center());
-        target.draw(&text);
+        match self.view.kind {
+            GateViewKind::Normal => {
+                let mut text = graphics::Text::new(&self.view.name, &self.view.font, 10); // TODO: put font size into theme
+                text.set_fill_color(Theme::DEFAULT.gate_text_color);
+                text.center();
+                text.set_position(gate_rect.center());
+                target.draw(&text);
+            }
+            GateViewKind::Button(color) => {
+                // TODO: make this into a separate view
+                let rad = f32::min(gate_rect.width / 2.0, gate_rect.height / 2.0);
+                let mut ellipse = graphics::CircleShape::new(rad, 20); // TODO: also put point count into theme
+                ellipse.set_fill_color(color);
+                ellipse.set_origin((rad, rad));
+                ellipse.set_position(gate_rect.center());
+                target.draw(&ellipse);
+            }
+        }
     }
 
     fn find_hover(&self, widget_top_left: graphics::Vector2f, mouse_pos: graphics::Vector2f) -> Option<ViewId> {
@@ -425,11 +451,32 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
     fn targeted_event(&self, _: &crate::App, data: &mut Data, event: TargetedEvent) {
         match event {
             TargetedEvent::LeftMouseDown(mouse_pos) => {
+                // TODO: remove dragging
                 let cur_gate_pos = self.view.simulation_lens.with(data, |simulation| {
                     let location = Gate::location(&simulation.circuits, &simulation.gates, self.view.gate_key);
                     (location.x, location.y)
                 });
                 self.view.state_lens.with_mut(data, |state| state.cur_gate_drag = Some((self.view.gate_key, mouse_pos, (cur_gate_pos.0, cur_gate_pos.1))));
+
+                match self.view.kind {
+                    GateViewKind::Button(_) => {
+                        // TODO: put this into a separate view
+                        self.view.simulation_lens.with_mut(data, |simulation| {
+                            if let Gate::Button { logic, location: _, direction: _ } = &simulation.gates[self.view.gate_key] {
+                                let current_value = logic::get_node_production(&simulation.nodes, logic.nodes.outputs()[0]);
+                                let inverted = match current_value {
+                                    Some(logic::Value::H) => logic::Value::L,
+                                    Some(logic::Value::L) => logic::Value::H,
+                                    Some(logic::Value::Z) => logic::Value::L,
+                                    Some(logic::Value::X) => logic::Value::L,
+                                    None => logic::Value::L,
+                                };
+                                logic::set_node_production(&mut simulation.nodes, logic.nodes.outputs()[0], inverted);
+                            }
+                        });
+                    }
+                    GateViewKind::Normal => {}
+                }
             }
             TargetedEvent::RightMouseDown(_) => {
                 // TODO: find better event for this (probably make a popup with a button)

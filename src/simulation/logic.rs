@@ -19,6 +19,10 @@ pub(crate) struct UnerrorLogic {
     pub(crate) nodes: hierarchy::NodeChildren<[NodeKey; 1], [NodeKey; 1]>,
     _dont_construct: (),
 }
+pub(crate) struct ButtonLogic {
+    pub(crate) nodes: hierarchy::NodeChildren<[NodeKey; 0], [NodeKey; 1]>,
+    _dont_construct: (),
+}
 
 #[derive(Clone, Copy)]
 pub(crate) enum Value {
@@ -79,6 +83,17 @@ impl UnerrorLogic {
     }
 }
 
+impl ButtonLogic {
+    pub(crate) fn new(node_map: &mut NodeMap, gate_key: GateKey) -> ButtonLogic {
+        let nodes: hierarchy::NodeChildren<[NodeKey; 0], [NodeKey; 1]> = hierarchy::NodeChildren::new(node_map, hierarchy::NodeParentType::Gate(gate_key), (), ());
+        set_node_production(node_map, nodes.outputs()[0], Value::L);
+        ButtonLogic { nodes , _dont_construct: () }
+    }
+    pub(crate) fn name(&self) -> &str {
+        "button"
+    }
+}
+
 // node values {{{1
 pub(crate) fn get_node_value(nodes: &NodeMap, node: NodeKey) -> Value {
     nodes[node].logic.value
@@ -87,7 +102,7 @@ pub(crate) fn get_node_production(nodes: &slotmap::SlotMap<NodeKey, Node>, node:
     nodes[node].logic.production
 }
 
-fn set_node_production(nodes: &mut NodeMap, index: NodeKey, new_value: Value) {
+pub(crate) fn set_node_production(nodes: &mut NodeMap, index: NodeKey, new_value: Value) {
     nodes[index].logic.production = Some(new_value);
 }
 // update {{{1
@@ -123,6 +138,7 @@ pub(crate) fn update(gates: &mut GateMap, node_map: &mut NodeMap) {
                     Some((*out, if let Value::X = in_value { Value::L } else { in_value }))
                 }
                 Gate::Custom(_) => None, // custom gates do not have to compute values because their nodes are connected to their inputs or are passthrough nodes and should automatically have the right values
+                Gate::Button { logic: _, location: _, direction: _ } => None, // buttons do not need to update their values
             }
         })
         .collect();
