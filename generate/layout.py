@@ -55,20 +55,29 @@ class Flow:
 
         for child in self.children:
             match self.direction:
-                case 'ltr' | 'rtl':
-                    child.apply((cur_pos, center_y))
-                case 'ttb' | 'btt':
-                    child.apply((center_x, cur_pos))
-
-            match self.direction:
                 case 'ltr':
+                    child.apply((cur_pos + child.size()[0] / 2, center_y))
                     cur_pos += child.size()[0]
                 case 'rtl':
+                    child.apply((cur_pos - child.size()[0] / 2, center_y))
                     cur_pos -= child.size()[0]
                 case 'ttb':
+                    child.apply((center_x, cur_pos + child.size()[1] / 2))
                     cur_pos += child.size()[1]
                 case 'btt':
+                    child.apply((center_x, cur_pos - child.size()[1] / 2))
                     cur_pos -= child.size()[1]
+
+def snake(first_direction, second_direction, row_len, *things):
+    chunked = [things[n:n + row_len] for n in range(0, len(things), row_len)]
+
+    cur_direction = first_direction
+    chunk_layouts = []
+    for chunk in chunked:
+        chunk_layouts.append(Flow(cur_direction, *map(lambda chunk: chunk(cur_direction), chunk)))
+        cur_direction = cur_direction[::-1]
+
+    return Flow(second_direction, *chunk_layouts)
 
 def ltr_flow(*children):
     return Flow('ltr', *children)
