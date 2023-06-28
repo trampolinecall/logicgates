@@ -1,6 +1,6 @@
-from generate import gates, ty, bundle, layout, utils
+import math
 
-# TODO: do layout for the ones that dont have it
+from generate import gates, ty, bundle, layout, utils
 
 @gates.make_circuit('and', ty.ListProduct(ty.Bit(), ty.Bit()), ty.Bit())
 def and_(context, circuit):
@@ -117,45 +117,49 @@ def adder_many(width):
             context.connect(adders[i].outputs['carry'], adders[i + 1].inputs['carry'])
         context.connect(adders[-1].outputs['carry'], circuit.outputs['carry'])
 
+        layout.ltr_flow(*map(layout.ltr_gate, adders)).apply() # TODO: grid layout to make this diagonal, also figure out how to use layout without .apply()
+
     return make
 
-@gates.make_circuit('clock', ty.DictProduct(enable=ty.Bit(), manual=ty.Bit()), ty.Bit())
-# TODO: adjustable speed
-def clock(context, circuit):
-    unerror = gates.unerror(context, circuit)
-    nots = [not_(context, circuit) for _ in range(19)]
+def clock(length):
+    @gates.make_circuit('clock', ty.DictProduct(enable=ty.Bit(), manual=ty.Bit()), ty.Bit())
+    def make(context, circuit):
+        unerror = gates.unerror(context, circuit)
+        nots = [not_(context, circuit) for _ in range(length)]
 
-    utils.connect_chain(context, unerror, *nots, unerror)
+        utils.connect_chain(context, unerror, *nots, unerror)
 
-    enable_and = and_(context, circuit)
-    context.connect(bundle.ListProduct(nots[-1].outputs, circuit.inputs['enable']), enable_and.inputs)
+        enable_and = and_(context, circuit)
+        context.connect(bundle.ListProduct(nots[-1].outputs, circuit.inputs['enable']), enable_and.inputs)
 
-    manual_or = or_(context, circuit)
-    context.connect(bundle.ListProduct(enable_and.outputs, circuit.inputs['manual']), manual_or.inputs)
+        manual_or = or_(context, circuit)
+        context.connect(bundle.ListProduct(enable_and.outputs, circuit.inputs['manual']), manual_or.inputs)
 
-    context.connect(manual_or.outputs, circuit.outputs)
+        context.connect(manual_or.outputs, circuit.outputs)
 
-    layout.ltr_flow(
-        layout.snake('ltr', 'ttb', 5, lambda direction: layout.Gate(unerror, direction), *map(lambda g: lambda direction: layout.Gate(g, direction), nots)),
-        layout.ltr_gate(enable_and),
-        layout.ltr_gate(manual_or),
-    ).apply()
+        layout.ltr_flow(
+            layout.snake('ltr', 'ttb', math.floor(math.sqrt(length)), lambda direction: layout.Gate(unerror, direction), *map(lambda g: lambda direction: layout.Gate(g, direction), nots)),
+            layout.ltr_gate(enable_and),
+            layout.ltr_gate(manual_or),
+        ).apply()
+
+    return make
 
 @gates.make_circuit('main', ty.ListProduct(), ty.ListProduct())
 def main(context, circuit):
     enable_button = gates.button(context, circuit)
     manual_button = gates.button(context, circuit)
-    c = clock(context, circuit)
+    c = clock(51)(context, circuit)
 
     context.connect(bundle.DictProduct(enable=enable_button.outputs, manual=manual_button.outputs), c.inputs)
 
-    buttons = [gates.button(context, circuit) for _ in range(9)]
-    adder_gate = adder_many(4)(context, circuit)
+    buttons = [gates.button(context, circuit) for _ in range(11)]
+    adder_gate = adder_many(5)(context, circuit)
     context.connect(
         bundle.DictProduct(
-            a=bundle.ListProduct(buttons[0].outputs, buttons[1].outputs, buttons[2].outputs, buttons[3].outputs),
-            b=bundle.ListProduct(buttons[4].outputs, buttons[5].outputs, buttons[6].outputs, buttons[7].outputs),
-            carry=buttons[8].outputs,
+            a=bundle.ListProduct(buttons[0].outputs, buttons[1].outputs, buttons[2].outputs, buttons[3].outputs, buttons[4].outputs),
+            b=bundle.ListProduct(buttons[5].outputs, buttons[6].outputs, buttons[7].outputs, buttons[8].outputs, buttons[9].outputs),
+            carry=buttons[10].outputs,
         ),
         adder_gate.inputs,
     )
