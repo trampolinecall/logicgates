@@ -23,6 +23,10 @@ pub(crate) struct ButtonLogic {
     pub(crate) nodes: hierarchy::NodeChildren<[NodeKey; 0], [NodeKey; 1]>,
     _dont_construct: (),
 }
+pub(crate) struct TriStateBufferLogic {
+    pub(crate) nodes: hierarchy::NodeChildren<[NodeKey; 2], [NodeKey; 1]>,
+    _dont_construct: (),
+}
 
 #[derive(Clone, Copy)]
 pub(crate) enum Value {
@@ -87,10 +91,19 @@ impl ButtonLogic {
     pub(crate) fn new(node_map: &mut NodeMap, gate_key: GateKey) -> ButtonLogic {
         let nodes: hierarchy::NodeChildren<[NodeKey; 0], [NodeKey; 1]> = hierarchy::NodeChildren::new(node_map, hierarchy::NodeParentType::Gate(gate_key), (), ());
         set_node_production(node_map, nodes.outputs()[0], Value::L);
-        ButtonLogic { nodes , _dont_construct: () }
+        ButtonLogic { nodes, _dont_construct: () }
     }
     pub(crate) fn name(&self) -> &str {
         "button"
+    }
+}
+
+impl TriStateBufferLogic {
+    pub(crate) fn new(node_map: &mut NodeMap, gate_key: GateKey) -> TriStateBufferLogic {
+        TriStateBufferLogic { nodes: hierarchy::NodeChildren::new(node_map, hierarchy::NodeParentType::Gate(gate_key), (), ()), _dont_construct: () }
+    }
+    pub(crate) fn name(&self) -> &str {
+        "tristate buffer"
     }
 }
 
@@ -139,6 +152,19 @@ pub(crate) fn update(gates: &mut GateMap, node_map: &mut NodeMap) {
                 }
                 Gate::Custom(_) => None, // custom gates do not have to compute values because their nodes are connected to their inputs or are passthrough nodes and should automatically have the right values
                 Gate::Button { logic: _, location: _, direction: _ } => None, // buttons do not need to update their values
+                Gate::TriStateBuffer { logic: TriStateBufferLogic { nodes, _dont_construct }, location: _, direction: _ } => {
+                    let [enable, data] = nodes.inputs();
+                    let [output] = nodes.outputs();
+                    let enable_value = node_map[*enable].logic.value;
+                    let data_value = node_map[*data].logic.value;
+
+                    Some((*output, match enable_value {
+                        Value::H => data_value,
+                        Value::L => Value::Z,
+                        Value::Z => Value::X,
+                        Value::X => Value::X,
+                    }))
+                }
             }
         })
         .collect();
