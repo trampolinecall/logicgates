@@ -15,32 +15,15 @@ use crate::{
 // TODO: clean all this up
 // TODO: add way to convert split back into single
 
-pub(crate) struct Single<Child> {
-    pub(crate) child: Child,
-    pub(crate) splith_button: ButtonState,
-}
-
-// TODO: split amount
-pub(crate) struct HSplit<Child> {
-    pub(crate) left: Box<BTree<Child>>,
-    pub(crate) right: Box<BTree<Child>>,
-}
-
-// TODO: also split amount
-pub(crate) struct VSplit<Child> {
-    pub(crate) top: Box<BTree<Child>>,
-    pub(crate) bottom: Box<BTree<Child>>,
-}
-
 pub(crate) enum BTree<Child> {
-    Single(Single<Child>),
-    HSplit(HSplit<Child>),
-    VSplit(VSplit<Child>),
+    Single { child: Child, splith_button: ButtonState },
+    HSplit { left: Box<BTree<Child>>, right: Box<BTree<Child>> }, // TODO: split amount
+    VSplit { top: Box<BTree<Child>>, bottom: Box<BTree<Child>> }, // TODO: also split amount
 }
 
 impl<Child> BTree<Child> {
     pub(crate) fn new_single(c: Child) -> BTree<Child> {
-        BTree::Single(Single { child: c, splith_button: ButtonState::new() })
+        BTree::Single { child: c, splith_button: ButtonState::new() }
     }
 }
 
@@ -159,7 +142,7 @@ pub(crate) fn btree<Child: Clone, BTreeLens: Lens<Data, BTree<Child>> + Copy, Ch
     view_child: impl Fn(&mut ViewIdMaker, BTreeChildLens<Data, Child, BTreeLens>, &Data) -> ChildView + Copy,
 ) -> impl ViewWithoutLayout<Data> {
     btree_lens.with(data, move |btree| match btree {
-        BTree::Single(_) => {
+        BTree::Single { child: _, splith_button: _ } => {
             let splith_button = crate::ui::widgets::button::button(
                 id_maker,
                 data,
@@ -167,46 +150,46 @@ pub(crate) fn btree<Child: Clone, BTreeLens: Lens<Data, BTree<Child>> + Copy, Ch
                     btree_lens,
                     lens::Closures::new(
                         |btree: &_| match btree {
-                            BTree::Single(s) => &s.splith_button,
-                            BTree::HSplit(_) => panic!("btree single lens used with hsplit btree"),
-                            BTree::VSplit(_) => panic!("btree single lens used with vsplit btree"),
+                            BTree::Single { child: _, splith_button } => splith_button,
+                            BTree::HSplit { left: _, right: _ } => panic!("btree single lens used with hsplit btree"),
+                            BTree::VSplit { top: _, bottom: _ } => panic!("btree single lens used with vsplit btree"),
                         },
                         |btree| match btree {
-                            BTree::Single(s) => &mut s.splith_button,
-                            BTree::HSplit(_) => panic!("btree single lens used with hsplit btree"),
-                            BTree::VSplit(_) => panic!("btree single lens used with vsplit btree"),
+                            BTree::Single { child: _, splith_button } => splith_button,
+                            BTree::HSplit { left: _, right: _ } => panic!("btree single lens used with hsplit btree"),
+                            BTree::VSplit { top: _, bottom: _ } => panic!("btree single lens used with vsplit btree"),
                         },
                     ),
                 ),
                 move |_, data| {
                     btree_lens.with_mut(data, |btree| match btree {
-                        BTree::Single(Single { child, splith_button: _ }) => {
-                            *btree = BTree::HSplit(HSplit { left: Box::new(BTree::new_single(child.clone())), right: Box::new(BTree::new_single(child.clone())) });
+                        BTree::Single { child, splith_button: _ } => {
+                            *btree = BTree::HSplit { left: Box::new(BTree::new_single(child.clone())), right: Box::new(BTree::new_single(child.clone())) };
                         }
 
-                        BTree::HSplit(_) => panic!("splith button made for btree that is hsplit"),
-                        BTree::VSplit(_) => panic!("splith button made for btree that is vsplit"),
+                        BTree::HSplit { left: _, right: _ } => panic!("splith button made for btree that is hsplit"),
+                        BTree::VSplit { top: _, bottom: _ } => panic!("splith button made for btree that is vsplit"),
                     });
                 },
             );
 
             fn get_child<Child>(bt: &BTree<Child>) -> &Child {
                 match bt {
-                    BTree::Single(s) => &s.child,
-                    BTree::HSplit(_) => panic!("get_child called on hsplit btree"),
-                    BTree::VSplit(_) => panic!("get_child called on vsplit btree"),
+                    BTree::Single { child, splith_button: _ } => child,
+                    BTree::HSplit { left: _, right: _ } => panic!("get_child called on hsplit btree"),
+                    BTree::VSplit { top: _, bottom: _ } => panic!("get_child called on vsplit btree"),
                 }
             }
             fn get_child_mut<Child>(bt: &mut BTree<Child>) -> &mut Child {
                 match bt {
-                    BTree::Single(s) => &mut s.child,
-                    BTree::HSplit(_) => panic!("get_child_mut called on hsplit btree"),
-                    BTree::VSplit(_) => panic!("get_child_mut called on vsplit btree"),
+                    BTree::Single { child, splith_button: _ } => child,
+                    BTree::HSplit { left: _, right: _ } => panic!("get_child_mut called on hsplit btree"),
+                    BTree::VSplit { top: _, bottom: _ } => panic!("get_child_mut called on vsplit btree"),
                 }
             }
             BTreeView::Single { splith_button, child_view: view_child(id_maker, BTreeChildLens { btree_lens, _phantom: PhantomData, get_child, get_child_mut }, data), _phantom: PhantomData }
         }
-        BTree::HSplit(HSplit { left, right }) => {
+        BTree::HSplit { left, right } => {
             /* TODO
             let left_lens = lens::Closures::new(todo!(), todo!());
             let right_lens = lens::Closures::new(todo!(), todo!());
@@ -217,6 +200,6 @@ pub(crate) fn btree<Child: Clone, BTreeLens: Lens<Data, BTree<Child>> + Copy, Ch
             */
             todo!()
         }
-        BTree::VSplit(VSplit { top, bottom }) => BTreeView::VSplit {},
+        BTree::VSplit { top, bottom } => BTreeView::VSplit {},
     })
 }
