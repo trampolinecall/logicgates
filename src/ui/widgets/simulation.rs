@@ -17,17 +17,19 @@ const NODE_SPACING: f32 = 20.0;
 
 pub(crate) struct SimulationWidgetState {
     cur_gate_drag: Option<(simulation::GateKey, graphics::Vector2f, (f32, f32))>,
-    view: Option<simulation::CircuitKey>,
+    view_stack: Vec<simulation::CircuitKey>,
 }
 
 impl SimulationWidgetState {
     pub(crate) fn new() -> SimulationWidgetState {
-        SimulationWidgetState { cur_gate_drag: None, view: None }
+        SimulationWidgetState { cur_gate_drag: None, view_stack: Vec::new() }
     }
 }
 
 struct SimulationView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> {
     id: ViewId,
+
+    state_lens: StateLens,
 
     gates: Vec<GateView<Data, StateLens, SimulationLens>>,
     nodes: Vec<NodeView<Data, StateLens, SimulationLens>>,
@@ -56,6 +58,8 @@ struct GateView<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLe
     num_outputs: usize,
 
     being_dragged: bool,
+
+    ck_to_zoom: Option<simulation::CircuitKey>,
 
     font: Rc<sfml::SfBox<graphics::Font>>,
 
@@ -119,7 +123,7 @@ pub(crate) fn simulation<Data>(
     data: &Data,
 ) -> impl ViewWithoutLayout<Data> {
     // TODO: show currently viewing at top of widget
-    let (current_view, cur_gate_drag) = state_lens.with(data, |state| (state.view, state.cur_gate_drag));
+    let (current_view, cur_gate_drag) = state_lens.with(data, |state| (state.view_stack.last().copied(), state.cur_gate_drag));
     let (gates, nodes, connections) = simulation_lens.with(data, |simulation| {
         let gates_currently_viewing = match current_view {
             Some(ck) => &simulation.circuits[ck].gates,
@@ -152,6 +156,7 @@ pub(crate) fn simulation<Data>(
                     num_inputs,
                     num_outputs,
                     being_dragged: if let Some((cur_gate_drag, _, _)) = cur_gate_drag { cur_gate_drag == gate } else { false },
+                    ck_to_zoom: if let Gate::Custom(ck) = &simulation.gates[gate] { Some(*ck) } else { None },
                     font: font.clone(),
                     _phantom: PhantomData,
                 }
@@ -244,7 +249,7 @@ pub(crate) fn simulation<Data>(
         (gate_views, node_views, connection_vews)
     });
 
-    SimulationView { id: id_maker.next_id(), gates, nodes, connections }
+    SimulationView { id: id_maker.next_id(), state_lens, gates, nodes, connections }
 }
 
 impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Data, Simulation>> ViewWithoutLayout<Data> for SimulationView<Data, StateLens, SimulationLens> {
@@ -322,7 +327,16 @@ impl<Data, StateLens: Lens<Data, SimulationWidgetState>, SimulationLens: Lens<Da
         }
     }
 
-    fn targeted_event(&self, _: &crate::App, _: &mut Data, _: TargetedEvent) {}
+    fn targeted_event(&self, _: &crate::App, data: &mut Data, event: TargetedEvent) {
+        match event {
+            TargetedEvent::LeftMouseDown(_) => {}
+
+            TargetedEvent::RightMouseDown(_) => {
+                // TODO: find a better event for this (probably keyboard shortcut)
+                self.view.state_lens.with_mut(data, |state| state.view_stack.pop());
+            }
+        }
+    }
     fn general_event(&self, app: &crate::App, data: &mut Data, event: GeneralEvent) {
         for node in &self.nodes {
             node.general_event(app, data, event);
@@ -408,6 +422,12 @@ impl<Data, SimulationLens: Lens<Data, simulation::Simulation>, StateLens: Lens<D
                     (location.x, location.y)
                 });
                 self.view.state_lens.with_mut(data, |state| state.cur_gate_drag = Some((self.view.gate_key, mouse_pos, (cur_gate_pos.0, cur_gate_pos.1))));
+            }
+            TargetedEvent::RightMouseDown(_) => {
+                // TODO: find better event for this (probably make a popup with a button)
+                if let Some(ck_zoom) = self.view.ck_to_zoom {
+                    self.view.state_lens.with_mut(data, |state| state.view_stack.push(ck_zoom));
+                }
             }
         }
     }

@@ -3,7 +3,7 @@ use std::{fmt::Display, marker::PhantomData, ops::Add, rc::Rc};
 use sfml::graphics::{Shape, Transformable};
 
 use crate::{
-    graphics::{CenterText, RectCenter, self},
+    graphics::{self, CenterText, RectCenter},
     theme::Theme,
     view::{
         id::{ViewId, ViewIdMaker},
@@ -133,6 +133,7 @@ impl<Data, Value: Display + Copy + Add<Value, Output = Value> + Ord, StateLens: 
                 let cur_value = self.slider.value_lens.with(data, |value| *value);
                 self.slider.state_lens.with_mut(data, |state| state.drag_start = Some((mouse_pos, cur_value)));
             }
+            TargetedEvent::RightMouseDown(_) => {}
         }
     }
     fn general_event(&self, _: &crate::App, data: &mut Data, event: GeneralEvent) {

@@ -78,6 +78,7 @@ impl<Data, GetButtonData: Lens<Data, ButtonState>, Callback: Fn(&crate::App, &mu
     fn targeted_event(&self, _: &crate::App, data: &mut Data, event: TargetedEvent) {
         match event {
             TargetedEvent::LeftMouseDown(_) => self.view.button_data_lens.with_mut(data, |button_data| button_data.pressed = true),
+            TargetedEvent::RightMouseDown(_) => {}
         }
     }
     fn general_event(&self, app: &crate::App, data: &mut Data, event: GeneralEvent) {

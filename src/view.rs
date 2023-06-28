@@ -8,6 +8,7 @@ pub(crate) mod lens;
 #[derive(Copy, Clone)]
 pub(crate) enum TargetedEvent {
     LeftMouseDown(graphics::Vector2f),
+    RightMouseDown(graphics::Vector2f),
 }
 #[derive(Copy, Clone)]
 pub(crate) enum GeneralEvent {
@@ -84,11 +85,15 @@ pub(crate) fn event(app: &crate::App, window: &graphics::RenderWindow, logic_gat
     let view_with_layout = view_without_layout.layout(size_constraints);
 
     match event {
-        sfml::window::Event::MouseButtonPressed { button: sfml::window::mouse::Button::Left, x, y } => {
+        sfml::window::Event::MouseButtonPressed { button, x, y } => {
             let mouse_position = graphics::Vector2f::new(x as f32, y as f32); // TODO: clean up casts (also clean up in rest of module too)
             let hovered = view_with_layout.find_hover(view_center, mouse_position);
             if let Some(hovered) = hovered {
-                view_with_layout.send_targeted_event(app, logic_gates, hovered, TargetedEvent::LeftMouseDown(mouse_position));
+                match button {
+                    sfml::window::mouse::Button::Left => view_with_layout.send_targeted_event(app, logic_gates, hovered, TargetedEvent::LeftMouseDown(mouse_position)),
+                    sfml::window::mouse::Button::Right => view_with_layout.send_targeted_event(app, logic_gates, hovered, TargetedEvent::RightMouseDown(mouse_position)),
+                    _ => {}
+                }
             }
         }
 
