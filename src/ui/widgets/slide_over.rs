@@ -47,8 +47,8 @@ impl<Data, ButtonView: ViewWithoutLayout<Data>, BaseView: ViewWithoutLayout<Data
 
     fn layout(&self, sc: SizeConstraints) -> Self::WithLayout<'_> {
         let base_sc = sc;
-        let over_sc = SizeConstraints { min: sc.min, max: graphics::Vector2f::new(sc.max.x - Theme::DEFAULT.slide_out_size.0, sc.max.y) };
-        let button_sc = SizeConstraints { min: Theme::DEFAULT.slide_out_size.into(), max: Theme::DEFAULT.slide_out_size.into() };
+        let over_sc = SizeConstraints { min: sc.min, max: graphics::Vector2f::new(sc.max.x - Theme::DEFAULT.modify_ui_button_size.0, sc.max.y) };
+        let button_sc = SizeConstraints { min: Theme::DEFAULT.modify_ui_button_size.into(), max: Theme::DEFAULT.modify_ui_button_size.into() };
 
         let base = self.base.layout(base_sc);
         let over = self.over.layout(over_sc);

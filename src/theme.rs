@@ -5,7 +5,7 @@ pub(crate) struct Theme {
     pub(crate) animation_ease: fn(f32) -> f32,
 
     pub(crate) slide_out_toggle_y_offset: f32,
-    pub(crate) slide_out_size: (f32, f32),
+    pub(crate) modify_ui_button_size: (f32, f32), // things like the toggle button on slide over views or hsplit and vsplit buttons on btree views
 
     pub(crate) button_normal_bg: Color,
     pub(crate) button_normal_fg: Color,
@@ -39,7 +39,7 @@ impl Theme {
         animation_ease: Theme::cubic_ease_out,
 
         slide_out_toggle_y_offset: 30.0,
-        slide_out_size: (10.0, 30.0),
+        modify_ui_button_size: (10.0, 30.0),
 
         button_normal_bg: Color::rgb(200, 200, 200),
         button_normal_fg: Color::rgb(0, 0, 0),

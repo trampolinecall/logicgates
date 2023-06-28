@@ -98,12 +98,20 @@ fn main() {
 fn view(app: &App, logic_gates: &LogicGates) -> impl view::ViewWithoutLayout<LogicGates> {
     let mut id_maker = view::id::ViewIdMaker::new();
 
-    let simulation_view = ui::widgets::simulation::simulation(
+    let btree_view = ui::widgets::btree::btree(
+        app,
         &mut id_maker,
-        view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.ui.main_simulation_state, |logic_gates| &mut logic_gates.ui.main_simulation_state),
-        view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.simulation, |logic_gates| &mut logic_gates.simulation),
-        &logic_gates.font,
         logic_gates,
+        view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.ui.btree, |logic_gates| &mut logic_gates.ui.btree),
+        |id_maker, simulation_lens, logic_gates| {
+            ui::widgets::simulation::simulation(
+                id_maker,
+                simulation_lens,
+                view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.simulation, |logic_gates| &mut logic_gates.simulation),
+                &logic_gates.font,
+                logic_gates,
+            )
+        },
     );
 
     let mut rects: [_; 20] = (0..20)
@@ -159,7 +167,7 @@ fn view(app: &App, logic_gates: &LogicGates) -> impl view::ViewWithoutLayout<Log
         &mut id_maker,
         logic_gates,
         view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.ui.new_slide_over, |logic_gates: &mut LogicGates| &mut logic_gates.ui.new_slide_over),
-        simulation_view,
+        btree_view,
         flow_view,
     )
 }

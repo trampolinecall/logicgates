@@ -6,3 +6,4 @@ pub(crate) mod slide_over;
 pub(crate) mod slider;
 pub(crate) mod submodule;
 pub(crate) mod test_rect;
+pub(crate) mod btree;

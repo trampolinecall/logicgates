@@ -15,6 +15,7 @@ use crate::{
 
 const NODE_SPACING: f32 = 20.0;
 
+#[derive(Clone)]
 pub(crate) struct SimulationWidgetState {
     cur_gate_drag: Option<(simulation::GateKey, graphics::Vector2f, (f32, f32))>,
     view_stack: Vec<simulation::CircuitKey>,

@@ -54,6 +54,13 @@ pub(crate) fn compose<A, B, C>(a_b: impl Lens<A, B>, b_c: impl Lens<B, C>) -> im
         }
     }
 
+    impl<A, B, C, Lens1: Lens<A, B> + Clone, Lens2: Lens<B, C> + Clone> Clone for Composed<A, B, C, Lens1, Lens2> {
+        fn clone(&self) -> Self {
+            Composed { a_b: self.a_b, b_c: self.b_c, _phantom: self._phantom }
+        }
+    }
+    impl<A, B, C, Lens1: Lens<A, B> + Copy, Lens2: Lens<B, C> + Copy> Copy for Composed<A, B, C, Lens1, Lens2> {}
+
     Composed { a_b, b_c, _phantom: PhantomData }
 }
 
