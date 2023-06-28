@@ -72,6 +72,21 @@ def xor(context, circuit):
         layout.ltr_gate(final_nand),
     ).apply()
 
+@gates.make_circuit('sr', ty.DictProduct(set=ty.Bit(), reset=ty.Bit()), ty.Bit())
+def sr_latch(context, circuit):
+    not_gate = not_(context, circuit)
+    unerror_gate = gates.unerror(context, circuit)
+    or_gate = or_(context, circuit)
+    and_gate = and_(context, circuit)
+
+    context.connect(circuit.inputs['set'], or_gate.inputs[1])
+    context.connect(or_gate.outputs, and_gate.inputs[0])
+    context.connect(and_gate.outputs, unerror_gate.inputs)
+    context.connect(unerror_gate.outputs, or_gate.inputs[0])
+    context.connect(circuit.inputs['reset'], not_gate.inputs)
+    context.connect(not_gate.outputs, and_gate.inputs[1])
+    context.connect(and_gate.outputs, circuit.outputs)
+
 @gates.make_circuit('adder1', ty.DictProduct(a=ty.Bit(), b=ty.Bit(), carry=ty.Bit()), ty.DictProduct(carry=ty.Bit(), result=ty.Bit()))
 def adder1(context, circuit):
     a_b_xor = xor(context, circuit)
@@ -105,6 +120,7 @@ def adder_many(width):
     )
     def make(context, circuit):
         # ones place is at the end of each of the lists
+        # TODO: make bits bundle indexed 1, 2, 4, 8, ...
         adders = [adder1(context, circuit) for _ in range(width)]
 
         for i in range(width):
@@ -171,5 +187,15 @@ def main(context, circuit):
         layout.ltr_gate(adder_gate),
     ).apply()
 
+@gates.make_circuit('main', ty.ListProduct(), ty.ListProduct())
+def main_sr(context, circuit):
+    s_button = gates.button(context, circuit)
+    r_button = gates.button(context, circuit)
+
+    sr = sr_latch(context, circuit)
+
+    context.connect(s_button.outputs, sr.inputs['set'])
+    context.connect(r_button.outputs, sr.inputs['reset'])
+
 if __name__ == '__main__':
-    gates.export(main, 'project.json')
+    gates.export(main_sr, 'project.json')
