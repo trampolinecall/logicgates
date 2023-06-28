@@ -97,7 +97,7 @@ def multiplexer(context, circuit):
             layout.ltr_flow(layout.ltr_gate(select_not), layout.ltr_gate(b_and)),
         ),
         layout.ltr_gate(final_or),
-    )
+    ).apply()
 
 @gates.make_circuit('sr', ty.DictProduct(set=ty.Bit(), reset=ty.Bit()), ty.Bit())
 def sr_latch(context, circuit):
@@ -193,7 +193,7 @@ def register1(context, circuit):
 
     context.connect(d.outputs, circuit.outputs)
 
-    layout.ltr_flow(layout.ltr_gate(multi), layout.ltr_gate(d))
+    layout.ltr_flow(layout.ltr_gate(unerror), layout.ltr_gate(multi), layout.ltr_gate(d)).apply()
 
 def register(width):
     @gates.make_circuit(f'{width} bit register', ty.DictProduct(data=ty.ListProduct(*[ty.Bit() for _ in range(width)]), store=ty.Bit(), clock=ty.Bit()), ty.ListProduct(*[ty.Bit() for _ in range(width)]))
@@ -207,7 +207,7 @@ def register(width):
 
             context.connect(bit.outputs, circuit.outputs[i])
 
-        layout.ttb_flow(*map(layout.ltr_gate, bits))
+        layout.ttb_flow(*map(layout.ltr_gate, bits)).apply()
 
     return make
 
