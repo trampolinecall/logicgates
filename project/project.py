@@ -27,6 +27,7 @@ def main(context, circuit):
     context.connect(a_register.inputs['data'], bus.outputs)
     context.connect(a_register_tristate.outputs, bus.outputs)
     context.connect(a_register_output_enable.outputs, a_register_tristate.inputs['enable'])
+    context.connect(a_register.inputs['clock'], clock.outputs)
 
     b_register = memory.register(BIT_WIDTH)(context, circuit)
     b_register_tristate = tristate.tristate_buffer(BIT_WIDTH)(context, circuit)
@@ -35,6 +36,7 @@ def main(context, circuit):
     context.connect(b_register.inputs['data'], bus.outputs)
     context.connect(b_register_tristate.outputs, bus.outputs)
     context.connect(b_register_output_enable.outputs, b_register_tristate.inputs['enable'])
+    context.connect(b_register.inputs['clock'], clock.outputs)
 
     adder = arithmetic.adder_many(BIT_WIDTH)(context, circuit)
     adder_tristate = tristate.tristate_buffer(BIT_WIDTH)(context, circuit)
