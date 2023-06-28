@@ -95,7 +95,7 @@ def sr_latch(context, circuit):
         layout.ltr_gate(and_gate),
     ).apply()
 
-@gates.make_circuit('d', ty.DictProduct(data=ty.Bit(), store=ty.Bit()), ty.Bit())
+@gates.make_circuit('d latch', ty.DictProduct(data=ty.Bit(), store=ty.Bit()), ty.Bit())
 def d_latch(context, circuit):
     sr = sr_latch(context, circuit)
 
@@ -122,6 +122,28 @@ def d_latch(context, circuit):
             layout.ltr_flow(layout.ltr_gate(data_inverse), layout.ltr_gate(reset_and)),
         ),
         layout.ltr_gate(sr),
+    ).apply()
+
+@gates.make_circuit('d flip flop', ty.DictProduct(data=ty.Bit(), clock=ty.Bit()), ty.Bit())
+def d_flip_flop(context, circuit):
+
+    clock_not = not_(context, circuit)
+    context.connect(circuit.inputs['clock'], clock_not.inputs)
+
+    d_before = d_latch(context, circuit)
+    context.connect(clock_not.outputs, d_before.inputs['store'])
+    context.connect(circuit.inputs['data'], d_before.inputs['data'])
+
+    d_main = d_latch(context, circuit)
+    context.connect(circuit.inputs['clock'], d_main.inputs['store'])
+    context.connect(d_before.outputs, d_main.inputs['data'])
+
+    context.connect(d_main.outputs, circuit.outputs)
+
+    layout.ltr_flow(
+        layout.ltr_gate(clock_not),
+        layout.ltr_gate(d_before),
+        layout.ltr_gate(d_main),
     ).apply()
 
 @gates.make_circuit('adder1', ty.DictProduct(a=ty.Bit(), b=ty.Bit(), carry=ty.Bit()), ty.DictProduct(carry=ty.Bit(), result=ty.Bit()))
@@ -227,12 +249,12 @@ def main(context, circuit):
 @gates.make_circuit('main', ty.ListProduct(), ty.ListProduct())
 def main_d(context, circuit):
     d_button = gates.button(context, circuit)
-    s_button = gates.button(context, circuit)
+    c_button = gates.button(context, circuit)
 
-    d = d_latch(context, circuit)
+    d = d_flip_flop(context, circuit)
 
     context.connect(d_button.outputs, d.inputs['data'])
-    context.connect(s_button.outputs, d.inputs['store'])
+    context.connect(c_button.outputs, d.inputs['clock'])
 
 if __name__ == '__main__':
     gates.export(main_d, 'project.json')
