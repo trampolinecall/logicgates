@@ -47,7 +47,7 @@ pub(crate) enum Gate {
     Const { logic: logic::ConstLogic, location: location::GateLocation, direction: GateDirection },
     Unerror { logic: logic::UnerrorLogic, location: location::GateLocation, direction: GateDirection },
     Button { logic: logic::ButtonLogic, location: location::GateLocation, direction: GateDirection },
-    TriStateBuffer { logic: logic::TriStateBufferLogic, location: location::GateLocation, direction: GateDirection },
+    TristateBuffer { logic: logic::TristateBufferLogic, location: location::GateLocation, direction: GateDirection },
     Custom(CircuitKey),
 }
 
@@ -81,7 +81,7 @@ impl Gate {
             Gate::Const { logic, location: _, direction: _ } => logic.name(),
             Gate::Unerror { logic, location: _, direction: _ } => logic.name(),
             Gate::Button { logic, location: _, direction: _ } => logic.name(),
-            Gate::TriStateBuffer { logic, location: _, direction: _ } => logic.name(),
+            Gate::TristateBuffer { logic, location: _, direction: _ } => logic.name(),
             Gate::Custom(sck) => &circuits[*sck].name,
         }
     }
@@ -92,7 +92,7 @@ impl Gate {
             Gate::Const { logic, location: _, direction: _ } => logic.nodes.inputs(),
             Gate::Unerror { logic, location: _, direction: _ } => logic.nodes.inputs(),
             Gate::Button { logic, location: _, direction: _ } => logic.nodes.inputs(),
-            Gate::TriStateBuffer { logic, location: _, direction: _ } => logic.nodes.inputs(),
+            Gate::TristateBuffer { logic, location: _, direction: _ } => logic.nodes.inputs(),
             Gate::Custom(circuit_idx) => circuits[*circuit_idx].nodes.inputs(),
         }
     }
@@ -102,7 +102,7 @@ impl Gate {
             Gate::Const { logic, location: _, direction: _ } => logic.nodes.outputs(),
             Gate::Unerror { logic, location: _, direction: _ } => logic.nodes.outputs(),
             Gate::Button { logic, location: _, direction: _ } => logic.nodes.outputs(),
-            Gate::TriStateBuffer { logic, location: _, direction: _ } => logic.nodes.outputs(),
+            Gate::TristateBuffer { logic, location: _, direction: _ } => logic.nodes.outputs(),
             Gate::Custom(circuit_idx) => circuits[*circuit_idx].nodes.outputs(),
         }
     }
@@ -120,7 +120,7 @@ impl Gate {
             | Gate::Const { logic: _, location, direction: _ }
             | Gate::Unerror { logic: _, location, direction: _ }
             | Gate::Button { logic: _, location, direction: _ }
-            | Gate::TriStateBuffer { logic: _, location, direction: _ } => location,
+            | Gate::TristateBuffer { logic: _, location, direction: _ } => location,
             Gate::Custom(sck) => &circuits[*sck].location,
         }
     }
@@ -130,7 +130,7 @@ impl Gate {
             | Gate::Const { logic: _, location, direction: _ }
             | Gate::Unerror { logic: _, location, direction: _ }
             | Gate::Button { logic: _, location, direction: _ }
-            | Gate::TriStateBuffer { logic: _, location, direction: _ } => location,
+            | Gate::TristateBuffer { logic: _, location, direction: _ } => location,
             Gate::Custom(sck) => &mut circuits[*sck].location,
         }
     }
@@ -141,7 +141,7 @@ impl Gate {
             | Gate::Const { logic: _, location: _, direction }
             | Gate::Unerror { logic: _, location: _, direction }
             | Gate::Button { logic: _, location: _, direction }
-            | Gate::TriStateBuffer { logic: _, location: _, direction } => *direction,
+            | Gate::TristateBuffer { logic: _, location: _, direction } => *direction,
             Gate::Custom(sck) => circuits[*sck].direction,
         }
     }

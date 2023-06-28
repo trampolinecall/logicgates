@@ -174,7 +174,7 @@ pub(crate) fn simulation<Data>(
                         Gate::Nand { logic: _, location: _, direction: _ }
                         | Gate::Const { logic: _, location: _, direction: _ }
                         | Gate::Unerror { logic: _, location: _, direction: _ }
-                        | Gate::TriStateBuffer { logic: _, location: _, direction: _ }
+                        | Gate::TristateBuffer { logic: _, location: _, direction: _ }
                         | Gate::Custom(_) => GateViewKind::Normal,
                         Gate::Button { logic, location: _, direction: _ } => GateViewKind::Button(node_color(&simulation.nodes, logic.nodes.outputs()[0], true)),
                     },
