@@ -160,25 +160,24 @@ pub(crate) fn btree<Child: Clone, BTreeLens: Lens<Data, BTree<Child>> + Copy, Ch
 ) -> impl ViewWithoutLayout<Data> {
     btree_lens.with(data, move |btree| match btree {
         BTree::Single(_) => {
-            let single_lens = lens::Closures::new(
-                |btree: &BTree<Child>| -> &Single<_> {
-                    match btree {
-                        BTree::Single(s) => s,
-                        BTree::HSplit(_) => panic!("btree single lens used with hsplit btree"),
-                        BTree::VSplit(_) => panic!("btree single lens used with vsplit btree"),
-                    }
-                },
-                |btree| match btree {
-                    BTree::Single(s) => s,
-                    BTree::HSplit(_) => panic!("btree single lens used with hsplit btree"),
-                    BTree::VSplit(_) => panic!("btree single lens used with vsplit btree"),
-                },
-            );
-
             let splith_button = crate::ui::widgets::button::button(
                 id_maker,
                 data,
-                lens::Compose::new(lens::Compose::new(btree_lens, single_lens), lens::Closures::new(|single: &Single<_>| &single.splith_button, |single| &mut single.splith_button)),
+                lens::Compose::new(
+                    btree_lens,
+                    lens::Closures::new(
+                        |btree: &_| match btree {
+                            BTree::Single(s) => &s.splith_button,
+                            BTree::HSplit(_) => panic!("btree single lens used with hsplit btree"),
+                            BTree::VSplit(_) => panic!("btree single lens used with vsplit btree"),
+                        },
+                        |btree| match btree {
+                            BTree::Single(s) => &mut s.splith_button,
+                            BTree::HSplit(_) => panic!("btree single lens used with hsplit btree"),
+                            BTree::VSplit(_) => panic!("btree single lens used with vsplit btree"),
+                        },
+                    ),
+                ),
                 move |_, data| {
                     btree_lens.with_mut(data, |btree| match btree {
                         BTree::Single(Single { child, splith_button: _ }) => {
