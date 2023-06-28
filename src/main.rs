@@ -14,11 +14,12 @@ pub(crate) mod view;
 
 struct App {
     start_time: std::time::Instant,
+    last_update: std::time::Instant,
 }
 
 impl App {
     fn new() -> Self {
-        Self { start_time: std::time::Instant::now() }
+        Self { start_time: std::time::Instant::now(), last_update: std::time::Instant::now() }
     }
 
     fn time_since_start(&self) -> std::time::Duration {
@@ -33,7 +34,7 @@ impl App {
 // TODO: find a better place to put this and reorganize everything
 struct LogicGates {
     simulation: simulation::Simulation,
-    subticks_per_update: isize,
+    ticks_per_second: isize,
     ui: ui::UI,
     font: Rc<sfml::SfBox<graphics::Font>>, // not ideal but
 }
@@ -48,7 +49,7 @@ impl LogicGates {
             font_kit::handle::Handle::Path { path, font_index: _ } => graphics::Font::from_file(&path.to_string_lossy()).expect("could not load font"), // TODO: figure out how to handle font_index
             font_kit::handle::Handle::Memory { bytes: _, font_index: _ } => unimplemented!("loading font from memory"),
         };
-        LogicGates { simulation: import::import(&std::env::args().nth(1).expect("expected input file")).unwrap(), subticks_per_update: 1, ui: ui::UI::new(), font: Rc::new(font) }
+        LogicGates { simulation: import::import(&std::env::args().nth(1).expect("expected input file")).unwrap(), ticks_per_second: 20, ui: ui::UI::new(), font: Rc::new(font) }
     }
 }
 
@@ -58,7 +59,7 @@ fn main() {
         window::{Event, Style},
     };
 
-    let app = App::new();
+    let mut app = App::new();
     let mut logic_gates = LogicGates::new();
     let mut window = RenderWindow::new((800, 600), "logic gates", Style::DEFAULT, &App::default_render_context_settings());
     window.set_vertical_sync_enabled(true);
@@ -79,8 +80,13 @@ fn main() {
         }
 
         // update
-        // TODO: adjust number of ticks for time since last update
-        simulation::logic::update(&mut logic_gates.simulation.gates, &mut logic_gates.simulation.nodes, logic_gates.subticks_per_update as usize);
+        let mut time_since_last_update = std::time::Instant::now() - app.last_update;
+        let time_between_updates = std::time::Duration::from_secs(1) / logic_gates.ticks_per_second as u32;
+        while time_since_last_update > time_between_updates {
+            simulation::logic::update(&mut logic_gates.simulation.gates, &mut logic_gates.simulation.nodes);
+            time_since_last_update -= time_between_updates;
+            app.last_update = std::time::Instant::now();
+        }
 
         // draw
         window.set_active(true);
@@ -114,9 +120,9 @@ fn view(app: &App, logic_gates: &LogicGates) -> impl view::ViewWithoutLayout<Log
     let subticks_slider = ui::widgets::slider::slider(
         &mut id_maker,
         Some(1),
-        Some(20),
-        view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.ui.subticks_slider_state, |logic_gates| &mut logic_gates.ui.subticks_slider_state),
-        view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.subticks_per_update, |logic_gates| &mut logic_gates.subticks_per_update),
+        Some(1000),
+        view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.ui.tps_slider_state, |logic_gates| &mut logic_gates.ui.tps_slider_state),
+        view::lens::from_closures(|logic_gates: &LogicGates| &logic_gates.ticks_per_second, |logic_gates| &mut logic_gates.ticks_per_second),
         |mouse_diff| (mouse_diff / 10.0) as isize,
         &logic_gates.font,
         logic_gates,
