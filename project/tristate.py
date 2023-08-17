@@ -1,4 +1,4 @@
-from generate import gates, ty, bundle, layout
+from generate import gates, ty, layout
 import basic
 
 def tristate_buffer(width):

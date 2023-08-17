@@ -77,5 +77,29 @@ def main_d(context, circuit):
     context.connect(c_button.outputs, reg.inputs['clock'])
     context.connect(s_button.outputs, reg.inputs['store'])
 
+@gates.make_circuit('main', ty.ListProduct(), ty.ListProduct())
+def main_adder(context, circuit):
+    WIDTH = 4
+    input_buttons_a = [basic.button(context, circuit) for _ in range(WIDTH)]
+    input_buttons_b = [basic.button(context, circuit) for _ in range(WIDTH)]
+    adder = arithmetic.adder_many(WIDTH)(context, circuit)
+
+    for input_button_a, adder_in in zip(input_buttons_a, adder.inputs['a'].fields):
+        context.connect(input_button_a.outputs, adder_in)
+
+    for input_button_b, adder_in in zip(input_buttons_b, adder.inputs['b'].fields):
+        context.connect(input_button_b.outputs, adder_in)
+
+    f = basic.false(context, circuit)
+    context.connect(adder.inputs['carry'], f.outputs)
+
+    layout.ltr_flow(
+        layout.ttb_flow(
+            *map(layout.ltr_gate, input_buttons_a),
+            *map(layout.ltr_gate, input_buttons_b),
+        ),
+        layout.ltr_gate(adder),
+    ).apply()
+
 if __name__ == '__main__':
-    gates.export(main, 'project.json')
+    gates.export(main_adder, 'project.json')
