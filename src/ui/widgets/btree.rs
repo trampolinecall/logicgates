@@ -51,8 +51,9 @@ impl<Data, ChildView: ViewWithoutLayout<Data>, SplitHButtonView: ViewWithoutLayo
                 BTreeLayout::Single { splith_button: splith_button_layout, child_view: child_layout, splith_button_offset }
             }
             BTreeView::HSplit { left, right } => {
-                let left_layout = left.layout(todo!());
-                let right_layout = right.layout(todo!());
+                let half_width_sc = SizeConstraints { min: Vector2f::new(0.0, 0.0), max: Vector2f::new(sc.max.x / 2.0, sc.max.y) };
+                let left_layout = left.layout(half_width_sc);
+                let right_layout = right.layout(half_width_sc);
                 BTreeLayout::HSplit { left: Box::new(left_layout), right: Box::new(right_layout) }
             }
             BTreeView::VSplit {} => BTreeLayout::VSplit {},
