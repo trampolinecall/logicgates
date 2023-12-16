@@ -11,24 +11,22 @@ pub(crate) mod layout {
         sc.with_no_min()
     }
     pub(crate) fn find_own_size<'i, Data: 'i>(direction: Direction, sc: SizeConstraints, children: impl IntoIterator<Item = &'i (dyn View<Data> + 'i)>) -> graphics::Vector2f {
-        {
-            sc.clamp_size(graphics::Vector2f::from(children.into_iter().fold((0.0, 0.0), |(x_acc, y_acc), child| {
-                match direction {
-                    Direction::Horizontal => {
-                        // sum x, take max of y
-                        let x_sum = x_acc + child.size().x;
-                        let max_y = if child.size().y > y_acc { child.size().y } else { y_acc };
-                        (x_sum, max_y)
-                    }
-                    Direction::Vertical => {
-                        // take max of x, sum y
-                        let max_x = if child.size().x > x_acc { child.size().x } else { x_acc };
-                        let y_sum = y_acc + child.size().y;
-                        (max_x, y_sum)
-                    }
+        sc.clamp_size(graphics::Vector2f::from(children.into_iter().fold((0.0, 0.0), |(x_acc, y_acc), child| {
+            match direction {
+                Direction::Horizontal => {
+                    // sum x, take max of y
+                    let x_sum = x_acc + child.size().x;
+                    let max_y = if child.size().y > y_acc { child.size().y } else { y_acc };
+                    (x_sum, max_y)
                 }
-            })))
-        }
+                Direction::Vertical => {
+                    // take max of x, sum y
+                    let max_x = if child.size().x > x_acc { child.size().x } else { x_acc };
+                    let y_sum = y_acc + child.size().y;
+                    (max_x, y_sum)
+                }
+            }
+        })))
     }
     pub(crate) fn layout_step<Data>(direction: Direction, cur_pos: &mut f32, child: &dyn View<Data>) -> graphics::Vector2f {
         match direction {

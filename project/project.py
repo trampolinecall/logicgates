@@ -102,4 +102,4 @@ def main_adder(context, circuit):
     ).apply()
 
 if __name__ == '__main__':
-    gates.export(main_adder, 'project.json')
+    gates.export(main, 'project.json')
