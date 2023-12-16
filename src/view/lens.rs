@@ -28,7 +28,7 @@ impl<A, B, I: Fn(&A) -> &B, M: Fn(&mut A) -> &mut B> Lens<A, B> for Closures<A, 
 }
 impl<A, B, I: Fn(&A) -> &B + Copy, M: Fn(&mut A) -> &mut B + Copy> Clone for Closures<A, B, I, M> {
     fn clone(&self) -> Self {
-        Self { ..*self }
+        *self
     }
 }
 impl<A, B, I: Fn(&A) -> &B + Copy, M: Fn(&mut A) -> &mut B + Copy> Copy for Closures<A, B, I, M> {}
@@ -80,7 +80,7 @@ impl<T> Lens<T, ()> for Unit<T> {
 }
 impl<T> Clone for Unit<T> {
     fn clone(&self) -> Self {
-        Self { ..*self }
+        *self
     }
 }
 impl<T> Copy for Unit<T> {}
