@@ -116,25 +116,70 @@ impl<Data, ChildView: ViewWithoutLayout<Data>, SplitHButtonView: ViewWithoutLayo
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+enum BTreeChildLensPathPart {
+    Left,
+    Right,
+    Top,
+    Bottom,
+}
+#[derive(Clone)]
 pub(crate) struct BTreeChildLens<Data, Child, BTreeLens: Lens<Data, BTree<Child>>> {
     btree_lens: BTreeLens,
-    get_child: fn(&BTree<Child>) -> &Child,
-    get_child_mut: fn(&mut BTree<Child>) -> &mut Child,
+    path: Vec<BTreeChildLensPathPart>, // this path should always lead to a Single BTree
     _phantom: PhantomData<fn(&Data) -> &Child>,
 }
-impl<Data, Child, BTreeLens: Lens<Data, BTree<Child>> + Clone> Clone for BTreeChildLens<Data, Child, BTreeLens> {
-    fn clone(&self) -> BTreeChildLens<Data, Child, BTreeLens> {
-        BTreeChildLens { btree_lens: self.btree_lens.clone(), get_child: self.get_child, get_child_mut: self.get_child_mut, _phantom: PhantomData }
-    }
-}
-impl<Data, Child, BTreeLens: Lens<Data, BTree<Child>> + Copy> Copy for BTreeChildLens<Data, Child, BTreeLens> {}
 impl<Data, Child, BTreeLens: Lens<Data, BTree<Child>>> Lens<Data, Child> for BTreeChildLens<Data, Child, BTreeLens> {
     fn with<'a, R: 'a, F: FnOnce(&Child) -> R>(&self, a: &Data, f: F) -> R {
-        self.btree_lens.with(a, |btree| f((self.get_child)(btree)))
+        self.btree_lens.with(a, |mut btree| {
+            let stringify_btree_shape = |btree: &_| match btree {
+                BTree::Single { child, splith_button } => "single",
+                BTree::HSplit { left, right } => "hsplit",
+                BTree::VSplit { top, bottom } => "vsplit",
+            };
+            for path_part in self.path {
+                match (btree, path_part) {
+                    (btree @ BTree::Single { child, splith_button }, direction) => panic!("trying to go {direction:?} on a {}", stringify_btree_shape(btree)),
+                    (BTree::Single { child, splith_button }, BTreeChildLensPathPart::Right) => todo!(),
+                    (BTree::Single { child, splith_button }, BTreeChildLensPathPart::Top) => todo!(),
+                    (BTree::Single { child, splith_button }, BTreeChildLensPathPart::Bottom) => todo!(),
+                    (BTree::HSplit { left, right }, BTreeChildLensPathPart::Left) => btree = left,
+                    (BTree::HSplit { left, right }, BTreeChildLensPathPart::Right) => btree = right,
+                    (BTree::HSplit { left, right }, direction) => todo!(),
+                    (BTree::VSplit { top, bottom }, BTreeChildLensPathPart::Top) => btree = top,
+                    (BTree::VSplit { top, bottom }, BTreeChildLensPathPart::Bottom) => btree = bottom,
+                    (BTree::VSplit { top, bottom }, direction) => todo!(),
+                }
+            }
+            let child = if let BTree::Single { child, splith_button } = btree { child } else { panic!("btree path did not lead to a single") };
+            f(child)
+        })
     }
 
     fn with_mut<'a, R: 'a, F: FnOnce(&mut Child) -> R>(&self, a: &mut Data, f: F) -> R {
-        self.btree_lens.with_mut(a, |btree| f((self.get_child_mut)(btree)))
+        self.btree_lens.with_mut(a, |mut btree| {
+            let stringify_btree_shape = |btree: &_| match btree {
+                BTree::Single { child, splith_button } => "single",
+                BTree::HSplit { left, right } => "hsplit",
+                BTree::VSplit { top, bottom } => "vsplit",
+            };
+            for path_part in self.path {
+                match (btree, path_part) {
+                    (btree @ BTree::Single { child, splith_button }, direction) => panic!("trying to go {direction:?} on a {}", stringify_btree_shape(btree)),
+                    (BTree::Single { child, splith_button }, BTreeChildLensPathPart::Right) => todo!(),
+                    (BTree::Single { child, splith_button }, BTreeChildLensPathPart::Top) => todo!(),
+                    (BTree::Single { child, splith_button }, BTreeChildLensPathPart::Bottom) => todo!(),
+                    (BTree::HSplit { left, right }, BTreeChildLensPathPart::Left) => btree = left,
+                    (BTree::HSplit { left, right }, BTreeChildLensPathPart::Right) => btree = right,
+                    (BTree::HSplit { left, right }, direction) => todo!(),
+                    (BTree::VSplit { top, bottom }, BTreeChildLensPathPart::Top) => btree = top,
+                    (BTree::VSplit { top, bottom }, BTreeChildLensPathPart::Bottom) => btree = bottom,
+                    (BTree::VSplit { top, bottom }, direction) => todo!(),
+                }
+            }
+            let child = if let BTree::Single { child, splith_button } = btree { child } else { panic!("btree path did not lead to a single") };
+            f(child)
+        })
     }
 }
 
@@ -143,6 +188,16 @@ pub(crate) fn btree<Child: Clone, BTreeLens: Lens<Data, BTree<Child>> + Copy, Ch
     id_maker: &mut ViewIdMaker,
     data: &Data,
     btree_lens: BTreeLens,
+    view_child: impl Fn(&mut ViewIdMaker, BTreeChildLens<Data, Child, BTreeLens>, &Data) -> ChildView + Copy,
+) -> impl ViewWithoutLayout<Data> {
+    btree_(app, id_maker, data, btree_lens, Vec::new(), view_child)
+}
+fn btree_<Child: Clone, BTreeLens: Lens<Data, BTree<Child>> + Copy, ChildView: ViewWithoutLayout<Data>, Data>(
+    app: &App,
+    id_maker: &mut ViewIdMaker,
+    data: &Data,
+    btree_lens: BTreeLens,
+    path: Vec<BTreeChildLensPathPart>,
     view_child: impl Fn(&mut ViewIdMaker, BTreeChildLens<Data, Child, BTreeLens>, &Data) -> ChildView + Copy,
 ) -> impl ViewWithoutLayout<Data> {
     btree_lens.with(data, move |btree| match btree {
@@ -191,18 +246,15 @@ pub(crate) fn btree<Child: Clone, BTreeLens: Lens<Data, BTree<Child>> + Copy, Ch
                     BTree::VSplit { top: _, bottom: _ } => panic!("get_child_mut called on vsplit btree"),
                 }
             }
-            BTreeView::Single { splith_button, child_view: view_child(id_maker, BTreeChildLens { btree_lens, _phantom: PhantomData, get_child, get_child_mut }, data), _phantom: PhantomData }
+            BTreeView::Single { splith_button, child_view: view_child(id_maker, BTreeChildLens { btree_lens, path, _phantom: PhantomData }, data), _phantom: PhantomData }
         }
         BTree::HSplit { left, right } => {
-            /* TODO
             let left_lens = lens::Closures::new(todo!(), todo!());
             let right_lens = lens::Closures::new(todo!(), todo!());
             BTreeView::HSplit {
                 left: Box::new(self::btree(app, id_maker, data, lens::Compose::new(btree_lens, left_lens), view_child)),
                 right: Box::new(self::btree(app, id_maker, data, lens::Compose::new(btree_lens, right_lens), view_child)),
             }
-            */
-            todo!()
         }
         BTree::VSplit { top, bottom } => BTreeView::VSplit {},
     })
